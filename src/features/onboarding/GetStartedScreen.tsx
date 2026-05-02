@@ -422,8 +422,6 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
   );
 
   const snapBackToChooseProfile = useCallback(() => {
-    // Programmatic animated scroll often skips onMomentumScrollEnd on some platforms —
-    // then currentIndex stays 1–3 while the view is already on page 0 (glitch overlay / wrong bar).
     scrollX.setValue(0);
     scrollPagerToPage(0, false);
     setCurrentIndex(0);
@@ -850,30 +848,18 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
 
     return (
       <View style={{ flex: 1 }}>
-        <View style={[styles.bannerHeader, { backgroundColor: '#EFF6FF', height: 140 }]}>
-          <View style={styles.userHeroSection}>
-            <Animated.View style={{ transform: [{ scale: circlePulse }] }}>
-              <View style={styles.userHeroCircle}>
-                <AppIcon name="star" size={40} color="#2563EB" />
-              </View>
-            </Animated.View>
-            <Animated.View
-              style={[
-                styles.floatingBadge1,
-                { transform: [{ translateY: badge1Float }] },
-              ]}
-            >
-              <Text style={styles.floatingEmoji}>🏠</Text>
-            </Animated.View>
-            <Animated.View
-              style={[
-                styles.floatingBadge2,
-                { transform: [{ translateY: badge2Float }] },
-              ]}
-            >
-              <Text style={styles.floatingEmoji}>📱</Text>
-            </Animated.View>
-          </View>
+        <View style={[styles.bannerHeader, { height: Math.round(screenWidth * (768 / 1376)), overflow: 'hidden', backgroundColor: '#EFF6FF' }]}>
+          <Image
+            source={require('../../../assets/usebanner 2.png')}
+            style={{ 
+              width: screenWidth, 
+              height: Math.round(screenWidth * (768 / 1376)) + 20,
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+            }}
+            resizeMode="cover"
+          />
         </View>
 
         <View style={[styles.cardBody, isCompactScreen && styles.cardBodyCompact]}>
@@ -912,10 +898,10 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
 
             <View style={[styles.benefitCardCompact, { backgroundColor: '#EFF6FF' }]}>
               <View style={[styles.benefitIconBoxCompact, { backgroundColor: '#3B82F6' }]}>
-                <AppIcon name="refer" size={20} color="#FFFFFF" />
+                <AppIcon name="gift" size={20} color="#FFFFFF" />
               </View>
               <Text style={[styles.benefitTitleCompact, { color: theme.textPrimary }]}>
-                {tx('Connect with Electrician partner')}
+                {tx('Exclusive Deals & Offers')}
               </Text>
             </View>
 
@@ -930,8 +916,8 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
           </View>
 
           <View style={[styles.highlightBoxCompact, { backgroundColor: '#EFF6FF', borderColor: '#2563EB' }]}>
-            <Text style={[styles.highlightTextCompact, { color: '#2563EB' }]}>
-              ✦ {tx('Trusted by 50,000+ homes across North India')} ✦
+            <Text style={[styles.highlightTextCompact, { color: '#2563EB' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              ✦ {tx('Trusted by 50,000+ Customers across North India')} ✦
             </Text>
           </View>
 
@@ -1292,14 +1278,13 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
         horizontal
         pagingEnabled
         scrollEnabled={false}
-        snapToInterval={pageWidth}
+        snapToInterval={screenWidth}
         snapToAlignment="start"
         disableIntervalMomentum
         showsHorizontalScrollIndicator={false}
         bounces={false}
         directionalLockEnabled
         overScrollMode="never"
-        removeClippedSubviews={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
           withWebSafeNativeDriver({})
@@ -1308,14 +1293,14 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
         scrollEventThrottle={16}
         decelerationRate="normal"
         style={styles.slider}
-        contentContainerStyle={{ width: pageWidth * totalSlides }}
+        contentContainerStyle={{ width: screenWidth * totalSlides }}
       >
         {[0, 1, 2, 3].map((i) => (
           <Animated.View
             key={i}
             style={[
               styles.slide,
-              { width: pageWidth, backgroundColor: theme.surface },
+              { width: screenWidth, backgroundColor: theme.surface },
               { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
             ]}
           >
@@ -1323,7 +1308,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
               scrollEnabled={false}
               style={{ flex: 1 }}
               contentContainerStyle={{
-                paddingTop: insets.top,
+                paddingTop: i === 1 ? 0 : insets.top,
                 paddingBottom: i === 0 ? profileSlideBottomPad : roleSlideBottomPad,
                 flexGrow: 1,
               }}
@@ -1372,7 +1357,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
             >
               <View style={[styles.nextBtnGradient, { backgroundColor: currentIndex >= 1 ? currentGradient.start : slideGradients[1].start }]}>
                 {slideGradients.slice(1).map((gradient, idx) => {
-                  const i = idx + 1; // actual slide index (1, 2, 3)
+                  const i = idx + 1;
                   return (
                   <Animated.View
                     key={`next-gradient-${i}`}
@@ -1380,7 +1365,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
                       styles.nextBtnGradientLayer,
                       {
                         opacity: scrollX.interpolate({
-                          inputRange: [(i - 1) * pageWidth, i * pageWidth, (i + 1) * pageWidth],
+                          inputRange: [(i - 1) * screenWidth, i * screenWidth, (i + 1) * screenWidth],
                           outputRange: [0, 1, 0],
                           extrapolate: 'clamp',
                         }),
@@ -1960,11 +1945,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
+    width: '100%',
   },
   highlightTextCompact: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.2,
+    width: '100%',
+    textAlign: 'center',
   },
   userBannerHeader: {
     alignItems: 'center',
@@ -2445,7 +2433,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backBtnContent: {
-    height: 48,
+    height: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2454,7 +2442,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   backBtnText: {
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '800',
   },
   nextBtn: {
@@ -2464,7 +2452,7 @@ const styles = StyleSheet.create({
     ...createShadow({ color: '#000', offsetY: 3, blur: 6, opacity: 0.12, elevation: 3 }),
   },
   nextBtnGradient: {
-    height: 48,
+    height: 54,
     position: 'relative',
     overflow: 'hidden',
     borderRadius: 14,
@@ -2485,5 +2473,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  nextBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  nextBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
 });

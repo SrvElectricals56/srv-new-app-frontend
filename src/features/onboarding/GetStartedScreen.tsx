@@ -8,6 +8,7 @@ import {
   Text,
   useWindowDimensions,
   View,
+  PanResponder,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,58 +26,83 @@ interface GetStartedScreenProps {
 
 // Animated product ticker — cycles through real SRV products inside the stat card
 const PRODUCTS = [
-  { label: 'Fan Box', color: '#E8453C', bg: '#FEE2E2' },
-  { label: 'Concealed Box', color: '#7C3AED', bg: '#EDE9FE' },
-  { label: 'Module Box', color: '#2563EB', bg: '#DBEAFE' },
-  { label: 'Junction Box', color: '#059669', bg: '#D1FAE5' },
-  { label: 'Change Over', color: '#D97706', bg: '#FEF3C7' },
-  { label: 'Bus Bar', color: '#0891B2', bg: '#CFFAFE' },
-  { label: 'Axial Fans', color: '#7C3AED', bg: '#EDE9FE' },
-  { label: 'Kitchen Fan', color: '#E8453C', bg: '#FEE2E2' },
-  { label: 'LED Flood Light', color: '#059669', bg: '#D1FAE5' },
-  { label: '5 Pin Multi Plug', color: '#2563EB', bg: '#DBEAFE' },
-  { label: '2 Pin Tops', color: '#D97706', bg: '#FEF3C7' },
-  { label: 'MCB Box', color: '#0891B2', bg: '#CFFAFE' },
-  { label: 'Switch Board', color: '#E8453C', bg: '#FEE2E2' },
-  { label: 'Ceiling Rose', color: '#7C3AED', bg: '#EDE9FE' },
-  { label: 'Batten Holder', color: '#059669', bg: '#D1FAE5' },
-  { label: 'Extension Board', color: '#2563EB', bg: '#DBEAFE' },
-  { label: 'Surface Box', color: '#D97706', bg: '#FEF3C7' },
-  { label: 'Conduit Box', color: '#0891B2', bg: '#CFFAFE' },
-  { label: 'Weatherproof Box', color: '#E8453C', bg: '#FEE2E2' },
-  { label: 'Round Box', color: '#7C3AED', bg: '#EDE9FE' },
-  { label: 'Modular Plate', color: '#059669', bg: '#D1FAE5' },
-  { label: 'Cable Clip', color: '#2563EB', bg: '#DBEAFE' },
-  { label: 'PVC Casing', color: '#D97706', bg: '#FEF3C7' },
-  { label: 'Exhaust Fan', color: '#0891B2', bg: '#CFFAFE' },
-  { label: 'Industrial Plug', color: '#E8453C', bg: '#FEE2E2' },
+  { label: 'Stabilizer', color: '#E8453C', bg: '#FEE2E2', image: require('../../../assets/Product/Voltage Stabilizer.png'), zoom: 1 },
+  { label: 'Fan Box', color: '#7C3AED', bg: '#EDE9FE', image: require('../../../assets/Product/Fan box.png'), zoom: 1 },
+  { label: 'Concealed Box', color: '#2563EB', bg: '#DBEAFE', image: require('../../../assets/Product/Concelead Box.png'), zoom: 1 },
+  { label: 'Modular Box', color: '#059669', bg: '#D1FAE5', image: require('../../../assets/Product/Modular_Box.png'), zoom: 1 },
+  { label: 'Junction Box', color: '#D97706', bg: '#FEF3C7', image: require('../../../assets/Product/Junction_Box.png'), zoom: 1 },
+  { label: 'PVC Conduit Pipe', color: '#0891B2', bg: '#CFFAFE', image: require('../../../assets/Product/PVC Conduit Pipe.png'), zoom: 1 },
+  { label: 'MCB Box', color: '#E8453C', bg: '#FEE2E2', image: require('../../../assets/Product/MCB Distribuation Box.png'), zoom: 1 },
+  { label: 'Change Over Switch', color: '#7C3AED', bg: '#EDE9FE', image: require('../../../assets/Product/AUTOMATIC CHANGE OVER.png'), zoom: 1 },
 ];
 
 function ProductTickerCard() {
   const [activeIdx, setActiveIdx] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const imageScale = useRef(new Animated.Value(1)).current;
+  const isAnimating = useRef(false);
+
+  const goToProduct = (index: number) => {
+    if (index === activeIdx || isAnimating.current) return;
+    
+    isAnimating.current = true;
+    const direction = index > activeIdx ? -30 : 30;
+    
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: supportsNativeAnimatedDriver }),
+      Animated.timing(slideAnim, { toValue: direction, duration: 300, useNativeDriver: supportsNativeAnimatedDriver }),
+      Animated.timing(imageScale, { toValue: 0.8, duration: 300, useNativeDriver: supportsNativeAnimatedDriver }),
+    ]).start(() => {
+      setActiveIdx(index);
+      slideAnim.setValue(-direction);
+      imageScale.setValue(1.2);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: supportsNativeAnimatedDriver }),
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: supportsNativeAnimatedDriver, tension: 50, friction: 8 }),
+        Animated.spring(imageScale, { toValue: 1, useNativeDriver: supportsNativeAnimatedDriver, tension: 40, friction: 7 }),
+      ]).start(() => {
+        isAnimating.current = false;
+      });
+    });
+  };
+
+  const goToNext = () => {
+    const next = (activeIdx + 1) % PRODUCTS.length;
+    goToProduct(next);
+  };
+
+  const goToPrev = () => {
+    const prev = (activeIdx - 1 + PRODUCTS.length) % PRODUCTS.length;
+    goToProduct(prev);
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 10;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > 50) {
+          // Swipe right - previous
+          goToPrev();
+        } else if (gestureState.dx < -50) {
+          // Swipe left - next
+          goToNext();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     let cancelled = false;
     const interval = setInterval(() => {
       if (cancelled) return;
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: supportsNativeAnimatedDriver }),
-        Animated.timing(slideAnim, { toValue: -30, duration: 300, useNativeDriver: supportsNativeAnimatedDriver }),
-      ]).start(() => {
-        if (cancelled) return;
-        const next = (activeIdx + 1) % PRODUCTS.length;
-        setActiveIdx(next);
-        slideAnim.setValue(30);
-        Animated.parallel([
-          Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: supportsNativeAnimatedDriver }),
-          Animated.spring(slideAnim, { toValue: 0, useNativeDriver: supportsNativeAnimatedDriver, tension: 50, friction: 8 }),
-        ]).start();
-      });
+      goToNext();
     }, 2500);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [activeIdx, fadeAnim, slideAnim]);
+  }, [activeIdx]);
 
   const product = PRODUCTS[activeIdx];
 
@@ -92,27 +118,61 @@ function ProductTickerCard() {
           </Text>
         </View>
 
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }}
+        <View 
+          style={tickerCardStyles.contentSection}
+          {...panResponder.panHandlers}
         >
-          <Text style={[tickerCardStyles.productText, { color: product.color }]} numberOfLines={2}>
-            {product.label}
-          </Text>
-        </Animated.View>
+          <Animated.View
+            style={[
+              tickerCardStyles.imageContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: imageScale }],
+              }
+            ]}
+          >
+            <Image 
+              source={product.image} 
+              style={[
+                tickerCardStyles.productImage,
+                { 
+                  transform: [{ scale: product.zoom || 1 }]
+                }
+              ]}
+              resizeMode="contain"
+            />
+          </Animated.View>
+
+          <Animated.View
+            style={{
+              flex: 1,
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <Text 
+              style={[tickerCardStyles.productText, { color: product.color }]} 
+              numberOfLines={3}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              {product.label}
+            </Text>
+          </Animated.View>
+        </View>
 
         <View style={tickerCardStyles.bottomBar}>
           <View style={tickerCardStyles.dotsContainer}>
-            {[0, 1, 2, 3, 4].map((i) => (
+            {PRODUCTS.map((_, i) => (
               <View
                 key={i}
                 style={[
                   tickerCardStyles.dot,
                   {
-                    backgroundColor: i === activeIdx % 5 ? product.color : product.color + '30',
-                    width: i === activeIdx % 5 ? 20 : 6,
+                    backgroundColor: i === activeIdx ? product.color : product.color + '30',
+                    width: i === activeIdx ? 20 : 6,
                   },
                 ]}
               />
@@ -127,11 +187,11 @@ function ProductTickerCard() {
 const tickerCardStyles = StyleSheet.create({
   wrapper: {
     width: '100%',
-    marginVertical: 4,
+    marginVertical: 2,
   },
   card: {
     borderRadius: 18,
-    padding: 20,
+    padding: 12,
     minHeight: 130,
     ...createShadow({ color: '#000', offsetY: 3, blur: 10, opacity: 0.12, elevation: 4 }),
   },
@@ -139,7 +199,7 @@ const tickerCardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 6,
   },
   iconBadge: {
     width: 32,
@@ -157,14 +217,33 @@ const tickerCardStyles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
+  contentSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 8,
+    marginBottom: 6,
+    paddingHorizontal: 2,
+  },
+  imageContainer: {
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  productImage: {
+    width: 80,
+    height: 80,
+  },
   productText: {
-    fontSize: 24,
+    fontSize: 19,
     fontWeight: '900',
     textAlign: 'center',
-    lineHeight: 28,
+    lineHeight: 23,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
-    marginBottom: 16,
+    flexWrap: 'wrap',
   },
   bottomBar: {
     marginTop: 'auto',
@@ -522,7 +601,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
                   {
                     key: 'dealer' as const,
                     label: tx('Dealer'),
-                    sub: tx('Power your business'),
+                    sub: tx('Grow your Business'),
                     image: require('../../../assets/new dealer.jpeg'),
                     color: '#7C3AED',
                     bg: '#F5F3FF',

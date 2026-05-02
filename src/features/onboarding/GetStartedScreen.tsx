@@ -850,7 +850,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
       <View style={{ flex: 1 }}>
         <View style={[styles.bannerHeader, { height: Math.round(screenWidth * (768 / 1376)), overflow: 'hidden', backgroundColor: '#EFF6FF' }]}>
           <Image
-            source={require('../../../assets/usebanner 2.png')}
+            source={require('../../../assets/user_banner_3.png')}
             style={{ 
               width: screenWidth, 
               height: Math.round(screenWidth * (768 / 1376)) + 20,

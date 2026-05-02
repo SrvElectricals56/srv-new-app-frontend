@@ -50,17 +50,17 @@ function ProductTickerCard() {
     const direction = index > activeIdx ? -30 : 30;
     
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: supportsNativeAnimatedDriver }),
-      Animated.timing(slideAnim, { toValue: direction, duration: 300, useNativeDriver: supportsNativeAnimatedDriver }),
-      Animated.timing(imageScale, { toValue: 0.8, duration: 300, useNativeDriver: supportsNativeAnimatedDriver }),
+      Animated.timing(fadeAnim, { toValue: 0, duration: 250, useNativeDriver: supportsNativeAnimatedDriver }),
+      Animated.timing(slideAnim, { toValue: direction, duration: 250, useNativeDriver: supportsNativeAnimatedDriver }),
+      Animated.timing(imageScale, { toValue: 0.85, duration: 250, useNativeDriver: supportsNativeAnimatedDriver }),
     ]).start(() => {
       setActiveIdx(index);
       slideAnim.setValue(-direction);
-      imageScale.setValue(1.2);
+      imageScale.setValue(1.15);
       Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: supportsNativeAnimatedDriver }),
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: supportsNativeAnimatedDriver, tension: 50, friction: 8 }),
-        Animated.spring(imageScale, { toValue: 1, useNativeDriver: supportsNativeAnimatedDriver, tension: 40, friction: 7 }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: supportsNativeAnimatedDriver }),
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: supportsNativeAnimatedDriver, tension: 60, friction: 9 }),
+        Animated.spring(imageScale, { toValue: 1, useNativeDriver: supportsNativeAnimatedDriver, tension: 50, friction: 8 }),
       ]).start(() => {
         isAnimating.current = false;
       });
@@ -85,10 +85,8 @@ function ProductTickerCard() {
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dx > 50) {
-          // Swipe right - previous
           goToPrev();
         } else if (gestureState.dx < -50) {
-          // Swipe left - next
           goToNext();
         }
       },

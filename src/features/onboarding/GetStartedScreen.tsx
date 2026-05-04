@@ -1188,9 +1188,9 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
   }) => {
     return (
       <View style={{ flex: 1 }}>
-        <View style={[styles.bannerHeader, { backgroundColor: '#FEF2F2', height: isCompactScreen ? 154 : 160 }]}>
+        <View style={[styles.bannerHeader, { backgroundColor: '#FEF2F2', height: isCompactScreen ? 154 : 160, overflow: 'hidden' }]}>
           <ExpoImage
-            source={require('../../../assets/electrician_banner1.jpg')}
+            source={require('../../../assets/electrician banner new.png')}
             style={styles.electricianBannerImageFill}
             contentFit="cover"
             contentPosition="top center"

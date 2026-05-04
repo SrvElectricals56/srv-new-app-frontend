@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { OnboardingScreen, type UserRole } from '@/features/electrician/screens/OnboardingScreen';
+import { UserAuthScreen } from '@/features/user/screens/AuthScreen';
 import { AppIcon, C } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
@@ -30,6 +31,16 @@ export function AuthLandingScreen({
         initialPhase="auth"
         onCancel={() => setMode(null)}
         onGetStarted={onAuthenticated}
+      />
+    );
+  }
+
+  // Customer gets a dedicated auth screen
+  if (role === 'user') {
+    return (
+      <UserAuthScreen
+        onAuthenticated={onAuthenticated}
+        onBack={onBack}
       />
     );
   }
@@ -132,24 +143,24 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   content: { padding: 16, gap: 16, paddingBottom: 120 },
   heroCard: {
-    borderRadius: 28,
-    padding: 22,
+    borderRadius: 24,
+    padding: 24,
     overflow: 'hidden',
-    ...createShadow({ color: '#0F172A', offsetY: 12, blur: 24, opacity: 0.08, elevation: 5 }),
+    ...createShadow({ color: '#0F172A', offsetY: 8, blur: 20, opacity: 0.1, elevation: 5 }),
   },
   heroGlow: {
     position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    top: -60,
-    right: -30,
-    opacity: 0.9,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    top: -70,
+    right: -40,
+    opacity: 0.7,
   },
   iconWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -158,29 +169,29 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     marginBottom: 8,
   },
   title: {
-    fontSize: 27,
+    fontSize: 24,
     fontWeight: '900',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 18,
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 16,
   },
   highlights: {
-    gap: 10,
+    gap: 8,
   },
   highlightCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: 1,
-    padding: 14,
+    padding: 12,
   },
   highlightText: {
     flex: 1,
@@ -189,26 +200,29 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   actionCard: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     padding: 20,
-    gap: 14,
+    gap: 12,
+    ...createShadow({ color: '#000', offsetY: 2, blur: 8, opacity: 0.06, elevation: 3 }),
   },
   actionTitle: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '900',
   },
   actionSub: {
     fontSize: 13,
     lineHeight: 19,
+    marginTop: -2,
   },
   buttonShell: {
-    borderRadius: 18,
+    borderRadius: 14,
     overflow: 'hidden',
+    ...createShadow({ color: '#000', offsetY: 3, blur: 8, opacity: 0.15, elevation: 4 }),
   },
   primaryButton: {
-    height: 54,
-    borderRadius: 18,
+    height: 52,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -220,8 +234,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   secondaryButton: {
-    height: 54,
-    borderRadius: 18,
+    height: 52,
+    borderRadius: 14,
     borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
@@ -233,14 +247,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   backButton: {
-    height: 48,
-    borderRadius: 18,
+    height: 46,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    marginTop: 2,
   },
   backButtonText: {
     fontSize: 14,

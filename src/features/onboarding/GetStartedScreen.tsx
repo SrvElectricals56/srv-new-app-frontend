@@ -1161,7 +1161,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
                 <AppIcon name="offer" size={20} color="#FFFFFF" />
               </View>
               <Text style={[styles.powerFeatureTitleCompact, { color: theme.textPrimary }]}>
-                {tx('Best Discounts on Products')}
+                {tx('Best Offer & Discount')}
               </Text>
             </View>
           </View>

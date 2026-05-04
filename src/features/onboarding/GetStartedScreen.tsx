@@ -625,7 +625,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
                     key: 'dealer' as const,
                     label: tx('Dealer'),
                     sub: tx('Grow your Business'),
-                    image: require('../../../assets/new dealer.jpeg'),
+                    image: require('../../../assets/Dealer.png'),
                     color: '#7C3AED',
                     bg: '#F5F3FF',
                     activeBg: '#EDE9FE',
@@ -715,7 +715,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
                               top: 5,
                             },
                             role.key === 'dealer' && {
-                              transform: [{ scale: 1.3 }],
+                              transform: [{ scale: 1.8 }],
                             }
                           ]}
                           resizeMode="cover"
@@ -1016,11 +1016,11 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
 
     return (
       <View style={{ flex: 1 }}>
-        <View style={[styles.bannerHeader, { backgroundColor: '#F5F3FF', height: 140 }]}>
+        <View style={[styles.bannerHeader, { backgroundColor: '#F5F3FF', height: Math.round(screenWidth * (838 / 1891)), overflow: 'hidden' }]}>
           <Image
-            source={require('../../../assets/dealer banner new.jpeg')}
-            style={[styles.headerBannerImage, { transform: [{ scale: 1.15 }] }]}
-            resizeMode="cover"
+            source={require('../../../assets/dealer banner.png')}
+            style={{ width: screenWidth, height: Math.round(screenWidth * (838 / 1891)) }}
+            resizeMode="contain"
           />
         </View>
 

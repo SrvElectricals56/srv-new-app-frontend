@@ -443,11 +443,15 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
   const handleRoleSelect = (audience: 'user' | 'dealer' | 'electrician') => {
     setSelectedAudience(audience);
     if (audience === 'user') {
-      goToSlide(1);
+      scrollPagerToPage(1, true);
+      setCurrentIndex(1);
       return;
     }
 
-    goToSlide(audience === 'dealer' ? 2 : 3);
+    // Jump without animation so scroll doesn't pass through slide 1 (user) causing a flash
+    const targetIndex = audience === 'dealer' ? 2 : 3;
+    scrollPagerToPage(targetIndex, false);
+    setCurrentIndex(targetIndex);
   };
 
   const handleContinue = () => {
@@ -1016,11 +1020,11 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
 
     return (
       <View style={{ flex: 1 }}>
-        <View style={[styles.bannerHeader, { backgroundColor: '#F5F3FF', height: Math.round(screenWidth * (838 / 1891)), overflow: 'hidden' }]}>
+        <View style={[styles.bannerHeader, { backgroundColor: '#F5F3FF', height: Math.round(screenWidth * (720 / 1440)), overflow: 'hidden' }]}>
           <Image
-            source={require('../../../assets/dealer banner.png')}
-            style={{ width: screenWidth, height: Math.round(screenWidth * (838 / 1891)) }}
-            resizeMode="contain"
+            source={require('../../../assets/dealer banner final.png')}
+            style={{ width: screenWidth, height: Math.round(screenWidth * (720 / 1440)) }}
+            resizeMode="cover"
           />
         </View>
 

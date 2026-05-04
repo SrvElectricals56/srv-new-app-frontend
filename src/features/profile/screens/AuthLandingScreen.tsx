@@ -41,6 +41,21 @@ export function AuthLandingScreen({
       <UserAuthScreen
         onAuthenticated={onAuthenticated}
         onBack={onBack}
+        role="user"
+      />
+    );
+  }
+
+  // Dealer and Electrician use original OnboardingScreen with all fields
+  if (mode) {
+    return (
+      <OnboardingScreen
+        key={`${role}-${mode}`}
+        fixedRole={role}
+        initialMode={mode}
+        initialPhase="auth"
+        onCancel={() => setMode(null)}
+        onGetStarted={onAuthenticated}
       />
     );
   }

@@ -11,23 +11,27 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import { authApi } from '@/shared/api';
 
-const P1   = '#7C3AED';
-const P2   = '#5B21B6';
-const SOFT = '#EDE9FE';
+// Role-based color themes
+const THEMES = {
+  user:        { p1: '#7C3AED', p2: '#5B21B6', soft: '#EDE9FE', orb: '#A78BFA' },
+  dealer:      { p1: '#1D4ED8', p2: '#1E3A8A', soft: '#DBEAFE', orb: '#93C5FD' },
+  electrician: { p1: '#DE3B30', p2: '#991B1B', soft: '#FEE2E2', orb: '#FCA5A5' },
+};
+
 const logo = require('../../../../assets/srv-login-logo.png');
 
 // ── Icons ─────────────────────────────────────────────────────────────
-const UserIcon  = ({ c = P1, s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Circle cx="12" cy="8" r="4" stroke={c} strokeWidth={1.8}/><Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
-const PhoneIcon = ({ c = P1, s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M7.2 4.8h2.4l1.1 3.4-1.5 1.5a14.8 14.8 0 005.1 5.1l1.5-1.5 3.4 1.1v2.4a1.5 1.5 0 01-1.5 1.5A14.9 14.9 0 014.2 6.3 1.5 1.5 0 015.7 4.8h1.5z" stroke={c} strokeWidth={1.8} strokeLinejoin="round"/></Svg>;
-const MailIcon  = ({ c = P1, s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Rect x="3" y="5" width="18" height="14" rx="3" stroke={c} strokeWidth={1.8}/><Path d="M5 8l7 5 7-5" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
-const LockIcon  = ({ c = P1, s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Rect x="5" y="11" width="14" height="10" rx="2.5" stroke={c} strokeWidth={1.8}/><Path d="M8 11V8.5A4 4 0 0112 4.5a4 4 0 014 4V11" stroke={c} strokeWidth={1.8} strokeLinecap="round"/><Circle cx="12" cy="16" r="1.3" fill={c}/></Svg>;
+const UserIcon  = ({ c = '#7C3AED', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Circle cx="12" cy="8" r="4" stroke={c} strokeWidth={1.8}/><Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
+const PhoneIcon = ({ c = '#7C3AED', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M7.2 4.8h2.4l1.1 3.4-1.5 1.5a14.8 14.8 0 005.1 5.1l1.5-1.5 3.4 1.1v2.4a1.5 1.5 0 01-1.5 1.5A14.9 14.9 0 014.2 6.3 1.5 1.5 0 015.7 4.8h1.5z" stroke={c} strokeWidth={1.8} strokeLinejoin="round"/></Svg>;
+const MailIcon  = ({ c = '#7C3AED', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Rect x="3" y="5" width="18" height="14" rx="3" stroke={c} strokeWidth={1.8}/><Path d="M5 8l7 5 7-5" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
+const LockIcon  = ({ c = '#7C3AED', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Rect x="5" y="11" width="14" height="10" rx="2.5" stroke={c} strokeWidth={1.8}/><Path d="M8 11V8.5A4 4 0 0112 4.5a4 4 0 014 4V11" stroke={c} strokeWidth={1.8} strokeLinecap="round"/><Circle cx="12" cy="16" r="1.3" fill={c}/></Svg>;
 const EyeIcon   = ({ c = '#9CA3AF', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M2.5 12s3.3-5 9.5-5 9.5 5 9.5 5-3.3 5-9.5 5-9.5-5-9.5-5z" stroke={c} strokeWidth={1.8}/><Circle cx="12" cy="12" r="3" stroke={c} strokeWidth={1.8}/></Svg>;
 const EyeOffIcon= ({ c = '#9CA3AF', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M3 3l18 18" stroke={c} strokeWidth={1.8} strokeLinecap="round"/><Path d="M10.6 5.2c.5-.1.9-.2 1.4-.2 6.2 0 9.5 5 9.5 5a15.5 15.5 0 01-3.4 3.6M6.3 6.3A15.7 15.7 0 002.5 12s3.3 5 9.5 5c1 0 1.9-.1 2.7-.4" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
 const ChevronLeft = ({ c = '#fff', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M15 6l-6 6 6 6" stroke={c} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 const ArrowRight  = ({ c = '#fff', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M5 12h14M13 6l6 6-6 6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 
 // ── Floating orbs ─────────────────────────────────────────────────────
-function Orbs() {
+function Orbs({ color }: { color: string }) {
   const a = useRef(new Animated.Value(0)).current;
   const b = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -44,8 +48,8 @@ function Orbs() {
   const tb = b.interpolate({ inputRange: [0, 1], outputRange: [0, 12] });
   return (
     <>
-      <Animated.View style={[S.orb, { width: 180, height: 180, top: -50, right: -50, transform: [{ translateY: ta }] }]} />
-      <Animated.View style={[S.orb, { width: 120, height: 120, bottom: 10, left: -30, opacity: 0.15, transform: [{ translateY: tb }] }]} />
+      <Animated.View style={[S.orb, { width: 180, height: 180, top: -50, right: -50, backgroundColor: color, transform: [{ translateY: ta }] }]} />
+      <Animated.View style={[S.orb, { width: 120, height: 120, bottom: 10, left: -30, backgroundColor: color, opacity: 0.15, transform: [{ translateY: tb }] }]} />
     </>
   );
 }
@@ -54,23 +58,23 @@ function Orbs() {
 function Input({
   label, value, onChange, placeholder, icon, keyboard = 'default',
   secure = false, toggleSecure, autoCap = 'none', ref: inputRef,
-  onSubmit, returnKey = 'next', darkMode,
+  onSubmit, returnKey = 'next', darkMode, accentColor = '#7C3AED',
 }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder: string; icon: React.ReactNode;
   keyboard?: any; secure?: boolean; toggleSecure?: () => void;
   autoCap?: any; ref?: React.RefObject<TextInput | null>;
-  onSubmit?: () => void; returnKey?: any; darkMode: boolean;
+  onSubmit?: () => void; returnKey?: any; darkMode: boolean; accentColor?: string;
 }) {
   const [focused, setFocused] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
   const focus = () => { setFocused(true);  Animated.timing(anim, { toValue: 1, duration: 180, useNativeDriver: false }).start(); };
   const blur  = () => { setFocused(false); Animated.timing(anim, { toValue: 0, duration: 180, useNativeDriver: false }).start(); };
-  const borderColor = anim.interpolate({ inputRange: [0, 1], outputRange: [darkMode ? '#334155' : '#E5E7EB', P1] });
+  const borderColor = anim.interpolate({ inputRange: [0, 1], outputRange: [darkMode ? '#334155' : '#E5E7EB', accentColor] });
   const bg = darkMode ? '#1E293B' : '#FAFAFA';
   return (
     <View style={S.inputWrap}>
-      <Text style={[S.inputLabel, { color: focused ? P1 : darkMode ? '#94A3B8' : '#6B7280' }]}>{label}</Text>
+      <Text style={[S.inputLabel, { color: focused ? accentColor : darkMode ? '#94A3B8' : '#6B7280' }]}>{label}</Text>
       <Animated.View style={[S.inputRow, { backgroundColor: bg, borderColor }]}>
         <View style={S.inputIcon}>{icon}</View>
         <TextInput
@@ -96,14 +100,21 @@ function Input({
 export function UserAuthScreen({
   onAuthenticated,
   onBack,
+  role = 'user',
 }: {
-  onAuthenticated: (role: 'user', options?: { passwordConfigured?: boolean; passwordValue?: string }) => void;
+  onAuthenticated: (role: any, options?: { passwordConfigured?: boolean; passwordValue?: string }) => void;
   onBack?: () => void;
+  role?: 'user' | 'dealer' | 'electrician';
 }) {
   const { tx, darkMode } = usePreferenceContext();
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<'landing' | 'login' | 'signup'>('landing');
   const [loading, setLoading] = useState(false);
+
+  const theme = THEMES[role];
+  const P1   = theme.p1;
+  const P2   = theme.p2;
+  const SOFT = theme.soft;
 
   const slideY = useRef(new Animated.Value(30)).current;
   const fadeO  = useRef(new Animated.Value(0)).current;
@@ -139,8 +150,8 @@ export function UserAuthScreen({
     if (!lPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
     setLoading(true);
     try {
-      await authApi.login({ phone: lPhone.trim(), password: lPwd.trim(), role: 'user' });
-      onAuthenticated('user', { passwordConfigured: !!lPwd, passwordValue: lPwd });
+      await authApi.login({ phone: lPhone.trim(), password: lPwd.trim(), role });
+      onAuthenticated(role, { passwordConfigured: !!lPwd, passwordValue: lPwd });
     } catch (e: any) { Alert.alert(tx('Login Failed'), e?.message ?? tx('Check your credentials')); }
     finally { setLoading(false); }
   };
@@ -150,8 +161,8 @@ export function UserAuthScreen({
     if (!sPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
     setLoading(true);
     try {
-      await authApi.register({ name: sName.trim(), phone: sPhone.trim(), email: sEmail.trim(), password: sPwd.trim(), role: 'user' });
-      onAuthenticated('user', { passwordConfigured: !!sPwd, passwordValue: sPwd });
+      await authApi.register({ name: sName.trim(), phone: sPhone.trim(), email: sEmail.trim(), password: sPwd.trim(), role });
+      onAuthenticated(role, { passwordConfigured: !!sPwd, passwordValue: sPwd });
     } catch (e: any) { Alert.alert(tx('Signup Failed'), e?.message ?? tx('Something went wrong')); }
     finally { setLoading(false); }
   };
@@ -161,7 +172,7 @@ export function UserAuthScreen({
     return (
       <View style={[S.screen, { backgroundColor: bg }]}>
         <LinearGradient colors={[P1, P2, '#3B0764']} style={[S.hero, { paddingTop: insets.top + 12 }]}>
-          <Orbs />
+          <Orbs color={theme.orb} />
           <Animated.View style={[S.heroContent, { transform: [{ translateY: slideY }], opacity: fadeO }]}>
             <View style={S.logoWrap}>
               <Image source={logo} style={S.logoImg} resizeMode="contain" />
@@ -204,12 +215,12 @@ export function UserAuthScreen({
               colors={[SOFT, '#F5F3FF']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={S.backToOnboardingInner}
+              style={[S.backToOnboardingInner, { borderColor: `${P1}40` }]}
             >
-              <View style={S.backToOnboardingIcon}>
+              <View style={[S.backToOnboardingIcon, { backgroundColor: P1 }]}>
                 <ChevronLeft s={14} c={'#FFFFFF'} />
               </View>
-              <Text style={S.backToOnboardingText}>{tx('Back to Onboarding')}</Text>
+              <Text style={[S.backToOnboardingText, { color: P1 }]}>{tx('Back to Onboarding')}</Text>
             </LinearGradient>
           </Pressable>
         )}
@@ -238,19 +249,19 @@ export function UserAuthScreen({
           <View style={[S.formCard, { backgroundColor: card, borderColor: bdr }]}>
             {!isLogin && (
               <Input label={tx('Full Name')} value={sName} onChange={setSName}
-                placeholder={tx('Your full name')} icon={<UserIcon />}
+                placeholder={tx('Your full name')} icon={<UserIcon c={P1} />}
                 autoCap="words" onSubmit={() => sPhoneRef.current?.focus()} darkMode={darkMode} />
             )}
             <Input label={tx('Phone Number')} value={isLogin ? lPhone : sPhone}
               onChange={isLogin ? setLPhone : setSPhone}
-              placeholder={tx('10-digit mobile number')} icon={<PhoneIcon />}
+              placeholder={tx('10-digit mobile number')} icon={<PhoneIcon c={P1} />}
               keyboard="phone-pad"
               ref={isLogin ? undefined : sPhoneRef}
               onSubmit={isLogin ? () => lPwdRef.current?.focus() : () => sEmailRef.current?.focus()}
               darkMode={darkMode} />
             {!isLogin && (
               <Input label={`${tx('Email')} (${tx('optional')})`} value={sEmail} onChange={setSEmail}
-                placeholder={tx('your@email.com')} icon={<MailIcon />}
+                placeholder={tx('your@email.com')} icon={<MailIcon c={P1} />}
                 keyboard="email-address" ref={sEmailRef}
                 onSubmit={() => sPwdRef.current?.focus()} darkMode={darkMode} />
             )}
@@ -259,7 +270,7 @@ export function UserAuthScreen({
               value={isLogin ? lPwd : sPwd}
               onChange={isLogin ? setLPwd : setSPwd}
               placeholder={isLogin ? tx('Enter password') : tx('Create a password')}
-              icon={<LockIcon />}
+              icon={<LockIcon c={P1} />}
               secure={isLogin ? !showLP : !showSP}
               toggleSecure={isLogin ? () => setShowLP(v => !v) : () => setShowSP(v => !v)}
               ref={isLogin ? lPwdRef : sPwdRef}
@@ -296,14 +307,13 @@ const S = StyleSheet.create({
   screen: { flex: 1 },
 
   // Orb
-  orb: { position: 'absolute', borderRadius: 999, backgroundColor: '#A78BFA', opacity: 0.2 },
+  orb: { position: 'absolute', borderRadius: 999, opacity: 0.2 },
 
   // Hero (landing)
   hero: {
     paddingHorizontal: 20,
     paddingBottom: 24,
     overflow: 'hidden',
-    ...createShadow({ color: P1, offsetY: 6, blur: 18, opacity: 0.35, elevation: 10 }),
   },
   backRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -320,7 +330,7 @@ const S = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 12,
-    ...createShadow({ color: '#000', offsetY: 4, blur: 12, opacity: 0.15, elevation: 5 }),
+    elevation: 5,
   },
   logoImg: { width: 64, height: 64 },
   heroTag: { fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: 3, marginBottom: 6 },
@@ -334,7 +344,7 @@ const S = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
     gap: 10,
-    ...createShadow({ color: P1, offsetY: 4, blur: 14, opacity: 0.1, elevation: 5 }),
+    elevation: 5,
   },
   landTitle: { fontSize: 20, fontWeight: '900' },
   landSub: { fontSize: 13, lineHeight: 18, marginBottom: 4 },
@@ -349,14 +359,14 @@ const S = StyleSheet.create({
     paddingBottom: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    ...createShadow({ color: P1, offsetY: 3, blur: 10, opacity: 0.3, elevation: 6 }),
+    elevation: 6,
   },
   formHeaderLogoWrap: {
     width: 56, height: 56, borderRadius: 16,
     backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
     marginTop: 8, marginBottom: 8,
-    ...createShadow({ color: '#000', offsetY: 2, blur: 8, opacity: 0.12, elevation: 4 }),
+    elevation: 4,
   },
   formHeaderLogo: { width: 44, height: 44 },
   formHeaderTitle: { fontSize: 22, fontWeight: '900', color: '#FFFFFF', textAlign: 'center' },
@@ -369,7 +379,7 @@ const S = StyleSheet.create({
   formWelcomeSub: { fontSize: 13, lineHeight: 18, textAlign: 'center' },
   formCard: {
     borderRadius: 20, borderWidth: 1, padding: 18, gap: 14,
-    ...createShadow({ color: '#000', offsetY: 2, blur: 10, opacity: 0.07, elevation: 3 }),
+    elevation: 3,
   },
 
   // Input
@@ -386,7 +396,7 @@ const S = StyleSheet.create({
   // Buttons
   btnShell: {
     borderRadius: 14, overflow: 'hidden',
-    ...createShadow({ color: P1, offsetY: 4, blur: 10, opacity: 0.35, elevation: 5 }),
+    elevation: 5,
   },
   btnPrimary: {
     height: 52, flexDirection: 'row', alignItems: 'center',
@@ -408,7 +418,7 @@ const S = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 16,
     overflow: 'hidden',
-    ...createShadow({ color: P1, offsetY: 2, blur: 8, opacity: 0.12, elevation: 3 }),
+    elevation: 3,
   },
   backToOnboardingInner: {
     flexDirection: 'row',
@@ -419,12 +429,10 @@ const S = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: `${P1}40`,
   },
   backToOnboardingIcon: {
     width: 26, height: 26, borderRadius: 8,
-    backgroundColor: P1,
     alignItems: 'center', justifyContent: 'center',
   },
-  backToOnboardingText: { fontSize: 14, fontWeight: '800', color: P1 },
+  backToOnboardingText: { fontSize: 14, fontWeight: '800' },
 });

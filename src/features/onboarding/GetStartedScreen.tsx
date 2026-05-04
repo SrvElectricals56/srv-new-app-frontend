@@ -880,37 +880,37 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
           <View style={styles.benefitGridCompact}>
             <View style={[styles.benefitCardCompact, { backgroundColor: '#F5F3FF' }]}>
               <View style={[styles.benefitIconBoxCompact, { backgroundColor: '#7C3AED' }]}>
-                <AppIcon name="support" size={20} color="#FFFFFF" />
+                <AppIcon name="redeem" size={20} color="#FFFFFF" />
               </View>
               <Text style={[styles.benefitTitleCompact, { color: theme.textPrimary }]}>
-                {tx('Instant Support')}
+                {tx('ISI Certified Products')}
               </Text>
             </View>
 
             <View style={[styles.benefitCardCompact, { backgroundColor: '#EDE9FE' }]}>
               <View style={[styles.benefitIconBoxCompact, { backgroundColor: '#6D28D9' }]}>
-                <AppIcon name="check" size={20} color="#FFFFFF" />
+                <AppIcon name="order" size={20} color="#FFFFFF" />
               </View>
               <Text style={[styles.benefitTitleCompact, { color: theme.textPrimary }]}>
-                {tx('Verified Quality')}
+                {tx('Various Product Categories')}
               </Text>
             </View>
 
             <View style={[styles.benefitCardCompact, { backgroundColor: '#F5F3FF' }]}>
               <View style={[styles.benefitIconBoxCompact, { backgroundColor: '#8B5CF6' }]}>
-                <AppIcon name="gift" size={20} color="#FFFFFF" />
+                <AppIcon name="location" size={20} color="#FFFFFF" />
               </View>
               <Text style={[styles.benefitTitleCompact, { color: theme.textPrimary }]}>
-                {tx('Exclusive Deals & Offers')}
+                {tx('Pan India Delivery')}
               </Text>
             </View>
 
             <View style={[styles.benefitCardCompact, { backgroundColor: '#EDE9FE' }]}>
               <View style={[styles.benefitIconBoxCompact, { backgroundColor: '#5B21B6' }]}>
-                <AppIcon name="order" size={20} color="#FFFFFF" />
+                <AppIcon name="gift" size={20} color="#FFFFFF" />
               </View>
               <Text style={[styles.benefitTitleCompact, { color: theme.textPrimary }]}>
-                {tx('Access Various Products')}
+                {tx('Trusted Since 2000')}
               </Text>
             </View>
           </View>

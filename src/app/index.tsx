@@ -24,6 +24,7 @@ import { NotificationScreen as UserNotificationScreen } from '@/features/user/No
 import { ProfileScreen as UserProfileScreen } from '@/features/user/ProfileScreen';
 import { RewardsScreen as UserRewardsScreen } from '@/features/user/RewardsScreen';
 import { CategoriesScreen as UserCategoriesScreen } from '@/features/user/screens/CategoriesScreen';
+import { CartScreen as UserCartScreen, type CartItem } from '@/features/user/screens/CartScreen';
 import { WalletScreen as UserWalletScreen } from '@/features/user/WalletScreen';
 import { AuthLandingScreen } from '@/features/profile/screens/AuthLandingScreen';
 import {
@@ -83,6 +84,7 @@ function AppContent() {
   );
   const [electricianRewardHistory, setElectricianRewardHistory] = useState<RewardHistoryItem[]>([]);
   const [hasUnreadNotif, setHasUnreadNotif] = useState(false);
+  const [userCartItems, setUserCartItems] = useState<CartItem[]>([]);
 
   const isDealer = currentRole === 'dealer';
   const isUser = currentRole === 'user';
@@ -165,6 +167,24 @@ function AppContent() {
   const handleOpenProductCategory = useCallback((category: string) => {
     setSelectedProductCategory(category);
     setCurrentScreen('product');
+  }, []);
+
+  const handleAddToCart = useCallback((item: CartItem) => {
+    setUserCartItems((prev) => {
+      const existing = prev.find((i) => i.id === item.id);
+      if (existing) {
+        return prev.map((i) => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+      }
+      return [...prev, { ...item, qty: 1 }];
+    });
+  }, []);
+
+  const handleUpdateCartQty = useCallback((id: string, qty: number) => {
+    setUserCartItems((prev) => prev.map((i) => i.id === id ? { ...i, qty } : i));
+  }, []);
+
+  const handleRemoveFromCart = useCallback((id: string) => {
+    setUserCartItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
   const handleSignOut = useCallback(() => {
@@ -381,11 +401,20 @@ function AppContent() {
             />
           );
         case 'product':
-          return <UserCategoriesScreen onNavigate={handleNavigate} />;
+          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} />;
         case 'notification':
           return <UserNotificationScreen onNavigate={handleNavigate} role="electrician" onNotificationsSeen={handleNotificationsSeen} />;
         case 'categories':
-          return <UserCategoriesScreen onNavigate={handleNavigate} />;
+          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} />;
+        case 'cart':
+          return (
+            <UserCartScreen
+              cartItems={userCartItems}
+              onUpdateQty={handleUpdateCartQty}
+              onRemove={handleRemoveFromCart}
+              onNavigate={handleNavigate}
+            />
+          );
         case 'rewards':
           return <UserRewardsScreen onBack={() => setCurrentScreen('home')} />;
         case 'profile':
@@ -578,6 +607,10 @@ function AppContent() {
     handleNotificationsSeen,
     handleAuthenticatedRoleStart,
     hasUnreadNotif,
+    userCartItems,
+    handleAddToCart,
+    handleUpdateCartQty,
+    handleRemoveFromCart,
   ]);
 
   if (showOnboarding) {

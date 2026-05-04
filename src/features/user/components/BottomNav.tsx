@@ -56,14 +56,18 @@ function ProductIcon({ color, size = 24 }: { color: string; size?: number }) {
   );
 }
 
-function WalletIcon({ color, size = 24 }: { color: string; size?: number }) {
+function CartIcon({ color, size = 24 }: { color: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="6" width="18" height="13" rx="2.4" stroke={color} strokeWidth={2} />
-      <Path d="M15.5 11.5H21V16h-5.5a2.25 2.25 0 010-4.5z" stroke={color} strokeWidth={2} />
-      <Circle cx="16.8" cy="13.75" r="1.05" fill={color} />
       <Path
-        d="M7 6V4.8A1.8 1.8 0 018.8 3h7.7"
+        d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+      <Path d="M3 6h18" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path
+        d="M16 10a4 4 0 01-8 0"
         stroke={color}
         strokeWidth={2}
         strokeLinecap="round"
@@ -227,7 +231,7 @@ function NavTab({
     switch (id) {
       case 'home': return <HomeIcon color={iconColor} size={iconSize} />;
       case 'product': return <ProductIcon color={iconColor} size={iconSize} />;
-      case 'wallet': return <WalletIcon color={iconColor} size={iconSize} />;
+      case 'cart': return <CartIcon color={iconColor} size={iconSize} />;
       case 'profile': return <ProfileIcon color={iconColor} size={iconSize} />;
       default: return null;
     }
@@ -259,8 +263,8 @@ const LEFT: NavControlConfig[] = [
 ];
 
 const RIGHT: NavControlConfig[] = [
-  { id: 'wallet', label: 'Wallet', testID: 'user-bottom-nav-wallet', accessibilityLabel: 'User bottom navigation wallet' },
-  { id: 'profile', label: 'Profile', testID: 'user-bottom-nav-profile', accessibilityLabel: 'User bottom navigation profile' },
+  { id: 'cart', label: 'Cart', testID: 'user-bottom-nav-cart', accessibilityLabel: 'User bottom navigation cart' },
+  { id: 'profile', label: 'Account', testID: 'user-bottom-nav-profile', accessibilityLabel: 'User bottom navigation profile' },
 ];
 
 export function BottomNav({

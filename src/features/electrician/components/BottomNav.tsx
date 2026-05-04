@@ -393,7 +393,7 @@ const RIGHT: NavControlConfig[] = [
   },
   {
     id: 'profile',
-    label: 'Profile',
+    label: 'Account',
     testID: 'electrician-bottom-nav-profile',
     accessibilityLabel: 'Electrician bottom navigation profile',
   },

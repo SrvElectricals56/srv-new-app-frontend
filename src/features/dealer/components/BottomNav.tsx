@@ -329,7 +329,7 @@ const RIGHT: NavControlConfig[] = [
   },
   {
     id: 'profile',
-    label: 'Profile',
+    label: 'Account',
     testID: 'dealer-bottom-nav-profile',
     accessibilityLabel: 'Dealer bottom navigation profile',
   },

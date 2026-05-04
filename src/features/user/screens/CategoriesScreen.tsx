@@ -51,7 +51,7 @@ const PRODUCTS = [
   { id: '8', name: 'Junction Box',          category: 'junction',   image: require('../../../../assets/Product/Junction_Box.png'),           tag: 'ISI Certified', tagColor: '#059669', tagBg: '#D1FAE5', desc: 'Weatherproof wire connections' },
 ];
 
-export function CategoriesScreen({ onNavigate }: { onNavigate: (screen: any) => void }) {
+export function CategoriesScreen({ onNavigate, onAddToCart }: { onNavigate: (screen: any) => void; onAddToCart?: (item: any) => void }) {
   const { darkMode, tx } = usePreferenceContext();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -130,8 +130,9 @@ export function CategoriesScreen({ onNavigate }: { onNavigate: (screen: any) => 
                     <Text style={[styles.cardName, { color: textPrimary }]} numberOfLines={2}>{product.name}</Text>
                     <Text style={[styles.cardDesc, { color: textMuted }]} numberOfLines={1}>{product.desc}</Text>
                   </View>
-                  <Pressable style={[styles.buyBtn, { backgroundColor: PRIMARY_LIGHT }]} android_ripple={{ color: `${PRIMARY}25` }}>
-                    <Text style={[styles.buyBtnText, { color: PRIMARY }]}>{tx('Buy Now')}</Text>
+                  <Pressable style={[styles.buyBtn, { backgroundColor: PRIMARY_LIGHT }]} android_ripple={{ color: `${PRIMARY}25` }}
+                    onPress={() => onAddToCart?.({ id: product.id, name: product.name, desc: product.desc, image: product.image, qty: 1 })}>
+                    <Text style={[styles.buyBtnText, { color: PRIMARY }]}>{tx('Add to Cart')}</Text>
                   </Pressable>
                 </View>
               ))}

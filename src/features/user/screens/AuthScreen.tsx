@@ -1,4 +1,4 @@
-// Customer Auth Screen — Professional Purple Design
+﻿// Customer Auth Screen â€” Role-aware account design
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated, Easing, Image, KeyboardAvoidingView, Platform,
@@ -8,29 +8,30 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
+import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
 import { createShadow } from '@/shared/theme/shadows';
 import { authApi } from '@/shared/api';
 
 // Role-based color themes
 const THEMES = {
-  user:        { p1: '#7C3AED', p2: '#5B21B6', soft: '#EDE9FE', orb: '#A78BFA' },
+  user:        { p1: '#6B7C2D', p2: '#4D5F1F', soft: '#EEF4D7', orb: '#B7CC74' },
   dealer:      { p1: '#1D4ED8', p2: '#1E3A8A', soft: '#DBEAFE', orb: '#93C5FD' },
   electrician: { p1: '#DE3B30', p2: '#991B1B', soft: '#FEE2E2', orb: '#FCA5A5' },
 };
 
-const logo = require('../../../../assets/srv-login-logo.png');
 
-// ── Icons ─────────────────────────────────────────────────────────────
-const UserIcon  = ({ c = '#7C3AED', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Circle cx="12" cy="8" r="4" stroke={c} strokeWidth={1.8}/><Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
-const PhoneIcon = ({ c = '#7C3AED', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M7.2 4.8h2.4l1.1 3.4-1.5 1.5a14.8 14.8 0 005.1 5.1l1.5-1.5 3.4 1.1v2.4a1.5 1.5 0 01-1.5 1.5A14.9 14.9 0 014.2 6.3 1.5 1.5 0 015.7 4.8h1.5z" stroke={c} strokeWidth={1.8} strokeLinejoin="round"/></Svg>;
-const MailIcon  = ({ c = '#7C3AED', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Rect x="3" y="5" width="18" height="14" rx="3" stroke={c} strokeWidth={1.8}/><Path d="M5 8l7 5 7-5" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
-const LockIcon  = ({ c = '#7C3AED', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Rect x="5" y="11" width="14" height="10" rx="2.5" stroke={c} strokeWidth={1.8}/><Path d="M8 11V8.5A4 4 0 0112 4.5a4 4 0 014 4V11" stroke={c} strokeWidth={1.8} strokeLinecap="round"/><Circle cx="12" cy="16" r="1.3" fill={c}/></Svg>;
+// â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const UserIcon  = ({ c = '#6B7C2D', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Circle cx="12" cy="8" r="4" stroke={c} strokeWidth={1.8}/><Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
+const PhoneIcon = ({ c = '#6B7C2D', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M7.2 4.8h2.4l1.1 3.4-1.5 1.5a14.8 14.8 0 005.1 5.1l1.5-1.5 3.4 1.1v2.4a1.5 1.5 0 01-1.5 1.5A14.9 14.9 0 014.2 6.3 1.5 1.5 0 015.7 4.8h1.5z" stroke={c} strokeWidth={1.8} strokeLinejoin="round"/></Svg>;
+const MailIcon  = ({ c = '#6B7C2D', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Rect x="3" y="5" width="18" height="14" rx="3" stroke={c} strokeWidth={1.8}/><Path d="M5 8l7 5 7-5" stroke={c} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
+const LockIcon  = ({ c = '#6B7C2D', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Rect x="5" y="11" width="14" height="10" rx="2.5" stroke={c} strokeWidth={1.8}/><Path d="M8 11V8.5A4 4 0 0112 4.5a4 4 0 014 4V11" stroke={c} strokeWidth={1.8} strokeLinecap="round"/><Circle cx="12" cy="16" r="1.3" fill={c}/></Svg>;
 const EyeIcon   = ({ c = '#9CA3AF', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M2.5 12s3.3-5 9.5-5 9.5 5 9.5 5-3.3 5-9.5 5-9.5-5-9.5-5z" stroke={c} strokeWidth={1.8}/><Circle cx="12" cy="12" r="3" stroke={c} strokeWidth={1.8}/></Svg>;
 const EyeOffIcon= ({ c = '#9CA3AF', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M3 3l18 18" stroke={c} strokeWidth={1.8} strokeLinecap="round"/><Path d="M10.6 5.2c.5-.1.9-.2 1.4-.2 6.2 0 9.5 5 9.5 5a15.5 15.5 0 01-3.4 3.6M6.3 6.3A15.7 15.7 0 002.5 12s3.3 5 9.5 5c1 0 1.9-.1 2.7-.4" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
 const ChevronLeft = ({ c = '#fff', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M15 6l-6 6 6 6" stroke={c} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
+const SwitchRoleIcon = ({ c = '#fff', s = 16 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M7 16H3m0 0l3-3m-3 3l3 3" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><Path d="M17 8h4m0 0l-3-3m3 3l-3 3" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><Path d="M3 8h10M11 16h10" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2"/></Svg>;
 const ArrowRight  = ({ c = '#fff', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M5 12h14M13 6l6 6-6 6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 
-// ── Floating orbs ─────────────────────────────────────────────────────
+// â”€â”€ Floating orbs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Orbs({ color }: { color: string }) {
   const a = useRef(new Animated.Value(0)).current;
   const b = useRef(new Animated.Value(0)).current;
@@ -54,11 +55,11 @@ function Orbs({ color }: { color: string }) {
   );
 }
 
-// ── Input ─────────────────────────────────────────────────────────────
+// â”€â”€ Input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Input({
   label, value, onChange, placeholder, icon, keyboard = 'default',
   secure = false, toggleSecure, autoCap = 'none', ref: inputRef,
-  onSubmit, returnKey = 'next', darkMode, accentColor = '#7C3AED',
+  onSubmit, returnKey = 'next', darkMode, accentColor = '#6B7C2D',
 }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder: string; icon: React.ReactNode;
@@ -81,7 +82,7 @@ function Input({
           ref={inputRef as any}
           style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
           value={value} onChangeText={onChange} placeholder={placeholder}
-          placeholderTextColor={darkMode ? '#475569' : '#C4B5FD'}
+          placeholderTextColor={darkMode ? '#475569' : '#A3B56A'}
           keyboardType={keyboard} secureTextEntry={secure}
           autoCapitalize={autoCap} onFocus={focus} onBlur={blur}
           onSubmitEditing={onSubmit} returnKeyType={returnKey}
@@ -96,7 +97,7 @@ function Input({
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────
+// â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function UserAuthScreen({
   onAuthenticated,
   onBack,
@@ -140,7 +141,7 @@ export function UserAuthScreen({
   const sEmailRef = useRef<TextInput>(null);
   const sPwdRef   = useRef<TextInput>(null);
 
-  const bg   = darkMode ? '#0F172A' : '#F5F3FF';
+  const bg   = darkMode ? '#0F172A' : '#F6F8EE';
   const card = darkMode ? '#1E293B' : '#FFFFFF';
   const bdr  = darkMode ? '#334155' : '#E5E7EB';
   const tp   = darkMode ? '#F1F5F9' : '#111827';
@@ -167,15 +168,15 @@ export function UserAuthScreen({
     finally { setLoading(false); }
   };
 
-  // ── LANDING ──────────────────────────────────────────────────────────
+  // â”€â”€ LANDING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (mode === 'landing') {
     return (
       <View style={[S.screen, { backgroundColor: bg }]}>
-        <LinearGradient colors={[P1, P2, '#3B0764']} style={[S.hero, { paddingTop: insets.top + 12 }]}>
+        <LinearGradient colors={[P1, P2, '#364815']} style={[S.hero, { paddingTop: insets.top + 12 }]}>
           <Orbs color={theme.orb} />
           <Animated.View style={[S.heroContent, { transform: [{ translateY: slideY }], opacity: fadeO }]}>
             <View style={S.logoWrap}>
-              <Image source={logo} style={S.logoImg} resizeMode="contain" />
+              <Image source={{ uri: SRV_LOGO_URI }} style={S.logoImg} resizeMode="contain" />
             </View>
             <Text style={S.heroTag}>SRV ELECTRICALS</Text>
             <Text style={S.heroTitle}>{tx('Welcome Back')}</Text>
@@ -208,19 +209,19 @@ export function UserAuthScreen({
           </View>
         </Animated.View>
 
-        {/* Back to Onboarding — bottom */}
+        {/* Switch Your Role â€” bottom */}
         {onBack && (
           <Pressable onPress={onBack} style={S.backToOnboarding} android_ripple={{ color: `${P1}15` }}>
             <LinearGradient
-              colors={[SOFT, '#F5F3FF']}
+              colors={[SOFT, '#F6F8EE']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={[S.backToOnboardingInner, { borderColor: `${P1}40` }]}
             >
               <View style={[S.backToOnboardingIcon, { backgroundColor: P1 }]}>
-                <ChevronLeft s={14} c={'#FFFFFF'} />
+                <SwitchRoleIcon s={14} c={'#FFFFFF'} />
               </View>
-              <Text style={[S.backToOnboardingText, { color: P1 }]}>{tx('Back to Onboarding')}</Text>
+              <Text style={[S.backToOnboardingText, { color: P1 }]}>{tx('Switch Your Role')}</Text>
             </LinearGradient>
           </Pressable>
         )}
@@ -230,13 +231,13 @@ export function UserAuthScreen({
 
   const isLogin = mode === 'login';
 
-  // ── LOGIN / SIGNUP ────────────────────────────────────────────────────
+  // â”€â”€ LOGIN / SIGNUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <KeyboardAvoidingView style={[S.screen, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* Compact header */}
       <LinearGradient colors={[P1, P2]} style={[S.formHeader, { paddingTop: insets.top }]}>
         <View style={S.formHeaderLogoWrap}>
-          <Image source={logo} style={S.formHeaderLogo} resizeMode="contain" />
+          <Image source={{ uri: SRV_LOGO_URI }} style={S.formHeaderLogo} resizeMode="contain" />
         </View>
         <Text style={S.formHeaderTitle}>{isLogin ? tx('Login') : tx('Create Account')}</Text>
         <Text style={S.formHeaderSub}>{isLogin ? tx('Welcome back to SRV Electricals') : tx('Join SRV Electricals today')}</Text>
@@ -302,7 +303,7 @@ export function UserAuthScreen({
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────
+// â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const S = StyleSheet.create({
   screen: { flex: 1 },
 
@@ -411,7 +412,7 @@ const S = StyleSheet.create({
   switchRow: { alignItems: 'center', paddingVertical: 8 },
   switchText: { fontSize: 13 },
 
-  // Back to onboarding — landing bottom
+  // Back to onboarding â€” landing bottom
   backToOnboarding: {
     alignSelf: 'center',
     marginTop: 6,
@@ -436,3 +437,4 @@ const S = StyleSheet.create({
   },
   backToOnboardingText: { fontSize: 14, fontWeight: '800' },
 });
+

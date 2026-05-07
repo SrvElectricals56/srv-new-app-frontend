@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -21,11 +21,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import Svg, { Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
+import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
 import { usePreferenceContext } from '@/shared/preferences';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { authApi, dealerApi } from '@/shared/api';
-
-export type UserRole = 'electrician' | 'dealer';
+import type { UserRole } from '@/shared/types/navigation';
 type IntroStep = 'language' | 'role' | 'auth';
 type AuthMode = 'login' | 'signup';
 type LoginStep = 'phone' | 'otp' | 'password';
@@ -74,11 +74,6 @@ const roleMeta = {
   dealer: { title: 'Dealer', subtitle: 'Business onboarding and account access' },
 } as const;
 
-const roleImages = {
-  electrician: require('../../../../assets/new electrician.png'),
-  dealer: require('../../../../assets/new dealer.jpeg'),
-} as const;
-
 const languageOptions = [
   {
     value: 'English',
@@ -90,16 +85,16 @@ const languageOptions = [
   {
     value: 'Hindi',
     title: 'Hindi',
-    nativeTitle: 'हिंदी',
-    mark: 'अ',
-    description: 'ऑनबोर्डिंग और रिवॉर्ड्स के लिए।',
+    nativeTitle: 'à¤¹à¤¿à¤‚à¤¦à¥€',
+    mark: 'à¤…',
+    description: 'à¤‘à¤¨à¤¬à¥‹à¤°à¥à¤¡à¤¿à¤‚à¤— à¤”à¤° à¤°à¤¿à¤µà¥‰à¤°à¥à¤¡à¥à¤¸ à¤•à¥‡ à¤²à¤¿à¤à¥¤',
   },
   {
     value: 'Punjabi',
     title: 'Punjabi',
-    nativeTitle: 'ਪੰਜਾਬੀ',
-    mark: 'ਅ',
-    description: 'ਆਨਬੋਰਡਿੰਗ ਅਤੇ ਰਿਵਾਰਡ ਲਈ।',
+    nativeTitle: 'à¨ªà©°à¨œà¨¾à¨¬à©€',
+    mark: 'à¨…',
+    description: 'à¨†à¨¨à¨¬à©‹à¨°à¨¡à¨¿à©°à¨— à¨…à¨¤à©‡ à¨°à¨¿à¨µà¨¾à¨°à¨¡ à¨²à¨ˆà¥¤',
   },
 ] as const;
 
@@ -667,9 +662,6 @@ function RoleCard({
           : null,
       ]}
     >
-      <View style={[s.roleFrame, compact ? s.roleFrameCompact : null]}>
-        <Image source={roleImages[role]} style={s.roleImage} resizeMode="contain" />
-      </View>
       <Text
         style={[
           s.roleTitle,
@@ -775,7 +767,23 @@ export function OnboardingScreen({
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationMessage, setLocationMessage] = useState('');
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const isCompactPhone = width <= 360 || height <= 760;
+  const authBackgroundColors =
+    role === 'dealer'
+      ? ['#F6F1EA', '#F2ECE4', '#FBF8F3']
+      : ['#F3F6FB', '#EEF3FA', '#FAFCFF'];
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const screenTitle =
     phase === 'language'
@@ -1635,21 +1643,37 @@ export function OnboardingScreen({
   return (
     <View style={s.root}>
       <StatusBar hidden />
-      <LinearGradient colors={[C.heroA, C.heroB, C.heroC]} style={s.bg}>
-        <View style={s.glow1} />
-        <View style={s.glow2} />
-        <View style={s.glow3} />
+      <LinearGradient
+        colors={phase === 'auth' ? authBackgroundColors : [C.heroA, C.heroB, C.heroC]}
+        style={s.bg}
+      >
+        {phase === 'auth' ? null : <View style={s.glow1} />}
+        {phase === 'auth' ? null : <View style={s.glow2} />}
+        {phase === 'auth' ? null : <View style={s.glow3} />}
         <KeyboardAvoidingView
           style={s.kav}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={0}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 18 : 0}
         >
           <View style={s.dismissSurface}>
             <ScrollView
               ref={scrollRef}
               contentContainerStyle={[
                 s.content,
-                { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 40 },
+                {
+                  paddingTop:
+                    phase === 'auth'
+                      ? keyboardVisible
+                        ? insets.top + 8
+                        : insets.top + 14
+                      : insets.top + 18,
+                  paddingBottom:
+                    phase === 'auth'
+                      ? keyboardVisible
+                        ? insets.bottom + 160
+                        : insets.bottom + 72
+                      : insets.bottom + 40,
+                },
                 phase !== 'auth' ? s.contentRole : null,
               ]}
               showsVerticalScrollIndicator={false}
@@ -1661,11 +1685,18 @@ export function OnboardingScreen({
               onScrollBeginDrag={dismissKeyboard}
             >
               <Animated.View style={[reveal, phase !== 'auth' ? s.revealRole : null]}>
-                <View style={[s.topRow, isCompactPhone ? s.topRowCompact : null]}>
+                <View
+                  style={[
+                    s.topRow,
+                    isCompactPhone || (phase === 'auth' && keyboardVisible) ? s.topRowCompact : null,
+                    phase === 'auth' ? s.topRowAuth : null,
+                    phase === 'auth' && keyboardVisible ? s.topRowAuthKeyboard : null,
+                  ]}
+                >
                   <View style={[s.brandRow, s.brandRowCentered]}>
                     <View style={[s.logoWrap, isCompactPhone ? s.logoWrapCompact : null]}>
                       <Image
-                        source={require('../../../../assets/srv-login-logo.png')}
+                        source={{ uri: SRV_LOGO_URI }}
                         style={s.logo}
                         resizeMode="contain"
                       />
@@ -1696,13 +1727,33 @@ export function OnboardingScreen({
                     </Pressable>
                   ) : null}
                 </View>
-                <View style={[s.welcomeRow, s.welcomeRowCentered]}>
+                <View
+                  style={[
+                    s.welcomeRow,
+                    s.welcomeRowCentered,
+                    phase === 'auth' ? s.welcomeRowAuth : null,
+                    phase === 'auth' && keyboardVisible ? s.welcomeRowAuthHidden : null,
+                  ]}
+                >
                   <View style={s.welcomeBadge}>
                     <LinearGradient
-                      colors={['rgba(14,165,233,0.12)', 'rgba(139,92,246,0.12)']}
+                      colors={
+                        phase === 'auth'
+                          ? role === 'dealer'
+                            ? ['#F5EBDC', '#FCF6ED']
+                            : ['#E9EFFA', '#F7FAFF']
+                          : ['rgba(14,165,233,0.12)', 'rgba(139,92,246,0.12)']
+                      }
                       start={{ x: 0, y: 0.5 }}
                       end={{ x: 1, y: 0.5 }}
-                      style={s.welcomeBadgeFill}
+                      style={[
+                        s.welcomeBadgeFill,
+                        phase === 'auth'
+                          ? role === 'dealer'
+                            ? s.welcomeBadgeFillDealer
+                            : s.welcomeBadgeFillElectrician
+                          : null,
+                      ]}
                     >
                       <Text style={s.eyebrow}>{tx('Welcome to SRV')}</Text>
                     </LinearGradient>
@@ -1728,7 +1779,14 @@ export function OnboardingScreen({
                 >
                   {screenTitle}
                 </Text>
-                <Text style={[s.subtext, isCompactPhone ? s.subtextCompact : null]}>
+                <Text
+                  style={[
+                    s.subtext,
+                    isCompactPhone ? s.subtextCompact : null,
+                    phase === 'auth' ? s.subtextAuth : null,
+                    phase === 'auth' && keyboardVisible ? s.subtextAuthHidden : null,
+                  ]}
+                >
                   {screenSubtitle}
                 </Text>
                 {phase === 'language' ? (
@@ -1853,7 +1911,7 @@ export function OnboardingScreen({
                     />
                   </View>
                 ) : (
-                  <View style={s.card}>
+                  <View style={[s.card, s.authCard, role === 'electrician' ? s.authCardElectrician : s.authCardDealer]}>
                     <Text style={s.sectionEyebrow}>{tx('Authentication')}</Text>
                     <Text style={s.sectionTitle}>
                       {mode === 'login' ? tx('Welcome back') : tx('Create your account')}
@@ -2950,6 +3008,8 @@ const s = StyleSheet.create({
     paddingTop: 18,
   },
   topRowCompact: { marginBottom: 8, minHeight: 96, paddingTop: 18 },
+  topRowAuth: { minHeight: 88, marginBottom: 6, paddingTop: 10 },
+  topRowAuthKeyboard: { minHeight: 74, marginBottom: 2, paddingTop: 4 },
   brandRow: { width: '100%', alignItems: 'center', justifyContent: 'center' },
   brandRowCentered: { flexDirection: 'row' },
   logoWrap: { width: 156, height: 88, alignItems: 'center', justifyContent: 'center' },
@@ -2990,6 +3050,8 @@ const s = StyleSheet.create({
     minHeight: 22,
   },
   welcomeRowCentered: { justifyContent: 'center' },
+  welcomeRowAuth: { marginTop: 2, marginBottom: 10 },
+  welcomeRowAuthHidden: { minHeight: 0, marginTop: 0, marginBottom: 2, opacity: 0.15 },
   welcomeLanguageWrap: { marginLeft: 'auto', alignItems: 'flex-end' },
   welcomeLanguageWrapFloating: { position: 'absolute', right: 0, top: 0, alignItems: 'flex-end' },
   languageWrap: { position: 'relative', zIndex: 20 },
@@ -3073,6 +3135,12 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(14,165,233,0.12)',
   },
+  welcomeBadgeFillElectrician: {
+    borderColor: '#BFDBFE',
+  },
+  welcomeBadgeFillDealer: {
+    borderColor: '#FCD34D',
+  },
   eyebrow: {
     color: C.muted2,
     fontSize: 12,
@@ -3084,8 +3152,8 @@ const s = StyleSheet.create({
   bigTitleCompact: { fontSize: 26, marginTop: 6, marginBottom: 6 },
   bigTitleLanguage: { fontSize: 27, letterSpacing: -0.3 },
   bigTitleNeutral: { color: C.title },
-  bigTitleElectrician: { color: 'rgba(21,154,111,0.84)' },
-  bigTitleDealer: { color: 'rgba(44,107,231,0.84)' },
+  bigTitleElectrician: { color: '#274C77' },
+  bigTitleDealer: { color: '#7A4B22' },
   subtext: {
     color: C.muted,
     fontSize: 13.5,
@@ -3095,6 +3163,8 @@ const s = StyleSheet.create({
     maxWidth: '96%',
   },
   subtextCompact: { fontSize: 12.5, lineHeight: 18, marginTop: 4, marginBottom: 10 },
+  subtextAuth: { maxWidth: '88%', marginBottom: 14, color: '#6B7280' },
+  subtextAuthHidden: { maxHeight: 0, opacity: 0, marginTop: 0, marginBottom: 0 },
   card: {
     backgroundColor: C.white,
     borderRadius: 28,
@@ -3195,24 +3265,26 @@ const s = StyleSheet.create({
   roleSubtitleActive: { color: C.muted2 },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#F1F6FD',
+    backgroundColor: '#EEF2F7',
     borderRadius: 18,
     padding: 4,
     marginTop: 18,
     marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   tab: { flex: 1, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
   tabElectricianActive: {
-    backgroundColor: '#CFF3DE',
+    backgroundColor: '#E8EEF9',
     borderWidth: 1,
-    borderColor: '#63D79C',
-    ...createShadow({ color: '#63D79C', offsetY: 4, blur: 10, opacity: 0.12, elevation: 2 }),
+    borderColor: '#B8CAE8',
+    ...createShadow({ color: '#355C95', offsetY: 4, blur: 10, opacity: 0.1, elevation: 2 }),
   },
   tabDealerActive: {
-    backgroundColor: '#D8EBFF',
+    backgroundColor: '#F5ECE0',
     borderWidth: 1,
-    borderColor: '#69B8FF',
-    ...createShadow({ color: '#4D9FFF', offsetY: 4, blur: 10, opacity: 0.12, elevation: 2 }),
+    borderColor: '#D8BEA1',
+    ...createShadow({ color: '#8A5A2F', offsetY: 4, blur: 10, opacity: 0.1, elevation: 2 }),
   },
   tabText: { color: C.muted, fontSize: 14, fontWeight: '700' },
   tabTextActive: { color: C.text },
@@ -3222,21 +3294,37 @@ const s = StyleSheet.create({
     minHeight: 48,
     borderRadius: 16,
     borderWidth: 1.2,
-    borderColor: C.fieldLine,
+    borderColor: '#D8E2EE',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  loginChoiceCardActive: { borderColor: C.accentA, backgroundColor: '#EEF7FF' },
+  loginChoiceCardActive: { borderColor: '#355C95', backgroundColor: '#EEF3FA' },
   loginChoiceText: { color: C.text, fontSize: 12, fontWeight: '800', textAlign: 'center' },
-  loginChoiceTextActive: { color: C.accentA },
+  loginChoiceTextActive: { color: '#355C95' },
   form: { gap: 12 },
+  authCard: {
+    borderRadius: 24,
+    paddingTop: 18,
+    paddingBottom: 18,
+    borderWidth: 1.4,
+  },
+  authCardElectrician: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderColor: '#D7E1F0',
+    ...createShadow({ color: '#355C95', offsetY: 12, blur: 20, opacity: 0.1, elevation: 5 }),
+  },
+  authCardDealer: {
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderColor: '#E3D7C8',
+    ...createShadow({ color: '#8A5A2F', offsetY: 12, blur: 20, opacity: 0.1, elevation: 5 }),
+  },
   formIntroCard: {
     borderRadius: 20,
     padding: 14,
-    backgroundColor: '#F7FAFF',
-    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.2,
     borderColor: '#D8E7FB',
     gap: 6,
   },
@@ -3469,3 +3557,4 @@ const s = StyleSheet.create({
   otpTimer: { color: C.error, fontSize: 12, fontWeight: '800' },
   otpResend: { color: C.accentA, fontSize: 12, fontWeight: '800' },
 });
+

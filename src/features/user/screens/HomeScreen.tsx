@@ -703,7 +703,7 @@ export function HomeScreen({
     );
     const mapped = filtered.map((b) => ({
       image: { uri: b.imageUrl! },
-      resizeMode: ((b.resizeMode ?? 'cover') as 'cover' | 'contain'),
+      resizeMode: 'cover' as const,
       backgroundColor: b.bgColor ?? '#192F67',
     }));
     // Prefetch all banner images so they're in cache before carousel renders
@@ -799,7 +799,7 @@ export function HomeScreen({
       showsVerticalScrollIndicator={false}
     >
       <LinearGradient
-        colors={darkMode ? ['#0B1220', '#101A2F', '#18263E'] : ['#EAF3FF', '#DDEEFF', '#F6EEFF']}
+        colors={darkMode ? ['#0B1220', '#101A2F', '#18263E'] : ['#F4F8EE', '#E7F0D4', '#F8FBF1']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.heroShell, { marginTop: -insets.top, paddingTop: 26 + insets.top }]}
@@ -849,7 +849,7 @@ export function HomeScreen({
             state: authUser?.state ?? '',
             address: authUser?.address ?? '',
           }}
-          role="electrician"
+          role="user"
           photoUri={profilePhotoUri}
           apiPhotoUri={authUser?.profileImage ?? null}
         />
@@ -1051,7 +1051,7 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#EEF3F8' },
+  container: { flex: 1, backgroundColor: '#F4F8EE' },
   containerDark: { backgroundColor: '#08111F' },
   heroShell: {
     paddingTop: 26,
@@ -1071,7 +1071,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(59,130,246,0.18)',
+    backgroundColor: 'rgba(107,124,45,0.18)',
     top: -60,
     right: -35,
   },
@@ -1080,7 +1080,7 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: 'rgba(236,72,153,0.14)',
+    backgroundColor: 'rgba(166,180,86,0.16)',
     bottom: 18,
     left: -28,
   },
@@ -1089,7 +1089,7 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: 'rgba(34,197,94,0.1)',
+    backgroundColor: 'rgba(107,124,45,0.12)',
     top: 72,
     left: '34%',
   },
@@ -1273,7 +1273,7 @@ const styles = StyleSheet.create({
   quickSub: { color: '#74829D', fontSize: 11.5, marginTop: 3 },
   quickSubDark: { color: '#CBD5E1' },
   inlineAction: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewAllText: { color: '#E8453C', fontSize: 13, fontWeight: '800' },
+  viewAllText: { color: '#6B7C2D', fontSize: 13, fontWeight: '800' },
   productsTopBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1298,10 +1298,10 @@ const styles = StyleSheet.create({
     borderColor: '#243043',
   },
   filterChipActive: {
-    backgroundColor: '#173E80',
-    borderColor: '#173E80',
+    backgroundColor: '#6B7C2D',
+    borderColor: '#6B7C2D',
   },
-  filterChipText: { color: '#173E80', fontSize: 11.5, fontWeight: '800' },
+  filterChipText: { color: '#6B7C2D', fontSize: 11.5, fontWeight: '800' },
   filterChipTextDark: { color: '#CBD5E1' },
   filterChipTextActive: { color: '#FFFFFF' },
   productsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
@@ -1406,7 +1406,7 @@ const styles = StyleSheet.create({
   categoryImgWrap: {
     width: '100%',
     height: 76,
-    backgroundColor: '#F4F7FF',
+    backgroundColor: '#F1F6E2',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -1430,11 +1430,11 @@ const styles = StyleSheet.create({
   categoryPrice: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#E8453C',
+    color: '#6B7C2D',
     textAlign: 'center',
     marginTop: 3,
     paddingHorizontal: 4,
   },
   categoryPriceDark: { color: '#F87171' },
-  notifDot: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#E8453C', borderWidth: 1.5, borderColor: '#fff' },
+  notifDot: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7C2D', borderWidth: 1.5, borderColor: '#fff' },
 });

@@ -71,7 +71,7 @@ export function CallElectricianScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <LinearGradient colors={['#163A76', '#2953A5', '#5F8DE8']} style={styles.hero}>
+      <LinearGradient colors={['#5A3A07', '#8A5A12', '#C8891E']} style={styles.hero}>
         <Text style={styles.heroEyebrow}>{tx('Dealer Calling Desk')}</Text>
         <Text style={styles.heroTitle}>{tx('Reach your electricians instantly')}</Text>
         <Text style={styles.heroSub}>
@@ -148,5 +148,4 @@ const styles = StyleSheet.create({
   whatsAppBtn: { backgroundColor: '#1FAF63' },
   callBtn: { backgroundColor: '#2953A5' },
 });
-
 

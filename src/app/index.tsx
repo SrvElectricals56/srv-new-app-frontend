@@ -2,36 +2,37 @@ import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BottomNav as DealerBottomNav } from '@/features/dealer/BottomNav';
-import { CallElectricianScreen as DealerCallElectricianScreen } from '@/features/dealer/CallElectricianScreen';
-import { ElectriciansScreen as DealerElectriciansScreen } from '@/features/dealer/ElectriciansScreen';
+import { BottomNav as DealerBottomNav } from '@/features/dealer/screens/BottomNav';
+import { CallElectricianScreen as DealerCallElectricianScreen } from '@/features/dealer/screens/CallElectricianScreen';
+import { ElectriciansScreen as DealerElectriciansScreen } from '@/features/dealer/screens/ElectriciansScreen';
 import { HomeScreen as DealerHomeScreen } from '@/features/dealer/screens/HomeScreen';
 import { MemberTierScreen as DealerMemberTierScreen } from '@/features/dealer/screens/MemberTierScreen';
-import { ProfileScreen as DealerProfileScreen } from '@/features/dealer/ProfileScreen';
-import { ProductScreen as DealerProductScreen } from '@/features/dealer/screens/ProductScreen';
-import { BottomNav as ElectricianBottomNav } from '@/features/electrician/BottomNav';
-import { ElectricianTierScreen } from '@/features/electrician/ElectricianTierScreen';
-import { HomeScreen as ElectricianHomeScreen } from '@/features/electrician/HomeScreen';
-import { NotificationScreen as ElectricianNotificationScreen } from '@/features/electrician/NotificationScreen';
+import { ProfileScreen as DealerProfileScreen } from '@/features/dealer/screens/ProfileScreen';
+import { ProductScreen as DealerProductScreen } from '@/features/dealer/screens/DealerProductScreen';
+import { BottomNav as ElectricianBottomNav } from '@/features/electrician/screens/BottomNav';
+import { ElectricianTierScreen } from '@/features/electrician/screens/ElectricianTierScreen';
+import { HomeScreen as ElectricianHomeScreen } from '@/features/electrician/screens/HomeScreen';
+import { NotificationScreen as ElectricianNotificationScreen } from '@/features/electrician/screens/NotificationScreen';
 import { ProductScreen as ElectricianProductScreen } from '@/features/electrician/screens/ProductScreen';
-import { ProfileScreen as ElectricianProfileScreen } from '@/features/electrician/ProfileScreen';
-import { RewardsScreen as ElectricianRewardsScreen } from '@/features/electrician/RewardsScreen';
-import { ScanScreen as ElectricianScanScreen } from '@/features/electrician/ScanScreen';
-import { WalletScreen as ElectricianWalletScreen } from '@/features/electrician/WalletScreen';
-import { BottomNav as UserBottomNav } from '@/features/user/BottomNav';
+import { ProfileScreen as ElectricianProfileScreen } from '@/features/electrician/screens/ProfileScreen';
+import { RewardsScreen as ElectricianRewardsScreen } from '@/features/electrician/screens/RewardsScreen';
+import { ScanScreen as ElectricianScanScreen } from '@/features/electrician/screens/ScanScreen';
+import { WalletScreen as ElectricianWalletScreen } from '@/features/electrician/screens/WalletScreen';
+import { BottomNav as UserBottomNav } from '@/features/user/screens/BottomNav';
 import { HomeScreen as UserHomeScreen } from '@/features/user/screens/HomeScreen';
-import { NotificationScreen as UserNotificationScreen } from '@/features/user/NotificationScreen';
-import { ProfileScreen as UserProfileScreen } from '@/features/user/ProfileScreen';
-import { RewardsScreen as UserRewardsScreen } from '@/features/user/RewardsScreen';
+import { NotificationScreen as UserNotificationScreen } from '@/features/user/screens/NotificationScreen';
+import { ProfileScreen as UserProfileScreen } from '@/features/user/screens/ProfileScreen';
+import { RewardsScreen as UserRewardsScreen } from '@/features/user/screens/RewardsScreen';
 import { CategoriesScreen as UserCategoriesScreen } from '@/features/user/screens/CategoriesScreen';
 import { CartScreen as UserCartScreen, type CartItem } from '@/features/user/screens/CartScreen';
-import { WalletScreen as UserWalletScreen } from '@/features/user/WalletScreen';
+import { PlayScreen as UserPlayScreen } from '@/features/user/screens/PlayScreen';
+import { WalletScreen as UserWalletScreen } from '@/features/user/screens/WalletScreen';
 import { AuthLandingScreen } from '@/features/profile/screens/AuthLandingScreen';
 import {
   WalletBankDetailsScreen,
   WalletDealerBonusScreen,
   WalletTransferPointsScreen,
-} from '@/features/profile/WalletLinkedPages';
+} from '@/features/profile/screens/WalletLinkedPages';
 import { PreferenceContext, type AppLanguage, usePreferenceValue } from '@/shared/preferences';
 import { colors } from '@/shared/theme/colors';
 import type { Screen, UserRole } from '@/shared/types/navigation';
@@ -145,14 +146,23 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [isAuthenticated, user?.id, authRole]);
 
-  const preferenceValue = usePreferenceValue({ language, setLanguage, darkMode, setDarkMode });
+  const preferenceValue = usePreferenceValue({
+    language,
+    setLanguage,
+    darkMode,
+    setDarkMode,
+    currentRole,
+  });
   const appTheme = preferenceValue.theme;
   const statusBarStyle = darkMode ? 'light' : 'dark';
 
   const handleNavigate = useCallback(
     (screen: Screen) => {
       if (screen === currentScreen) {
-        setScreenResetKey((current) => current + 1);
+        // Don't reset key for electricians screen — it causes unnecessary re-mount
+        if (screen !== 'electricians') {
+          setScreenResetKey((current) => current + 1);
+        }
       }
 
       if (screen === 'product') {
@@ -235,7 +245,7 @@ function AppContent() {
       }
 
       setCurrentRole(role);
-      setCurrentScreen('profile');
+      setCurrentScreen('home');
       setShowOnboarding(false);
     },
     [login]
@@ -402,8 +412,10 @@ function AppContent() {
           );
         case 'product':
           return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} />;
+        case 'play':
+          return <UserPlayScreen onNavigate={handleNavigate} />;
         case 'notification':
-          return <UserNotificationScreen onNavigate={handleNavigate} role="electrician" onNotificationsSeen={handleNotificationsSeen} />;
+          return <UserNotificationScreen onNavigate={handleNavigate} role="user" onNotificationsSeen={handleNotificationsSeen} />;
         case 'categories':
           return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} />;
         case 'cart':
@@ -454,7 +466,7 @@ function AppContent() {
         case 'wallet':
           return (
             <UserWalletScreen
-              role="electrician"
+              role="user"
               onNavigate={handleNavigate}
               totalPoints={electricianRewardPoints}
               totalScans={electricianRewardScans}
@@ -663,3 +675,5 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+

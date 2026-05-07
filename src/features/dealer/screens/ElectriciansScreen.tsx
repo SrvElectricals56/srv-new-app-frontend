@@ -58,7 +58,7 @@ function TeamIcon({ color = '#FFFFFF', size = 24 }: { color?: string; size?: num
   );
 }
 
-function PlusIcon({ color = '#17438E', size = 18 }: { color?: string; size?: number }) {
+function PlusIcon({ color = '#8A5A12', size = 18 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M12 5V19M5 12H19" stroke={color} strokeWidth={2.1} strokeLinecap="round" />
@@ -297,7 +297,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
-          colors={['#143A7B', '#275CC0', '#63A4FF']}
+          colors={['#7C3A00', '#B45309', '#D97706']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}
@@ -389,7 +389,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
 
         <View style={styles.listWrap}>
           {apiLoading ? (
-            <ActivityIndicator color="#275CC0" size="large" style={{ marginTop: 24 }} />
+            <ActivityIndicator color="#D97706" size="large" style={{ marginTop: 24 }} />
           ) : filtered.length === 0 ? (
             <View style={[styles.memberCard, { backgroundColor: theme.surface, borderColor: theme.border, alignItems: 'center', paddingVertical: 32 }]}>
               <Text style={{ color: theme.textMuted, fontSize: 14, textAlign: 'center' }}>
@@ -591,14 +591,14 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     padding: 20,
     overflow: 'hidden',
-    ...createShadow({ color: '#163A6B', offsetY: 10, blur: 20, opacity: 0.2, elevation: 8 }),
+    ...createShadow({ color: '#7C3A00', offsetY: 10, blur: 20, opacity: 0.25, elevation: 8 }),
   },
   heroGlowOne: {
     position: 'absolute',
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     top: -40,
     right: -20,
   },
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     borderRadius: 65,
-    backgroundColor: 'rgba(151,202,255,0.24)',
+    backgroundColor: 'rgba(255,200,100,0.20)',
     bottom: -20,
     left: -10,
   },
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  heroButtonText: { color: '#17438E', fontSize: 13, fontWeight: '800' },
+  heroButtonText: { color: '#7C3A00', fontSize: 13, fontWeight: '800' },
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {
     flex: 1,
@@ -699,11 +699,11 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 18,
-    backgroundColor: '#EAF1FF',
+    backgroundColor: '#FFF1D9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  memberAvatarText: { color: '#17438E', fontSize: 20, fontWeight: '900' },
+  memberAvatarText: { color: '#8A5A12', fontSize: 20, fontWeight: '900' },
   memberName: { color: '#18283E', fontSize: 16, fontWeight: '800' },
   memberPhone: { marginTop: 2, color: '#7488A1', fontSize: 12.5 },
   statusPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
@@ -722,8 +722,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#F5F8FC',
   },
-  metaText: { color: '#33527B', fontSize: 12, fontWeight: '700' },
-  metaPoints: { color: '#17438E', fontSize: 12, fontWeight: '800' },
+  metaText: { color: '#7B5A2F', fontSize: 12, fontWeight: '700' },
+  metaPoints: { color: '#8A5A12', fontSize: 12, fontWeight: '800' },
   memberCity: { marginTop: 12, color: '#263A56', fontSize: 13, fontWeight: '700' },
   memberJoined: { marginTop: 4, color: '#8597AC', fontSize: 12 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12,26,49,0.38)' },
@@ -814,9 +814,9 @@ const styles = StyleSheet.create({
   otpCard: {
     borderRadius: 18,
     padding: 10,
-    backgroundColor: '#EEF5FF',
+    backgroundColor: '#FFF4DE',
     borderWidth: 1,
-    borderColor: '#D8E7FF',
+    borderColor: '#F1D6A2',
     gap: 6,
   },
   otpCardDark: {
@@ -824,12 +824,12 @@ const styles = StyleSheet.create({
     borderColor: '#29466E',
   },
   otpInfo: {
-    color: '#3F5E86',
+    color: '#7B6A46',
     fontSize: 12,
     lineHeight: 16,
   },
   otpHint: {
-    color: '#17438E',
+    color: '#8A5A12',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -839,12 +839,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   otpTimer: {
-    color: '#E8453C',
+    color: '#C06A1A',
     fontSize: 12,
     fontWeight: '800',
   },
   otpResend: {
-    color: '#2563EB',
+    color: '#8A5A12',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -873,12 +873,12 @@ const styles = StyleSheet.create({
     minHeight: 18,
   },
   otpTimerSmall: {
-    color: '#E8453C',
+    color: '#C06A1A',
     fontSize: 11,
     fontWeight: '800',
   },
   otpResendSmall: {
-    color: '#2563EB',
+    color: '#8A5A12',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF3F8',
   },
   secondaryButtonDark: { backgroundColor: '#1F2937' },
-  secondaryButtonText: { color: '#40566F', fontSize: 15, fontWeight: '800' },
+  secondaryButtonText: { color: '#6B5A3A', fontSize: 15, fontWeight: '800' },
   secondaryButtonTextDark: { color: '#E2E8F0' },
   primaryButton: {
     flex: 1,
@@ -924,13 +924,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#17438E',
+    backgroundColor: '#8A5A12',
   },
   primaryButtonDisabled: {
-    backgroundColor: '#D7E1EE',
+    backgroundColor: '#E9D7B8',
   },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
 });
-
-
 

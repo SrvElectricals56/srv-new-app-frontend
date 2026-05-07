@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+﻿import React, { useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { OnboardingScreen, type UserRole } from '@/features/electrician/screens/OnboardingScreen';
+import { OnboardingScreen } from '@/features/electrician/screens/OnboardingScreen';
 import { UserAuthScreen } from '@/features/user/screens/AuthScreen';
 import { AppIcon, C } from '../components/ProfileShared';
+import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
+import type { UserRole } from '@/shared/types/navigation';
+
 
 export function AuthLandingScreen({
   role,
@@ -46,107 +49,109 @@ export function AuthLandingScreen({
     );
   }
 
-  // Dealer and Electrician use original OnboardingScreen with all fields
-  if (mode) {
-    return (
-      <OnboardingScreen
-        key={`${role}-${mode}`}
-        fixedRole={role}
-        initialMode={mode}
-        initialPhase="auth"
-        onCancel={() => setMode(null)}
-        onGetStarted={onAuthenticated}
-      />
-    );
-  }
-
   const isDealer = role === 'dealer';
-  const isUser = role === 'user';
-  const accent = isDealer ? '#2563EB' : isUser ? '#7C3AED' : '#DE3B30';
-  const accentSoft = isDealer ? '#DBEAFE' : isUser ? '#EDE9FE' : '#FEE2E2';
+  const accent = theme.accent;
+  const roleTheme = isDealer
+    ? {
+        p1: '#D97706',
+        p2: '#92400E',
+        p3: '#5B3410',
+        soft: '#FEF3C7',
+        orb: '#FCD34D',
+      }
+    : {
+        p1: '#2563EB',
+        p2: '#1D4ED8',
+        p3: '#1E3A8A',
+        soft: '#DBEAFE',
+        orb: '#93C5FD',
+      };
   const title = isDealer
     ? tx('Dealer account access')
-    : isUser
-      ? tx('Customer account access')
-      : tx('Electrician account access');
+    : tx('Electrician account access');
   const subtitle = isDealer
     ? tx('Login or create your dealer account to unlock profile tools, network details and business controls.')
-    : isUser
-      ? tx('Login or create your customer account to browse products and get exclusive deals.')
-      : tx('Login or create your electrician account to unlock rewards, scan history and your complete profile.');
-  const bulletOne = isDealer
-    ? tx('Business profile and KYC setup')
-    : isUser
-      ? tx('Browse 250+ certified products')
-      : tx('Rewards, scans and redemption history');
-  const bulletTwo = isDealer
-    ? tx('Dealer network, bonus and orders')
-    : isUser
-      ? tx('Exclusive deals and offers')
-      : tx('Electrician profile, wallet and level progress');
+    : tx('Login or create your electrician account to unlock rewards, scan history and your complete profile.');
+  const heroTitle = isDealer ? tx('Welcome Dealer') : tx('Welcome Electrician');
+  const statThree = isDealer ? tx('Partners') : tx('Members');
 
   return (
     <ScrollView
-      style={[styles.screen, { backgroundColor: theme.bg }]}
+      style={[styles.screen, { backgroundColor: isDealer ? '#FFF9F0' : '#F4F8FF' }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <LinearGradient colors={[theme.heroSurface, theme.surface]} style={styles.heroCard}>
-        <View style={[styles.heroGlow, { backgroundColor: accentSoft }]} />
-        <View style={[styles.iconWrap, { backgroundColor: accentSoft }]}>
-          <AppIcon name={isDealer ? 'building' : isUser ? 'star' : 'scan'} size={28} color={accent} />
+      <LinearGradient colors={[roleTheme.p1, roleTheme.p2, roleTheme.p3]} style={styles.heroCard}>
+        <View style={[styles.heroOrbLarge, { backgroundColor: roleTheme.orb }]} />
+        <View style={[styles.heroOrbSmall, { backgroundColor: roleTheme.orb }]} />
+        <View style={styles.logoWrap}>
+          <Image source={{ uri: SRV_LOGO_URI }} style={styles.logoImg} resizeMode="contain" />
         </View>
-        <Text style={[styles.eyebrow, { color: accent }]}>
-          {isDealer ? tx('Profile Locked For Dealer') : isUser ? tx('Profile Locked For Customer') : tx('Profile Locked For Electrician')}
+        <Text style={styles.heroTag}>SRV ELECTRICALS</Text>
+        <Text style={styles.heroTitle}>{heroTitle}</Text>
+        <Text style={styles.heroSubtitle}>
+          {isDealer
+            ? tx('Manage business growth, connected electricians and dealer tools in one place.')
+            : tx('Track rewards, scans and profile progress with your SRV account.')}
         </Text>
-        <Text style={[styles.title, { color: theme.textPrimary }]}>{title}</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
-
-        <View style={styles.highlights}>
-          <View style={[styles.highlightCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <AppIcon name="lock" size={16} color={accent} />
-            <Text style={[styles.highlightText, { color: theme.textPrimary }]}>{bulletOne}</Text>
-          </View>
-          <View style={[styles.highlightCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <AppIcon name={isDealer ? 'bank' : 'redeem'} size={16} color={accent} />
-            <Text style={[styles.highlightText, { color: theme.textPrimary }]}>{bulletTwo}</Text>
-          </View>
-        </View>
       </LinearGradient>
 
       <View style={[styles.actionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.actionTitle, { color: theme.textPrimary }]}>{tx('Continue with your account')}</Text>
-        <Text style={[styles.actionSub, { color: theme.textMuted }]}>
-          {tx('Choose login if you already have an account, or create one in a few steps.')}
-        </Text>
+        <View style={[styles.rolePill, { backgroundColor: roleTheme.soft }]}>
+          <AppIcon name={isDealer ? 'building' : 'scan'} size={16} color={accent} />
+          <Text style={[styles.rolePillText, { color: accent }]}>{title}</Text>
+        </View>
+        <Text style={[styles.actionTitle, { color: theme.textPrimary }]}>{tx('Get Started')}</Text>
+        <Text style={[styles.actionSub, { color: theme.textMuted }]}>{subtitle}</Text>
 
         <Pressable onPress={() => setMode('login')} style={styles.buttonShell}>
           <LinearGradient
-            colors={isDealer ? ['#2563EB', '#60A5FA'] : isUser ? ['#7C3AED', '#A78BFA'] : ['#DE3B30', '#F87171']}
+            colors={[roleTheme.p1, roleTheme.p2]}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            end={{ x: 1, y: 0 }}
             style={styles.primaryButton}
           >
+            <Text style={styles.primaryButtonText}>{tx('Login to Account')}</Text>
             <AppIcon name="chevronRight" size={18} color="#FFFFFF" />
-            <Text style={styles.primaryButtonText}>{tx('Login')}</Text>
           </LinearGradient>
         </Pressable>
 
         <Pressable
           onPress={() => setMode('signup')}
-          style={[styles.secondaryButton, { backgroundColor: accentSoft, borderColor: accent }]}
+          style={[styles.secondaryButton, { backgroundColor: roleTheme.soft, borderColor: accent }]}
         >
-          <AppIcon name="star" size={18} color={accent} />
-          <Text style={[styles.secondaryButtonText, { color: accent }]}>{tx('Create Account')}</Text>
+          <Text style={[styles.secondaryButtonText, { color: accent }]}>{tx('Create New Account')}</Text>
         </Pressable>
+
+        <View style={[styles.statsRow, { borderTopColor: theme.border }]}>
+          {[
+            ['25+', tx('Years')],
+            ['250+', tx('Products')],
+            ['50K+', statThree],
+          ].map(([value, label]) => (
+            <View key={`${value}-${label}`} style={styles.statItem}>
+              <Text style={[styles.statValue, { color: accent }]}>{value}</Text>
+              <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
+            </View>
+          ))}
+        </View>
 
         {onBack && (
           <Pressable
             onPress={onBack}
-            style={[styles.backButton, { borderColor: theme.border }]}
+            style={styles.backButtonShell}
           >
-            <AppIcon name="arrowLeft" size={18} color={theme.textMuted} />
-            <Text style={[styles.backButtonText, { color: theme.textMuted }]}>{tx('Back')}</Text>
+            <LinearGradient
+              colors={[roleTheme.soft, isDealer ? '#FFF7E8' : '#EEF5FF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.backButton, { borderColor: `${accent}40` }]}
+            >
+              <View style={[styles.backIconWrap, { backgroundColor: accent }]}>
+                <AppIcon name="arrowLeft" size={16} color="#FFFFFF" />
+              </View>
+              <Text style={[styles.backButtonText, { color: accent }]}>{tx('Switch Your Role')}</Text>
+            </LinearGradient>
           </Pressable>
         )}
       </View>
@@ -158,71 +163,83 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   content: { padding: 16, gap: 16, paddingBottom: 120 },
   heroCard: {
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 32,
     overflow: 'hidden',
-    ...createShadow({ color: '#0F172A', offsetY: 8, blur: 20, opacity: 0.1, elevation: 5 }),
+    alignItems: 'center',
+    ...createShadow({ color: '#0F172A', offsetY: 10, blur: 22, opacity: 0.16, elevation: 6 }),
   },
-  heroGlow: {
+  heroOrbLarge: {
     position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    top: -70,
-    right: -40,
-    opacity: 0.7,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    top: -40,
+    right: -50,
+    opacity: 0.2,
   },
-  iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+  heroOrbSmall: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    bottom: 10,
+    left: -24,
+    opacity: 0.15,
+  },
+  logoWrap: {
+    width: 84,
+    height: 84,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  eyebrow: {
-    fontSize: 11,
+  logoImg: {
+    width: 66,
+    height: 66,
+  },
+  heroTag: {
+    fontSize: 10,
     fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    marginBottom: 8,
+    color: 'rgba(255,255,255,0.62)',
+    letterSpacing: 3,
+    marginBottom: 6,
   },
-  title: {
-    fontSize: 24,
+  heroTitle: {
+    fontSize: 30,
     fontWeight: '900',
-    marginBottom: 8,
+    color: '#FFFFFF',
+    marginBottom: 6,
   },
-  subtitle: {
+  heroSubtitle: {
     fontSize: 13,
     lineHeight: 20,
-    marginBottom: 16,
-  },
-  highlights: {
-    gap: 8,
-  },
-  highlightCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-  },
-  highlightText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
+    color: 'rgba(255,255,255,0.78)',
+    textAlign: 'center',
   },
   actionCard: {
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
     padding: 20,
     gap: 12,
-    ...createShadow({ color: '#000', offsetY: 2, blur: 8, opacity: 0.06, elevation: 3 }),
+    ...createShadow({ color: '#000', offsetY: 4, blur: 10, opacity: 0.06, elevation: 3 }),
   },
+  rolePill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  rolePillText: { fontSize: 12, fontWeight: '800' },
   actionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '900',
   },
   actionSub: {
@@ -252,26 +269,54 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 14,
     borderWidth: 1.5,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: '900',
   },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 14,
+    borderTopWidth: 1,
+    marginTop: 4,
+  },
+  statItem: { alignItems: 'center', gap: 2 },
+  statValue: { fontSize: 17, fontWeight: '900' },
+  statLabel: { fontSize: 11, fontWeight: '600' },
+  backButtonShell: {
+    alignSelf: 'center',
+    marginTop: 4,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...createShadow({ color: '#000', offsetY: 3, blur: 8, opacity: 0.08, elevation: 3 }),
+  },
   backButton: {
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
+    paddingHorizontal: 18,
+  },
+  backIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   backButtonText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });
+
+
+
+
+

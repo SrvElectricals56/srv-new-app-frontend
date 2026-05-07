@@ -1,64 +1,65 @@
-import { useMemo } from 'react';
-import { Dimensions, PixelRatio } from 'react-native';
+import { Dimensions, PixelRatio, Platform, StatusBar } from 'react-native';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const guidelineBaseWidth = 375;
-const guidelineBaseHeight = 812;
-
-export function useResponsive() {
-  return useMemo(() => {
-    const horizontalScale = (size: number) => (SCREEN_WIDTH / guidelineBaseWidth) * size;
-    const verticalScale = (size: number) => (SCREEN_HEIGHT / guidelineBaseHeight) * size;
-    const moderateScale = (size: number, factor = 0.5) =>
-      size + (horizontalScale(size) - size) * factor;
-
-    const fontScale = PixelRatio.getFontScale();
-
-    return {
-      width: SCREEN_WIDTH,
-      height: SCREEN_HEIGHT,
-      isSmallDevice: SCREEN_WIDTH < 360,
-      isMediumDevice: SCREEN_WIDTH >= 360 && SCREEN_WIDTH < 414,
-      isLargeDevice: SCREEN_WIDTH >= 414,
-      isShortDevice: SCREEN_HEIGHT < 700,
-      isMediumHeight: SCREEN_HEIGHT >= 700 && SCREEN_HEIGHT < 800,
-      isTallDevice: SCREEN_HEIGHT >= 800,
-      horizontalScale,
-      verticalScale,
-      moderateScale,
-      wp: horizontalScale,
-      hp: verticalScale,
-      ms: moderateScale,
-      fs: (size: number) => {
-        const scaled = moderateScale(size);
-        return scaled * fontScale;
-      },
-      paddingHorizontal: horizontalScale(16),
-      paddingVertical: verticalScale(16),
-      gap: verticalScale(12),
-    };
-  }, []);
-}
-
-export function getResponsiveValues() {
-  return {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
-    isSmallDevice: SCREEN_WIDTH < 360,
-    isMediumDevice: SCREEN_WIDTH >= 360 && SCREEN_WIDTH < 414,
-    isLargeDevice: SCREEN_WIDTH >= 414,
-    isShortDevice: SCREEN_HEIGHT < 700,
-    isMediumHeight: SCREEN_HEIGHT >= 700 && SCREEN_HEIGHT < 800,
-    isTallDevice: SCREEN_HEIGHT >= 800,
-    horizontalScale: (size: number) => (SCREEN_WIDTH / guidelineBaseWidth) * size,
-    verticalScale: (size: number) => (SCREEN_HEIGHT / guidelineBaseHeight) * size,
-    moderateScale: (size: number, factor = 0.5) =>
-      size + ((SCREEN_WIDTH / guidelineBaseWidth) * size - size) * factor,
-  };
-}
+const BASE_W = 390;
+const BASE_H = 844;
 
 export const SCREEN = {
-  width: SCREEN_WIDTH,
-  height: SCREEN_HEIGHT,
+  width: SCREEN_W,
+  height: SCREEN_H,
 };
+
+export const ws = (size: number): number =>
+  Math.round(PixelRatio.roundToNearestPixel((SCREEN_W / BASE_W) * size));
+
+export const hs = (size: number): number =>
+  Math.round(PixelRatio.roundToNearestPixel((SCREEN_H / BASE_H) * size));
+
+export const wp = (size: number): number => ws(size);
+
+export const hp = (size: number): number => hs(size);
+
+export const ms = (size: number, factor = 0.5): number =>
+  Math.round(size + (ws(size) - size) * factor);
+
+export const isSmallDevice = SCREEN_W < 360;
+export const isMediumDevice = SCREEN_W >= 360 && SCREEN_W < 414;
+export const isLargeDevice = SCREEN_W >= 414;
+export const isTablet = SCREEN_W >= 768;
+export const isShortDevice = SCREEN_H < 760;
+
+export const safeTop: number =
+  Platform.OS === 'android'
+    ? (StatusBar.currentHeight ?? 24) + ws(16)
+    : ws(56);
+
+export const screenWidth = SCREEN_W;
+export const screenHeight = SCREEN_H;
+
+export const rf = (size: number, min?: number, max?: number): number => {
+  const scaled = ms(size);
+  if (min !== undefined && scaled < min) return min;
+  if (max !== undefined && scaled > max) return max;
+  return scaled;
+};
+
+export const getResponsiveValues = () => ({
+  wp,
+  hp,
+  ws,
+  hs,
+  ms,
+  rf,
+  safeTop,
+  screenWidth,
+  screenHeight,
+  isSmallDevice,
+  isMediumDevice,
+  isLargeDevice,
+  isTablet,
+  isShortDevice,
+  SCREEN,
+});
+
+export const useResponsive = () => getResponsiveValues();

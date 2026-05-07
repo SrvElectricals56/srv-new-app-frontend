@@ -111,6 +111,79 @@ type ApiTxItem = {
   accent: string;
 };
 
+// ── Role-wise theme tokens ────────────────────────────────────────────
+const ROLE_THEME = {
+  dealer: {
+    heroGradient: ['#7C3A00', '#B45309', '#D97706'] as [string, string, string],
+    heroShadow: '#7C3A00',
+    eyebrowColor: '#FDE3B8',
+    screenBg: '#FBF5EC',
+    cardBorder: '#EDD9B8',
+    cardShadow: '#B45309',
+    sectionEyebrow: '#B45309',
+    sectionIconBg: '#FFF1D6',
+    actionTileBg: '#FFF8EE',
+    actionTileBorder: '#F0DDB8',
+    timelineCardBg: '#FBF5EC',
+    timelineCardBorder: '#EDD9B8',
+    emptyStateBg: '#FFF8EE',
+    emptyStateBorder: '#F0DDB8',
+    emptyIconBg: '#FDE8C0',
+    emptyTitleColor: '#92400E',
+    paginationBtnBg: '#B45309',
+    paginationBtnDisabledBg: '#EDD9B8',
+    paginationBtnDisabledText: '#B45309',
+    paginationInfoBg: '#FBF5EC',
+    storeIconWrapBg: '#FFF0DA',
+  },
+  electrician: {
+    heroGradient: ['#1E3A8A', '#2563EB', '#60A5FA'] as [string, string, string],
+    heroShadow: '#1E3A8A',
+    eyebrowColor: '#BFDBFE',
+    screenBg: '#EFF4FB',
+    cardBorder: '#DBEAFE',
+    cardShadow: '#2563EB',
+    sectionEyebrow: '#2563EB',
+    sectionIconBg: '#EFF6FF',
+    actionTileBg: '#F0F7FF',
+    actionTileBorder: '#DBEAFE',
+    timelineCardBg: '#F0F7FF',
+    timelineCardBorder: '#DBEAFE',
+    emptyStateBg: '#EFF6FF',
+    emptyStateBorder: '#DBEAFE',
+    emptyIconBg: '#DBEAFE',
+    emptyTitleColor: '#1D4ED8',
+    paginationBtnBg: '#2563EB',
+    paginationBtnDisabledBg: '#DBEAFE',
+    paginationBtnDisabledText: '#2563EB',
+    paginationInfoBg: '#EFF6FF',
+    storeIconWrapBg: '#DBEAFE',
+  },
+  user: {
+    heroGradient: ['#3D4A1A', '#6B7C2D', '#8FA83C'] as [string, string, string],
+    heroShadow: '#3D4A1A',
+    eyebrowColor: '#E4EDB8',
+    screenBg: '#F5F7EC',
+    cardBorder: '#D8E4A8',
+    cardShadow: '#6B7C2D',
+    sectionEyebrow: '#6B7C2D',
+    sectionIconBg: '#EEF3D0',
+    actionTileBg: '#F5F8E8',
+    actionTileBorder: '#D8E4A8',
+    timelineCardBg: '#F5F8E8',
+    timelineCardBorder: '#D8E4A8',
+    emptyStateBg: '#EEF3D0',
+    emptyStateBorder: '#D8E4A8',
+    emptyIconBg: '#D8E4A8',
+    emptyTitleColor: '#4A5A1A',
+    paginationBtnBg: '#6B7C2D',
+    paginationBtnDisabledBg: '#D8E4A8',
+    paginationBtnDisabledText: '#6B7C2D',
+    paginationInfoBg: '#EEF3D0',
+    storeIconWrapBg: '#EEF3D0',
+  },
+};
+
 export function WalletScreen({
   role = 'electrician',
   onNavigate,
@@ -120,6 +193,7 @@ export function WalletScreen({
 }: WalletScreenProps) {
   const { darkMode, tx } = usePreferenceContext();
   const isDealer = role === 'dealer';
+  const t = ROLE_THEME[role] ?? ROLE_THEME.electrician;
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -225,15 +299,15 @@ export function WalletScreen({
 
   return (
     <ScrollView
-      style={[styles.screen, darkMode ? styles.screenDark : null]}
+      style={[styles.screen, { backgroundColor: darkMode ? '#08111F' : t.screenBg }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
       <LinearGradient
-        colors={['#18345B', '#355C95', '#E18D4E']}
+        colors={t.heroGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.heroCard}
+        style={[styles.heroCard, createShadow({ color: t.heroShadow, offsetY: 14, blur: 24, opacity: 0.22, elevation: 8 })]}
       >
         <View style={styles.heroGlow} />
         <View style={styles.heroHeader}>
@@ -242,14 +316,14 @@ export function WalletScreen({
             <Text style={styles.backLabel}>{tx('Home')}</Text>
           </Pressable>
           <Pressable onPress={() => onNavigate?.('rewards')} style={styles.storeButton}>
-            <View style={styles.storeIconWrap}>
+            <View style={[styles.storeIconWrap, { backgroundColor: t.storeIconWrapBg }]}>
               <GiftIcon />
             </View>
           </Pressable>
         </View>
 
-        <Text style={styles.eyebrow}>
-          {tx(isDealer ? 'SRV Dealer Wallet' : 'SRV Premium Wallet')}
+        <Text style={[styles.eyebrow, { color: t.eyebrowColor }]}>
+          {tx(isDealer ? 'SRV Dealer Wallet' : role === 'user' ? 'SRV User Wallet' : 'SRV Premium Wallet')}
         </Text>
         <Text style={styles.heroTitle}>
           {totalPoints} {tx(isDealer ? 'Dealer Bonus Points' : 'Total Points')}
@@ -258,6 +332,8 @@ export function WalletScreen({
           {tx(
             isDealer
               ? 'Dealer wallet for schemes, bank payouts, and dealer bonus tracking.'
+              : role === 'user'
+              ? 'Your rewards dashboard for redemptions and loyalty growth.'
               : 'Premium rewards dashboard for redemptions, transfers, and loyalty growth.'
           )}
         </Text>
@@ -280,17 +356,17 @@ export function WalletScreen({
         </View>
       </LinearGradient>
 
-      <View style={[styles.card, darkMode ? styles.cardDark : null]}>
+      <View style={[styles.card, { borderColor: darkMode ? '#243043' : t.cardBorder, backgroundColor: darkMode ? '#111827' : '#FFFDFC' }, createShadow({ color: darkMode ? '#020617' : t.cardShadow, offsetY: 8, blur: 18, opacity: 0.08, elevation: 4 })]}>
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={[styles.sectionEyebrow, darkMode ? styles.sectionEyebrowDark : null]}>
+            <Text style={[styles.sectionEyebrow, { color: darkMode ? t.eyebrowColor : t.sectionEyebrow }]}>
               {tx('Quick Actions')}
             </Text>
             <Text style={[styles.sectionTitle, darkMode ? styles.sectionTitleDark : null]}>
               {tx(isDealer ? 'Manage dealer payouts' : 'Move your wallet faster')}
             </Text>
           </View>
-          <View style={styles.sectionIconWrap}>
+          <View style={[styles.sectionIconWrap, { backgroundColor: darkMode ? '#1E293B' : t.sectionIconBg }]}>
             <SparkIcon />
           </View>
         </View>
@@ -300,7 +376,7 @@ export function WalletScreen({
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.actionTile, darkMode ? styles.actionTileDark : null]}
+                style={[styles.actionTile, { backgroundColor: darkMode ? '#182133' : t.actionTileBg, borderColor: darkMode ? '#243043' : t.actionTileBorder }]}
                 activeOpacity={0.86}
                 onPress={() => onNavigate?.(item.target)}
               >
@@ -319,17 +395,17 @@ export function WalletScreen({
         </View>
       </View>
 
-      <View style={[styles.card, darkMode ? styles.cardDark : null]}>
+      <View style={[styles.card, { borderColor: darkMode ? '#243043' : t.cardBorder, backgroundColor: darkMode ? '#111827' : '#FFFDFC' }, createShadow({ color: darkMode ? '#020617' : t.cardShadow, offsetY: 8, blur: 18, opacity: 0.08, elevation: 4 })]}>
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={[styles.sectionEyebrow, darkMode ? styles.sectionEyebrowDark : null]}>
+            <Text style={[styles.sectionEyebrow, { color: darkMode ? t.eyebrowColor : t.sectionEyebrow }]}>
               {tx('Redeem Point History')}
             </Text>
             <Text style={[styles.sectionTitle, darkMode ? styles.sectionTitleDark : null]}>
               {tx('Activity Timeline')}
             </Text>
           </View>
-          <View style={styles.sectionIconWrap}>
+          <View style={[styles.sectionIconWrap, { backgroundColor: darkMode ? '#1E293B' : t.sectionIconBg }]}>
             <HistoryGlyph />
           </View>
         </View>
@@ -340,7 +416,7 @@ export function WalletScreen({
               <View style={styles.timelineTrack}>
                 <View style={[styles.timelineDot, { backgroundColor: item.accent }]} />
               </View>
-              <View style={[styles.timelineCard, darkMode ? styles.timelineCardDark : null]}>
+              <View style={[styles.timelineCard, { backgroundColor: darkMode ? '#182133' : t.timelineCardBg, borderColor: darkMode ? '#243043' : t.timelineCardBorder }]}>
                 <View style={styles.timelineTop}>
                   <Text style={[styles.timelineTitle, darkMode ? styles.timelineTitleDark : null]}>
                     {tx(item.title)}
@@ -356,79 +432,50 @@ export function WalletScreen({
         </View>
 
         {totalPages > 1 && (
-          <View style={styles.paginationContainer}>
+          <View style={[styles.paginationContainer, { borderTopColor: darkMode ? '#243043' : t.cardBorder }]}>
             <TouchableOpacity
-              style={[styles.paginationBtn, currentPage === 1 && styles.paginationBtnDisabled]}
+              style={[styles.paginationBtn, { backgroundColor: t.paginationBtnBg }, currentPage === 1 && { backgroundColor: t.paginationBtnDisabledBg }]}
               onPress={goToPrevPage}
               disabled={currentPage === 1}
               activeOpacity={0.8}
             >
-              <Text
-                style={[
-                  styles.paginationBtnText,
-                  currentPage === 1 && styles.paginationBtnTextDisabled,
-                ]}
-              >
+              <Text style={[styles.paginationBtnText, currentPage === 1 && { color: t.paginationBtnDisabledText }]}>
                 {tx('Previous')}
               </Text>
             </TouchableOpacity>
 
-            <View style={styles.paginationInfo}>
+            <View style={[styles.paginationInfo, { backgroundColor: darkMode ? '#182133' : t.paginationInfoBg }]}>
               <Text style={[styles.paginationText, darkMode ? styles.paginationTextDark : null]}>
                 {currentPage} / {totalPages}
               </Text>
             </View>
 
             <TouchableOpacity
-              style={[
-                styles.paginationBtn,
-                currentPage === totalPages && styles.paginationBtnDisabled,
-              ]}
+              style={[styles.paginationBtn, { backgroundColor: t.paginationBtnBg }, currentPage === totalPages && { backgroundColor: t.paginationBtnDisabledBg }]}
               onPress={goToNextPage}
               disabled={currentPage === totalPages}
               activeOpacity={0.8}
             >
-              <Text
-                style={[
-                  styles.paginationBtnText,
-                  currentPage === totalPages && styles.paginationBtnTextDisabled,
-                ]}
-              >
+              <Text style={[styles.paginationBtnText, currentPage === totalPages && { color: t.paginationBtnDisabledText }]}>
                 {tx('Next')}
               </Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {!isDealer && !allMappedItems.length && !apiLoading ? (
-          <View style={[styles.emptyState, darkMode ? styles.emptyStateDark : null]}>
-            <View style={styles.emptyIconWrap}>
+        {!allMappedItems.length && !apiLoading ? (
+          <View style={[styles.emptyState, { backgroundColor: darkMode ? '#182133' : t.emptyStateBg, borderColor: darkMode ? '#243043' : t.emptyStateBorder }]}>
+            <View style={[styles.emptyIconWrap, { backgroundColor: darkMode ? '#1E293B' : t.emptyIconBg }]}>
               <HistoryGlyph />
             </View>
-            <Text style={[styles.emptyTitle, darkMode ? styles.emptyTitleDark : null]}>
-              {tx('No detailed records yet')}
-            </Text>
-            <Text style={[styles.emptySub, darkMode ? styles.emptySubDark : null]}>
-              {tx(
-                'Start scanning products and your reward credits will appear here automatically.'
-              )}
-            </Text>
-          </View>
-        ) : null}
-
-        {isDealer && !allMappedItems.length && !apiLoading ? (
-          <View style={[styles.emptyState, darkMode ? styles.emptyStateDark : null]}>
-            <View style={styles.emptyIconWrap}>
-              <HistoryGlyph />
-            </View>
-            <Text style={[styles.emptyTitle, darkMode ? styles.emptyTitleDark : null]}>
+            <Text style={[styles.emptyTitle, { color: darkMode ? '#F8FAFC' : t.emptyTitleColor }]}>
               {tx('No detailed records yet')}
             </Text>
             <Text style={[styles.emptySub, darkMode ? styles.emptySubDark : null]}>
               {tx(
                 isDealer
                   ? 'Your complete wallet history will appear here once bank payouts or dealer bonus activity starts.'
-                  : 'Your complete wallet history will appear here once redemption or transfer activity starts.'
+                  : 'Start scanning products and your reward credits will appear here automatically.'
               )}
             </Text>
           </View>
@@ -439,15 +486,13 @@ export function WalletScreen({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4EFE8' },
-  screenDark: { backgroundColor: '#08111F' },
+  screen: { flex: 1 },
   content: { padding: 18, gap: 18, paddingBottom: 120 },
   heroCard: {
     overflow: 'hidden',
     borderRadius: 34,
     padding: 22,
     minHeight: 245,
-    ...createShadow({ color: '#193357', offsetY: 14, blur: 24, opacity: 0.22, elevation: 8 }),
   },
   heroGlow: {
     position: 'absolute',
@@ -488,7 +533,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF0DA',
   },
   eyebrow: {
     marginTop: 24,
@@ -496,7 +540,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    color: '#FDE3B8',
   },
   heroTitle: { marginTop: 10, fontSize: 38, fontWeight: '900', color: '#FFFFFF' },
   heroSub: {
@@ -522,13 +565,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDFC',
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E9DED3',
-    ...createShadow({ color: '#734E2A', offsetY: 8, blur: 18, opacity: 0.08, elevation: 4 }),
-  },
-  cardDark: {
-    backgroundColor: '#111827',
-    borderColor: '#243043',
-    ...createShadow({ color: '#020617', offsetY: 8, blur: 18, opacity: 0.08, elevation: 4 }),
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionEyebrow: {
@@ -536,16 +572,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 1.1,
-    color: '#B57846',
   },
   sectionTitle: { marginTop: 4, fontSize: 18, fontWeight: '900', color: '#221C1A' },
-  sectionEyebrowDark: { color: '#F59E0B' },
   sectionTitleDark: { color: '#F8FAFC' },
   sectionIconWrap: {
     width: 46,
     height: 46,
     borderRadius: 16,
-    backgroundColor: '#FFF1E2',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -553,17 +586,11 @@ const styles = StyleSheet.create({
   actionTile: {
     flex: 1,
     borderRadius: 24,
-    backgroundColor: '#FFF7F0',
     borderWidth: 1,
-    borderColor: '#F1E0CF',
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 10,
     minHeight: 150,
-  },
-  actionTileDark: {
-    backgroundColor: '#182133',
-    borderColor: '#243043',
   },
   actionIconWrap: {
     width: 54,
@@ -595,14 +622,8 @@ const styles = StyleSheet.create({
   timelineCard: {
     flex: 1,
     borderRadius: 22,
-    backgroundColor: '#FBF5EF',
     borderWidth: 1,
-    borderColor: '#EEE0D5',
     padding: 15,
-  },
-  timelineCardDark: {
-    backgroundColor: '#182133',
-    borderColor: '#243043',
   },
   timelineTop: {
     flexDirection: 'row',
@@ -618,26 +639,19 @@ const styles = StyleSheet.create({
   emptyState: {
     marginTop: 18,
     borderRadius: 24,
-    backgroundColor: '#FFF8F2',
     paddingVertical: 26,
     paddingHorizontal: 18,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F0E1D3',
-  },
-  emptyStateDark: {
-    backgroundColor: '#182133',
-    borderColor: '#243043',
   },
   emptyIconWrap: {
     width: 58,
     height: 58,
     borderRadius: 20,
-    backgroundColor: '#FBE9D8',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyTitle: { marginTop: 14, fontSize: 20, fontWeight: '900', color: '#B04D2E' },
+  emptyTitle: { marginTop: 14, fontSize: 20, fontWeight: '900' },
   emptySub: {
     marginTop: 8,
     fontSize: 13,
@@ -645,7 +659,6 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     lineHeight: 19,
   },
-  emptyTitleDark: { color: '#F8FAFC' },
   emptySubDark: { color: '#94A3B8' },
   paginationContainer: {
     flexDirection: 'row',
@@ -655,27 +668,18 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E9DED3',
   },
   paginationBtn: {
-    backgroundColor: '#18345B',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 14,
-  },
-  paginationBtnDisabled: {
-    backgroundColor: '#E9DED3',
   },
   paginationBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },
-  paginationBtnTextDisabled: {
-    color: '#B57846',
-  },
   paginationInfo: {
-    backgroundColor: '#FBF5EF',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,

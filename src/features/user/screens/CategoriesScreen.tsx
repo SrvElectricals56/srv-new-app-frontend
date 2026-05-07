@@ -1,5 +1,3 @@
-// User-specific Categories Screen — Purple theme
-// To change user-specific styles, edit ONLY this file.
 import { useState } from 'react';
 import {
   Image,
@@ -16,8 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 
-const PRIMARY       = '#7C3AED';
-const PRIMARY_LIGHT = '#EDE9FE';
+const PRIMARY = '#6B7C2D';
+const PRIMARY_LIGHT = '#EEF4D7';
 
 function SearchIcon({ size = 18, color = '#9CA3AF' }: { size?: number; color?: string }) {
   return (
@@ -29,26 +27,26 @@ function SearchIcon({ size = 18, color = '#9CA3AF' }: { size?: number; color?: s
 }
 
 const CATEGORIES = [
-  { id: 'all',        name: 'All Products',       emoji: '⚡' },
-  { id: 'boxes',      name: 'MCB & DB\nBoxes',    emoji: '🔌' },
-  { id: 'conduit',    name: 'Conduit\nPipes',      emoji: '🔧' },
-  { id: 'changeover', name: 'Change\nOver',        emoji: '🔄' },
-  { id: 'fans',       name: 'Fans &\nVentilation', emoji: '💨' },
+  { id: 'all', name: 'All Products', emoji: '⚡' },
+  { id: 'boxes', name: 'MCB & DB\nBoxes', emoji: '🔌' },
+  { id: 'conduit', name: 'Conduit\nPipes', emoji: '🔧' },
+  { id: 'changeover', name: 'Change\nOver', emoji: '🔄' },
+  { id: 'fans', name: 'Fans &\nVentilation', emoji: '💨' },
   { id: 'stabilizer', name: 'Voltage\nStabilizer', emoji: '⚙️' },
-  { id: 'modular',    name: 'Modular\nBoxes',      emoji: '📦' },
-  { id: 'junction',   name: 'Junction\nBoxes',     emoji: '🔗' },
-  { id: 'concealed',  name: 'Concealed\nBoxes',    emoji: '🏠' },
+  { id: 'modular', name: 'Modular\nBoxes', emoji: '📦' },
+  { id: 'junction', name: 'Junction\nBoxes', emoji: '🗄' },
+  { id: 'concealed', name: 'Concealed\nBoxes', emoji: '🏠' },
 ];
 
 const PRODUCTS = [
-  { id: '1', name: 'MCB Distribution Box',  category: 'boxes',      image: require('../../../../assets/Product/MCB Distribuation Box.png'), tag: 'ISI Certified', tagColor: '#059669', tagBg: '#D1FAE5', desc: 'For residential & commercial use' },
-  { id: '2', name: 'Voltage Stabilizer',    category: 'stabilizer', image: require('../../../../assets/Product/Voltage Stabilizer.png'),    tag: 'Best Seller',   tagColor: '#D97706', tagBg: '#FEF3C7', desc: 'Automatic voltage protection' },
-  { id: '3', name: 'PVC Conduit Pipe',      category: 'conduit',    image: require('../../../../assets/Product/PVC Conduit Pipe.png'),       tag: 'ISI Certified', tagColor: '#059669', tagBg: '#D1FAE5', desc: 'Rigid PVC wiring protection' },
-  { id: '4', name: 'Automatic Change Over', category: 'changeover', image: require('../../../../assets/Product/AUTOMATIC CHANGE OVER.png'),  tag: 'Premium',       tagColor: '#7C3AED', tagBg: '#EDE9FE', desc: 'Seamless power switching' },
-  { id: '5', name: 'Fan Box 4" Range',      category: 'fans',       image: require('../../../../assets/Product/Fan box.png'),                tag: 'Popular',       tagColor: '#0891B2', tagBg: '#CFFAFE', desc: 'Ceiling fan installation box' },
-  { id: '6', name: 'Concealed Box',         category: 'concealed',  image: require('../../../../assets/Product/Concelead Box.png'),          tag: 'ISI Certified', tagColor: '#059669', tagBg: '#D1FAE5', desc: 'For modular switch fitting' },
-  { id: '7', name: 'Modular Box',           category: 'modular',    image: require('../../../../assets/Product/Modular_Box.png'),            tag: 'New',           tagColor: '#DC2626', tagBg: '#FEE2E2', desc: 'Modern switch installations' },
-  { id: '8', name: 'Junction Box',          category: 'junction',   image: require('../../../../assets/Product/Junction_Box.png'),           tag: 'ISI Certified', tagColor: '#059669', tagBg: '#D1FAE5', desc: 'Weatherproof wire connections' },
+  { id: '1', name: 'MCB Distribution Box', category: 'boxes', image: require('../../../../assets/Product/MCB Distribuation Box.png'), tag: 'ISI Certified', tagColor: '#059669', tagBg: '#D1FAE5', desc: 'For residential & commercial use' },
+  { id: '2', name: 'Voltage Stabilizer', category: 'stabilizer', image: require('../../../../assets/Product/Voltage Stabilizer.png'), tag: 'Best Seller', tagColor: '#D97706', tagBg: '#FEF3C7', desc: 'Automatic voltage protection' },
+  { id: '3', name: 'PVC Conduit Pipe', category: 'conduit', image: require('../../../../assets/Product/PVC Conduit Pipe.png'), tag: 'ISI Certified', tagColor: '#059669', tagBg: '#D1FAE5', desc: 'Rigid PVC wiring protection' },
+  { id: '4', name: 'Automatic Change Over', category: 'changeover', image: require('../../../../assets/Product/AUTOMATIC CHANGE OVER.png'), tag: 'Premium', tagColor: '#6B7C2D', tagBg: '#EEF4D7', desc: 'Seamless power switching' },
+  { id: '5', name: 'Fan Box 4" Range', category: 'fans', image: require('../../../../assets/Product/Fan box.png'), tag: 'Popular', tagColor: '#0891B2', tagBg: '#CFFAFE', desc: 'Ceiling fan installation box' },
+  { id: '6', name: 'Concealed Box', category: 'concealed', image: require('../../../../assets/Product/Concelead Box.png'), tag: 'ISI Certified', tagColor: '#059669', tagBg: '#D1FAE5', desc: 'For modular switch fitting' },
+  { id: '7', name: 'Modular Box', category: 'modular', image: require('../../../../assets/Product/Modular_Box.png'), tag: 'New', tagColor: '#DC2626', tagBg: '#FEE2E2', desc: 'Modern switch installations' },
+  { id: '8', name: 'Junction Box', category: 'junction', image: require('../../../../assets/Product/Junction_Box.png'), tag: 'ISI Certified', tagColor: '#059669', tagBg: '#D1FAE5', desc: 'Weatherproof wire connections' },
 ];
 
 export function CategoriesScreen({ onNavigate, onAddToCart }: { onNavigate: (screen: any) => void; onAddToCart?: (item: any) => void }) {
@@ -67,13 +65,13 @@ export function CategoriesScreen({ onNavigate, onAddToCart }: { onNavigate: (scr
     return matchCat && matchSearch;
   });
 
-  const bg          = darkMode ? '#0F172A' : '#F2F2F2';
-  const sidebarBg   = darkMode ? '#1E293B' : '#FFFFFF';
-  const cardBg      = darkMode ? '#1E293B' : '#FFFFFF';
+  const bg = darkMode ? '#0F172A' : '#F2F2F2';
+  const sidebarBg = darkMode ? '#1E293B' : '#FFFFFF';
+  const cardBg = darkMode ? '#1E293B' : '#FFFFFF';
   const borderColor = darkMode ? '#2D3748' : '#EEEEEE';
   const textPrimary = darkMode ? '#F1F5F9' : '#1A1A1A';
-  const textMuted   = darkMode ? '#94A3B8' : '#777777';
-  const activeCat   = CATEGORIES.find((c) => c.id === selectedCategory);
+  const textMuted = darkMode ? '#94A3B8' : '#777777';
+  const activeCat = CATEGORIES.find((c) => c.id === selectedCategory);
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
@@ -81,7 +79,13 @@ export function CategoriesScreen({ onNavigate, onAddToCart }: { onNavigate: (scr
         <Text style={styles.headerTitle}>{tx('All Categories')}</Text>
         <View style={styles.searchRow}>
           <SearchIcon size={16} color="#9CA3AF" />
-          <TextInput style={styles.searchInput} placeholder={tx('Search SRV products...')} placeholderTextColor="#9CA3AF" value={searchQuery} onChangeText={setSearchQuery} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={tx('Search SRV products...')}
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
         </View>
       </View>
 
@@ -91,11 +95,21 @@ export function CategoriesScreen({ onNavigate, onAddToCart }: { onNavigate: (scr
             {CATEGORIES.map((cat) => {
               const isActive = selectedCategory === cat.id;
               return (
-                <Pressable key={cat.id} onPress={() => setSelectedCategory(cat.id)} android_ripple={{ color: `${PRIMARY}15` }}
-                  style={[styles.sidebarItem, { borderBottomColor: borderColor }, isActive && { backgroundColor: darkMode ? `${PRIMARY}30` : `${PRIMARY}12` }]}>
+                <Pressable
+                  key={cat.id}
+                  onPress={() => setSelectedCategory(cat.id)}
+                  android_ripple={{ color: `${PRIMARY}15` }}
+                  style={[
+                    styles.sidebarItem,
+                    { borderBottomColor: borderColor },
+                    isActive && { backgroundColor: darkMode ? `${PRIMARY}30` : `${PRIMARY}12` },
+                  ]}
+                >
                   {isActive && <View style={[styles.activeBar, { backgroundColor: PRIMARY }]} />}
                   <Text style={styles.sidebarEmoji}>{cat.emoji}</Text>
-                  <Text style={[styles.sidebarLabel, { color: isActive ? PRIMARY : textMuted }, isActive && { fontWeight: '800' }]} numberOfLines={3}>{cat.name}</Text>
+                  <Text style={[styles.sidebarLabel, { color: isActive ? PRIMARY : textMuted }, isActive && { fontWeight: '800' }]} numberOfLines={3}>
+                    {cat.name}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -130,8 +144,11 @@ export function CategoriesScreen({ onNavigate, onAddToCart }: { onNavigate: (scr
                     <Text style={[styles.cardName, { color: textPrimary }]} numberOfLines={2}>{product.name}</Text>
                     <Text style={[styles.cardDesc, { color: textMuted }]} numberOfLines={1}>{product.desc}</Text>
                   </View>
-                  <Pressable style={[styles.buyBtn, { backgroundColor: PRIMARY_LIGHT }]} android_ripple={{ color: `${PRIMARY}25` }}
-                    onPress={() => onAddToCart?.({ id: product.id, name: product.name, desc: product.desc, image: product.image, qty: 1 })}>
+                  <Pressable
+                    style={[styles.buyBtn, { backgroundColor: PRIMARY_LIGHT }]}
+                    android_ripple={{ color: `${PRIMARY}25` }}
+                    onPress={() => onAddToCart?.({ id: product.id, name: product.name, desc: product.desc, image: product.image, qty: 1 })}
+                  >
                     <Text style={[styles.buyBtnText, { color: PRIMARY }]}>{tx('Add to Cart')}</Text>
                   </Pressable>
                 </View>

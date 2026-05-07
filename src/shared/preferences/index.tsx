@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo } from 'react';
+import type { UserRole } from '@/shared/types/navigation';
 
 const palette = {
   bg: '#F0F1F6',
@@ -1983,6 +1984,7 @@ export const formatCountText = (
 };
 
 export type ThemePalette = {
+  role: UserRole;
   bg: string;
   surface: string;
   soft: string;
@@ -1992,19 +1994,56 @@ export type ThemePalette = {
   textMuted: string;
   heroSurface: string;
   heroStrip: string;
+  accent: string;
+  accentSoft: string;
+  accentDeep: string;
+  accentContrast: string;
 };
 
-export const getThemePalette = (isDark: boolean): ThemePalette => ({
-  bg: isDark ? '#0B1220' : palette.bg,
-  surface: isDark ? '#111827' : palette.surface,
-  soft: isDark ? '#1F2937' : palette.bg,
-  border: isDark ? '#243043' : palette.border,
-  textPrimary: isDark ? '#F8FAFC' : palette.dark,
-  textSecondary: isDark ? '#D0D9E8' : palette.mid,
-  textMuted: isDark ? '#94A3B8' : palette.muted,
-  heroSurface: isDark ? '#111827' : palette.surface,
-  heroStrip: isDark ? '#0F172A' : '#FCFCFE',
-});
+const roleAccents: Record<UserRole, { accent: string; accentSoft: string; accentDeep: string; lightBg: string; lightHero: string }> = {
+  dealer: {
+    accent: '#D97706',
+    accentSoft: '#FEF3C7',
+    accentDeep: '#92400E',
+    lightBg: '#FFF9F1',
+    lightHero: '#FFFBEB',
+  },
+  electrician: {
+    accent: '#2563EB',
+    accentSoft: '#DBEAFE',
+    accentDeep: '#1E40AF',
+    lightBg: '#F5F9FF',
+    lightHero: '#EFF6FF',
+  },
+  user: {
+    accent: '#6B7C2D',
+    accentSoft: '#EAF0C4',
+    accentDeep: '#4A5520',
+    lightBg: '#FAFCF4',
+    lightHero: '#F5F7EB',
+  },
+};
+
+export const getThemePalette = (isDark: boolean, role: UserRole = 'electrician'): ThemePalette => {
+  const roleTheme = roleAccents[role];
+
+  return {
+    role,
+    bg: isDark ? '#0B1220' : roleTheme.lightBg,
+    surface: isDark ? '#111827' : palette.surface,
+    soft: isDark ? '#1F2937' : roleTheme.lightHero,
+    border: isDark ? '#243043' : palette.border,
+    textPrimary: isDark ? '#F8FAFC' : palette.dark,
+    textSecondary: isDark ? '#D0D9E8' : palette.mid,
+    textMuted: isDark ? '#94A3B8' : palette.muted,
+    heroSurface: isDark ? '#111827' : roleTheme.lightHero,
+    heroStrip: isDark ? '#0F172A' : roleTheme.accentSoft,
+    accent: roleTheme.accent,
+    accentSoft: isDark ? roleTheme.accentDeep + '44' : roleTheme.accentSoft,
+    accentDeep: roleTheme.accentDeep,
+    accentContrast: '#FFFFFF',
+  };
+};
 
 export type PreferenceContextValue = {
   language: AppLanguage;
@@ -2028,6 +2067,7 @@ type PreferenceValueParams = {
   setLanguage: (language: AppLanguage) => void;
   darkMode: boolean;
   setDarkMode: (enabled: boolean) => void;
+  currentRole?: UserRole;
 };
 
 export function usePreferenceValue({
@@ -2035,8 +2075,9 @@ export function usePreferenceValue({
   setLanguage,
   darkMode,
   setDarkMode,
+  currentRole = 'electrician',
 }: PreferenceValueParams): PreferenceContextValue {
-  const theme = useMemo(() => getThemePalette(darkMode), [darkMode]);
+  const theme = useMemo(() => getThemePalette(darkMode, currentRole), [currentRole, darkMode]);
 
   return useMemo(
     () => ({
@@ -2048,6 +2089,12 @@ export function usePreferenceValue({
       tx: (text: string) => translateUiText(language, text),
       theme,
     }),
-    [darkMode, language, setDarkMode, setLanguage, theme]
+    [currentRole, darkMode, language, setDarkMode, setLanguage, theme]
   );
 }
+
+
+
+
+
+

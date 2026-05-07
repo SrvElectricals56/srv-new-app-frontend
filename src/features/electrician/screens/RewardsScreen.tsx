@@ -22,14 +22,14 @@ import type { GiftProduct } from '@/shared/api';
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 const C = {
-  primary: '#E8453C',
-  primaryLight: '#FFF0F0',
+  primary: '#2563EB',
+  primaryLight: '#EAF2FF',
   gold: '#F59E0B',
   goldLight: '#FFF8E1',
   goldDark: '#92400E',
-  bg: '#F2F3F7',
+  bg: '#EEF4FF',
   surface: '#FFFFFF',
-  border: '#EEEEF3',
+  border: '#D8E5FF',
   textDark: '#1C1E2E',
   textMuted: '#9898A8',
   success: '#22c55e',

@@ -21,16 +21,17 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { scanApi } from '@/shared/api';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import type { RewardHistoryItem, ScanMode } from '@/shared/types/rewards';
+import type { Screen } from '@/shared/types/navigation';
 
 const Colors = {
-  primary: '#E8453C',
-  primaryLight: '#FF6B5B',
-  primaryDark: '#C73528',
-  background: '#F0F2F8',
+  primary: '#6B7C2D',
+  primaryLight: '#8DA44A',
+  primaryDark: '#556621',
+  background: '#F4F8EE',
   backgroundDark: '#0A0F1A',
   surface: '#FFFFFF',
   surfaceDark: '#141B2D',
-  border: '#E8EBF2',
+  border: '#DDE7CF',
   borderDark: '#2A3548',
   textDark: '#1A1D2E',
   textMuted: '#6B7280',
@@ -38,11 +39,10 @@ const Colors = {
   successLight: '#D1FAE5',
   warning: '#F59E0B',
   warningLight: '#FEF3C7',
-  accent: '#6366F1',
-  accentLight: '#EEF2FF',
+  accent: '#4D6620',
+  accentLight: '#EAF0C4',
 };
 
-type Screen = 'home' | 'scan' | 'rewards' | 'profile' | 'product' | 'wallet';
 type PendingRewardItem = Omit<RewardHistoryItem, 'id' | 'time'>;
 
 const resolveRewardFromCode = async (value?: string): Promise<PendingRewardItem | null> => {

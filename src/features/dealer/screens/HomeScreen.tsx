@@ -397,7 +397,7 @@ export function HomeScreen({
     );
     const mapped = filtered.map((b) => ({
       image: { uri: b.imageUrl! },
-      resizeMode: ((b.resizeMode ?? 'cover') as 'cover' | 'contain'),
+      resizeMode: 'cover' as const,
       backgroundColor: b.bgColor ?? '#192F67',
     }));
     const uris = mapped.map((b) => b.image.uri);
@@ -535,7 +535,7 @@ export function HomeScreen({
       showsVerticalScrollIndicator={false}
     >
       <LinearGradient
-        colors={darkMode ? ['#0B1220', '#101A2F', '#18263E'] : ['#EDF4FF', '#E3EEFF', '#F8F4FF']}
+        colors={darkMode ? ['#0B1220', '#101A2F', '#18263E'] : ['#FFF8EC', '#FDEFD2', '#FFF6E8']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.heroShell, { marginTop: -insets.top, paddingTop: 26 + insets.top }]}
@@ -847,7 +847,7 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#EEF3F8' },
+  screen: { flex: 1, backgroundColor: '#FFF8EC' },
   screenDark: { backgroundColor: '#08111F' },
   heroShell: {
     paddingTop: 26,
@@ -862,7 +862,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(59,130,246,0.16)',
+    backgroundColor: 'rgba(217,119,6,0.14)',
     top: -60,
     right: -35,
   },
@@ -946,7 +946,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#E8453C',
+    backgroundColor: '#D97706',
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
@@ -971,7 +971,7 @@ const styles = StyleSheet.create({
   bannerCard: {
     borderRadius: 28,
     overflow: 'hidden',
-    backgroundColor: '#D9E3F2',
+    backgroundColor: '#F4E4C4',
     ...createShadow({ color: '#0F172A', offsetY: 10, blur: 22, opacity: 0.16, elevation: 9 }),
   },
   bannerCardDark: {
@@ -985,9 +985,9 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 22,
   },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#C7D2E3' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E7D3B0' },
   dotDark: { backgroundColor: '#334155' },
-  dotActive: { width: 28, backgroundColor: '#0F172A' },
+  dotActive: { width: 28, backgroundColor: '#8A5A12' },
   dotActiveDark: { width: 28, backgroundColor: '#E2E8F0' },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 22 },
   quickCard: {
@@ -1059,14 +1059,14 @@ const styles = StyleSheet.create({
   },
   filterChipDark: { backgroundColor: '#111827', borderColor: '#243043' },
   filterChipActive: {
-    backgroundColor: '#173E80',
-    borderColor: '#173E80',
+    backgroundColor: '#8A5A12',
+    borderColor: '#8A5A12',
   },
-  filterChipText: { color: '#173E80', fontSize: 11.5, fontWeight: '800' },
+  filterChipText: { color: '#8A5A12', fontSize: 11.5, fontWeight: '800' },
   filterChipTextDark: { color: '#CBD5E1' },
   filterChipTextActive: { color: '#FFFFFF' },
   inlineAction: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewAllText: { color: '#173E80', fontSize: 13, fontWeight: '800' },
+  viewAllText: { color: '#8A5A12', fontSize: 13, fontWeight: '800' },
   productsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   productCard: {
     backgroundColor: '#FFFFFF',

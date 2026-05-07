@@ -714,7 +714,7 @@ export function HomeScreen({
     );
     const mapped = filtered.map((b) => ({
       image: { uri: b.imageUrl! },
-      resizeMode: ((b.resizeMode ?? 'cover') as 'cover' | 'contain'),
+      resizeMode: 'cover' as const,
       backgroundColor: b.bgColor ?? '#192F67',
     }));
     // Prefetch all banner images so they're in cache before carousel renders
@@ -810,7 +810,7 @@ export function HomeScreen({
       showsVerticalScrollIndicator={false}
     >
       <LinearGradient
-        colors={darkMode ? ['#0B1220', '#101A2F', '#18263E'] : ['#EAF3FF', '#DDEEFF', '#F6EEFF']}
+        colors={darkMode ? ['#0B1220', '#101A2F', '#18263E'] : ['#EAF3FF', '#DCEBFF', '#F5F9FF']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.heroShell, { marginTop: -insets.top, paddingTop: 26 + insets.top }]}
@@ -1283,7 +1283,7 @@ const styles = StyleSheet.create({
   quickSub: { color: '#74829D', fontSize: 11.5, marginTop: 3 },
   quickSubDark: { color: '#CBD5E1' },
   inlineAction: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewAllText: { color: '#E8453C', fontSize: 13, fontWeight: '800' },
+  viewAllText: { color: '#2563EB', fontSize: 13, fontWeight: '800' },
   productsTopBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1308,10 +1308,10 @@ const styles = StyleSheet.create({
     borderColor: '#243043',
   },
   filterChipActive: {
-    backgroundColor: '#173E80',
-    borderColor: '#173E80',
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
   },
-  filterChipText: { color: '#173E80', fontSize: 11.5, fontWeight: '800' },
+  filterChipText: { color: '#2563EB', fontSize: 11.5, fontWeight: '800' },
   filterChipTextDark: { color: '#CBD5E1' },
   filterChipTextActive: { color: '#FFFFFF' },
   productsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },

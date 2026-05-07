@@ -139,18 +139,20 @@ export function BannerCarousel({
           return (
             <Animated.View
               key={index}
-              style={[StyleSheet.absoluteFillObject, { opacity }]}
+              style={[
+                StyleSheet.absoluteFillObject,
+                styles.slide,
+                slide.backgroundColor
+                  ? { backgroundColor: slide.backgroundColor }
+                  : null,
+                { opacity },
+              ]}
               pointerEvents={index === activeIndex ? 'auto' : 'none'}
             >
               <Image
                 source={slide.image as any}
-                style={[
-                  StyleSheet.absoluteFillObject,
-                  slide.backgroundColor
-                    ? { backgroundColor: slide.backgroundColor }
-                    : null,
-                ]}
-                resizeMode="cover"
+                style={styles.image}
+                resizeMode={slide.resizeMode ?? 'cover'}
                 fadeDuration={0}
               />
             </Animated.View>
@@ -193,6 +195,14 @@ export function BannerCarousel({
 const styles = StyleSheet.create({
   card: {
     overflow: 'hidden',
+  },
+  slide: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
   },
   dotsRow: {
     flexDirection: 'row',

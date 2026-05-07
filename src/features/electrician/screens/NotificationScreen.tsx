@@ -66,12 +66,28 @@ function WalletIcon({ color = '#0F172A', size = 22 }: { color?: string; size?: n
 
 // Icon cycle for API notifications
 const ICON_CYCLE = [OfferIcon, ScanIcon, WalletIcon, BellIcon];
-const COLOR_CYCLE: [string, string][] = [
-  ['#FFF4E8', '#FDE1B7'],
-  ['#EBF8FF', '#CBE7FF'],
-  ['#EEF7F0', '#D2F0DA'],
-  ['#F2EEFF', '#DDD2FF'],
-];
+const ROLE_THEME = {
+  electrician: {
+    hero: ['#09111F', '#12284A', '#18396A'] as [string, string, string],
+    screen: '#EEF3F8',
+    cycle: [
+      ['#EAF2FF', '#CFE0FF'],
+      ['#E5F0FF', '#BDD7FF'],
+      ['#EEF7F0', '#D2F0DA'],
+      ['#EEF4FF', '#D5E4FF'],
+    ] as [string, string][],
+  },
+  user: {
+    hero: ['#18220D', '#40561F', '#6B7C2D'] as [string, string, string],
+    screen: '#F4F8EE',
+    cycle: [
+      ['#F1F6E2', '#DFEABF'],
+      ['#EEF5DE', '#D7E7AA'],
+      ['#EEF7F0', '#D2F0DA'],
+      ['#F5F4E8', '#E7E1BF'],
+    ] as [string, string][],
+  },
+} as const;
 
 function formatNotifTime(dateStr?: string): string {
   if (!dateStr) return 'Recent';
@@ -109,6 +125,7 @@ export function NotificationScreen({
   onNotificationsSeen?: () => void;
 }) {
   const { darkMode, tx } = usePreferenceContext();
+  const roleTheme = ROLE_THEME[role === 'user' ? 'user' : 'electrician'];
   const { user } = useAuth();
   const [notifItems, setNotifItems] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +141,7 @@ export function NotificationScreen({
           body: n.message,
           time: formatNotifTime(n.sentAt),
           type: n.targetRole ?? 'General',
-          colors: COLOR_CYCLE[i % COLOR_CYCLE.length],
+          colors: roleTheme.cycle[i % roleTheme.cycle.length],
           icon: ICON_CYCLE[i % ICON_CYCLE.length],
         }));
         setNotifItems(mapped);
@@ -154,7 +171,7 @@ export function NotificationScreen({
       showsVerticalScrollIndicator={false}
     >
       <LinearGradient
-        colors={['#09111F', '#12284A', '#18396A']}
+        colors={roleTheme.hero}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.hero}

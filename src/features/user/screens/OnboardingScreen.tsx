@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -21,11 +21,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import Svg, { Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
+import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
 import { usePreferenceContext } from '@/shared/preferences';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { authApi, dealerApi } from '@/shared/api';
-
-export type UserRole = 'electrician' | 'dealer';
+import type { UserRole } from '@/shared/types/navigation';
 type IntroStep = 'language' | 'role' | 'auth';
 type AuthMode = 'login' | 'signup';
 type LoginStep = 'phone' | 'otp' | 'password';
@@ -74,11 +74,6 @@ const roleMeta = {
   dealer: { title: 'Dealer', subtitle: 'Business onboarding and account access' },
 } as const;
 
-const roleImages = {
-  electrician: require('../../../../assets/new electrician.png'),
-  dealer: require('../../../../assets/new dealer.jpeg'),
-} as const;
-
 const languageOptions = [
   {
     value: 'English',
@@ -90,16 +85,16 @@ const languageOptions = [
   {
     value: 'Hindi',
     title: 'Hindi',
-    nativeTitle: 'हिंदी',
-    mark: 'अ',
-    description: 'ऑनबोर्डिंग और रिवॉर्ड्स के लिए।',
+    nativeTitle: 'à¤¹à¤¿à¤‚à¤¦à¥€',
+    mark: 'à¤…',
+    description: 'à¤‘à¤¨à¤¬à¥‹à¤°à¥à¤¡à¤¿à¤‚à¤— à¤”à¤° à¤°à¤¿à¤µà¥‰à¤°à¥à¤¡à¥à¤¸ à¤•à¥‡ à¤²à¤¿à¤à¥¤',
   },
   {
     value: 'Punjabi',
     title: 'Punjabi',
-    nativeTitle: 'ਪੰਜਾਬੀ',
-    mark: 'ਅ',
-    description: 'ਆਨਬੋਰਡਿੰਗ ਅਤੇ ਰਿਵਾਰਡ ਲਈ।',
+    nativeTitle: 'à¨ªà©°à¨œà¨¾à¨¬à©€',
+    mark: 'à¨…',
+    description: 'à¨†à¨¨à¨¬à©‹à¨°à¨¡à¨¿à©°à¨— à¨…à¨¤à©‡ à¨°à¨¿à¨µà¨¾à¨°à¨¡ à¨²à¨ˆà¥¤',
   },
 ] as const;
 
@@ -667,9 +662,6 @@ function RoleCard({
           : null,
       ]}
     >
-      <View style={[s.roleFrame, compact ? s.roleFrameCompact : null]}>
-        <Image source={roleImages[role]} style={s.roleImage} resizeMode="contain" />
-      </View>
       <Text
         style={[
           s.roleTitle,
@@ -1665,7 +1657,7 @@ export function OnboardingScreen({
                   <View style={[s.brandRow, s.brandRowCentered]}>
                     <View style={[s.logoWrap, isCompactPhone ? s.logoWrapCompact : null]}>
                       <Image
-                        source={require('../../../../assets/srv-login-logo.png')}
+                        source={{ uri: SRV_LOGO_URI }}
                         style={s.logo}
                         resizeMode="contain"
                       />
@@ -3469,3 +3461,4 @@ const s = StyleSheet.create({
   otpTimer: { color: C.error, fontSize: 12, fontWeight: '800' },
   otpResend: { color: C.accentA, fontSize: 12, fontWeight: '800' },
 });
+

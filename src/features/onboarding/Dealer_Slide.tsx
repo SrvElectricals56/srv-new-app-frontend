@@ -176,7 +176,7 @@ export default function DealerSlide({ onBack, onContinue }: Props) {
         </View>
 
         <View style={s.productsGrid}>
-          {['Fan Box','Concealed Box','Modular Box','Junction Box','Stabilizer','PVC Pipes'].map((name, i) => (
+          {['Fan Box','Concealed Box','Modular Box','Junction Box','AC Stabilizer','PVC Pipes'].map((name, i) => (
             <AView key={name} style={[s.productChip, {
               opacity: chipAnims[i],
               transform: [{ scale: chipAnims[i].interpolate({ inputRange: [0,1], outputRange: [0.7, 1] }) }],

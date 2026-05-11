@@ -121,7 +121,7 @@ export default function CustomerSlide({ onBack, onContinue }: Props) {
             </View>
             <Text style={[s.mainSubtitle, { color: THEME.primary }]}>The Best Quality</Text>
             <Text style={s.cardDesc}>
-              250+ certified products trusted by 50,000+ happy customers
+              250+ certified products trusted by 5L+ happy customers
             </Text>
           </View>
         </AView>
@@ -133,7 +133,7 @@ export default function CustomerSlide({ onBack, onContinue }: Props) {
                 <Path d="M3 18v-6a9 9 0 0 1 18 0v6M3 18a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3zM21 18a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" stroke="#FFFFFF" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
               </Svg>
             </View>
-            <Text style={s.gridText}>Instant Support</Text>
+            <Text style={s.gridText}>Instant Services</Text>
           </View>
           
           <View style={[s.gridItem, { backgroundColor: '#F3E4D4' }]}>
@@ -164,7 +164,7 @@ export default function CustomerSlide({ onBack, onContinue }: Props) {
                 <Path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
               </Svg>
             </View>
-            <Text style={s.gridText}>50,000+ Customers</Text>
+            <Text style={s.gridText}>5L+ Customers</Text>
           </View>
         </View>
 

@@ -5,18 +5,18 @@ import {
 } from 'react-native';
 import Svg, { Circle, Rect, Path, G, Line, Ellipse } from 'react-native-svg';
 import { ws, hs, rf } from '../../shared/hooks/useResponsive';
-import { customerURI } from '../../shared/data/roleImages';
 
 const AView = Animated.View as any;
 const CIRCLE_SIZE = ws(240);
+const customerImage = require('../../../assets/Customer.png');
 
 const THEME = {
-  primary:   '#6B7C2D',
-  secondary: '#8FA83D',
-  light:     '#F5F7EB',
-  circle:    '#F5F7EB',
-  tag:       '#EAF0C4',
-  tagText:   '#4A5520',
+  primary:   '#6A2F12',
+  secondary: '#8D4A1E',
+  light:     '#FBF1E7',
+  circle:    '#FBF1E7',
+  tag:       '#F0DEC9',
+  tagText:   '#6A2F12',
 };
 
 const TAGS = ['Browse Products', 'Easy Ordering', 'Trusted Quality'];
@@ -49,8 +49,8 @@ function BgIcons() {
 function Character() {
   return (
     <Image
-      source={{ uri: customerURI }}
-      style={{ width: ws(300), height: hs(320) }}
+      source={customerImage}
+      style={{ width: ws(336), height: ws(336), marginTop: -hs(4) }}
       resizeMode="contain"
     />
   );
@@ -136,8 +136,8 @@ export default function CustomerSlide({ onBack, onContinue }: Props) {
             <Text style={s.gridText}>Instant Support</Text>
           </View>
           
-          <View style={[s.gridItem, { backgroundColor: '#EAF0C4' }]}>
-            <View style={[s.gridIcon, { backgroundColor: '#8FA83D' }]}>
+          <View style={[s.gridItem, { backgroundColor: '#F3E4D4' }]}>
+            <View style={[s.gridIcon, { backgroundColor: THEME.secondary }]}>
               <Svg width={ws(18)} height={ws(18)} viewBox="0 0 24 24" fill="none">
                 <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#FFFFFF" strokeWidth="1.8" fill="none" strokeLinejoin="round"/>
                 <Path d="M9 12l2 2 4-4" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
@@ -146,8 +146,8 @@ export default function CustomerSlide({ onBack, onContinue }: Props) {
             <Text style={s.gridText}>Verified Quality</Text>
           </View>
           
-          <View style={[s.gridItem, { backgroundColor: '#F5F7EB' }]}>
-            <View style={[s.gridIcon, { backgroundColor: '#6B7C2D' }]}>
+          <View style={[s.gridItem, { backgroundColor: '#F8EDE2' }]}>
+            <View style={[s.gridIcon, { backgroundColor: THEME.primary }]}>
               <Svg width={ws(18)} height={ws(18)} viewBox="0 0 24 24" fill="none">
                 <Path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" stroke="#FFFFFF" strokeWidth="1.8" fill="none" strokeLinejoin="round"/>
                 <Circle cx="7" cy="7" r="1.5" fill="#FFFFFF"/>
@@ -191,11 +191,11 @@ export default function CustomerSlide({ onBack, onContinue }: Props) {
 
 const s = StyleSheet.create({
   root:              { flex: 1, alignItems: 'center', justifyContent: 'flex-start', backgroundColor: '#FFFFFF', paddingHorizontal: ws(20), paddingTop: hs(48) },
-  circleWrap:        { marginBottom: hs(28), shadowColor: '#6B7C2D', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 24, elevation: 14, marginTop: hs(8) },
+  circleWrap:        { marginBottom: hs(28), shadowColor: '#6A2F12', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 24, elevation: 14, marginTop: hs(8) },
   circle:            { width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   glowRing:          { position: 'absolute', width: CIRCLE_SIZE + ws(12), height: CIRCLE_SIZE + ws(12), borderRadius: (CIRCLE_SIZE + ws(12)) / 2, borderWidth: 1.5, opacity: 0.3, top: -ws(6), left: -ws(6) },
   card:              { alignItems: 'center', paddingHorizontal: ws(16), width: '100%' },
-  titleButton:       { paddingHorizontal: ws(32), paddingVertical: hs(8), borderRadius: ws(25), marginBottom: hs(12), shadowColor: '#6B7C2D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  titleButton:       { paddingHorizontal: ws(32), paddingVertical: hs(8), borderRadius: ws(25), marginBottom: hs(12), shadowColor: '#6A2F12', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
   titleButtonText:   { fontSize: rf(13, 11, 15), fontWeight: '900', color: '#FFFFFF', textAlign: 'center', letterSpacing: 1 },
   contentCard:       { width: '100%', backgroundColor: '#FFFFFF', paddingHorizontal: ws(18), paddingVertical: hs(16), borderRadius: ws(16), marginBottom: hs(12), borderWidth: 2, borderColor: THEME.light, shadowColor: THEME.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 8, position: 'relative', overflow: 'hidden' },
   gradientAccent:    { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: THEME.primary },
@@ -218,6 +218,6 @@ const s = StyleSheet.create({
   switchButton:      { flex: 1, paddingVertical: hs(12), borderRadius: ws(25), borderWidth: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', flexDirection: 'row', gap: ws(8) },
   switchIcon:        { fontSize: rf(18, 16, 20), color: THEME.primary, fontWeight: '900', lineHeight: rf(18, 16, 20), includeFontPadding: false, textAlignVertical: 'center' },
   switchButtonText:  { fontSize: rf(13, 12, 14), fontWeight: '700', letterSpacing: 0.3, lineHeight: rf(18, 16, 20) },
-  continueButton:    { flex: 1, paddingVertical: hs(12), borderRadius: ws(25), alignItems: 'center', justifyContent: 'center', shadowColor: '#6B7C2D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  continueButton:    { flex: 1, paddingVertical: hs(12), borderRadius: ws(25), alignItems: 'center', justifyContent: 'center', shadowColor: '#6A2F12', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
   continueButtonText:{ fontSize: rf(13, 12, 14), fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3 },
 });

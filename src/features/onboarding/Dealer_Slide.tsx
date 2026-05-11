@@ -5,18 +5,18 @@ import {
 } from 'react-native';
 import Svg, { Circle, Rect, Path, G, Line } from 'react-native-svg';
 import { ws, hs, rf } from '../../shared/hooks/useResponsive';
-import { dealerURI } from '../../shared/data/roleImages';
 
 const AView = Animated.View as any;
 const CIRCLE_SIZE = ws(240);
+const dealerImage = require('../../../assets/Dealer.png');
 
 const THEME = {
-  primary:   '#B45309',  // Softer orange instead of #D97706
-  secondary: '#D97706',  // Lighter secondary
-  light:     '#FEF7ED',  // Very light cream instead of #FEF3C7
-  circle:    '#FEF7ED',  // Matching light background
-  tag:       '#FEF7ED',  // Consistent light background
-  tagText:   '#A16207',  // Softer text color instead of #92400E
+  primary:   '#102A63',
+  secondary: '#D79A37',
+  light:     '#EEF3FB',
+  circle:    '#EEF3FB',
+  tag:       '#E7EDF8',
+  tagText:   '#102A63',
 };
 
 const TAGS = ['Business Growth', 'First Point of Contact', 'Performance Driven'];
@@ -54,8 +54,8 @@ function BgIcons() {
 function Character() {
   return (
     <Image
-      source={{ uri: dealerURI }}
-      style={{ width: ws(300), height: hs(320) }}
+      source={dealerImage}
+      style={{ width: ws(338), height: ws(338), marginTop: -hs(4) }}
       resizeMode="contain"
     />
   );
@@ -158,12 +158,12 @@ export default function DealerSlide({ onBack, onContinue }: Props) {
             <Text style={[s.statNumber, { color: THEME.primary }]}>1000+</Text>
             <Text style={[s.statLabel, { color: THEME.primary }]}>DEALERS</Text>
           </View>
-          <View style={[s.statBox, { backgroundColor: '#FEF7ED' }]}>
+          <View style={[s.statBox, { backgroundColor: THEME.primary }]}>
             <Svg width={ws(24)} height={ws(24)} viewBox="0 0 24 24" fill="none">
-              <Path d="M20 12v10H4V12M22 7H2v5h20V7zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" stroke="#D97706" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              <Path d="M20 12v10H4V12M22 7H2v5h20V7zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" stroke="#FFFFFF" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
             </Svg>
-            <Text style={[s.statNumber, { color: '#D97706' }]}>₹5L+</Text>
-            <Text style={[s.statLabel, { color: '#D97706' }]}>REWARDS</Text>
+            <Text style={[s.statNumber, { color: '#FFFFFF' }]}>₹5L+</Text>
+            <Text style={[s.statLabel, { color: '#FFFFFF' }]}>REWARDS</Text>
           </View>
           <View style={[s.statBox, { backgroundColor: THEME.light }]}>
             <Svg width={ws(24)} height={ws(24)} viewBox="0 0 24 24" fill="none">
@@ -208,11 +208,11 @@ export default function DealerSlide({ onBack, onContinue }: Props) {
 
 const s = StyleSheet.create({
   root:              { flex: 1, alignItems: 'center', justifyContent: 'flex-start', backgroundColor: '#FFFFFF', paddingHorizontal: ws(20), paddingTop: hs(48) },
-  circleWrap:        { marginBottom: hs(28), shadowColor: '#B45309', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 14, marginTop: hs(8) },
+  circleWrap:        { marginBottom: hs(28), shadowColor: '#102A63', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 14, marginTop: hs(8) },
   circle:            { width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   glowRing:          { position: 'absolute', width: CIRCLE_SIZE + ws(12), height: CIRCLE_SIZE + ws(12), borderRadius: (CIRCLE_SIZE + ws(12)) / 2, borderWidth: 1.5, opacity: 0.3, top: -ws(6), left: -ws(6) },
   card:              { alignItems: 'center', paddingHorizontal: ws(16), width: '100%' },
-  titleButton:       { paddingHorizontal: ws(32), paddingVertical: hs(8), borderRadius: ws(25), marginBottom: hs(12), shadowColor: '#B45309', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
+  titleButton:       { paddingHorizontal: ws(32), paddingVertical: hs(8), borderRadius: ws(25), marginBottom: hs(12), shadowColor: '#102A63', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
   titleButtonText:   { fontSize: rf(13, 11, 15), fontWeight: '900', color: '#FFFFFF', textAlign: 'center', letterSpacing: 1 },
   contentCard:       { width: '100%', backgroundColor: '#FFFFFF', paddingHorizontal: ws(16), paddingVertical: hs(12), borderRadius: ws(14), marginBottom: hs(12), borderWidth: 2, borderColor: THEME.light, shadowColor: THEME.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 8, position: 'relative', overflow: 'hidden' },
   gradientAccent:    { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: THEME.primary },
@@ -237,13 +237,13 @@ const s = StyleSheet.create({
   trustText:         { fontSize: rf(10, 9, 11), fontWeight: '700', textAlign: 'center', letterSpacing: 0.2 },
   trustSimple:       { fontSize: rf(11, 9, 13), fontWeight: '700', textAlign: 'center', letterSpacing: 0.4 },
   productsGrid:      { flexDirection: 'row', flexWrap: 'wrap', width: '100%', gap: ws(6), marginBottom: hs(8), marginTop: hs(10) },
-  productChip:       { paddingVertical: hs(6), paddingHorizontal: ws(10), borderRadius: ws(20), borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', width: '31%', backgroundColor: '#FEF7ED', minHeight: hs(32) },
-  productChipText:   { fontSize: rf(9, 8, 10), fontWeight: '800', textAlign: 'center', letterSpacing: 0.4, color: '#A16207' },
+  productChip:       { paddingVertical: hs(6), paddingHorizontal: ws(10), borderRadius: ws(20), borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', width: '31%', backgroundColor: '#EEF3FB', minHeight: hs(32) },
+  productChipText:   { fontSize: rf(9, 8, 10), fontWeight: '800', textAlign: 'center', letterSpacing: 0.4, color: '#102A63' },
   trustLine:         { fontSize: rf(11, 9, 13), fontWeight: '700', textAlign: 'center', letterSpacing: 0.4, marginBottom: hs(16), marginTop: hs(8) },
   actionButtons:     { flexDirection: 'row', width: '100%', gap: ws(12), paddingBottom: hs(24) },
   switchButton:      { flex: 1, paddingVertical: hs(12), borderRadius: ws(25), borderWidth: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', flexDirection: 'row', gap: ws(8) },
   switchIcon:        { fontSize: rf(18, 16, 20), color: THEME.primary, fontWeight: '900', lineHeight: rf(18, 16, 20), includeFontPadding: false, textAlignVertical: 'center' },
   switchButtonText:  { fontSize: rf(13, 12, 14), fontWeight: '700', letterSpacing: 0.3, lineHeight: rf(18, 16, 20) },
-  continueButton:    { flex: 1, paddingVertical: hs(12), borderRadius: ws(25), alignItems: 'center', justifyContent: 'center', shadowColor: '#B45309', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
+  continueButton:    { flex: 1, paddingVertical: hs(12), borderRadius: ws(25), alignItems: 'center', justifyContent: 'center', shadowColor: '#102A63', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
   continueButtonText:{ fontSize: rf(13, 12, 14), fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3 },
 });

@@ -5,16 +5,16 @@ import {
 } from 'react-native';
 import Svg, { Circle, Rect, Path, G, Line } from 'react-native-svg';
 import { ws, hs, rf } from '@/shared/hooks/useResponsive';
-import { counterboyURI } from '@/shared/data/roleImages';
 
 const AView = Animated.View as any;
 const CIRCLE_SIZE = ws(240);
+const counterBoyImage = require('../../../../assets/Counter_boy.png');
 
 const THEME = {
-  primary:   '#E8453C',
-  secondary: '#FF6B6B',
-  light:     '#FFF5F5',
-  circle:    '#FFF5F5',
+  primary:   '#9B1324',
+  secondary: '#BF1C34',
+  light:     '#FBEEEA',
+  circle:    '#FBEEEA',
 };
 
 function BgIcons() {
@@ -54,10 +54,52 @@ function BgIcons() {
 function Character() {
   return (
     <Image
-      source={{ uri: counterboyURI }}
-      style={{ width: ws(370), height: hs(390), marginTop: -hs(15) }}
+      source={counterBoyImage}
+      style={{ width: ws(345), height: ws(345), marginTop: hs(2) }}
       resizeMode="contain"
     />
+  );
+}
+
+function StatIcon({ type, color }: { type: 'billing' | 'stock' | 'report' | 'returns'; color: string }) {
+  if (type === 'billing') {
+    return (
+      <Svg width={ws(20)} height={ws(20)} viewBox="0 0 24 24" fill="none">
+        <Path d="M7 3h10v18l-2-1.5L12 21l-3-1.5L7 21V3z" stroke={color} strokeWidth="1.8" fill="none" strokeLinejoin="round" />
+        <Line x1="9" y1="8" x2="15" y2="8" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+        <Line x1="9" y1="12" x2="15" y2="12" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  if (type === 'stock') {
+    return (
+      <Svg width={ws(20)} height={ws(20)} viewBox="0 0 24 24" fill="none">
+        <Rect x="3" y="7" width="8" height="6" rx="1.5" stroke={color} strokeWidth="1.8" fill="none" />
+        <Rect x="13" y="7" width="8" height="6" rx="1.5" stroke={color} strokeWidth="1.8" fill="none" />
+        <Rect x="8" y="15" width="8" height="6" rx="1.5" stroke={color} strokeWidth="1.8" fill="none" />
+      </Svg>
+    );
+  }
+
+  if (type === 'report') {
+    return (
+      <Svg width={ws(20)} height={ws(20)} viewBox="0 0 24 24" fill="none">
+        <Line x1="4" y1="20" x2="20" y2="20" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+        <Rect x="6" y="11" width="3" height="7" rx="1" fill={color} />
+        <Rect x="11" y="8" width="3" height="10" rx="1" fill={color} />
+        <Rect x="16" y="5" width="3" height="13" rx="1" fill={color} />
+      </Svg>
+    );
+  }
+
+  return (
+    <Svg width={ws(20)} height={ws(20)} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 7H4v4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M16 17h4v-4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M20 13a8 8 0 0 0-13.66-5.66L4 9" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Path d="M4 11a8 8 0 0 0 13.66 5.66L20 15" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </Svg>
   );
 }
 
@@ -133,15 +175,27 @@ export default function CounterBoySlide({ onBack, onContinue }: Props) {
 
         <View style={s.statsRow}>
           <View style={[s.statBox, { backgroundColor: THEME.light }]}>
+            <View style={[s.statIconWrap, { backgroundColor: '#F7D9DE' }]}>
+              <StatIcon type="billing" color={THEME.primary} />
+            </View>
             <Text style={[s.statLabel, { color: THEME.primary }]}>SMART BILLING</Text>
           </View>
           <View style={[s.statBox, { backgroundColor: '#FFE4E4' }]}>
+            <View style={[s.statIconWrap, { backgroundColor: '#FAD1D8' }]}>
+              <StatIcon type="stock" color={THEME.secondary} />
+            </View>
             <Text style={[s.statLabel, { color: THEME.secondary }]}>LIVE STOCK</Text>
           </View>
           <View style={[s.statBox, { backgroundColor: THEME.light }]}>
+            <View style={[s.statIconWrap, { backgroundColor: '#F7D9DE' }]}>
+              <StatIcon type="report" color={THEME.primary} />
+            </View>
             <Text style={[s.statLabel, { color: THEME.primary }]}>SALES REPORT</Text>
           </View>
           <View style={[s.statBox, { backgroundColor: '#FFE4E4' }]}>
+            <View style={[s.statIconWrap, { backgroundColor: '#FAD1D8' }]}>
+              <StatIcon type="returns" color={THEME.secondary} />
+            </View>
             <Text style={[s.statLabel, { color: THEME.secondary }]}>QUICK RETURNS</Text>
           </View>
         </View>
@@ -166,11 +220,11 @@ export default function CounterBoySlide({ onBack, onContinue }: Props) {
 
 const s = StyleSheet.create({
   root: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', backgroundColor: '#FFFFFF', paddingHorizontal: ws(20), paddingTop: hs(48) },
-  circleWrap: { marginBottom: hs(28), shadowColor: '#E8453C', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 24, elevation: 14, marginTop: hs(8) },
+  circleWrap: { marginBottom: hs(28), shadowColor: '#9B1324', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 24, elevation: 14, marginTop: hs(8) },
   circle: { width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   glowRing: { position: 'absolute', width: CIRCLE_SIZE + ws(12), height: CIRCLE_SIZE + ws(12), borderRadius: (CIRCLE_SIZE + ws(12)) / 2, borderWidth: 1.5, opacity: 0.3, top: -ws(6), left: -ws(6) },
   card: { alignItems: 'center', paddingHorizontal: ws(16), width: '100%' },
-  titleButton: { paddingHorizontal: ws(32), paddingVertical: hs(8), borderRadius: ws(25), marginBottom: hs(12), shadowColor: '#E8453C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  titleButton: { paddingHorizontal: ws(32), paddingVertical: hs(8), borderRadius: ws(25), marginBottom: hs(12), shadowColor: '#9B1324', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
   titleButtonText: { fontSize: rf(13, 11, 15), fontWeight: '900', color: '#FFFFFF', textAlign: 'center', letterSpacing: 1 },
   contentCard: { width: '100%', backgroundColor: '#FFFFFF', paddingHorizontal: ws(18), paddingVertical: hs(16), borderRadius: ws(16), marginBottom: hs(12), borderWidth: 2, borderColor: THEME.light, shadowColor: THEME.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 8, position: 'relative', overflow: 'hidden' },
   gradientAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: THEME.primary },
@@ -181,12 +235,13 @@ const s = StyleSheet.create({
   cardDesc: { fontSize: rf(12, 11, 13), color: '#6B7280', textAlign: 'center', lineHeight: rf(18, 16, 20), fontWeight: '500' },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', width: '100%', marginBottom: hs(8), gap: ws(8) },
   statBox: { width: '47%', paddingVertical: hs(12), paddingHorizontal: ws(6), borderRadius: ws(10), alignItems: 'center', gap: hs(4) },
+  statIconWrap: { width: ws(36), height: ws(36), borderRadius: ws(18), alignItems: 'center', justifyContent: 'center', marginBottom: hs(4) },
   statLabel: { fontSize: rf(9, 8, 10), fontWeight: '700', letterSpacing: 0.5 },
   trustLine: { fontSize: rf(11, 9, 13), fontWeight: '700', textAlign: 'center', letterSpacing: 0.4, marginBottom: hs(16), marginTop: hs(8) },
   actionButtons: { flexDirection: 'row', width: '100%', gap: ws(12), paddingBottom: hs(24) },
   switchButton: { flex: 1, paddingVertical: hs(12), borderRadius: ws(25), borderWidth: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', flexDirection: 'row', gap: ws(8) },
   switchIcon: { fontSize: rf(18, 16, 20), fontWeight: '900', lineHeight: rf(18, 16, 20), includeFontPadding: false, textAlignVertical: 'center' },
   switchButtonText: { fontSize: rf(13, 12, 14), fontWeight: '700', letterSpacing: 0.3, lineHeight: rf(18, 16, 20) },
-  continueButton: { flex: 1, paddingVertical: hs(12), borderRadius: ws(25), alignItems: 'center', justifyContent: 'center', shadowColor: '#E8453C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  continueButton: { flex: 1, paddingVertical: hs(12), borderRadius: ws(25), alignItems: 'center', justifyContent: 'center', shadowColor: '#9B1324', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
   continueButtonText: { fontSize: rf(13, 12, 14), fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3 },
 });

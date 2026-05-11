@@ -8,17 +8,17 @@ import Svg, { Circle, Rect, Path, G, Line, Ellipse } from 'react-native-svg';
 import { ws, hs, rf } from '../../shared/hooks/useResponsive';
 const AView = Animated.View as any;
 const CIRCLE_SIZE = ws(240);
-const electricianFinalImage = require('../../../assets/Electrician_Final.png');
+const electricianImage = require('../../../assets/Electrician.png');
 
 const THEME = {
-  primary:   '#006655',   // deep teal — image dominant dark color
-  secondary: '#008B72',   // mid teal
-  accent:    '#00A88A',   // bright teal highlight
-  light:     '#E6F7F4',   // very light teal bg
-  circle:    '#C8EDEA',   // circle background — matches image cyan
-  tag:       '#9DDDD6',   // tag/border
-  tagText:   '#004D42',   // dark teal text
-  shadow:    '#006655',
+  primary:   '#102A63',
+  secondary: '#1D458F',
+  accent:    '#F0A43A',
+  light:     '#EEF3FB',
+  circle:    '#E6EEF9',
+  tag:       '#D8E4F8',
+  tagText:   '#102A63',
+  shadow:    '#102A63',
 };
 
 const TAGS = ['Install & Demo', 'First Product User', 'Trusted Expert'];
@@ -58,8 +58,8 @@ function BgIcons() {
 function Character() {
   return (
     <Image
-      source={electricianFinalImage}
-      style={{ width: ws(300), height: hs(320) }}
+      source={electricianImage}
+      style={{ width: ws(338), height: ws(338), marginTop: -hs(6) }}
       resizeMode="contain"
     />
   );
@@ -150,7 +150,7 @@ export default function ElectricianSlide({ onBack, onContinue }: Props) {
             <Text style={s.stepText}>Get Points</Text>
           </View>
           <Text style={s.arrow}>→</Text>
-          <View style={[s.stepBox, { backgroundColor: THEME.accent }]}>
+          <View style={[s.stepBox, { backgroundColor: THEME.primary }]}>
             <Svg width={ws(22)} height={ws(22)} viewBox="0 0 24 24" fill="none">
               <Path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
             </Svg>
@@ -159,21 +159,21 @@ export default function ElectricianSlide({ onBack, onContinue }: Props) {
         </View>
 
         <View style={s.statsRow}>
-          <View style={[s.statBox, { backgroundColor: THEME.light }]}>
+          <View style={[s.statBox, { backgroundColor: THEME.primary }]}>
             <Svg width={ws(24)} height={ws(24)} viewBox="0 0 24 24" fill="none">
-              <Rect x="2" y="6" width="20" height="14" rx="3" stroke={THEME.primary} strokeWidth="1.8" fill="none"/>
-              <Path d="M2 10h20" stroke={THEME.primary} strokeWidth="1.8" strokeLinecap="round"/>
-              <Circle cx="6" cy="15" r="1.5" fill={THEME.primary}/>
-              <Path d="M16 4H8" stroke={THEME.primary} strokeWidth="1.8" strokeLinecap="round"/>
+              <Rect x="2" y="6" width="20" height="14" rx="3" stroke="#FFFFFF" strokeWidth="1.8" fill="none"/>
+              <Path d="M2 10h20" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round"/>
+              <Circle cx="6" cy="15" r="1.5" fill="#FFFFFF"/>
+              <Path d="M16 4H8" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round"/>
             </Svg>
-            <Text style={[s.statNumber, { color: THEME.primary }]}>₹5L+</Text>
-            <Text style={[s.statLabel, { color: THEME.primary }]}>REWARDS PAID</Text>
+            <Text style={[s.statNumber, { color: '#FFFFFF' }]}>₹5L+</Text>
+            <Text style={[s.statLabel, { color: '#FFFFFF' }]}>REWARDS PAID</Text>
           </View>
           <View style={[s.statBox, { backgroundColor: THEME.light }]}>
             <Svg width={ws(24)} height={ws(24)} viewBox="0 0 24 24" fill="none">
               <Path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke={THEME.primary} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
             </Svg>
-            <Text style={[s.statNumber, { color: THEME.primary }]}>25K+</Text>
+            <Text style={[s.statNumber, { color: THEME.primary }]}>20K+</Text>
             <Text style={[s.statLabel, { color: THEME.primary }]}>ACTIVE MEMBERS</Text>
           </View>
         </View>

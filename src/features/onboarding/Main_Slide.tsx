@@ -9,6 +9,7 @@ import {
   type ImageStyle,
   View,
 } from 'react-native';
+import { useFonts } from 'expo-font';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect, Line, Polyline } from 'react-native-svg';
 import { hs, isSmallDevice, isTablet, rf, screenWidth, ws } from '@/shared/hooks/useResponsive';
@@ -29,7 +30,6 @@ type FeatureBadgeConfig = {
   title: string;
   icon: 'shield' | 'award' | 'check' | 'target';
   accent: string;
-  compact?: boolean;
 };
 
 const LOGO = require('../../../assets/srv-login-logo.png');
@@ -65,7 +65,7 @@ const FEATURE_BADGES: FeatureBadgeConfig[] = [
   { title: 'BUILT WITH TRUST', icon: 'shield', accent: '#173E80' },
   { title: 'DRIVEN BY QUALITY', icon: 'award', accent: '#C85A2C' },
   { title: 'RELIABLE & DURABLE', icon: 'check', accent: '#188A2D' },
-  { title: 'PRECISION\nPERFORMANCE', icon: 'target', accent: '#C7332F', compact: true },
+  { title: 'PRECISION\nPERFORMANCE', icon: 'target', accent: '#C7332F' },
 ];
 
 function DividerTitle({ label, color = DARK_NAVY }: { label: string; color?: string }) {
@@ -205,6 +205,9 @@ function RoleCard({
 }
 
 export default function MainSlide({ onRoleSelect }: MainSlideProps) {
+  const [fontsLoaded] = useFonts({
+    LaconicBold: require('../../../assets/fonts/Laconic_Bold.otf'),
+  });
   const insets = useSafeAreaInsets();
   const compact = isSmallDevice;
   const cardWidth: DimensionValue = isTablet ? '49%' : '49.1%';
@@ -228,7 +231,13 @@ export default function MainSlide({ onRoleSelect }: MainSlideProps) {
 
         <DividerTitle label="25 YEARS OF TRUST & IMPROVEMENT" color={GOLD} />
 
-        <Text style={[styles.welcomeTitle, compact ? styles.welcomeTitleCompact : null]}>
+        <Text
+          style={[
+            styles.welcomeTitle,
+            compact ? styles.welcomeTitleCompact : null,
+            fontsLoaded ? styles.welcomeTitleLaconic : null,
+          ]}
+        >
           SRV WELCOMES YOU
         </Text>
         <Text style={styles.welcomeSubtitle}>
@@ -252,9 +261,7 @@ export default function MainSlide({ onRoleSelect }: MainSlideProps) {
           {FEATURE_BADGES.map((badge) => (
             <View key={badge.title} style={styles.featureCard}>
               <FeatureIcon icon={badge.icon} accent={badge.accent} />
-              <Text style={[styles.featureText, badge.compact ? styles.featureTextCompact : null]}>
-                {badge.title}
-              </Text>
+              <Text style={styles.featureText}>{badge.title}</Text>
             </View>
           ))}
         </View>
@@ -406,13 +413,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: hs(16),
   },
+  welcomeTitleLaconic: {
+    fontFamily: 'LaconicBold',
+    fontWeight: '400',
+    letterSpacing: 0.2,
+  },
   welcomeTitleCompact: {
     fontSize: rf(22, 20, 24),
   },
   welcomeSubtitle: {
     textAlign: 'center',
     color: '#1E2640',
-    fontSize: rf(14, 12, 16),
+    fontSize: rf(12.8, 11.5, 14.5),
     fontWeight: '500',
     marginTop: hs(8),
     marginBottom: hs(10),
@@ -448,7 +460,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'nowrap',
     justifyContent: 'space-between',
-    marginTop: hs(14),
+    marginTop: hs(20),
     gap: ws(6),
   },
   featureCard: {
@@ -472,14 +484,10 @@ const styles = StyleSheet.create({
   },
   featureText: {
     color: '#1A2237',
-    fontSize: rf(8.2, 7.2, 9),
-    lineHeight: rf(10.5, 9.5, 11.5),
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  featureTextCompact: {
     fontSize: rf(7.4, 6.8, 8.2),
     lineHeight: rf(9.6, 8.8, 10.4),
+    fontWeight: '800',
+    textAlign: 'center',
   },
   featureIconFrame: {
     width: ws(26),

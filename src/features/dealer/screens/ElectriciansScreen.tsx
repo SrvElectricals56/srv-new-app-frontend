@@ -509,12 +509,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
                   />
                 </View>
 
-                <View style={[styles.verifiedRow, darkMode ? styles.verifiedRowDark : null]}>
-                  <ShieldIcon color={darkMode ? '#93C5FD' : '#173E80'} />
-                  <Text style={[styles.verifiedText, darkMode ? styles.verifiedTextDark : null]}>
-                    {tx('Submission uses the live dealer-electrician API and saves directly to the database')}
-                  </Text>
-                </View>
+
 
                 <View style={styles.fieldGroup}>
                   <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>{tx('City')}</Text>
@@ -814,9 +809,9 @@ const styles = StyleSheet.create({
   otpCard: {
     borderRadius: 18,
     padding: 10,
-    backgroundColor: '#FFF4DE',
+    backgroundColor: '#EEF5FF',
     borderWidth: 1,
-    borderColor: '#F1D6A2',
+    borderColor: '#C7D9F5',
     gap: 6,
   },
   otpCardDark: {
@@ -824,7 +819,7 @@ const styles = StyleSheet.create({
     borderColor: '#29466E',
   },
   otpInfo: {
-    color: '#7B6A46',
+    color: '#355C95',
     fontSize: 12,
     lineHeight: 16,
   },
@@ -839,7 +834,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   otpTimer: {
-    color: '#C06A1A',
+    color: '#173E80',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -873,7 +868,7 @@ const styles = StyleSheet.create({
     minHeight: 18,
   },
   otpTimerSmall: {
-    color: '#C06A1A',
+    color: '#173E80',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -927,7 +922,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#173E80',
   },
   primaryButtonDisabled: {
-    backgroundColor: '#E9D7B8',
+    backgroundColor: '#C7D9F5',
   },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
 });

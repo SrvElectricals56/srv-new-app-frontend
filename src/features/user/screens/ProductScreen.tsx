@@ -578,14 +578,18 @@ export function ProductScreen({
   const isSearching = search.trim().length > 0;
 
   const filtered = useMemo(() => {
+    let result: typeof catalogProducts;
     if (isSearching) {
-      return catalogProducts.filter(
+      result = catalogProducts.filter(
         (p) =>
           p.name.toLowerCase().includes(search.toLowerCase()) ||
           p.sub.toLowerCase().includes(search.toLowerCase())
       );
+    } else {
+      result = catalogProducts.filter((p) => p.category === category);
     }
-    return catalogProducts.filter((p) => p.category === category);
+    // Sort alphabetically A-Z by name
+    return [...result].sort((a, b) => a.name.localeCompare(b.name));
   }, [catalogProducts, category, search, isSearching]);
 
   const currentCat = catalogCategories.find((c) => c.id === category) ?? catalogCategories[0] ?? { id: 'fanbox', label: 'Products', count: 0 };

@@ -485,12 +485,17 @@ export function ProductScreen({
   const isSearching = search.trim().length > 0;
 
   const filtered = useMemo(() => {
+    let result: typeof products;
     if (isSearching) {
       const q = search.toLowerCase();
-      return products.filter(p => p.name.toLowerCase().includes(q) || p.sub.toLowerCase().includes(q));
+      result = products.filter(p => p.name.toLowerCase().includes(q) || p.sub.toLowerCase().includes(q));
+    } else if (category === 'all') {
+      result = products;
+    } else {
+      result = products.filter(p => p.category === category);
     }
-    if (category === 'all') return products;
-    return products.filter(p => p.category === category);
+    // Sort alphabetically A-Z by name
+    return [...result].sort((a, b) => a.name.localeCompare(b.name));
   }, [products, category, search, isSearching]);
 
   const rows = useMemo<ProductRow[]>(() => {
@@ -551,7 +556,15 @@ export function ProductScreen({
         )}
         <TouchableOpacity
           onPress={() => setShowFilters(v => !v)}
-          style={[styles.filterBtn, showFilters && styles.filterBtnActive]}
+          style={[
+            styles.filterBtn,
+            showFilters && { backgroundColor: 
+              isCustomer ? '#6A2F12' :
+              isDealer   ? '#173E80' :
+              role === 'counterboy' ? '#E8453C' :
+              '#173E80'
+            }
+          ]}
           activeOpacity={0.82}
         >
           <FilterIcon color={showFilters ? '#FFFFFF' : C.textDark} />

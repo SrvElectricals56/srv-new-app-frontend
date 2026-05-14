@@ -37,6 +37,8 @@ const DEALER = require('../../../assets/Dealear_main.png');
 const ELECTRICIAN = require('../../../assets/electrician_main.png');
 const CUSTOMER = require('../../../assets/Customer_main.png');
 const COUNTER_BOY = require('../../../assets/Counter_main.png');
+const TOP_CORNER_LEFT = require('../../../assets/top_corner_left_ornament.png');
+const TOP_CORNER_RIGHT = require('../../../assets/top_corner_right_ornament.png');
 
 const PAGE_BG = '#F5F2F0';
 const DARK_NAVY = '#081A37';
@@ -149,30 +151,23 @@ function FeatureIcon({ icon, accent }: { icon: FeatureBadgeConfig['icon']; accen
   );
 }
 
-function TopAccentBars({
-  side,
-  top,
-}: {
-  side: 'left' | 'right';
-  top: number;
-}) {
-  const rightSide = side === 'right';
-
+function TopCornerOrnament({ side, top }: { side: 'left' | 'right'; top: number }) {
+  const ornamentWidth = Math.min(ws(118), screenWidth * 0.26);
+  const ornamentHeight = isTablet ? ornamentWidth * 0.46 : ornamentWidth * (230 / 300);
   return (
     <View
       pointerEvents="none"
       style={[
-        styles.accentBarsWrap,
-        rightSide ? styles.accentBarsRight : styles.accentBarsLeft,
-        { top },
+        styles.cornerOrnamentWrap,
+        side === 'right' ? styles.cornerOrnamentRight : styles.cornerOrnamentLeft,
+        { top, width: ornamentWidth, height: ornamentHeight },
       ]}
     >
-      <View style={[styles.barPiece, styles.barNavyLg, rightSide ? styles.barNavyLgRight : null]} />
-      <View style={[styles.barPiece, styles.barGoldMd, rightSide ? styles.barGoldMdRight : null]} />
-      <View style={[styles.barPiece, styles.barNavySm, rightSide ? styles.barNavySmRight : null]} />
-      <View style={[styles.barPiece, styles.barGoldSm, rightSide ? styles.barGoldSmRight : null]} />
-      <View style={[styles.barPiece, styles.barGoldMini, rightSide ? styles.barGoldMiniRight : null]} />
-      <View style={[styles.barDot, rightSide ? styles.barDotRight : null]} />
+      <Image
+        source={side === 'right' ? TOP_CORNER_RIGHT : TOP_CORNER_LEFT}
+        resizeMode="stretch"
+        style={styles.cornerOrnamentImage}
+      />
     </View>
   );
 }
@@ -222,8 +217,8 @@ export default function MainSlide({ onRoleSelect }: MainSlideProps) {
           { paddingTop: Math.max(insets.top, hs(8)) + hs(18) },
         ]}
       >
-        <TopAccentBars side="left" top={cornerTop} />
-        <TopAccentBars side="right" top={cornerTop} />
+        <TopCornerOrnament side="left" top={cornerTop} />
+        <TopCornerOrnament side="right" top={cornerTop} />
 
         <View style={styles.heroArt}>
           <Image source={LOGO} resizeMode="contain" style={styles.heroLogo} />
@@ -284,88 +279,19 @@ const styles = StyleSheet.create({
   contentCompact: {
     paddingHorizontal: ws(14),
   },
-  accentBarsWrap: {
+  cornerOrnamentWrap: {
     position: 'absolute',
-    width: ws(100),
-    height: hs(64),
+    overflow: 'hidden',
   },
-  accentBarsLeft: {
+  cornerOrnamentLeft: {
     left: 0,
   },
-  accentBarsRight: {
+  cornerOrnamentRight: {
     right: 0,
   },
-  barPiece: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  barNavyLg: {
-    top: hs(8),
-    left: ws(4),
-    width: ws(52),
-    height: 8,
-    backgroundColor: '#0C2348',
-  },
-  barNavyLgRight: {
-    left: undefined,
-    right: ws(4),
-  },
-  barGoldMd: {
-    top: hs(22),
-    left: ws(18),
-    width: ws(42),
-    height: 6,
-    backgroundColor: '#D8A04B',
-  },
-  barGoldMdRight: {
-    left: undefined,
-    right: ws(18),
-  },
-  barNavySm: {
-    top: hs(34),
-    left: ws(30),
-    width: ws(30),
-    height: 5,
-    backgroundColor: '#16386F',
-  },
-  barNavySmRight: {
-    left: undefined,
-    right: ws(30),
-  },
-  barGoldSm: {
-    top: hs(45),
-    left: ws(12),
-    width: ws(22),
-    height: 4,
-    backgroundColor: '#F0C979',
-  },
-  barGoldSmRight: {
-    left: undefined,
-    right: ws(12),
-  },
-  barGoldMini: {
-    top: hs(51),
-    left: ws(40),
-    width: ws(16),
-    height: 3,
-    backgroundColor: '#B96A31',
-  },
-  barGoldMiniRight: {
-    left: undefined,
-    right: ws(40),
-  },
-  barDot: {
-    position: 'absolute',
-    top: hs(18),
-    left: ws(66),
-    width: ws(8),
-    height: ws(8),
-    borderRadius: ws(4),
-    backgroundColor: '#E6BC69',
-  },
-  barDotRight: {
-    left: undefined,
-    right: ws(66),
+  cornerOrnamentImage: {
+    width: '100%',
+    height: '100%',
   },
   heroArt: {
     alignItems: 'center',

@@ -49,39 +49,65 @@ function resolveRemoteImageUrl(value?: string | null): string | null {
 }
 
 const CB_HOME_CAT_IMAGES: Record<string, string> = {
-  fanbox: 'https://srvelectricals.com/cdn/shop/files/FC_4_17-30.png?v=1757426626&width=320',
+  fanbox:       'https://srvelectricals.com/cdn/shop/files/FC_4_17-30.png?v=1757426626&width=320',
   concealedbox: 'https://srvelectricals.com/cdn/shop/files/CRD_PL_3.png?v=1757426566&width=320',
-  modular: 'https://srvelectricals.com/cdn/shop/files/3x3_679e5d30-ecf2-446e-9452-354bbf4c4a26.png?v=1757426377&width=320',
-  mcb: 'https://srvelectricals.com/cdn/shop/files/MCB_Box_4_Way_GI.png?v=1757426418&width=320',
+  busbar:       'https://srvelectricals.com/cdn/shop/files/Bus_Bar_100A_Super.png?v=1757426672&width=320',
+  mcb:          'https://srvelectricals.com/cdn/shop/files/MCB_Box_4_Way_GI.png?v=1757426418&width=320',
 };
 
 const CB_HOME_LABELS: Record<string, string> = {
-  fanbox: 'Fan Box',
-  concealedbox: 'Concealed Box',
-  modular: 'Modular Box',
-  modularbox: 'Modular Box',
-  mcb: 'MCB Box',
+  'fan': 'Fan Box',
+  'fanbox': 'Fan Box',
+  'fan-box': 'Fan Box',
+  'concealed': 'Concealed Box',
+  'concealedbox': 'Concealed Box',
+  'concealed-box': 'Concealed Box',
+  'bus': 'Bus Bar Super',
+  'bar': 'Bus Bar Super',
+  'busbar': 'Bus Bar Super',
+  'super': 'Bus Bar Super',
+  'mcb': 'MCB Box',
+  'eco': 'MCB Box',
+  'spn': 'MCB Box',
+  'dd': 'MCB Box',
 };
 
-const CB_HOME_ALIASES: Record<string, string> = {
-  modularbox: 'modular',
-  boxes: 'mcb',
-};
-
-const CB_HOME_CATEGORY_ORDER = ['fanbox', 'concealedbox', 'modular', 'mcb'] as const;
+const CB_HOME_CATEGORY_ORDER = ['Fan Box', 'Concealed Box', 'BUS BAR SUPER', 'ECO SPN DD MCB BOX'] as const;
 
 function sanitizeCbCategoryKey(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '');
+  return value.toLowerCase().trim();
 }
 
 function normalizeCbHomeCategory(id: string) {
   const sanitized = sanitizeCbCategoryKey(id);
-  return CB_HOME_ALIASES[sanitized] ?? sanitized;
+  // Check if it matches any of our target categories
+  for (const targetCat of CB_HOME_CATEGORY_ORDER) {
+    if (sanitized.includes(targetCat.toLowerCase()) || targetCat.toLowerCase().includes(sanitized)) {
+      return targetCat;
+    }
+  }
+  // Check if any search term matches
+  const searchTerms = ['fan', 'concealed', 'bus', 'bar', 'busbar', 'super', 'mcb', 'eco', 'spn', 'dd'];
+  for (const term of searchTerms) {
+    if (sanitized.includes(term)) {
+      return CB_HOME_LABELS[term] || sanitized;
+    }
+  }
+  return sanitized;
 }
 
 function getCbHomeCatImage(id: string, apiImageUrl?: string | null) {
+  const remoteUrl = resolveRemoteImageUrl(apiImageUrl);
+  if (remoteUrl) return remoteUrl;
+
+  const idLower = id.toLowerCase();
+  if (idLower.includes('bus') || idLower.includes('bar')) return CB_HOME_CAT_IMAGES.busbar;
+  if (idLower.includes('mcb') || idLower.includes('eco') || idLower.includes('spn')) return CB_HOME_CAT_IMAGES.mcb;
+  if (idLower.includes('concealed')) return CB_HOME_CAT_IMAGES.concealedbox;
+  if (idLower.includes('fan')) return CB_HOME_CAT_IMAGES.fanbox;
+
   const normalizedId = normalizeCbHomeCategory(id);
-  return resolveRemoteImageUrl(apiImageUrl) ?? CB_HOME_CAT_IMAGES[normalizedId] ?? CB_HOME_CAT_IMAGES.fanbox;
+  return CB_HOME_CAT_IMAGES[normalizedId] ?? CB_HOME_CAT_IMAGES.fanbox;
 }
 
 const CB_PRIMARY = cb.primary;
@@ -520,9 +546,9 @@ const styles = StyleSheet.create({
     height: 132,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: cb.bg,
+    backgroundColor: '#FFFFFF',
   },
-  cbCatImgZoneDark: { backgroundColor: '#2D1C14' },
+  cbCatImgZoneDark: { backgroundColor: cb.darkSurface },
   cbCatImage: { width: '88%', height: '88%' },
   cbCatAccent: { height: 3, width: '100%' },
   cbCatInfo: { padding: 10, backgroundColor: '#FFFFFF' },

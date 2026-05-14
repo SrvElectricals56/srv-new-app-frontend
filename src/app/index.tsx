@@ -179,6 +179,11 @@ function AppContent() {
         setSelectedProductCategory((current) => current || 'all');
       }
 
+      // Reset category when going back to home
+      if (screen === 'home') {
+        setSelectedProductCategory('all');
+      }
+
       setCurrentScreen(screen);
     },
     [currentScreen]
@@ -313,7 +318,7 @@ function AppContent() {
             />
           );
         case 'product':
-          return <DealerProductScreen onNavigate={handleNavigate} />;
+          return <DealerProductScreen onNavigate={handleNavigate} initialCategory={selectedProductCategory} />;
         case 'electricians':
           return <DealerElectriciansScreen onNavigate={handleNavigate} />;
         case 'call_electrician':
@@ -434,7 +439,7 @@ function AppContent() {
             />
           );
         case 'product':
-          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} />;
+          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} initialCategory={selectedProductCategory} />;
         case 'play':
           return <UserPlayScreen onNavigate={handleNavigate} />;
         case 'notification':
@@ -522,7 +527,7 @@ function AppContent() {
             />
           );
         case 'product':
-          return <CounterBoyProductScreen onNavigate={handleNavigate} />;
+          return <CounterBoyProductScreen onNavigate={handleNavigate} initialCategory={selectedProductCategory} />;
         case 'scan':
           return (
             <CounterBoyHomeScreen

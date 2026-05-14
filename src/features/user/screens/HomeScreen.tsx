@@ -213,6 +213,11 @@ const CAT_IMAGES: Record<string, string> = {
 };
 
 function getCatImage(id: string, apiImageUrl?: string | null): string {
+  const idLower = id.toLowerCase();
+  if (idLower.includes('bus') || idLower.includes('bar')) return CAT_IMAGES.busbar;
+  if (idLower.includes('mcb') || idLower.includes('eco') || idLower.includes('spn')) return CAT_IMAGES.mcb;
+  if (idLower.includes('concealed')) return CAT_IMAGES.concealedbox;
+  if (idLower.includes('fan') && !idLower.includes('exhaust')) return CAT_IMAGES.fanbox;
   return apiImageUrl || CAT_IMAGES[id] || CAT_IMAGES.fanbox;
 }
 
@@ -906,8 +911,27 @@ export function HomeScreen({
     return catalogProducts;
   }, [catalogProducts, selectedFilter]);
 
-  // Show only first 4 categories on home screen to match dealer layout
-  const displayedCategories = useMemo(() => categories.slice(0, 4), [categories]);
+  // Show only 4 specific hardcoded categories on home screen
+  const displayedCategories = useMemo(() => {
+    const hardcodedCategories = [
+      { id: 'Fan Box', label: 'Fan Box', searchTerms: ['fan', 'fanbox', 'fan-box'] },
+      { id: 'Concealed Box', label: 'Concealed Box', searchTerms: ['concealed', 'concealedbox', 'concealed-box'] },
+      { id: 'BUS BAR SUPER', label: 'Bus Bar Super', searchTerms: ['bus', 'bar', 'busbar', 'super'] },
+      { id: 'ECO SPN DD MCB BOX', label: 'MCB Box', searchTerms: ['mcb', 'eco', 'spn', 'dd'] },
+    ];
+    
+    // Try to match with actual categories from database
+    return hardcodedCategories.map(hardcoded => {
+      const found = categories.find(c => {
+        const cId = c.id.toLowerCase();
+        const cLabel = (c.label || '').toLowerCase();
+        return hardcoded.searchTerms.some(term => 
+          cId.includes(term.toLowerCase()) || cLabel.includes(term.toLowerCase())
+        );
+      });
+      return found ? { ...found, label: hardcoded.label } : { id: hardcoded.id, label: hardcoded.label, count: 0 };
+    });
+  }, [categories]);
 
   // 2-column card width (same as ProductScreen)
   const catCardW = Math.floor((width - 28 - 12) / 2);

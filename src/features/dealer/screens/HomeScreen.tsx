@@ -90,8 +90,17 @@ function normalizeHomeCategory(id: string) {
 }
 
 function getCatImage(id: string, apiImageUrl?: string | null) {
+  const remoteUrl = resolveRemoteImageUrl(apiImageUrl);
+  if (remoteUrl) return remoteUrl;
+
+  const idLower = id.toLowerCase();
+  if (idLower.includes('bus') || idLower.includes('bar')) return CAT_IMAGES.busbar;
+  if (idLower.includes('mcb') || idLower.includes('eco') || idLower.includes('spn')) return CAT_IMAGES.mcb;
+  if (idLower.includes('concealed')) return CAT_IMAGES.concealedbox;
+  if (idLower.includes('fan') && !idLower.includes('exhaust')) return CAT_IMAGES.fanbox;
+
   const normalizedId = normalizeHomeCategory(id);
-  return resolveRemoteImageUrl(apiImageUrl) ?? CAT_IMAGES[normalizedId] ?? CAT_IMAGES[id] ?? CAT_IMAGES.fanbox;
+  return CAT_IMAGES[normalizedId] ?? CAT_IMAGES[id] ?? CAT_IMAGES.fanbox;
 }
 
 function resolveRemoteImageUrl(uri?: string | null) {
@@ -692,17 +701,24 @@ export function HomeScreen({
     });
   }, [ctxCategories, ctxProducts]);
   const displayedCategories = useMemo(() => {
-    const preferredOrder = ['fanbox', 'concealedbox', 'modular', 'mcb', 'busbar', 'exhaust', 'led', 'changeover'];
-    const ordered = [
-      ...preferredOrder.map((id) => categories.find((category) => category.id === id)).filter(Boolean),
-      ...categories,
-    ] as typeof categories;
-    const seen = new Set<string>();
-    return ordered.filter((category) => {
-      if (seen.has(category.id)) return false;
-      seen.add(category.id);
-      return true;
-    }).slice(0, 4);
+    const hardcodedCategories = [
+      { id: 'Fan Box', label: 'Fan Box', searchTerms: ['fan', 'fanbox', 'fan-box'] },
+      { id: 'Concealed Box', label: 'Concealed Box', searchTerms: ['concealed', 'concealedbox', 'concealed-box'] },
+      { id: 'BUS BAR SUPER', label: 'Bus Bar Super', searchTerms: ['bus', 'bar', 'busbar', 'super'] },
+      { id: 'ECO SPN DD MCB BOX', label: 'MCB Box', searchTerms: ['mcb', 'eco', 'spn', 'dd'] },
+    ];
+    
+    // Try to match with actual categories from database
+    return hardcodedCategories.map(hardcoded => {
+      const found = categories.find((category) => {
+        const cId = category.id.toLowerCase();
+        const cLabel = (category.label || '').toLowerCase();
+        return hardcoded.searchTerms.some(term => 
+          cId.includes(term.toLowerCase()) || cLabel.includes(term.toLowerCase())
+        );
+      });
+      return found ? { ...found, label: hardcoded.label } : { id: hardcoded.id, label: hardcoded.label, count: 0 };
+    });
   }, [categories]);
   const dealerTestimonials = useMemo<TestimonialItem[]>(() => {
     if (ctxTestimonials.length === 0) {

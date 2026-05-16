@@ -791,6 +791,7 @@ export function OnboardingScreen({
   const [locationMessage, setLocationMessage] = useState('');
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const keyboardHeightRef = useRef(0);
   const isCompactPhone = width <= 360 || height <= 760;
   const authBackgroundColors: [string, string, string] =
     role === 'dealer'
@@ -802,8 +803,14 @@ export function OnboardingScreen({
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
-    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      keyboardHeightRef.current = e.endCoordinates.height;
+      setKeyboardVisible(true);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      keyboardHeightRef.current = 0;
+      setKeyboardVisible(false);
+    });
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -1088,7 +1095,13 @@ export function OnboardingScreen({
   const matchedDealer = undefined;
 
   const scrollToForm = () =>
-    setTimeout(() => scrollRef.current?.scrollTo({ y: 180, animated: true }), 120);
+    setTimeout(() => {
+      // Scroll enough so the focused field clears the keyboard.
+      // Use keyboard height if available, otherwise fall back to a safe offset.
+      const kbHeight = keyboardHeightRef.current || 320;
+      const safeY = Math.max(height - kbHeight - 120, 160);
+      scrollRef.current?.scrollTo({ y: safeY, animated: true });
+    }, 150);
   const handleName = (setter: (value: string) => void) => (value: string) =>
     setter(value.replace(/[^A-Za-z ]/g, ''));
   const dismissKeyboard = () => {
@@ -1738,8 +1751,8 @@ export function OnboardingScreen({
         )}
         <KeyboardAvoidingView
           style={s.kav}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 18 : 0}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
         >
           <View style={s.dismissSurface}>
             <ScrollView
@@ -1756,7 +1769,7 @@ export function OnboardingScreen({
                   paddingBottom:
                     phase === 'auth'
                       ? keyboardVisible
-                        ? insets.bottom + 160
+                        ? insets.bottom + 320
                         : insets.bottom + 72
                       : insets.bottom + 40,
                 },
@@ -1764,10 +1777,11 @@ export function OnboardingScreen({
               ]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="interactive"
-              scrollEnabled={phase === 'auth'}
+              keyboardDismissMode="none"
+              scrollEnabled={true}
               bounces={false}
               overScrollMode="never"
+              automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
               onScrollBeginDrag={dismissKeyboard}
             >
               <Animated.View style={[reveal, phase !== 'auth' ? s.revealRole : null]}>
@@ -2070,31 +2084,7 @@ export function OnboardingScreen({
                         </Text>
                       </View>
                     )}
-                    {directAuthEntry ? (
-                      <View
-                        style={[
-                          s.entryPill,
-                          role === 'electrician'
-                            ? s.entryPillElectrician
-                            : role === 'dealer'
-                              ? s.entryPillDealer
-                              : s.entryPillCounterboy,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            s.entryPillText,
-                            role === 'electrician'
-                              ? s.entryPillTextElectrician
-                              : role === 'dealer'
-                                ? s.entryPillTextDealer
-                                : s.entryPillTextCounterboy,
-                          ]}
-                        >
-                          {mode === 'login' ? tx('Login flow selected') : tx('Create account flow selected')}
-                        </Text>
-                      </View>
-                    ) : (
+                    {directAuthEntry ? null : (
                       <Tabs
                         mode={mode}
                         role={role}
@@ -2112,7 +2102,6 @@ export function OnboardingScreen({
                       <View style={s.form}>
                         {role === 'electrician' ? (
                           <>
-                            <Text style={s.label}>{tx('Select Login Method')}</Text>
                             <View style={s.loginChoiceRow}>
                               <Pressable
                                 onPress={() => {
@@ -2290,7 +2279,6 @@ export function OnboardingScreen({
                           </>
                         ) : (
                           <>
-                            <Text style={s.label}>{tx('Select Login Method')}</Text>
                             <View style={s.loginChoiceRow}>
                               <Pressable
                                 onPress={() => {

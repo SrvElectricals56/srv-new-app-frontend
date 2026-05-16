@@ -770,7 +770,7 @@ export function HomeScreen({
       sub: formatCountText(language, connectedCount, 'connected', 'जुड़े हुए', 'ਜੁੜੇ ਹੋਏ'),
       icon: UserPlusIcon,
       iconColors: ['#EEF5FF', '#DCE8FF'] as const,
-      iconTint: '#173E80',
+      iconTint: '#1D4ED8',
       onPress: () => {
         const kyc = authUser?.kycStatus;
         if (kyc !== 'verified') {
@@ -790,8 +790,8 @@ export function HomeScreen({
       title: tx('Product Catalog'),
       sub: tx('Download PDF for latest updated prices'),
       icon: DownloadIcon,
-      iconColors: ['#EEF5FF', '#DCE8FF'] as const,
-      iconTint: '#173E80',
+      iconColors: ['#FFF7ED', '#FFEDD5'] as const,
+      iconTint: '#EA580C',
       onPress: () => openCatalog(appSettings?.catalogPdfUrl),
     },
     {
@@ -800,8 +800,8 @@ export function HomeScreen({
       title: tx('Call Electrician'),
       sub: tx('Reach your network'),
       icon: PhoneIcon,
-      iconColors: ['#EEF5FF', '#DCE8FF'] as const,
-      iconTint: '#173E80',
+      iconColors: ['#DCFCE7', '#BBF7D0'] as const,
+      iconTint: '#16A34A',
       onPress: () => onNavigate('call_electrician'),
     },
     {
@@ -810,8 +810,8 @@ export function HomeScreen({
       title: tx('WhatsApp'),
       sub: tx('Chat with us'),
       icon: WhatsAppIcon,
-      iconColors: ['#EEF5FF', '#DCE8FF'] as const,
-      iconTint: '#173E80',
+      iconColors: ['#DCFCE7', '#BBF7D0'] as const,
+      iconTint: '#25D366',
       onPress: () =>
         Linking.openURL(
           `https://wa.me/${supportWhatsapp}?text=Hello%20SRV%20Team,%20I%20need%20dealer%20support`

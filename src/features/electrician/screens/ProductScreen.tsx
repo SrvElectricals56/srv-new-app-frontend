@@ -667,18 +667,18 @@ export function ProductScreen({
             const cc2 = cat.id === 'all' ? DEFAULT_CAT_COLOR : catColor(cat.id);
             
             // Customer theme colors
-            const customerBg = active ? '#6A2F12' : '#FBF1E7';
-            const customerBorder = active ? '#6A2F12' : '#E5D4C1';
+            const customerBg = active ? '#6A2F12' : '#FFFFFF';
+            const customerBorder = active ? '#6A2F12' : '#EEEEF3';
             const customerIconBg = active ? 'rgba(255,255,255,0.2)' : '#F5E8DC';
             const customerIconColor = active ? '#fff' : '#6A2F12';
-            const customerTextColor = active ? '#fff' : '#6A2F12';
+            const customerTextColor = active ? '#fff' : '#1C1E2E';
             
             // Counterboy theme colors
-            const counterboyBg = active ? '#8B3C2A' : '#F9F4ED';
-            const counterboyBorder = active ? '#8B3C2A' : '#E0D0C0';
+            const counterboyBg = active ? '#8B3C2A' : '#FFFFFF';
+            const counterboyBorder = active ? '#8B3C2A' : '#EEEEF3';
             const counterboyIconBg = active ? 'rgba(255,255,255,0.2)' : '#EDE0D4';
             const counterboyIconColor = active ? '#fff' : '#8B3C2A';
-            const counterboyTextColor = active ? '#fff' : '#5C3D2E';
+            const counterboyTextColor = active ? '#fff' : '#1C1E2E';
             
             return (
               <TouchableOpacity
@@ -731,30 +731,27 @@ export function ProductScreen({
           )}
         </View>
       ) : (
-        <LinearGradient 
-          colors={isCustomer ? ['#FBF1E7', '#F5E8DC', '#F0DEC9'] : isCounterboy ? ['#F9F4ED', '#F0DFD0', '#EDE0D4'] : cc.gradient} 
-          start={{ x: 0, y: 0 }} 
-          end={{ x: 1, y: 0 }} 
-          style={styles.catBanner}
+        <View 
+          style={[styles.catBanner, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEEEF3' }]}
         >
           <View style={styles.catBannerLeft}>
-            <View style={styles.bannerIconWrap}>
-              <CatIcon id={category} size={32} color={isCustomer ? '#6A2F12' : isCounterboy ? '#8B3C2A' : '#fff'} />
+            <View style={[styles.bannerIconWrap, { backgroundColor: isCustomer ? '#F5E8DC' : isCounterboy ? '#F0DFD0' : cc.iconBg }]}>
+              <CatIcon id={category} size={32} color={isCustomer ? '#6A2F12' : isCounterboy ? '#8B3C2A' : cc.scanText} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[styles.catBannerTitle, isCustomer && { color: '#6A2F12' }, isCounterboy && { color: '#5C3D2E' }]} numberOfLines={1} adjustsFontSizeToFit>{currentCat.label}</Text>
-              <Text style={[styles.catBannerSub, isCustomer && { color: '#8D4A1E' }, isCounterboy && { color: '#8A7A6E' }]} numberOfLines={1}>
+              <Text style={[styles.catBannerTitle, { color: isCustomer ? '#6A2F12' : isCounterboy ? '#5C3D2E' : '#1C1E2E' }]} numberOfLines={1} adjustsFontSizeToFit>{currentCat.label}</Text>
+              <Text style={[styles.catBannerSub, { color: isCustomer ? '#8D4A1E' : isCounterboy ? '#8A7A6E' : '#9898A8' }]} numberOfLines={1}>
                 {catalogLoading && products.length === 0 ? tx('Loading...') : `${filtered.length} ${tx('products available')}`}
               </Text>
             </View>
           </View>
           {!isDealer && !isCustomer && !isCounterboy ? (
-            <TouchableOpacity onPress={() => onNavigate('scan')} style={styles.catScanBtn}>
-              <ScanIcon size={20} color="#fff" />
-              <Text style={styles.catScanText}>{bannerActionLabel}</Text>
+            <TouchableOpacity onPress={() => onNavigate('scan')} style={[styles.catScanBtn, { backgroundColor: cc.scanBg }]}>
+              <ScanIcon size={20} color={cc.scanText} />
+              <Text style={[styles.catScanText, { color: cc.scanText }]}>{bannerActionLabel}</Text>
             </TouchableOpacity>
           ) : null}
-        </LinearGradient>
+        </View>
       )}
     </View>
   ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, cc, currentCat, catalogLoading, products.length, isDealer, isCounterboy, onNavigate, bannerActionLabel]);
@@ -960,6 +957,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 12,
     justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
   },
   infoZoneDark: { backgroundColor: '#111827' },
   infoSpacer: { height: 8 },

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   FlatList,
   Image,
   Modal,
@@ -17,6 +19,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { usePreferenceContext } from '@/shared/preferences';
+import { useAppData } from '@/shared/context/AppDataContext';
 import {
   playsApi,
   type PlayComment,
@@ -492,8 +495,121 @@ const EMPTY_INTERACTIONS: PlayInteractions = {
   comments: [],
 };
 
+// ── Coming Soon Screen ────────────────────────────────────────────────────────
+function ComingSoonScreen({ darkMode, insets }: { darkMode: boolean; insets: { top: number; bottom: number } }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.08, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    ).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: -12, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    ).start();
+  }, [pulseAnim, floatAnim]);
+
+  return (
+    <LinearGradient
+      colors={darkMode ? ['#2A1810', '#3D2418', '#4D2E1E'] : ['#FBF1E7', '#F5E8DC', '#F0DEC9']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[csStyles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+    >
+      {/* Decorative blobs */}
+      <View style={[csStyles.blob1, { backgroundColor: darkMode ? 'rgba(141,74,30,0.22)' : 'rgba(141,74,30,0.14)' }]} />
+      <View style={[csStyles.blob2, { backgroundColor: darkMode ? 'rgba(106,47,18,0.20)' : 'rgba(166,93,46,0.10)' }]} />
+
+      <View style={csStyles.content}>
+        {/* Animated play icon */}
+        <Animated.View style={{ transform: [{ scale: pulseAnim }, { translateY: floatAnim }], marginBottom: 32 }}>
+          <LinearGradient
+            colors={['#6A2F12', '#8D4A1E', '#B45309']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={csStyles.iconCircle}
+          >
+            <Svg width={52} height={52} viewBox="0 0 24 24" fill="none">
+              <Path d="M8 5.5v13l10-6.5-10-6.5z" fill="#FFFFFF" />
+            </Svg>
+          </LinearGradient>
+        </Animated.View>
+
+        {/* Badge */}
+        <View style={[csStyles.badge, {
+          backgroundColor: darkMode ? 'rgba(141,74,30,0.25)' : 'rgba(106,47,18,0.10)',
+          borderColor: darkMode ? 'rgba(141,74,30,0.55)' : 'rgba(106,47,18,0.25)',
+        }]}>
+          <Text style={[csStyles.badgeText, { color: darkMode ? '#F5C9A0' : '#6A2F12' }]}>✦  SRV Play Zone  ✦</Text>
+        </View>
+
+        {/* Main heading */}
+        <Text style={[csStyles.title, { color: darkMode ? '#FBF1E7' : '#3D2418' }]}>
+          This Feature is{'\n'}
+          <Text style={csStyles.titleAccent}>Coming Soon</Text>
+        </Text>
+
+        {/* Subtitle */}
+        <Text style={[csStyles.subtitle, { color: darkMode ? '#F5C9A0' : '#8D4A1E' }]}>
+          Stay Updated
+        </Text>
+
+        {/* Description */}
+        <Text style={[csStyles.desc, { color: darkMode ? '#C4A882' : '#8A7A6E' }]}>
+          We're crafting an amazing video experience for you — product guides, quick reels, and helpful tips. It'll be worth the wait!
+        </Text>
+
+        {/* Divider dots */}
+        <View style={csStyles.dotsRow}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={[csStyles.dot, { backgroundColor: i === 1 ? '#6A2F12' : (darkMode ? '#5C3A28' : '#E5C9B0') }]} />
+          ))}
+        </View>
+
+        {/* Info pills */}
+        <View style={csStyles.pillsRow}>
+          {['📹 Video Guides', '⚡ Quick Reels', '💡 Helpful Tips'].map((label) => (
+            <View key={label} style={[csStyles.pill, {
+              backgroundColor: darkMode ? 'rgba(141,74,30,0.20)' : 'rgba(106,47,18,0.08)',
+              borderColor: darkMode ? 'rgba(141,74,30,0.40)' : 'rgba(106,47,18,0.18)',
+            }]}>
+              <Text style={[csStyles.pillText, { color: darkMode ? '#F5C9A0' : '#6A2F12' }]}>{label}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </LinearGradient>
+  );
+}
+
+const csStyles = StyleSheet.create({
+  container: { flex: 1, position: 'relative', overflow: 'hidden' },
+  blob1: { position: 'absolute', width: 280, height: 280, borderRadius: 140, top: -80, right: -80 },
+  blob2: { position: 'absolute', width: 220, height: 220, borderRadius: 110, bottom: 60, left: -60 },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  iconCircle: { width: 110, height: 110, borderRadius: 55, alignItems: 'center', justifyContent: 'center', shadowColor: '#6A2F12', shadowOpacity: 0.40, shadowRadius: 28, shadowOffset: { width: 0, height: 12 }, elevation: 12 },
+  badge: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 7, marginBottom: 20 },
+  badgeText: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+  title: { fontSize: 34, fontWeight: '900', textAlign: 'center', lineHeight: 42, marginBottom: 8 },
+  titleAccent: { color: '#6A2F12' },
+  subtitle: { fontSize: 18, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 },
+  desc: { fontSize: 14, lineHeight: 22, textAlign: 'center', maxWidth: 300, marginBottom: 28 },
+  dotsRow: { flexDirection: 'row', gap: 8, marginBottom: 28 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
+  pill: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
+  pillText: { fontSize: 12, fontWeight: '700' },
+});
+
 export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const { darkMode, tx } = usePreferenceContext();
+  const { appSettings } = useAppData();
   const insets = useSafeAreaInsets();
 
   const [videos, setVideos] = useState<PlayVideo[]>([]);
@@ -595,6 +711,11 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
         <ActivityIndicator size="large" color="#6B7C2D" />
       </View>
     );
+  }
+
+  // Play Zone disabled from admin panel → show Coming Soon
+  if (appSettings && appSettings.playEnabled === false) {
+    return <ComingSoonScreen darkMode={darkMode} insets={{ top: insets.top, bottom: insets.bottom }} />;
   }
 
   if (videos.length === 0) {

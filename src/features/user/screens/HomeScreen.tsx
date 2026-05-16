@@ -19,7 +19,7 @@ import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAuth } from '@/shared/context/AuthContext';
 import type { Screen } from '@/shared/types/navigation';
-import { formatCountText, usePreferenceContext } from '@/shared/preferences';
+import { usePreferenceContext } from '@/shared/preferences';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
 import { createShadow } from '@/shared/theme/shadows';
 import {
@@ -30,7 +30,7 @@ import {
 } from '@/shared/components/TestimonialShowcase';
 import { WebsitePromoSection } from '@/shared/components/WebsitePromoSection';
 import { BannerCarousel, type BannerSlide as CarouselSlide } from '@/shared/components/BannerCarousel';
-import { ElectricianTierIcon, getElectricianTier, type ElectricianTierName } from './ElectricianTierScreen';
+import { getElectricianTier, type ElectricianTierName } from './ElectricianTierScreen';
 import { useCatalogDownload } from '@/shared/hooks';
 import { API_BASE_URL } from '@/shared/api/config';
 import { bannersApi } from '@/shared/api';
@@ -681,6 +681,27 @@ function WhatsAppIcon({ color = CUSTOMER_THEME.ink, size = 22 }: { color?: strin
   );
 }
 
+function HelpIcon({ color = CUSTOMER_THEME.ink, size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={1.8} />
+      <Path d="M9.8 9.3a2.2 2.2 0 114.2 1c0 1.4-1.5 2-2 2.9" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Circle cx="12" cy="16.8" r="1" fill={color} />
+    </Svg>
+  );
+}
+
+function CartIcon({ color = CUSTOMER_THEME.ink, size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M6 7h12l-1.2 6.2a2 2 0 01-2 1.6H9.2a2 2 0 01-2-1.6L6 7z" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
+      <Path d="M8 7a4 4 0 018 0" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Circle cx="9.5" cy="18.5" r="1" fill={color} />
+      <Circle cx="14.5" cy="18.5" r="1" fill={color} />
+    </Svg>
+  );
+}
+
 function ChevronRight({ color = CUSTOMER_THEME.ink, size = 16 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
@@ -724,6 +745,7 @@ function customerHomeTierLightGradient(tierName: ElectricianTierName): [string, 
 
 export function HomeScreen({
   onNavigate,
+  onOpenNeedHelp,
   onOpenProductCategory,
   profilePhotoUri,
   totalPoints,
@@ -731,13 +753,14 @@ export function HomeScreen({
   hasUnreadNotif = false,
 }: {
   onNavigate: (screen: Screen) => void;
+  onOpenNeedHelp?: () => void;
   onOpenProductCategory: (category: string) => void;
   profilePhotoUri?: string | null;
   totalPoints: number;
   totalScans: number;
   hasUnreadNotif?: boolean;
 }) {
-  const { darkMode, tx, language } = usePreferenceContext();
+  const { darkMode, tx } = usePreferenceContext();
   const {
     products: ctxProducts,
     categories: ctxCategories,
@@ -759,6 +782,10 @@ export function HomeScreen({
   const cardW = (width - 28 - 12) / 2;
   const heroImageHeight = Math.round((width - 28) * 0.56);
   const tier = useMemo(() => getElectricianTier(totalPoints), [totalPoints]);
+  const showTestimonials = appSettings?.testimonialsEnabled !== false;
+  const catalogPdfUrl =
+    appSettings?.generalCatalogPdfUrl ??
+    appSettings?.catalogPdfUrl;
   const catalogProducts = useMemo(
     () =>
       ctxProducts.slice(0, 4).map((item) => ({
@@ -967,7 +994,7 @@ export function HomeScreen({
       icon: DownloadIcon,
       iconColors: ['#FEF3C7', '#FDE68A'] as const,
       iconTint: '#B45309',
-      onPress: () => openCatalog(appSettings?.catalogPdfUrl),
+      onPress: () => openCatalog(catalogPdfUrl),
     },
     {
       testID: 'electrician-home-action-rewards',
@@ -1064,11 +1091,11 @@ export function HomeScreen({
           >
             <TouchableOpacity
               activeOpacity={0.9}
-              onPress={() => onNavigate('wallet')}
-              testID="electrician-home-stat-wallet"
+              onPress={() => onOpenNeedHelp?.()}
+              testID="user-home-stat-need-help"
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Electrician home total points wallet"
+              accessibilityLabel="User home need help"
             >
               <LinearGradient
                 colors={
@@ -1081,14 +1108,22 @@ export function HomeScreen({
                 <Animated.View
                   style={[styles.statGlow, styles.statGlowPoints, { opacity: statsPulse }]}
                 />
+                <View
+                  style={[
+                    styles.tierIconChip,
+                    { backgroundColor: darkMode ? 'rgba(255,255,255,0.12)' : '#FFFFFFB8' },
+                  ]}
+                >
+                  <HelpIcon color={darkMode ? '#FDE68A' : '#8D4A1E'} size={20} />
+                </View>
                 <Text style={[styles.statLabel, darkMode ? styles.statLabelDark : null]}>
-                  {tx('Total Points')}
+                  {tx('Need Help')}
                 </Text>
                 <Text style={[styles.statValue, darkMode ? styles.statValueDark : null]}>
-                  {totalPoints.toLocaleString()}
+                  {tx('Support')}
                 </Text>
                 <Text style={[styles.statHint, darkMode ? styles.statHintDark : null]}>
-                  {`${totalScans} ${tx('scans')}`}
+                  {tx('Open help center')}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -1102,11 +1137,11 @@ export function HomeScreen({
           >
             <TouchableOpacity
               activeOpacity={0.9}
-              onPress={() => onNavigate('electrician_tier')}
-              testID="electrician-home-stat-member-tier"
+              onPress={() => onNavigate('cart')}
+              testID="user-home-stat-cart"
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Electrician home member tier"
+              accessibilityLabel="User home my cart"
             >
               <LinearGradient
                 colors={darkMode ? [...CUSTOMER_THEME.heroDark] : customerHomeTierLightGradient(tier.tier)}
@@ -1123,28 +1158,16 @@ export function HomeScreen({
                     { backgroundColor: darkMode ? 'rgba(255,255,255,0.12)' : '#FFFFFFB8' },
                   ]}
                 >
-                  <ElectricianTierIcon tier={tier.tier} size={20} />
+                  <CartIcon color={darkMode ? '#FDE68A' : '#8D4A1E'} size={20} />
                 </View>
                 <Text style={[styles.statLabel, darkMode ? styles.statLabelDark : null]}>
-                  {tx('Member Tier')}
+                  {tx('My Cart')}
                 </Text>
                 <Text style={[styles.statValue, darkMode ? styles.statValueDark : null]}>
-                  {tier.tier}
+                  {tx('Products')}
                 </Text>
                 <Text style={[styles.statHint, darkMode ? styles.statHintDark : null]}>
-                  {tier.tier === 'Diamond'
-                    ? tx('Top reward level unlocked')
-                    : formatCountText(
-                        language,
-                        tier.tier === 'Silver'
-                          ? 1001 - totalPoints
-                          : tier.tier === 'Gold'
-                            ? 5001 - totalPoints
-                            : 10001 - totalPoints,
-                        'to next tier',
-                        'अगले टियर तक',
-                        'ਅਗਲੇ ਟੀਅਰ ਤੱਕ'
-                      )}
+                  {tx('View saved cart items')}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -1245,13 +1268,15 @@ export function HomeScreen({
           </>
         )}
 
-        <TestimonialShowcase
-          eyebrow={tx('Electrician Testimonials')}
-          title={tx('What Electricians Say')}
-          subtitle={tx('Testimonial subtitle')}
-          items={testimonials}
-          darkMode={darkMode}
-        />
+        {showTestimonials ? (
+          <TestimonialShowcase
+            eyebrow={tx('Electrician Testimonials')}
+            title={tx('What Electricians Say')}
+            subtitle={tx('Testimonial subtitle')}
+            items={testimonials}
+            darkMode={darkMode}
+          />
+        ) : null}
 
         <WebsitePromoSection darkMode={darkMode} />
 
@@ -1687,3 +1712,4 @@ const styles = StyleSheet.create({
   categoryPriceDark: { color: '#F87171' },
   notifDot: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#6A2F12', borderWidth: 1.5, borderColor: '#fff' },
 });
+

@@ -497,11 +497,8 @@ function ProductCard({
           },
         ]}
       >
-        <LinearGradient
-          colors={catColor.cardGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.imgZone, { height: cardW + 18 }]}
+        <View
+          style={[styles.imgZone, { height: cardW + 18, backgroundColor: '#FFFFFF' }]}
         >
           {product.badge != null && (
             <View style={[styles.badge, { backgroundColor: catColor.scanText }]}>
@@ -512,7 +509,7 @@ function ProductCard({
             <Text style={[styles.ptsBadgeText, { color: catColor.scanText }]}>+{product.points} pts</Text>
           </View>
           <AnimatedProductImage uri={product.img} size={imgSize} />
-        </LinearGradient>
+        </View>
 
         <View style={[styles.infoZone, darkMode ? styles.infoZoneDark : null, !showScanButton ? styles.infoZoneCompact : null]}>
           <Text style={[styles.productName, darkMode ? styles.productNameDark : null]} numberOfLines={1}>
@@ -881,7 +878,7 @@ const styles = StyleSheet.create({
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   ptsBadge: { position: 'absolute', top: 10, right: 10, zIndex: 3, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 3 },
   ptsBadgeText: { fontSize: 11, fontWeight: '800' },
-  infoZone: { flex: 1, padding: 11, paddingTop: 10 },
+  infoZone: { flex: 1, padding: 11, paddingTop: 10, backgroundColor: '#FFFFFF' },
   infoZoneDark: { backgroundColor: '#111827' },
   infoZoneCompact: { paddingBottom: 14, justifyContent: 'flex-start' },
   infoSpacer: { flex: 1 },

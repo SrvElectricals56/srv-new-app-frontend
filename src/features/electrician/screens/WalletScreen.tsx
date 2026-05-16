@@ -182,27 +182,27 @@ const ROLE_THEME: Record<string, {
     storeIconWrapBg: '#FFF0DA',
   },
   user: {
-    heroGradient: ['#18345B', '#355C95', '#E18D4E'],
-    heroShadow: '#193357',
-    eyebrowColor: '#FDE3B8',
-    screenBg: '#F4EFE8',
-    cardBorder: '#E9DED3',
-    cardShadow: '#734E2A',
-    sectionEyebrow: '#B57846',
-    sectionIconBg: '#FFF1E2',
-    actionTileBg: '#FFF7F0',
-    actionTileBorder: '#F1E0CF',
-    timelineCardBg: '#FBF5EF',
-    timelineCardBorder: '#EEE0D5',
+    heroGradient: ['#6A2F12', '#8D4A1E', '#C97B3C'],
+    heroShadow: '#6A2F12',
+    eyebrowColor: '#FBE6D4',
+    screenBg: '#FBF6F1',
+    cardBorder: '#E9D5C1',
+    cardShadow: '#6A2F12',
+    sectionEyebrow: '#8D4A1E',
+    sectionIconBg: '#FBF1E7',
+    actionTileBg: '#FFF8F2',
+    actionTileBorder: '#EDD9C7',
+    timelineCardBg: '#FFF8F2',
+    timelineCardBorder: '#E9D5C1',
     emptyStateBg: '#FFF8F2',
-    emptyStateBorder: '#F0E1D3',
-    emptyIconBg: '#FBE9D8',
-    emptyTitleColor: '#B04D2E',
-    paginationBtnBg: '#B57846',
-    paginationBtnDisabledBg: '#E9DED3',
-    paginationBtnDisabledText: '#B57846',
-    paginationInfoBg: '#FBF5EF',
-    storeIconWrapBg: '#FFF0DA',
+    emptyStateBorder: '#E9D5C1',
+    emptyIconBg: '#F5E8DC',
+    emptyTitleColor: '#6A2F12',
+    paginationBtnBg: '#8D4A1E',
+    paginationBtnDisabledBg: '#EAD7C6',
+    paginationBtnDisabledText: '#8D4A1E',
+    paginationInfoBg: '#FBF1E7',
+    storeIconWrapBg: '#F5E8DC',
   },
   counterboy: {
     heroGradient: ['#5C3D2E', '#8B3C2A', '#A87A66'],
@@ -380,7 +380,7 @@ export function WalletScreen({
   const walletTitle = isDealer
     ? 'SRV Dealer Wallet'
     : role === 'user'
-    ? 'SRV User Wallet'
+    ? 'SRV Customer Wallet'
     : role === 'counterboy'
     ? 'SRV Counter Boy Wallet'
     : 'SRV Premium Wallet';

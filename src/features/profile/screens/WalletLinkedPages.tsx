@@ -81,7 +81,7 @@ export function WalletTransferPointsScreen({
 
   return (
     <PreferenceContext.Provider value={preferenceValue}>
-      <TransferPointsPage onBack={onBack} onNavigate={onNavigate} />
+      <TransferPointsPage onBack={onBack} onNavigate={onNavigate} currentRole={currentRole} />
     </PreferenceContext.Provider>
   );
 }

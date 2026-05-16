@@ -199,6 +199,13 @@ export const userMenuItems: ProfileMenuItem[] = [
     bg: '#CCFBF1',
     route: 'rewards',
   },
+  {
+    label: 'Cart',
+    icon: 'order',
+    color: CUSTOMER_THEME.primary,
+    bg: '#F0DEC9',
+    route: 'cart',
+  },
   { label: 'My Orders', icon: 'order', color: '#6A2F12', bg: '#F5E8DC', screen: 'My Orders' },
   { label: 'Bank Details', icon: 'bank', color: '#B45309', bg: '#FEF3C7', screen: 'Bank Details' },
   {
@@ -281,5 +288,3 @@ export const getDealerMembership = (electricianCount: number): DealerMembership 
     soft: '#CFFAFE',
   };
 };
-
-

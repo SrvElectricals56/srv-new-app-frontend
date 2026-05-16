@@ -599,8 +599,12 @@ export type AppSettings = {
   scanEnabled: boolean;
   giftsEnabled: boolean;
   referralEnabled: boolean;
+  testimonialsEnabled: boolean;
+  playEnabled: boolean;
   playStoreUrl?: string;
   appStoreUrl?: string;
+  generalCatalogPdfUrl?: string | null;
+  dealerCatalogPdfUrl?: string | null;
   catalogPdfUrl?: string | null;
 };
 

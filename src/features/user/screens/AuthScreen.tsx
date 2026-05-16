@@ -134,6 +134,7 @@ export function UserAuthScreen({
   const [showLP, setShowLP] = useState(false);
   const [useOtpLogin, setUseOtpLogin] = useState(false);
   const [otpSentLogin, setOtpSentLogin] = useState(false);
+  const [otpLoginPhone, setOtpLoginPhone] = useState('');
   const lPwdRef = useRef<TextInput>(null);
   const lOtpRef = useRef<TextInput>(null);
 
@@ -144,10 +145,19 @@ export function UserAuthScreen({
   const [sPwd,   setSPwd]   = useState('');
   const [showSP, setShowSP] = useState(false);
   const [otpSentSignup, setOtpSentSignup] = useState(false);
+  const [otpSignupPhone, setOtpSignupPhone] = useState('');
   const sPhoneRef = useRef<TextInput>(null);
   const sEmailRef = useRef<TextInput>(null);
   const sOtpRef   = useRef<TextInput>(null);
   const sPwdRef   = useRef<TextInput>(null);
+
+  const normalizePhone = (value: string) => {
+    const digits = value.trim().replace(/\D/g, '');
+    if (digits.length > 10 && digits.startsWith('91')) {
+      return digits.slice(2).slice(-10);
+    }
+    return digits.slice(-10);
+  };
 
   const bg   = darkMode ? '#0F172A' : '#EEF3F8';
   const card = darkMode ? '#1E293B' : '#FFFFFF';
@@ -170,98 +180,143 @@ export function UserAuthScreen({
           borderColor: '#F2DEC5',
         };
 
+  useEffect(() => {
+    if (mode !== 'login') {
+      setUseOtpLogin(false);
+      setOtpSentLogin(false);
+      setOtpLoginPhone('');
+      setLOtp('');
+      setLPwd('');
+      setShowLP(false);
+    }
+
+    if (mode !== 'signup') {
+      setOtpSentSignup(false);
+      setOtpSignupPhone('');
+      setSOtp('');
+      setShowSP(false);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (!useOtpLogin) {
+      setOtpSentLogin(false);
+      setOtpLoginPhone('');
+      setLOtp('');
+    }
+  }, [useOtpLogin]);
+
+  useEffect(() => {
+    if (otpSentLogin && normalizePhone(lPhone) !== otpLoginPhone) {
+      setOtpSentLogin(false);
+      setOtpLoginPhone('');
+      setLOtp('');
+    }
+  }, [lPhone, otpLoginPhone, otpSentLogin]);
+
+  useEffect(() => {
+    if (otpSentSignup && normalizePhone(sPhone) !== otpSignupPhone) {
+      setOtpSentSignup(false);
+      setOtpSignupPhone('');
+      setSOtp('');
+    }
+  }, [sPhone, otpSentSignup, otpSignupPhone]);
+
   const sendOtpLogin = async () => {
     if (!lPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
+    const cleanPhone = normalizePhone(lPhone);
+    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
     setLoading(true);
     try {
-      // Real API call to send OTP
-      const response = await fetch(`${authApi.baseUrl}/mobile/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: lPhone.trim(), role }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to send OTP');
-      }
-      
+      const data = await authApi.sendOtp(cleanPhone, role);
+      setLPhone(cleanPhone);
       setOtpSentLogin(true);
+      setOtpLoginPhone(cleanPhone);
       Alert.alert(
         tx('OTP Sent'), 
         data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP')
       );
-    } catch (e: any) { 
-      Alert.alert(tx('Error'), e?.message ?? tx('Failed to send OTP')); 
+    } catch (e: any) {
+      const msg = e?.message ?? '';
+      if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('not found')) {
+        Alert.alert(tx('Not Registered'), tx('This phone number is not registered. Please create an account first.'));
+        setMode('signup');
+      } else {
+        Alert.alert(tx('Error'), msg || tx('Failed to send OTP'));
+      }
     }
     finally { setLoading(false); }
   };
 
   const sendOtpSignup = async () => {
     if (!sPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
+    const cleanPhone = normalizePhone(sPhone);
+    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
     setLoading(true);
     try {
-      // Real API call to send signup OTP
-      const response = await fetch(`${authApi.baseUrl}/mobile/auth/signup/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: sPhone.trim(), role }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to send OTP');
-      }
-      
+      const data = await authApi.sendSignupOtp(cleanPhone, role);
+      setSPhone(cleanPhone);
       setOtpSentSignup(true);
+      setOtpSignupPhone(cleanPhone);
       Alert.alert(
-        tx('OTP Sent'), 
+        tx('OTP Sent'),
         data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP')
       );
-    } catch (e: any) { 
-      Alert.alert(tx('Error'), e?.message ?? tx('Failed to send OTP')); 
+    } catch (e: any) {
+      const msg = e?.message ?? '';
+      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('conflict')) {
+        Alert.alert(tx('Already Registered'), tx('This phone number is already registered. Please login instead.'));
+        setMode('login');
+      } else {
+        Alert.alert(tx('Error'), msg || tx('Failed to send OTP'));
+      }
     }
     finally { setLoading(false); }
   };
 
   const login = async () => {
     if (!lPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
+    const cleanPhone = normalizePhone(lPhone);
+    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
     
     if (useOtpLogin) {
-      // Login with OTP - Real API
       if (!lOtp.trim()) { Alert.alert('', tx('Please enter the OTP')); return; }
-      
       setLoading(true);
       try {
-        const response = await fetch(`${authApi.baseUrl}/mobile/auth/verify-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: lPhone.trim(), role, otp: lOtp.trim() }),
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.message || 'Invalid OTP');
-        }
-        
+        const data = await authApi.verifyOtp(cleanPhone, role, lOtp.trim());
         (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = data.user;
         onAuthenticated(role, { passwordConfigured: false, passwordValue: '' });
-      } catch (e: any) { 
-        Alert.alert(tx('Login Failed'), e?.message ?? tx('Invalid OTP')); 
+      } catch (e: any) {
+        const msg = e?.message ?? '';
+        if (msg.toLowerCase().includes('expired')) {
+          Alert.alert(tx('OTP Expired'), tx('Your OTP has expired. Please request a new one.'));
+          setOtpSentLogin(false);
+          setLOtp('');
+        } else if (msg.toLowerCase().includes('invalid')) {
+          Alert.alert(tx('Invalid OTP'), tx('The OTP you entered is incorrect. Please try again.'));
+          setLOtp('');
+        } else {
+          Alert.alert(tx('Login Failed'), msg || tx('Something went wrong. Please try again.'));
+        }
       }
       finally { setLoading(false); }
     } else {
-      // Login with password (password is optional)
+      if (!lPwd.trim()) { Alert.alert('', tx('Please enter your password')); return; }
       setLoading(true);
       try {
-        const res = await authApi.login({ phone: lPhone.trim(), password: lPwd.trim(), role });
+        const res = await authApi.login({ phone: cleanPhone, password: lPwd.trim(), role });
         (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = res.user;
-        onAuthenticated(role, { passwordConfigured: !!lPwd, passwordValue: lPwd });
-      } catch (e: any) { 
-        Alert.alert(tx('Login Failed'), e?.message ?? tx('Check your credentials')); 
+        onAuthenticated(role, { passwordConfigured: true, passwordValue: lPwd.trim() });
+      } catch (e: any) {
+        const msg = e?.message ?? '';
+        if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not registered')) {
+          Alert.alert(tx('Not Registered'), tx('This phone number is not registered. Please create an account first.'));
+          setMode('signup');
+        } else if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('password')) {
+          Alert.alert(tx('Wrong Password'), tx('Incorrect password. Try again or use OTP login.'));
+        } else {
+          Alert.alert(tx('Login Failed'), msg || tx('Check your credentials and try again.'));
+        }
       }
       finally { setLoading(false); }
     }
@@ -271,46 +326,51 @@ export function UserAuthScreen({
     if (!sName.trim())  { Alert.alert('', tx('Please enter your name')); return; }
     if (!sPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
     if (!sOtp.trim())   { Alert.alert('', tx('Please enter the OTP')); return; }
+    const cleanPhone = normalizePhone(sPhone);
+    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
     
     setLoading(true);
     try {
-      // First verify OTP
-      const verifyResponse = await fetch(`${authApi.baseUrl}/mobile/auth/signup/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: sPhone.trim(), role, otp: sOtp.trim() }),
-      });
-      
-      const verifyData = await verifyResponse.json();
-      
-      if (!verifyResponse.ok) {
-        throw new Error(verifyData.message || 'Invalid OTP');
+      // Step 1: Verify OTP
+      await authApi.verifySignupOtp(cleanPhone, role, sOtp.trim());
+    } catch (e: any) {
+      const msg = e?.message ?? '';
+      if (msg.toLowerCase().includes('expired')) {
+        Alert.alert(tx('OTP Expired'), tx('Your OTP has expired. Please request a new one.'));
+        setOtpSentSignup(false);
+        setSOtp('');
+      } else if (msg.toLowerCase().includes('invalid')) {
+        Alert.alert(tx('Invalid OTP'), tx('The OTP you entered is incorrect. Please try again.'));
+        setSOtp('');
+      } else {
+        Alert.alert(tx('OTP Error'), msg || tx('OTP verification failed. Please try again.'));
       }
-      
-      // Then register user
-      const registerResponse = await fetch(`${authApi.baseUrl}/mobile/auth/signup/${role}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: sName.trim(),
-          phone: sPhone.trim(),
-          email: sEmail.trim() || undefined,
-          password: sPwd.trim() || undefined,
-        }),
-      });
-      
-      const registerData = await registerResponse.json();
-      
-      if (!registerResponse.ok) {
-        throw new Error(registerData.message || 'Registration failed');
-      }
-      
-      (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = registerData.user;
-      onAuthenticated(role, { passwordConfigured: !!sPwd, passwordValue: sPwd });
-    } catch (e: any) { 
-      Alert.alert(tx('Signup Failed'), e?.message ?? tx('Invalid OTP or registration failed')); 
+      setLoading(false);
+      return;
     }
-    finally { setLoading(false); }
+
+    // Step 2: Register
+    try {
+      const registerData = await authApi.register({
+        name: sName.trim(),
+        phone: cleanPhone,
+        email: sEmail.trim() || undefined,
+        password: sPwd.trim() || undefined,
+        role,
+      });
+      (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = registerData.user;
+      onAuthenticated(role, { passwordConfigured: !!sPwd.trim(), passwordValue: sPwd.trim() });
+    } catch (e: any) {
+      const msg = e?.message ?? '';
+      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('conflict')) {
+        Alert.alert(tx('Already Registered'), tx('This phone number is already registered. Please login instead.'));
+        setMode('login');
+      } else {
+        Alert.alert(tx('Registration Failed'), msg || tx('Could not create account. Please try again.'));
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   // â”€â”€ LANDING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -429,6 +489,12 @@ export function UserAuthScreen({
                 keyboard="number-pad" ref={sOtpRef}
                 onSubmit={() => sEmailRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
             )}
+
+            {!isLogin && otpSentSignup && (
+              <Pressable onPress={sendOtpSignup} style={{ alignSelf: 'flex-end', marginTop: -4 }}>
+                <Text style={{ color: P1, fontSize: 12, fontWeight: '700' }}>{loading ? tx('Sending...') : tx('Resend OTP')}</Text>
+              </Pressable>
+            )}
             
             {!isLogin && otpSentSignup && (
               <Input label={`${tx('Email')} (${tx('optional')})`} value={sEmail} onChange={setSEmail}
@@ -463,10 +529,10 @@ export function UserAuthScreen({
             {/* Login: Password Input */}
             {isLogin && !useOtpLogin && (
               <Input
-                label={`${tx('Password')} (${tx('optional')})`}
+                label={tx('Password')}
                 value={lPwd}
                 onChange={setLPwd}
-                placeholder={tx('Enter password or leave empty')}
+                placeholder={tx('Enter password')}
                 icon={<LockIcon c={P1} />}
                 secure={!showLP}
                 toggleSecure={() => setShowLP(v => !v)}
@@ -487,11 +553,16 @@ export function UserAuthScreen({
             )}
             
             {isLogin && useOtpLogin && otpSentLogin && (
-              <Input label={tx('Enter OTP')} value={lOtp} onChange={setLOtp}
-                placeholder={tx('6-digit OTP')} icon={<LockIcon c={P1} />}
-                keyboard="number-pad" ref={lOtpRef}
-                onSubmit={login}
-                returnKey="done" darkMode={darkMode} accentColor={P1} />
+              <>
+                <Input label={tx('Enter OTP')} value={lOtp} onChange={setLOtp}
+                  placeholder={tx('6-digit OTP')} icon={<LockIcon c={P1} />}
+                  keyboard="number-pad" ref={lOtpRef}
+                  onSubmit={login}
+                  returnKey="done" darkMode={darkMode} accentColor={P1} />
+                <Pressable onPress={() => { setOtpSentLogin(false); setLOtp(''); }} style={{ alignSelf: 'flex-end', marginTop: -4 }}>
+                  <Text style={{ color: P1, fontSize: 12, fontWeight: '700' }}>{tx('Resend OTP')}</Text>
+                </Pressable>
+              </>
             )}
           </View>
 

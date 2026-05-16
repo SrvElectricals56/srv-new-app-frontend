@@ -20,9 +20,11 @@ const transferImage = require('../assets/transfer.png');
 export function TransferPointsPage({
   onBack,
   onNavigate,
+  currentRole,
 }: {
   onBack: () => void;
   onNavigate: (screen: Screen) => void;
+  currentRole: 'dealer' | 'electrician' | 'user' | 'counterboy';
 }) {
   const { t, tx, theme } = usePreferenceContext();
   const { user } = useAuth();
@@ -158,33 +160,35 @@ export function TransferPointsPage({
           </View>
         )}
 
-        <View
-          style={[
-            styles.scannerCard,
-            {
-              backgroundColor: theme.surface,
-              borderColor: theme.border,
-            },
-          ]}
-        >
-          <View style={styles.scannerHeader}>
-            <View style={styles.scannerIconWrap}>
-              <AppIcon name="scan" size={28} color={theme.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.scannerTitleWhite, { color: theme.textPrimary }]}>{tx('Scan & Transfer')}</Text>
-              <Text style={[styles.scannerSubWhite, { color: theme.textSecondary }]}>{tx('Scan any SRV product QR to transfer points to dealers instantly.')}</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={[styles.scanQrBtnWhite, { backgroundColor: theme.accentSoft }]}
-            onPress={() => onNavigate('scan')}
-            activeOpacity={0.85}
+        {currentRole === 'electrician' ? (
+          <View
+            style={[
+              styles.scannerCard,
+              {
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
+              },
+            ]}
           >
-            <Text style={[styles.scanQrBtnText, { color: theme.accent }]}>{tx('Open Scanner')}</Text>
-            <AppIcon name="chevronRight" size={20} color={theme.accent} />
-          </TouchableOpacity>
-        </View>
+            <View style={styles.scannerHeader}>
+              <View style={styles.scannerIconWrap}>
+                <AppIcon name="scan" size={28} color={theme.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.scannerTitleWhite, { color: theme.textPrimary }]}>{tx('Scan & Transfer')}</Text>
+                <Text style={[styles.scannerSubWhite, { color: theme.textSecondary }]}>{tx('Scan any SRV product QR to transfer points to dealers instantly.')}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.scanQrBtnWhite, { backgroundColor: theme.accentSoft }]}
+              onPress={() => onNavigate('scan')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.scanQrBtnText, { color: theme.accent }]}>{tx('Open Scanner')}</Text>
+              <AppIcon name="chevronRight" size={20} color={theme.accent} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );

@@ -211,6 +211,10 @@ export function HomeScreen({
   const [testimonials, setTestimonials] = useState<TestimonialItem[]>([]);
   const [supportWhatsapp, setSupportWhatsapp] = useState('918837684004');
   const heroImageHeight = Math.round((width - 28) * 0.56);
+  const showTestimonials = appSettings?.testimonialsEnabled !== false;
+  const catalogPdfUrl =
+    appSettings?.generalCatalogPdfUrl ??
+    appSettings?.catalogPdfUrl;
 
   useEffect(() => {
     const filtered = ctxBanners
@@ -299,7 +303,7 @@ export function HomeScreen({
       icon: DownloadIcon,
       iconColors: [cb.blushSoft, cb.soft] as const,
       iconTint: cb.primaryDeep,
-      onPress: () => openCatalog(appSettings?.catalogPdfUrl),
+      onPress: () => openCatalog(catalogPdfUrl),
     },
     {
       title: tx('WhatsApp'),
@@ -469,13 +473,15 @@ export function HomeScreen({
           ))}
         </View>
 
-        <TestimonialShowcase
-          eyebrow={tx('Electrician Testimonials')}
-          title={tx('What Members Say')}
-          subtitle={tx('Trusted feedback from the SRV network')}
-          items={testimonials}
-          darkMode={darkMode}
-        />
+        {showTestimonials ? (
+          <TestimonialShowcase
+            eyebrow={tx('Electrician Testimonials')}
+            title={tx('What Members Say')}
+            subtitle={tx('Trusted feedback from the SRV network')}
+            items={testimonials}
+            darkMode={darkMode}
+          />
+        ) : null}
 
         <WebsitePromoSection darkMode={darkMode} />
       </View>

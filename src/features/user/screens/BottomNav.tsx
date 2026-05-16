@@ -89,6 +89,29 @@ function CartIcon({ color, size = 24 }: { color: string; size?: number }) {
   );
 }
 
+function WalletIcon({ color, size = 24 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect
+        x="3"
+        y="6"
+        width="18"
+        height="12"
+        rx="3"
+        stroke={color}
+        strokeWidth={2}
+      />
+      <Path
+        d="M16 10h5v4h-5a2 2 0 010-4z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+      <Circle cx="17.5" cy="12" r="0.8" fill={color} />
+    </Svg>
+  );
+}
+
 function ProfileIcon({ color, size = 24 }: { color: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -348,6 +371,7 @@ function NavTab({
       case 'home': return <HomeIcon color={iconColor} size={iconSize} />;
       case 'play': return <PlayIcon color={iconColor} size={iconSize} />;
       case 'cart': return <CartIcon color={iconColor} size={iconSize} />;
+      case 'wallet': return <WalletIcon color={iconColor} size={iconSize} />;
       case 'profile': return <ProfileIcon color={iconColor} size={iconSize} />;
       default: return null;
     }
@@ -386,7 +410,7 @@ const LEFT: NavControlConfig[] = [
 ];
 
 const RIGHT: NavControlConfig[] = [
-  { id: 'cart', label: 'Cart', testID: 'user-bottom-nav-cart', accessibilityLabel: 'User bottom navigation cart' },
+  { id: 'wallet', label: 'Wallet', testID: 'user-bottom-nav-wallet', accessibilityLabel: 'User bottom navigation wallet' },
   { id: 'profile', label: 'Account', testID: 'user-bottom-nav-profile', accessibilityLabel: 'User bottom navigation profile' },
 ];
 

@@ -34,6 +34,8 @@ import { CartScreen as UserCartScreen, type CartItem } from '@/features/user/scr
 import { PlayScreen as UserPlayScreen } from '@/features/user/screens/PlayScreen';
 import { WalletScreen as UserWalletScreen } from '@/features/user/screens/WalletScreen';
 import { AuthLandingScreen } from '@/features/profile/screens/AuthLandingScreen';
+import { AccessFeatureGateScreen } from '@/features/profile/screens/AccessFeatureGateScreen';
+import type { SubPage } from '@/features/profile/components/ProfileShared';
 import {
   WalletBankDetailsScreen,
   WalletDealerBonusScreen,
@@ -66,6 +68,7 @@ function AppContent() {
   const [selectedProductCategory, setSelectedProductCategory] = useState('all');
   const [language, setLanguage] = useState<AppLanguage>('English');
   const [darkMode, setDarkMode] = useState(false);
+  const [guestAuthRole, setGuestAuthRole] = useState<UserRole | null>(null);
   const [passwordConfiguredByRole, setPasswordConfiguredByRole] = useState<
     Record<UserRole, boolean>
   >({
@@ -95,6 +98,7 @@ function AppContent() {
   const [electricianRewardHistory, setElectricianRewardHistory] = useState<RewardHistoryItem[]>([]);
   const [hasUnreadNotif, setHasUnreadNotif] = useState(false);
   const [userCartItems, setUserCartItems] = useState<CartItem[]>([]);
+  const [userProfileInitialSubPage, setUserProfileInitialSubPage] = useState<Exclude<SubPage, null> | null>(null);
 
   const isDealer = currentRole === 'dealer';
   const isUser = currentRole === 'user';
@@ -271,9 +275,37 @@ function AppContent() {
 
       setCurrentRole(role);
       setCurrentScreen('home');
+      setGuestAuthRole(null);
       setShowOnboarding(false);
     },
     [login]
+  );
+
+  const renderGuestFeatureGate = useCallback(
+    (role: UserRole, featureTitle: string, featureDescription: string) => (
+      <AccessFeatureGateScreen
+        role={role}
+        featureTitle={featureTitle}
+        featureDescription={featureDescription}
+        onOpenAuth={() => setGuestAuthRole(role)}
+        onBack={() => setCurrentScreen('home')}
+      />
+    ),
+    []
+  );
+
+  const renderGuestAuthLanding = useCallback(
+    (role: UserRole) => (
+      <AuthLandingScreen
+        role={role}
+        onAuthenticated={handleAuthenticatedRoleStart}
+        onBack={() => {
+          setShowOnboarding(true);
+          setCurrentScreen('home');
+        }}
+      />
+    ),
+    [handleAuthenticatedRoleStart]
   );
 
   const handleElectricianRewardCommit = useCallback(
@@ -307,7 +339,84 @@ function AppContent() {
   );
 
   const activeScreen = useMemo(() => {
-    if (isDealer) {      switch (currentScreen) {
+    if (guestAuthRole) {
+      return (
+        <AuthLandingScreen
+          role={guestAuthRole}
+          onAuthenticated={handleAuthenticatedRoleStart}
+          onBack={() => setGuestAuthRole(null)}
+        />
+      );
+    }
+
+    const getGuestFeatureCopy = (role: UserRole, screen: Screen) => {
+      const labels: Record<UserRole, Partial<Record<Screen, { title: string; description: string }>>> = {
+        dealer: {
+          wallet: { title: 'Dealer Wallet', description: 'Login or signup to view your bonus wallet, payouts and linked account details.' },
+          notification: { title: 'Dealer Notifications', description: 'Login or signup to see dealer alerts, updates and account messages.' },
+          profile: { title: 'Dealer Profile', description: 'Login or signup to manage your dealer profile, password and app preferences.' },
+          electricians: { title: 'Associated Electricians', description: 'Login or signup to manage your electrician network and dealer relationships.' },
+          call_electrician: { title: 'Call Electrician', description: 'Login or signup to access your connected electricians and outreach tools.' },
+          dealer_tier: { title: 'Dealer Tier', description: 'Login or signup to check your dealer growth level and next tier progress.' },
+          bank_details: { title: 'Bank Details', description: 'Login or signup to add bank details and manage dealer payouts securely.' },
+          transfer_points: { title: 'Transfers', description: 'Login or signup to access dealer transfer and linked wallet actions.' },
+          dealer_bonus: { title: 'Dealer Bonus', description: 'Login or signup to view your bonus earnings and withdrawal requests.' },
+        },
+        user: {
+          wallet: { title: 'Wallet', description: 'Login or signup to see your wallet balance, points and activity.' },
+          notification: { title: 'Notifications', description: 'Login or signup to see your latest alerts, offers and updates.' },
+          profile: { title: 'Profile', description: 'Login or signup to manage your profile, password and personal settings.' },
+          rewards: { title: 'Gift Store', description: 'Login or signup to redeem rewards and explore member-only benefits.' },
+          bank_details: { title: 'Bank Details', description: 'Login or signup to manage your banking and linked account settings.' },
+          transfer_points: { title: 'Transfers', description: 'Login or signup to access point transfer and wallet actions.' },
+        },
+        counterboy: {
+          wallet: { title: 'Wallet', description: 'Login or signup to view your points, rewards and account-linked wallet details.' },
+          notification: { title: 'Notifications', description: 'Login or signup to read counter boy alerts, offers and updates.' },
+          profile: { title: 'Profile', description: 'Login or signup to manage your profile, password and app preferences.' },
+          bank_details: { title: 'Bank Details', description: 'Login or signup to manage your banking and linked account settings.' },
+          transfer_points: { title: 'Transfers', description: 'Login or signup to access wallet-linked transfer actions.' },
+        },
+        electrician: {
+          wallet: { title: 'Wallet', description: 'Login or signup to see your points, rewards history and linked account details.' },
+          notification: { title: 'Notifications', description: 'Login or signup to read your latest alerts, offers and scan updates.' },
+          profile: { title: 'Profile', description: 'Login or signup to manage your profile, password and electrician preferences.' },
+          rewards: { title: 'Rewards', description: 'Login or signup to redeem gifts and access your earned member rewards.' },
+          scan: { title: 'Scan & Earn', description: 'Login or signup to scan products, earn points and track scan history.' },
+          electrician_tier: { title: 'Member Tier', description: 'Login or signup to view your tier progress and reward level benefits.' },
+          bank_details: { title: 'Bank Details', description: 'Login or signup to add bank details and manage wallet-linked settings.' },
+          transfer_points: { title: 'Transfer Points', description: 'Login or signup to transfer points and access wallet actions securely.' },
+        },
+      };
+
+      return (
+        labels[role][screen] ?? {
+          title: 'Protected Feature',
+          description: 'Login or signup to access this feature and continue with your account.',
+        }
+      );
+    };
+
+      const isGuestBlockedScreen = (role: UserRole, screen: Screen) => {
+        const commonProtected: Screen[] = ['profile', 'wallet', 'notification', 'bank_details', 'transfer_points'];
+        const roleSpecific: Record<UserRole, Screen[]> = {
+          dealer: ['electricians', 'call_electrician', 'dealer_tier', 'dealer_bonus', ...commonProtected],
+          user: ['rewards', ...commonProtected],
+          counterboy: [...commonProtected],
+          electrician: ['scan', 'rewards', 'electrician_tier', ...commonProtected],
+        };
+        return roleSpecific[role].includes(screen);
+    };
+
+    if (isDealer) {
+      if (!isAuthenticated && isGuestBlockedScreen('dealer', currentScreen)) {
+        if (currentScreen === 'profile') {
+          return renderGuestAuthLanding('dealer');
+        }
+        const feature = getGuestFeatureCopy('dealer', currentScreen);
+        return renderGuestFeatureGate('dealer', feature.title, feature.description);
+      }
+      switch (currentScreen) {
         case 'home':
           return (
             <DealerHomeScreen
@@ -325,16 +434,8 @@ function AppContent() {
           return <DealerCallElectricianScreen />;
         case 'notification':
           return <ElectricianNotificationScreen onNavigate={handleNavigate} role="dealer" onNotificationsSeen={handleNotificationsSeen} />;
-        case 'scan':
-          return (
-            <ElectricianScanScreen
-              onNavigate={handleNavigate}
-              rewardHistory={electricianRewardHistory}
-              onCommitRewards={handleElectricianRewardCommit}
-            />
-          );
         case 'rewards':
-          return <ElectricianRewardsScreen onBack={() => setCurrentScreen('home')} />;
+          return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} />;
         case 'wallet':
           return (
             <ElectricianWalletScreen
@@ -346,7 +447,7 @@ function AppContent() {
             />
           );
         case 'profile':
-          return isAuthenticated ? (
+          return (
             <DealerProfileScreen
               onNavigate={handleNavigate}
               onSignOut={handleSignOut}
@@ -366,15 +467,6 @@ function AppContent() {
               onProfilePhotoChange={(photoUri) =>
                 setProfilePhotoByRole((current) => ({ ...current, dealer: photoUri }))
               }
-            />
-          ) : (
-            <AuthLandingScreen
-              role="dealer"
-              onAuthenticated={handleAuthenticatedRoleStart}
-              onBack={() => {
-                setShowOnboarding(true);
-                setCurrentScreen('home');
-              }}
             />
           );
         case 'dealer_tier':
@@ -426,11 +518,22 @@ function AppContent() {
     }
 
     if (isUser) {
+      if (!isAuthenticated && isGuestBlockedScreen('user', currentScreen)) {
+        if (currentScreen === 'profile') {
+          return renderGuestAuthLanding('user');
+        }
+        const feature = getGuestFeatureCopy('user', currentScreen);
+        return renderGuestFeatureGate('user', feature.title, feature.description);
+      }
       switch (currentScreen) {
         case 'home':
           return (
             <UserHomeScreen
               onNavigate={handleNavigate}
+              onOpenNeedHelp={() => {
+                setUserProfileInitialSubPage('Need Help');
+                setCurrentScreen('profile');
+              }}
               onOpenProductCategory={handleOpenProductCategory}
               profilePhotoUri={profilePhotoByRole.user}
               totalPoints={electricianRewardPoints}
@@ -456,9 +559,9 @@ function AppContent() {
             />
           );
         case 'rewards':
-          return <UserRewardsScreen onBack={() => setCurrentScreen('home')} />;
+          return <UserRewardsScreen onBack={() => setCurrentScreen('profile')} />;
         case 'profile':
-          return isAuthenticated ? (
+          return (
             <UserProfileScreen
               onNavigate={handleNavigate}
               onSignOut={handleSignOut}
@@ -480,15 +583,8 @@ function AppContent() {
               }
               totalPoints={electricianRewardPoints}
               totalScans={electricianRewardScans}
-            />
-          ) : (
-            <AuthLandingScreen
-              role="user"
-              onAuthenticated={handleAuthenticatedRoleStart}
-              onBack={() => {
-                setShowOnboarding(true);
-                setCurrentScreen('home');
-              }}
+              initialSubPage={userProfileInitialSubPage}
+              onInitialSubPageConsumed={() => setUserProfileInitialSubPage(null)}
             />
           );
         case 'wallet':
@@ -505,6 +601,10 @@ function AppContent() {
           return (
             <UserHomeScreen
               onNavigate={handleNavigate}
+              onOpenNeedHelp={() => {
+                setUserProfileInitialSubPage('Need Help');
+                setCurrentScreen('profile');
+              }}
               onOpenProductCategory={handleOpenProductCategory}
               profilePhotoUri={profilePhotoByRole.user}
               totalPoints={electricianRewardPoints}
@@ -516,6 +616,13 @@ function AppContent() {
     }
 
     if (isCounterBoy) {
+      if (!isAuthenticated && isGuestBlockedScreen('counterboy', currentScreen)) {
+        if (currentScreen === 'profile') {
+          return renderGuestAuthLanding('counterboy');
+        }
+        const feature = getGuestFeatureCopy('counterboy', currentScreen);
+        return renderGuestFeatureGate('counterboy', feature.title, feature.description);
+      }
       switch (currentScreen) {
         case 'home':
           return (
@@ -528,15 +635,6 @@ function AppContent() {
           );
         case 'product':
           return <CounterBoyProductScreen onNavigate={handleNavigate} initialCategory={selectedProductCategory} />;
-        case 'scan':
-          return (
-            <CounterBoyHomeScreen
-              onNavigate={handleNavigate}
-              onOpenProductCategory={handleOpenProductCategory}
-              profilePhotoUri={profilePhotoByRole.counterboy}
-              hasUnreadNotif={hasUnreadNotif}
-            />
-          );
         case 'notification':
           return <CounterBoyNotificationScreen onNavigate={handleNavigate} role="counterboy" onNotificationsSeen={handleNotificationsSeen} />;
         case 'wallet':
@@ -550,7 +648,7 @@ function AppContent() {
             />
           );
         case 'profile':
-          return isAuthenticated ? (
+          return (
             <CounterBoyProfileScreen
               onNavigate={handleNavigate}
               onSignOut={handleSignOut}
@@ -572,12 +670,6 @@ function AppContent() {
               }
               totalPoints={electricianRewardPoints}
               totalScans={electricianRewardScans}
-            />
-          ) : (
-            <AuthLandingScreen
-              role="counterboy"
-              onAuthenticated={handleAuthenticatedRoleStart}
-              onBack={() => { setShowOnboarding(true); setCurrentScreen('home'); }}
             />
           );
         case 'bank_details':
@@ -615,6 +707,13 @@ function AppContent() {
       }
     }
 
+    if (!isAuthenticated && isGuestBlockedScreen('electrician', currentScreen)) {
+      if (currentScreen === 'profile') {
+        return renderGuestAuthLanding('electrician');
+      }
+      const feature = getGuestFeatureCopy('electrician', currentScreen);
+      return renderGuestFeatureGate('electrician', feature.title, feature.description);
+    }
     switch (currentScreen) {
       case 'home':
         return (
@@ -645,9 +744,9 @@ function AppContent() {
           />
         );
       case 'rewards':
-        return <ElectricianRewardsScreen onBack={() => setCurrentScreen('home')} />;
+        return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} />;
       case 'profile':
-        return isAuthenticated ? (
+        return (
           <ElectricianProfileScreen
             onNavigate={handleNavigate}
             onSignOut={handleSignOut}
@@ -669,15 +768,6 @@ function AppContent() {
             }
             totalPoints={electricianRewardPoints}
             totalScans={electricianRewardScans}
-          />
-        ) : (
-          <AuthLandingScreen
-            role="electrician"
-            onAuthenticated={handleAuthenticatedRoleStart}
-            onBack={() => {
-              setShowOnboarding(true);
-              setCurrentScreen('home');
-            }}
           />
         );
       case 'wallet':
@@ -762,6 +852,9 @@ function AppContent() {
     handleSignOut,
     handleNotificationsSeen,
     handleAuthenticatedRoleStart,
+    renderGuestFeatureGate,
+    renderGuestAuthLanding,
+    guestAuthRole,
     hasUnreadNotif,
     userCartItems,
     handleAddToCart,

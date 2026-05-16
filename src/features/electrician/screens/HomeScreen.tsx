@@ -749,6 +749,10 @@ export function HomeScreen({
   const cardW = (width - 28 - 12) / 2;
   const heroImageHeight = Math.round((width - 28) * 0.56);
   const tier = useMemo(() => getElectricianTier(totalPoints), [totalPoints]);
+  const showTestimonials = appSettings?.testimonialsEnabled !== false;
+  const catalogPdfUrl =
+    appSettings?.generalCatalogPdfUrl ??
+    appSettings?.catalogPdfUrl;
   const catalogProducts = useMemo(
     () =>
       ctxProducts.slice(0, 4).map((item) => ({
@@ -943,7 +947,7 @@ export function HomeScreen({
       icon: DownloadIcon,
       iconColors: ['#DBEAFE', '#BFDBFE'] as const,
       iconTint: '#1D4ED8',
-      onPress: () => openCatalog(appSettings?.catalogPdfUrl),
+      onPress: () => openCatalog(catalogPdfUrl),
     },
     {
       testID: 'electrician-home-action-rewards',
@@ -1191,7 +1195,7 @@ export function HomeScreen({
               {categories.length > 4 && (
                 <TouchableOpacity onPress={() => onNavigate('product')} style={styles.inlineAction} activeOpacity={0.85}>
                   <Text style={styles.viewAllText}>{tx('View all')}</Text>
-                  <ChevronRight color="#E8453C" />
+                  <ChevronRight color="#173E80" />
                 </TouchableOpacity>
               )}
             </View>
@@ -1211,13 +1215,15 @@ export function HomeScreen({
           </>
         )}
 
-        <TestimonialShowcase
-          eyebrow={tx('Electrician Testimonials')}
-          title={tx('What Electricians Say')}
-          subtitle={tx('Testimonial subtitle')}
-          items={testimonials}
-          darkMode={darkMode}
-        />
+        {showTestimonials ? (
+          <TestimonialShowcase
+            eyebrow={tx('Electrician Testimonials')}
+            title={tx('What Electricians Say')}
+            subtitle={tx('Testimonial subtitle')}
+            items={testimonials}
+            darkMode={darkMode}
+          />
+        ) : null}
 
         <WebsitePromoSection darkMode={darkMode} />
 
@@ -1448,7 +1454,7 @@ const styles = StyleSheet.create({
   quickSub: { color: '#74829D', fontSize: 11.5, marginTop: 3 },
   quickSubDark: { color: '#CBD5E1' },
   inlineAction: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewAllText: { color: '#2563EB', fontSize: 13, fontWeight: '800' },
+  viewAllText: { color: '#173E80', fontSize: 13, fontWeight: '800' },
   productsTopBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ProfileScreen as SharedProfileScreen } from '@/features/profile/screens/ProfileScreen';
+import type { SubPage } from '@/features/profile/components/ProfileShared';
 import type { AppLanguage } from '@/shared/preferences';
 import type { Screen } from '@/shared/types/navigation';
 
@@ -18,6 +19,8 @@ export function ProfileScreen({
   onProfilePhotoChange,
   totalPoints,
   totalScans,
+  initialSubPage,
+  onInitialSubPageConsumed,
 }: {
   onNavigate: (screen: Screen) => void;
   onSignOut: () => void;
@@ -33,6 +36,8 @@ export function ProfileScreen({
   onProfilePhotoChange: (photoUri: string | null) => void;
   totalPoints?: number;
   totalScans?: number;
+  initialSubPage?: Exclude<SubPage, null> | null;
+  onInitialSubPageConsumed?: () => void;
 }) {
   return (
     <SharedProfileScreen
@@ -51,6 +56,8 @@ export function ProfileScreen({
       onProfilePhotoChange={onProfilePhotoChange}
       totalPoints={totalPoints}
       totalScans={totalScans}
+      initialSubPage={initialSubPage}
+      onInitialSubPageConsumed={onInitialSubPageConsumed}
     />
   );
 }

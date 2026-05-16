@@ -255,6 +255,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     console.log('🔄 Loading private data for user:', user?.id, 'role:', role);
     try {
+      const shouldLoadScanHistory = role === 'electrician';
       const [prof, wal, scans, notifs, reds] = await Promise.all([
         profileApi.get().catch((err) => {
           console.error('❌ Profile API failed:', err.message);
@@ -266,11 +267,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
           return null;
         }),
-        scanApi.getHistory().catch((err) => {
-          console.error('❌ Scan History API failed:', err.message);
-          if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
-          return null;
-        }),
+        shouldLoadScanHistory
+          ? scanApi.getHistory().catch((err) => {
+              console.error('❌ Scan History API failed:', err.message);
+              if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
+              return null;
+            })
+          : Promise.resolve(null),
         notificationsApi.getAll(role ?? undefined, user?.id).catch((err) => {
           console.error('❌ Notifications API failed:', err.message);
           if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
@@ -296,7 +299,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         await storage.setUserProfile(prof);
       }
       if (wal) setWallet(wal);
-      if (scans) setScanHistory(scans);
+      if (scans) {
+        setScanHistory(scans);
+      } else if (!shouldLoadScanHistory) {
+        setScanHistory(null);
+      }
       setNotifications(notifs.data ?? []);
       setRedemptions(reds.data ?? []);
 

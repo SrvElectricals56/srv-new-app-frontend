@@ -618,6 +618,11 @@ export function HomeScreen({
   const tier = useMemo(() => getTier(connectedCount), [connectedCount]);
   const cardW = (width - 28 - 12) / 2;
   const heroImageHeight = Math.round((width - 28) * 0.56);
+  const showTestimonials = appSettings?.testimonialsEnabled !== false;
+  const catalogPdfUrl =
+    appSettings?.dealerCatalogPdfUrl ??
+    appSettings?.generalCatalogPdfUrl ??
+    appSettings?.catalogPdfUrl;
   const [apiBannerSlides, setApiBannerSlides] = useState<CarouselSlide[]>([]);
   const [supportWhatsapp, setSupportWhatsapp] = useState('918837684004');
 
@@ -792,7 +797,7 @@ export function HomeScreen({
       icon: DownloadIcon,
       iconColors: ['#FFF7ED', '#FFEDD5'] as const,
       iconTint: '#EA580C',
-      onPress: () => openCatalog(appSettings?.catalogPdfUrl),
+      onPress: () => openCatalog(catalogPdfUrl),
     },
     {
       testID: 'dealer-home-action-call-electrician',
@@ -1041,31 +1046,33 @@ export function HomeScreen({
           </>
         )}
 
-        <TestimonialShowcase
-          eyebrow={
-            language === 'Hindi'
-              ? 'डीलर की राय'
-              : language === 'Punjabi'
-                ? 'ਡੀਲਰ ਦੀ ਰਾਇ'
-                : 'Dealer Testimonials'
-          }
-          title={
-            language === 'Hindi'
-              ? 'हमारे डीलर क्या कहते हैं'
-              : language === 'Punjabi'
-                ? 'ਸਾਡੇ ਡੀਲਰ ਕੀ ਕਹਿੰਦੇ ਹਨ'
-                : 'What Dealers Say'
-          }
-          subtitle={
-            language === 'Hindi'
-              ? 'रियल नेटवर्क पार्टनर्स की राय, जिन्होंने एसआरवी के साथ बिजनेस को और मजबूत बनाया।'
-              : language === 'Punjabi'
-                ? 'ਅਸਲ ਨੈੱਟਵਰਕ ਪਾਰਟਨਰਾਂ ਦੀ ਰਾਇ, ਜਿਨ੍ਹਾਂ ਨੇ SRV ਨਾਲ ਆਪਣਾ ਕਾਰੋਬਾਰ ਹੋਰ ਮਜ਼ਬੂਤ ਕੀਤਾ।'
-                : 'Real partner feedback from dealers who are growing faster with SRV.'
-          }
-          items={dealerTestimonials}
-          darkMode={darkMode}
-        />
+        {showTestimonials ? (
+          <TestimonialShowcase
+            eyebrow={
+              language === 'Hindi'
+                ? 'डीलर की राय'
+                : language === 'Punjabi'
+                  ? 'ਡੀਲਰ ਦੀ ਰਾਇ'
+                  : 'Dealer Testimonials'
+            }
+            title={
+              language === 'Hindi'
+                ? 'हमारे डीलर क्या कहते हैं'
+                : language === 'Punjabi'
+                  ? 'ਸਾਡੇ ਡੀਲਰ ਕੀ ਕਹਿੰਦੇ ਹਨ'
+                  : 'What Dealers Say'
+            }
+            subtitle={
+              language === 'Hindi'
+                ? 'रियल नेटवर्क पार्टनर्स की राय, जिन्होंने एसआरवी के साथ बिजनेस को और मजबूत बनाया।'
+                : language === 'Punjabi'
+                  ? 'ਅਸਲ ਨੈੱਟਵਰਕ ਪਾਰਟਨਰਾਂ ਦੀ ਰਾਇ, ਜਿਨ੍ਹਾਂ ਨੇ SRV ਨਾਲ ਆਪਣਾ ਕਾਰੋਬਾਰ ਹੋਰ ਮਜ਼ਬੂਤ ਕੀਤਾ।'
+                  : 'Real partner feedback from dealers who are growing faster with SRV.'
+            }
+            items={dealerTestimonials}
+            darkMode={darkMode}
+          />
+        ) : null}
 
         <WebsitePromoSection darkMode={darkMode} />
 

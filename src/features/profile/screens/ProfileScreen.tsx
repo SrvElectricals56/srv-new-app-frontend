@@ -88,6 +88,8 @@ export function ProfileScreen({
   onProfilePhotoChange,
   totalPoints,
   totalScans,
+  initialSubPage,
+  onInitialSubPageConsumed,
 }: {
   currentRole: UserRole;
   onNavigate: (screen: Screen) => void;
@@ -104,6 +106,8 @@ export function ProfileScreen({
   onProfilePhotoChange: (photoUri: string | null) => void;
   totalPoints?: number;
   totalScans?: number;
+  initialSubPage?: Exclude<SubPage, null> | null;
+  onInitialSubPageConsumed?: () => void;
 }) {
   // Real user from auth context
   const { user: authUser, updateUser, refreshProfile } = useAuth();
@@ -184,6 +188,13 @@ export function ProfileScreen({
       setDraftTaxHolder(getTaxHolderValue(p));
     }
   }, [buildProfileFromAuth]);
+
+  useEffect(() => {
+    if (initialSubPage) {
+      setSubPage(initialSubPage);
+      onInitialSubPageConsumed?.();
+    }
+  }, [initialSubPage, onInitialSubPageConsumed]);
 
   const preferenceValue = usePreferenceValue({
     language,
@@ -276,7 +287,7 @@ export function ProfileScreen({
   }, [currentRole]);
   const settingsMenuItems = useMemo(
     () =>
-      currentRole === 'electrician' || currentRole === 'counterboy' || currentRole === 'user'
+      currentRole === 'electrician'
         ? settingsItems
         : settingsItems.filter((item) => item.screen !== 'Scan History'),
     [currentRole]
@@ -577,7 +588,7 @@ export function ProfileScreen({
     ),
     'Dealer Bonus': <PartnerCommissionPage onBack={() => setSubPage(null)} />,
     'Transfer Points': (
-      <TransferPointsPage onBack={() => setSubPage(null)} onNavigate={onNavigate} />
+      <TransferPointsPage onBack={() => setSubPage(null)} onNavigate={onNavigate} currentRole={currentRole} />
     ),
     'My Orders': <MyOrdersPage onBack={() => setSubPage(null)} />,
     'Bank Details': <BankDetailsPage onBack={() => setSubPage(null)} />,

@@ -171,11 +171,15 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
 
   // Auto-filter by user role — no tabs needed
   // Show gifts targeted to this role OR targeted to 'all'
+  // Note: admin saves customer gifts as 'customer', app role is 'user' — treat as aliases
   const filtered = useMemo<GiftProduct[]>(() => {
     if (!role) return giftProducts;
     return giftProducts.filter((g) => {
       const t = (g.targetRole ?? 'all').toLowerCase();
-      return t === 'all' || t === 'both' || t === role.toLowerCase();
+      const r = role.toLowerCase();
+      // 'user' and 'customer' are the same role
+      const isMatch = t === r || (t === 'customer' && r === 'user') || (t === 'user' && r === 'customer');
+      return t === 'all' || t === 'both' || isMatch;
     });
   }, [giftProducts, role]);
 

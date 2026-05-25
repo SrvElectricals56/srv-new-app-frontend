@@ -41,6 +41,7 @@ import { OffersPage } from './OffersScreen';
 import { PasswordSettingsPage } from './PasswordSettingsScreen';
 import { PartnerCommissionPage } from './PartnerCommissionScreen';
 import { PrivacyPolicyPage } from './PrivacyPolicyScreen';
+import { RolePlayVideosScreen } from './RolePlayVideosScreen';
 import { RateUsPage } from './RateUsScreen';
 import { ReferFriendPage } from './ReferFriendScreen';
 import { ScanHistoryPage } from './ScanHistoryScreen';
@@ -625,6 +626,9 @@ export function ProfileScreen({
   };
 
   const subpages: Record<Exclude<SubPage, null>, React.ReactElement> = {
+    'Play Zone': (
+      <RolePlayVideosScreen onBack={() => setSubPage(null)} currentRole={currentRole} />
+    ),
     'My Redemption': (
       <RedemptionPage
         onBack={() => setSubPage(null)}

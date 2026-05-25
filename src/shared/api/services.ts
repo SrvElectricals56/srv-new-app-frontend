@@ -967,7 +967,7 @@ export type RewardScheme = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const playsApi = {
   getAll: () =>
-    api.get<{ data: PlayVideo[] }>('/mobile/plays'),
+    api.get<{ data: PlayVideo[] }>('/mobile/plays', undefined, true),
 
   recordView: (id: string) =>
     api.post<{ message: string }>(`/mobile/plays/${id}/view`, {}, true),
@@ -991,6 +991,7 @@ export type PlayVideo = {
   category: string;   // reels | guides | tips
   displayOrder: number;
   isActive: boolean;
+  targetRoles?: string[];
   viewCount: number;
   createdAt: string;
 };

@@ -52,6 +52,7 @@ export const defaultProfile = {
 export type Profile = typeof defaultProfile;
 export type SubPage =
   | null
+  | 'Play Zone'
   | 'My Redemption'
   | 'Dealer Bonus'
   | 'Transfer Points'
@@ -70,6 +71,7 @@ export type SubPage =
   | 'KYC Verification';
 
 export type IconName =
+  | 'play'
   | 'edit'
   | 'eye'
   | 'eyeOff'
@@ -126,6 +128,18 @@ export function AppIcon({
   strokeWidth?: number;
 }) {
   switch (name) {
+    case 'play':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M7 5.8c0-1 1.1-1.7 2-1.1l9.2 6.2c.8.6.8 1.8 0 2.4L9 19.5c-.9.6-2-.1-2-1.1V5.8z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinejoin="round"
+          />
+          <Path d="M10 8.7l4.6 3.3L10 15.3V8.7z" fill={color} />
+        </Svg>
+      );
     case 'edit':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

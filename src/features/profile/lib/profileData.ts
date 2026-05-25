@@ -45,6 +45,13 @@ export const electricianMenuItems: ProfileMenuItem[] = [
     screen: 'KYC Verification',
   },
   {
+    label: 'Play Zone',
+    icon: 'play',
+    color: '#8B5CF6',
+    bg: '#EDE9FE',
+    screen: 'Play Zone',
+  },
+  {
     label: 'My Redemption',
     icon: 'redeem',
     color: C.primary,
@@ -85,6 +92,13 @@ export const dealerMenuItems: ProfileMenuItem[] = [
     color: '#10B981',
     bg: '#D1FAE5',
     screen: 'KYC Verification',
+  },
+  {
+    label: 'Play Zone',
+    icon: 'play',
+    color: '#1D4ED8',
+    bg: '#DBEAFE',
+    screen: 'Play Zone',
   },
   {
     label: 'My Redemption',

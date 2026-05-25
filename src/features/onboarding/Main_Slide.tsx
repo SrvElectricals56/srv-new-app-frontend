@@ -194,6 +194,7 @@ function RoleCard({
           source={item.image}
           resizeMode="stretch"
           style={[styles.roleImageFull, item.imageStyle]}
+          fadeDuration={0}
         />
       </View>
     </Pressable>

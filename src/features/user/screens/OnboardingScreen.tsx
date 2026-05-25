@@ -767,6 +767,8 @@ export function OnboardingScreen({
   const [signupStep, setSignupStep] = useState<SignupStep>('name');
   const [dealerVerified, setDealerVerified] = useState(false);
   const [verifiedDealerName, setVerifiedDealerName] = useState('');
+  const [verifiedDealerCode, setVerifiedDealerCode] = useState('');
+  const [verifiedDealerNextSerial, setVerifiedDealerNextSerial] = useState('001');
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationMessage, setLocationMessage] = useState('');
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -1106,6 +1108,8 @@ export function OnboardingScreen({
     setSignupStep('name');
     setDealerVerified(false);
     setVerifiedDealerName('');
+    setVerifiedDealerCode('');
+    setVerifiedDealerNextSerial('001');
     setLocationLoading(false);
     setLocationMessage('');
   };
@@ -1382,6 +1386,10 @@ export function OnboardingScreen({
         address: signupAddress.trim() || undefined,
         pincode: signupPincode.trim() || undefined,
         dealerPhone: signupDealerPhone,
+        dealerCode: verifiedDealerCode || undefined,
+        electricianCode: verifiedDealerCode
+          ? `${verifiedDealerCode}-${verifiedDealerNextSerial}`
+          : undefined,
         password: signupPass.trim() || undefined,
       });
       finishLogin(res.user);
@@ -1493,6 +1501,9 @@ export function OnboardingScreen({
       .then((dealer) => {
         setDealerVerified(true);
         setVerifiedDealerName(dealer.name);
+        setVerifiedDealerCode(dealer.dealerCode ?? '');
+        const nextSerial = Number(dealer.nextElectricianSerial ?? dealer.electricianCount ?? 0) + 1;
+        setVerifiedDealerNextSerial(String(nextSerial).padStart(3, '0'));
       })
       .catch(() => {
         setError('signupDealerPhone', 'Dealer not found. Please check the number and try again.');
@@ -2675,6 +2686,8 @@ export function OnboardingScreen({
                                   handlePhone(setSignupDealerPhone)(value);
                                   setDealerVerified(false);
                                   setVerifiedDealerName('');
+                                  setVerifiedDealerCode('');
+                                  setVerifiedDealerNextSerial('001');
                                   setError('signupDealerPhone');
                                 }}
                                 placeholder={tx('Enter dealer mobile number')}
@@ -3461,4 +3474,3 @@ const s = StyleSheet.create({
   otpTimer: { color: C.error, fontSize: 12, fontWeight: '800' },
   otpResend: { color: C.accentA, fontSize: 12, fontWeight: '800' },
 });
-

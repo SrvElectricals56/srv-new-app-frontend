@@ -4,6 +4,7 @@ import MainSlide, { UserRole as OnboardingRole } from './Main_Slide';
 import DealerSlide from './Dealer_Slide';
 import ElectricianSlide from './Electrician_Slide';
 import CustomerSlide from './Customer_Slide';
+import CounterBoySlide from '../counterboy/screens/CounterBoySlide';
 import type { UserRole } from '@/shared/types/navigation';
 import { usePreferenceContext } from '@/shared/preferences';
 
@@ -48,7 +49,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
   if (selectedRole === 'counter-boy') {
     return (
       <View style={[s.root, { backgroundColor: bg }]}>
-        <CustomerSlide onBack={handleBack} onContinue={() => handleContinue('counter-boy')} />
+        <CounterBoySlide onBack={handleBack} onContinue={() => handleContinue('counter-boy')} />
       </View>
     );
   }

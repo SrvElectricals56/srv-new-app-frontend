@@ -53,15 +53,16 @@ function BgIcons() {
   );
 }
 
-function Character() {
+const Character = React.memo(function Character() {
   return (
     <Image
       source={electricianImage}
       style={{ width: ws(338), height: ws(338), marginTop: -hs(6) }}
       resizeMode="contain"
+      fadeDuration={0}
     />
   );
-}
+});
 
 interface Props { onBack?: () => void; onContinue?: () => void; }
 

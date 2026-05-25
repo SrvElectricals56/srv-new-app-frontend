@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
+import { useAuth } from '@/shared/context/AuthContext';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import type { Screen } from '@/shared/types/navigation';
@@ -30,6 +31,7 @@ type Electrician = {
   id: string;
   name: string;
   phone: string;
+  electricianCode?: string;
   city: string;
   joinedAt: string;
   createdAt?: string;
@@ -122,6 +124,7 @@ function StatCard({
 
 export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Screen) => void }) {
   const { tx, darkMode, theme } = usePreferenceContext();
+  const { user: authUser } = useAuth();
   const pageContent = useAppPageContent('dealer', 'electricians');
   const [electricians, setElectricians] = useState<Electrician[]>([]);
   const [apiLoaded, setApiLoaded] = useState(false);
@@ -155,6 +158,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
           id: e.id,
           name: e.name,
           phone: e.phone,
+          electricianCode: e.electricianCode,
           city: e.city ?? '',
           joinedAt: e.joinedDate ? `Connected ${new Date(e.joinedDate).toLocaleDateString()}` : 'Recently connected',
           createdAt: e.joinedDate,
@@ -195,6 +199,16 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
   const activeCount = electricians.filter((item) => item.status === 'Active').length;
   const totalElectricians = electricians.length;
   const addedThisMonth = electricians.filter(isAddedThisMonth).length;
+  const nextElectricianSerial = String(
+    electricians.reduce((max, item) => {
+      if (authUser?.dealerCode && item.electricianCode && !item.electricianCode.startsWith(`${authUser.dealerCode}-`)) {
+        return max;
+      }
+      const match = item.electricianCode?.match(/-(\d{3})$/);
+      if (!match) return max;
+      return Math.max(max, Number(match[1]));
+    }, 0) + 1
+  ).padStart(3, '0');
   const cleanPhone = newPhone.replace(/\D/g, '').slice(0, 10);
   const canAddElectrician =
     newName.trim().length >= 3 &&
@@ -223,6 +237,16 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
         name: newName.trim(),
         phone: cleanPhone,
         city: newCity.trim(),
+        district: authUser?.district ?? newCity.trim(),
+        state: authUser?.state ?? '',
+        pincode: authUser?.pincode ?? undefined,
+        dealerPhone: authUser?.phone ?? undefined,
+        dealerCode: authUser?.dealerCode ?? undefined,
+        electricianCode: authUser?.dealerCode
+          ? `${authUser.dealerCode}-${nextElectricianSerial}`
+          : undefined,
+        tier: 'Silver',
+        status: 'pending',
       });
       const e = res.electrician;
       setElectricians((current) => [
@@ -230,6 +254,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
           id: e.id,
           name: e.name,
           phone: e.phone,
+          electricianCode: e.electricianCode,
           city: e.city ?? newCity.trim(),
           joinedAt: 'Added just now',
           createdAt: new Date().toISOString(),

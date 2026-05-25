@@ -8,6 +8,24 @@ const debugLog = (...args: unknown[]) => {
   }
 };
 
+function stringifyForLog(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value instanceof Error) return value.message;
+  if (typeof value === 'number' || typeof value === 'boolean' || value == null) {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function logApiWarning(message: string, details?: unknown) {
+  const suffix = details === undefined ? '' : ` ${stringifyForLog(details)}`;
+  console.warn(`${message}${suffix}`);
+}
+
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: object;
@@ -67,7 +85,6 @@ async function refreshAccessToken(): Promise<string> {
   }
 }
 
-// Fetch with 15s timeout
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -93,7 +110,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (auth) {
     const token = await storage.getAccessToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) headers.Authorization = `Bearer ${token}`;
   }
 
   const url = buildUrl(path, params);
@@ -107,12 +124,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     });
     debugLog(`API ${method} ${path} - Status: ${response.status}`);
 
-    // Token expired — try refresh
     if (response.status === 401 && auth) {
       debugLog('Token expired, attempting refresh...');
       try {
         const accessToken = await refreshAccessToken();
-        headers['Authorization'] = `Bearer ${accessToken}`;
+        headers.Authorization = `Bearer ${accessToken}`;
         debugLog('Token refreshed successfully');
         const retryRes = await fetchWithTimeout(url, {
           method,
@@ -121,7 +137,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
         });
         if (!retryRes.ok) {
           const err = await retryRes.json().catch(() => ({}));
-          console.error(`❌ Retry failed: ${retryRes.status}`, err);
+          logApiWarning(`Retry failed (${retryRes.status}).`, err);
           if (retryRes.status === 401) {
             await storage.clearAll();
             sessionEvents.emitExpired();
@@ -131,7 +147,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
         }
         return retryRes.json() as Promise<T>;
       } catch (refreshError) {
-        console.error('❌ Token refresh failed:', refreshError);
+        logApiWarning('Token refresh failed.', refreshError);
         await storage.clearAll();
         sessionEvents.emitExpired();
         throw new Error('SESSION_EXPIRED');
@@ -140,7 +156,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      console.error(`❌ API ${method} ${path} failed:`, response.status, err);
+      logApiWarning(`API ${method} ${path} failed (${response.status}).`, err);
       throw new Error((err as any).message || `Request failed: ${response.status}`);
     }
 
@@ -151,7 +167,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     );
     return data as T;
   } catch (error: any) {
-    console.error(`❌ API ${method} ${path} error:`, error.message);
+    logApiWarning(`API ${method} ${path} error.`, error?.message ?? error);
     throw error;
   }
 }

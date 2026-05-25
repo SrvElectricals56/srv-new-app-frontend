@@ -44,15 +44,16 @@ function BgIcons() {
   );
 }
 
-function Character() {
+const Character = React.memo(function Character() {
   return (
     <Image
       source={customerImage}
       style={{ width: ws(336), height: ws(336), marginTop: -hs(4) }}
       resizeMode="contain"
+      fadeDuration={0}
     />
   );
-}
+});
 
 interface Props { onBack?: () => void; onContinue?: () => void; }
 

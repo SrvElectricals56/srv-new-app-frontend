@@ -53,15 +53,16 @@ function BgIcons() {
   );
 }
 
-function Character() {
+const Character = React.memo(function Character() {
   return (
     <Image
       source={counterBoyImage}
       style={{ width: ws(345), height: ws(345), marginTop: hs(2) }}
       resizeMode="contain"
+      fadeDuration={0}
     />
   );
-}
+});
 
 function StatIcon({ type, color }: { type: 'billing' | 'stock' | 'report' | 'returns'; color: string }) {
   if (type === 'billing') {

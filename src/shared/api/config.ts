@@ -14,10 +14,12 @@ const fallbackUrl = DEFAULT_URL_BY_PLATFORM[Platform.OS] ?? 'http://127.0.0.1:30
 export const API_BASE_URL: string = ENV_URL && ENV_URL.length > 0 ? ENV_URL : fallbackUrl;
 
 if (__DEV__) {
-  console.warn('API Configuration:', {
-    platform: Platform.OS,
-    envUrl: ENV_URL,
-    finalUrl: API_BASE_URL,
-    fallbackUrl,
-  });
+  console.warn(
+    `API Configuration: ${JSON.stringify({
+      platform: Platform.OS,
+      envUrl: ENV_URL,
+      finalUrl: API_BASE_URL,
+      fallbackUrl,
+    })}`
+  );
 }

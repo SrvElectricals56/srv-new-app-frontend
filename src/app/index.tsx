@@ -31,12 +31,12 @@ import { ProfileScreen as UserProfileScreen } from '@/features/user/screens/Prof
 import { RewardsScreen as UserRewardsScreen } from '@/features/user/screens/RewardsScreen';
 import { CategoriesScreen as UserCategoriesScreen } from '@/features/user/screens/CategoriesScreen';
 import { CartScreen as UserCartScreen, type CartItem } from '@/features/user/screens/CartScreen';
-import { PlayScreen as UserPlayScreen } from '@/features/user/screens/PlayScreen';
 import { WalletScreen as UserWalletScreen } from '@/features/user/screens/WalletScreen';
 import { AuthLandingScreen } from '@/features/profile/screens/AuthLandingScreen';
 import { AccessFeatureGateScreen } from '@/features/profile/screens/AccessFeatureGateScreen';
 import { ApprovalPendingScreen } from '@/features/profile/screens/ApprovalPendingScreen';
 import { KYCPendingWalletScreen } from '@/features/profile/screens/KYCPendingWalletScreen';
+import { RolePlayVideosScreen } from '@/features/profile/screens/RolePlayVideosScreen';
 import type { SubPage } from '@/features/profile/components/ProfileShared';
 import {
   WalletBankDetailsScreen,
@@ -583,6 +583,8 @@ function AppContent() {
           );
         case 'product':
           return <DealerProductScreen onNavigate={handleNavigate} initialCategory={selectedProductCategory} />;
+        case 'play':
+          return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="dealer" />;
         case 'electricians':
           return <DealerElectriciansScreen onNavigate={handleNavigate} />;
         case 'call_electrician':
@@ -714,7 +716,7 @@ function AppContent() {
         case 'product':
           return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} initialCategory={selectedProductCategory} />;
         case 'play':
-          return <UserPlayScreen onNavigate={handleNavigate} />;
+          return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="user" />;
         case 'notification':
           return <UserNotificationScreen onNavigate={handleNavigate} role="user" onNotificationsSeen={handleNotificationsSeen} />;
         case 'categories':
@@ -805,6 +807,8 @@ function AppContent() {
           );
         case 'product':
           return <CounterBoyProductScreen onNavigate={handleNavigate} initialCategory={selectedProductCategory} />;
+        case 'play':
+          return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="counterboy" />;
         case 'notification':
           return <CounterBoyNotificationScreen onNavigate={handleNavigate} role="counterboy" onNotificationsSeen={handleNotificationsSeen} />;
         case 'wallet':
@@ -907,6 +911,8 @@ function AppContent() {
             initialCategory={selectedProductCategory}
           />
         );
+      case 'play':
+        return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="electrician" />;
       case 'notification':
         return <ElectricianNotificationScreen onNavigate={handleNavigate} role="electrician" onNotificationsSeen={handleNotificationsSeen} />;
       case 'scan':

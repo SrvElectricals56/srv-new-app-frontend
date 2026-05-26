@@ -736,7 +736,7 @@ export function HomeScreen({
           })}
         </View>
       ),
-      browse_categories: categories.length > 0 ? (
+      browse_categories: displayedCategories.length > 0 ? (
         <View key="browse_categories">
           <View style={styles.sectionHeader}>
             <View>

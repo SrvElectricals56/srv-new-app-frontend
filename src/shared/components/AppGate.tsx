@@ -92,8 +92,9 @@ export function AppGate({ children }: Props) {
     void refreshAll();
   }, [refreshAll]);
 
-  // Wait until we've checked storage before rendering
-  if (!checked) return null;
+  // Wait until we've checked storage before rendering — show children immediately
+  // to avoid a blank flash; gate screens will replace them once check resolves
+  if (!checked) return <>{children}</>;
 
   // Force update — show only if current version is below required
   if (showForceUpdate && appSettings) {

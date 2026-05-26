@@ -1149,7 +1149,7 @@ export function ProfileScreen({
             <View
               style={[
                 styles.signOutIconWrap,
-                usesWarmProfileAccents ? { backgroundColor: accentActionSoft } : null,
+                { backgroundColor: accentActionSoft },
               ]}
             >
               <AppIcon name="signOut" size={18} color={accentAction} />
@@ -1157,7 +1157,7 @@ export function ProfileScreen({
             <Text
               style={[
                 styles.signOutTxt,
-                usesWarmProfileAccents ? { color: accentAction } : null,
+                { color: accentAction },
               ]}
             >
               {t('signOut')}
@@ -1262,7 +1262,7 @@ export function ProfileScreen({
                   onPress={confirmDraftPhoto}
                   style={[
                     styles.signOutActionBtn,
-                    usesWarmProfileAccents ? { backgroundColor: accentAction } : null,
+                    { backgroundColor: accentAction },
                   ]}
                 >
                   <Text style={styles.signOutActionTxt}>{tx('Done')}</Text>
@@ -1503,7 +1503,7 @@ export function ProfileScreen({
                 <Pressable
                   style={[
                     styles.signOutActionBtn,
-                    usesWarmProfileAccents ? { backgroundColor: accentAction } : null,
+                    { backgroundColor: accentAction },
                   ]}
                   onPress={() => {
                     setShowSignOut(false);

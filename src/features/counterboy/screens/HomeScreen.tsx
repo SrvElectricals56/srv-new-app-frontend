@@ -24,7 +24,7 @@ import {
 import { WebsitePromoSection } from '@/shared/components/WebsitePromoSection';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
 import type { Screen } from '@/shared/types/navigation';
-import { useAppPageContent, useAppPageSections, useCatalogDownload } from '@/shared/hooks';
+import { useAppPageContent, useAppPageSections } from '@/shared/hooks';
 import type { HomePageSectionKey } from '@/shared/config/appPageContent';
 import { API_BASE_URL } from '@/shared/api/config';
 import { counterboyTheme as cb } from '@/features/counterboy/theme';
@@ -142,22 +142,6 @@ function WalletIcon({ color = CB_PRIMARY, size = 22 }: { color?: string; size?: 
   );
 }
 
-function DownloadIcon({ color = '#1D4ED8', size = 22 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      {/* Book/catalog body */}
-      <Path d="M4 4.5A1.5 1.5 0 015.5 3H19a1 1 0 011 1v14a1 1 0 01-1 1H5.5A1.5 1.5 0 014 17.5v-13z" stroke={color} strokeWidth={1.7} />
-      {/* Spine line */}
-      <Path d="M8 3v16" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
-      {/* Price tag lines */}
-      <Path d="M11 8h6M11 11h6M11 14h4" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
-      {/* Bottom download arrow */}
-      <Path d="M2 20h6M5 17.5v5" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M3.5 21.5L5 23l1.5-1.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
 function ProductIcon({ color = CB_PRIMARY, size = 22 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -172,6 +156,20 @@ function WhatsAppIcon({ color = '#1A8F58', size = 22 }: { color?: string; size?:
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M12 4.25A7.75 7.75 0 005.21 15.7L4 19.75l4.17-1.1A7.75 7.75 0 1012 4.25z" stroke={color} strokeWidth={1.9} strokeLinejoin="round" />
       <Path d="M9.15 8.95c.18-.4.39-.42.57-.42h.49c.15 0 .36.06.54.46.18.4.6 1.45.66 1.56.06.11.1.24.02.38-.08.15-.13.25-.25.38-.11.13-.24.29-.34.39-.11.11-.22.22-.09.42.13.2.58.95 1.25 1.54.86.76 1.58 1 1.8 1.1.22.1.35.09.48-.07.13-.16.54-.64.68-.86.14-.22.29-.18.48-.11.2.07 1.24.59 1.45.7.21.1.35.16.4.25.05.09.05.54-.13 1.04-.18.51-1.02.98-1.42 1.03-.37.06-.85.09-1.36-.07-.31-.1-.71-.23-1.23-.46-2.15-.94-3.56-3.16-3.67-3.32-.11-.16-.89-1.18-.89-2.25 0-1.07.56-1.6.76-1.82z" fill={color} />
+    </Svg>
+  );
+}
+
+function PlayZoneIcon({ color = '#7C3AED', size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 5.5v13l10-6.5-10-6.5z" fill={color} />
+      <Path
+        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+      />
     </Svg>
   );
 }
@@ -198,7 +196,6 @@ export function HomeScreen({
   const { darkMode, tx } = usePreferenceContext();
   const { user: authUser } = useAuth();
   const { banners: ctxBanners, testimonials: ctxTestimonials, appSettings, categories: ctxCategories } = useAppData();
-  const { openCatalog } = useCatalogDownload();
   const pageContent = useAppPageContent('counterboy', 'home');
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -212,13 +209,9 @@ export function HomeScreen({
   );
   const showNotifications = isRoleFeatureEnabled(rolePageControls, 'counterboy', 'notification');
   const showProduct = isRoleFeatureEnabled(rolePageControls, 'counterboy', 'product');
-  const showCatalog = isRoleFeatureEnabled(rolePageControls, 'counterboy', 'catalog_pdf');
+  const showPlay = isRoleFeatureEnabled(rolePageControls, 'counterboy', 'play');
   const showWhatsapp = isRoleFeatureEnabled(rolePageControls, 'counterboy', 'whatsapp_support');
   const showWallet = isRoleFeatureEnabled(rolePageControls, 'counterboy', 'wallet');
-  const catalogPdfUrl =
-    appSettings?.generalCatalogPdfUrl ??
-    appSettings?.catalogPdfUrl;
-
   useEffect(() => {
     const filtered = ctxBanners
       .filter((b) => {
@@ -297,13 +290,13 @@ export function HomeScreen({
       hidden: !showProduct,
     },
     {
-      title: tx('Product Catalog'),
-      sub: tx('Download PDF for latest updated prices'),
-      icon: DownloadIcon,
-      iconColors: ['#DBEAFE', '#BFDBFE'] as const,
-      iconTint: '#1D4ED8',
-      onPress: () => openCatalog(catalogPdfUrl),
-      hidden: !showCatalog,
+      title: tx('Play Zone'),
+      sub: tx('Watch videos and guides'),
+      icon: PlayZoneIcon,
+      iconColors: ['#F3E8FF', '#DDD6FE'] as const,
+      iconTint: '#7C3AED',
+      onPress: () => onNavigate('play'),
+      hidden: !showPlay,
     },
     {
       title: tx('WhatsApp'),
@@ -324,9 +317,30 @@ export function HomeScreen({
       hidden: !showWallet,
     },
   ].filter((item) => !item.hidden), [
-    tx, showProduct, showCatalog, showWhatsapp, showWallet,
-    onNavigate, openCatalog, catalogPdfUrl, supportWhatsapp,
+    tx, showProduct, showPlay, showWhatsapp, showWallet,
+    onNavigate, supportWhatsapp,
   ]);
+
+  const cardW = (width - 28 - 12) / 2;
+  const catCardW = Math.floor((width - 28 - 12) / 2);
+
+  const browseCategoriesFour = useMemo(() => {
+    const merged = new Map<string, { targetCategoryId: string }>();
+    ctxCategories.forEach((category) => {
+      const rawId = category.categoryId ?? (category as any).slug ?? category.label ?? category.id;
+      const id = normalizeCbHomeCategory(String(rawId ?? ''));
+      if (!CB_HOME_CATEGORY_ORDER.includes(id as (typeof CB_HOME_CATEGORY_ORDER)[number])) return;
+      merged.set(id, {
+        targetCategoryId: String(category.id ?? rawId ?? id),
+      });
+    });
+    return CB_HOME_CATEGORY_ORDER.map((id) => ({
+      id,
+      targetCategoryId: merged.get(id)?.targetCategoryId ?? id,
+      label: CB_HOME_LABELS[id] ?? id,
+      imageUrl: null,
+    }));
+  }, [ctxCategories]);
 
   const homeSections = useAppPageSections('counterboy', 'home');
 
@@ -427,27 +441,6 @@ export function HomeScreen({
     browseCategoriesFour, catCardW, showTestimonials, testimonials,
     onNavigate, onOpenProductCategory, tx,
   ]);
-
-  const cardW = (width - 28 - 12) / 2;
-  const catCardW = Math.floor((width - 28 - 12) / 2);
-
-  const browseCategoriesFour = useMemo(() => {
-    const merged = new Map<string, { targetCategoryId: string }>();
-    ctxCategories.forEach((category) => {
-      const rawId = category.categoryId ?? (category as any).slug ?? category.label ?? category.id;
-      const id = normalizeCbHomeCategory(String(rawId ?? ''));
-      if (!CB_HOME_CATEGORY_ORDER.includes(id as (typeof CB_HOME_CATEGORY_ORDER)[number])) return;
-      merged.set(id, {
-        targetCategoryId: String(category.id ?? rawId ?? id),
-      });
-    });
-    return CB_HOME_CATEGORY_ORDER.map((id) => ({
-      id,
-      targetCategoryId: merged.get(id)?.targetCategoryId ?? id,
-      label: CB_HOME_LABELS[id] ?? id,
-      imageUrl: null,
-    }));
-  }, [ctxCategories]);
 
   return (
     <ScrollView

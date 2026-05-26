@@ -43,6 +43,8 @@ const CAT_COLORS: Record<Exclude<VideoCategoryKey, 'all'>, { bg: string; text: s
   tips: { bg: '#F0DEC9', text: '#6A2F12', label: 'Helpful Tip' },
 };
 
+const PLAY_HERO_CHIPS = ['Guides', 'Reels', 'Tips'];
+
 function getYouTubeVideoId(url: string): string | null {
   const patterns = [
     /[?&]v=([a-zA-Z0-9_-]{11})/,
@@ -139,6 +141,17 @@ function SendIcon({ size = 18, color = '#6A2F12' }: { size?: number; color?: str
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M21.5 3.5 10 15l-1.5 5.5L21.5 3.5Zm0 0L14 20l-2-7-7-2 16.5-7.5Z" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function SparkIcon({ size = 16, color = '#F8FAFC' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 2.8 14.4 9.6 21.2 12l-6.8 2.4L12 21.2l-2.4-6.8L2.8 12l6.8-2.4L12 2.8Z"
+        fill={color}
+      />
     </Svg>
   );
 }
@@ -730,11 +743,19 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
         end={{ x: 1, y: 1 }}
         style={styles.heroCard}
       >
+        <View style={styles.heroGlowOne} />
+        <View style={styles.heroGlowTwo} />
         <View style={styles.header}>
-          <Text style={[styles.headerEyebrow, darkMode ? styles.headerEyebrowDark : null]}>{tx('SRV Videos')}</Text>
+          <View style={styles.heroBadgeRow}>
+            <View style={[styles.heroBadge, darkMode ? styles.heroBadgeDark : null]}>
+              <SparkIcon />
+              <Text style={styles.heroBadgeText}>{tx('Fresh Picks')}</Text>
+            </View>
+            <Text style={[styles.headerEyebrow, darkMode ? styles.headerEyebrowDark : null]}>{tx('SRV Videos')}</Text>
+          </View>
           <Text style={[styles.headerTitle, { color: darkMode ? '#F8FAFC' : '#0F172A' }]}>{tx('Play Zone')}</Text>
           <Text style={[styles.headerSubtitle, { color: darkMode ? 'rgba(255,255,255,0.78)' : '#6E5947' }]}>
-            {tx('Choose a category first, then open any video in a rich full-screen experience.')}
+            {tx('Explore smart product videos, quick reels, and simple explainers picked for everyday browsing.')}
           </Text>
           <View style={styles.heroStatsRow}>
             <View style={[styles.heroStatPill, darkMode ? styles.heroStatPillDark : null]}>
@@ -745,6 +766,13 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
               <Text style={[styles.heroStatValue, darkMode ? styles.heroStatValueDark : null]}>{filteredVideos.length}</Text>
               <Text style={[styles.heroStatLabel, darkMode ? styles.heroStatLabelDark : null]}>{tx('visible')}</Text>
             </View>
+          </View>
+          <View style={styles.heroChipRow}>
+            {PLAY_HERO_CHIPS.map((chip) => (
+              <View key={chip} style={[styles.heroChip, darkMode ? styles.heroChipDark : null]}>
+                <Text style={[styles.heroChipText, darkMode ? styles.heroChipTextDark : null]}>{tx(chip)}</Text>
+              </View>
+            ))}
           </View>
         </View>
       </LinearGradient>
@@ -775,6 +803,16 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
           );
         })}
       </ScrollView>
+
+      <View style={styles.sectionHead}>
+        <View>
+          <Text style={[styles.sectionEyebrow, { color: darkMode ? '#C4A88C' : '#8D4A1E' }]}>{tx('Now Showing')}</Text>
+          <Text style={[styles.sectionTitle, { color: darkMode ? '#F8FAFC' : '#0F172A' }]}>{tx('Video Picks')}</Text>
+        </View>
+        <View style={[styles.sectionCountPill, darkMode ? styles.sectionCountPillDark : null]}>
+          <Text style={[styles.sectionCountText, darkMode ? styles.sectionCountTextDark : null]}>{filteredVideos.length} {tx('items')}</Text>
+        </View>
+      </View>
 
       <FlatList
         data={filteredVideos}
@@ -826,11 +864,55 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   heroCard: {
+    position: 'relative',
     marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 28,
-    paddingVertical: 18,
+    marginBottom: 14,
+    borderRadius: 30,
+    paddingVertical: 20,
     overflow: 'hidden',
+  },
+  heroGlowOne: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    top: -48,
+    right: -24,
+  },
+  heroGlowTwo: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    bottom: -24,
+    left: 12,
+  },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#6A2F12',
+  },
+  heroBadgeDark: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  heroBadgeText: {
+    color: '#F8FAFC',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   headerEyebrow: {
     color: '#8D4A1E',
@@ -838,29 +920,30 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 1.1,
-    marginBottom: 6,
   },
   headerEyebrowDark: { color: 'rgba(255,255,255,0.68)' },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '900',
+    letterSpacing: -0.6,
   },
   headerSubtitle: {
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 20,
+    marginTop: 8,
+    fontSize: 13.5,
+    lineHeight: 21,
+    maxWidth: '92%',
   },
   heroStatsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 16,
+    marginTop: 18,
   },
   heroStatPill: {
     backgroundColor: 'rgba(255,255,255,0.62)',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    minWidth: 92,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    minWidth: 98,
   },
   heroStatPillDark: { backgroundColor: 'rgba(255,255,255,0.12)' },
   heroStatValue: {
@@ -876,12 +959,37 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   heroStatLabelDark: { color: 'rgba(255,255,255,0.72)' },
+  heroChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+  },
+  heroChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+  },
+  heroChipDark: {
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  heroChipText: {
+    color: '#6A2F12',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  heroChipTextDark: {
+    color: '#F8E7D6',
+  },
   filtersScroller: {
     minHeight: 64,
   },
   filtersWrap: {
     paddingHorizontal: 18,
-    paddingBottom: 10,
+    paddingBottom: 8,
     gap: 10,
     alignItems: 'center',
   },
@@ -895,6 +1003,47 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  sectionHead: {
+    marginTop: 4,
+    marginBottom: 10,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  sectionEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+  },
+  sectionCountPill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FFF4EA',
+    borderWidth: 1,
+    borderColor: '#F3D2B5',
+  },
+  sectionCountPillDark: {
+    backgroundColor: '#132031',
+    borderColor: '#25364E',
+  },
+  sectionCountText: {
+    color: '#8D4A1E',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  sectionCountTextDark: {
+    color: '#D7E3F0',
+  },
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -903,15 +1052,15 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E5EAF0',
+    borderColor: '#E8D9C8',
     shadowColor: '#8D4A1E',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
+    shadowOpacity: 0.10,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5,
   },
   videoFrame: {
     width: '100%',
@@ -938,11 +1087,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 1,
+    backgroundColor: 'rgba(15,23,42,0.34)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   videoFrameOpen: {
     color: 'rgba(255,255,255,0.82)',
     fontSize: 11.5,
     fontWeight: '700',
+    backgroundColor: 'rgba(15,23,42,0.30)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   previewButton: {
     flex: 1,
@@ -996,7 +1153,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardBody: {
-    padding: 16,
+    padding: 18,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -1018,7 +1175,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F8F1E9',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -1026,35 +1183,41 @@ const styles = StyleSheet.create({
   viewsText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#475569',
+    color: '#6A2F12',
   },
   videoTitle: {
     color: '#0F172A',
-    fontSize: 17,
-    lineHeight: 23,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: '900',
   },
   videoDesc: {
-    marginTop: 6,
-    color: '#64748B',
+    marginTop: 7,
+    color: '#6B7280',
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 20,
   },
   openRow: {
-    marginTop: 12,
+    marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   openRowText: {
-    color: '#64748B',
+    color: '#7C6250',
     fontSize: 12,
     fontWeight: '700',
   },
   openRowArrow: {
-    color: '#6B7C2D',
-    fontSize: 12,
+    color: '#6A2F12',
+    fontSize: 11.5,
     fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    backgroundColor: '#F8E7D7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   sectionEmpty: {
     alignItems: 'center',
@@ -1073,15 +1236,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
+    padding: 36,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(141,74,30,0.10)',
   },
   emptyEmoji: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '900',
     marginBottom: 8,
   },
@@ -1089,14 +1257,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     textAlign: 'center',
-    maxWidth: 260,
-    marginBottom: 24,
+    maxWidth: 270,
+    marginBottom: 26,
   },
   browseBtn: {
     backgroundColor: '#6A2F12',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 26,
+    paddingVertical: 13,
     borderRadius: 999,
+    shadowColor: '#6A2F12',
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
   browseBtnText: {
     color: '#fff',

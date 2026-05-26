@@ -186,7 +186,7 @@ export function RolePlayVideosScreen({
           style={[styles.heroCard, { borderColor: theme.border }]}
         >
           <Text style={[styles.heroEyebrow, { color: theme.accent }]}>{tx(heroCopy.eyebrow)}</Text>
-          <Text style={[styles.heroTitle, { color: theme.textPrimary }]}>{tx('Training Videos')}</Text>
+          <Text style={[styles.heroTitle, { color: theme.textPrimary }]}>{tx('Videos')}</Text>
           <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
             {tx(heroCopy.subtitle)}
           </Text>
@@ -250,8 +250,9 @@ export function RolePlayVideosScreen({
               <ActivityIndicator color={theme.accent} style={{ marginTop: 48 }} />
             ) : filteredVideos.length === 0 ? (
               <EmptyState
-                emoji="VIDEO"
-                message={tx('No plays are available for this profile yet.')}
+                iconName="play"
+                title={tx('No videos available yet')}
+                message={tx('Fresh videos for this profile will appear here once the admin uploads them.')}
               />
             ) : (
               <View style={styles.videoList}>
@@ -384,8 +385,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
   },
   heroTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '900',
+    lineHeight: 26,
   },
   heroSubtitle: {
     fontSize: 13,

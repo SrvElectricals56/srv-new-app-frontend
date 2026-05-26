@@ -162,19 +162,6 @@ function UserPlusIcon({ color = '#0F4BA8', size = 24 }: { color?: string; size?:
   );
 }
 
-function PhoneIcon({ color = '#173E80', size = 24 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M7.2 4.8h2.4l1.1 3.4-1.5 1.5a14.8 14.8 0 005.1 5.1l1.5-1.5 3.4 1.1v2.4a1.5 1.5 0 01-1.5 1.5A14.9 14.9 0 014.2 6.3 1.5 1.5 0 015.7 4.8h1.5z"
-        stroke={color}
-        strokeWidth={1.8}
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function DownloadIcon({ color = '#1D4ED8', size = 22 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -237,6 +224,20 @@ function ChevronRight({ color = '#173E80', size = 16 }: { color?: string; size?:
         strokeWidth={1.8}
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function PlayZoneIcon({ color = '#FFFFFF', size = 28 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 5.5v13l10-6.5-10-6.5z" fill={color} />
+      <Path
+        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinecap="round"
       />
     </Svg>
   );
@@ -458,7 +459,7 @@ export function HomeScreen({
   const [apiBannerSlides, setApiBannerSlides] = useState<CarouselSlide[]>([]);
   const [supportWhatsapp, setSupportWhatsapp] = useState('918837684004');
 
-  // Map banners from context — prefetch all images first, then set slides
+  // Map banners from context â€” prefetch all images first, then set slides
   useEffect(() => {
     const filtered = ctxBanners
       .filter((b) => {
@@ -611,7 +612,7 @@ export function HomeScreen({
       testID: 'dealer-home-action-electricians',
       accessibilityLabel: 'Dealer home quick action associate electrician',
       title: tx('Associate Electrician'),
-      sub: formatCountText(language, connectedCount, 'connected', 'जुड़े हुए', 'ਜੁੜੇ ਹੋਏ'),
+      sub: formatCountText(language, connectedCount, 'connected', 'à¤œà¥à¤¡à¤¼à¥‡ à¤¹à¥à¤', 'à¨œà©à©œà©‡ à¨¹à©‹à¨'),
       icon: UserPlusIcon,
       iconColors: ['#EEF5FF', '#DCE8FF'] as const,
       iconTint: '#1D4ED8',
@@ -632,17 +633,6 @@ export function HomeScreen({
       hidden: !showCatalog,
     },
     {
-      testID: 'dealer-home-action-call-electrician',
-      accessibilityLabel: 'Dealer home quick action call electrician',
-      title: tx('Call Electrician'),
-      sub: tx('Reach your network'),
-      icon: PhoneIcon,
-      iconColors: ['#DCFCE7', '#BBF7D0'] as const,
-      iconTint: '#16A34A',
-      onPress: () => onNavigate('call_electrician'),
-      hidden: !showCallElectrician,
-    },
-    {
       testID: 'dealer-home-action-whatsapp',
       accessibilityLabel: 'Dealer home quick action WhatsApp support',
       title: tx('WhatsApp'),
@@ -656,8 +646,21 @@ export function HomeScreen({
         ),
       hidden: !showWhatsapp,
     },
+    {
+      testID: 'dealer-home-action-play-zone',
+      accessibilityLabel: 'Dealer home quick action play zone',
+      title: 'Play Zone',
+      sub: 'Watch videos and quick guides',
+      icon: PlayZoneIcon,
+      iconColors: ['#FFF7ED', '#FED7AA'] as const,
+      iconTint: '#B45309',
+      onPress: () => {
+        onNavigate('play');
+      },
+      hidden: false,
+    },
   ].filter((item) => !item.hidden), [
-    tx, language, connectedCount, showElectricians, showCatalog, showCallElectrician, showWhatsapp,
+    tx, language, connectedCount, showElectricians, showCatalog, showWhatsapp,
     onNavigate, openCatalog, catalogPdfUrl, supportWhatsapp,
   ]);
 
@@ -701,7 +704,7 @@ export function HomeScreen({
           })}
         </View>
       ),
-      browse_categories: categories.length > 0 ? (
+      browse_categories: displayedCategories.length > 0 ? (
         <View key="browse_categories">
           <View style={styles.sectionHeader}>
             <View>
@@ -736,23 +739,23 @@ export function HomeScreen({
           key="testimonials"
           eyebrow={pageContent.testimonialEyebrow || (
             language === 'Hindi'
-              ? 'डीलर की राय'
+              ? 'à¤¡à¥€à¤²à¤° à¤•à¥€ à¤°à¤¾à¤¯'
               : language === 'Punjabi'
-                ? 'ਡੀਲਰ ਦੀ ਰਾਇ'
+                ? 'à¨¡à©€à¨²à¨° à¨¦à©€ à¨°à¨¾à¨‡'
                 : 'Dealer Testimonials'
           )}
           title={pageContent.testimonialTitle || (
             language === 'Hindi'
-              ? 'हमारे डीलर क्या कहते हैं'
+              ? 'à¤¹à¤®à¤¾à¤°à¥‡ à¤¡à¥€à¤²à¤° à¤•à¥à¤¯à¤¾ à¤•à¤¹à¤¤à¥‡ à¤¹à¥ˆà¤‚'
               : language === 'Punjabi'
-                ? 'ਸਾਡੇ ਡੀਲਰ ਕੀ ਕਹਿੰਦੇ ਹਨ'
+                ? 'à¨¸à¨¾à¨¡à©‡ à¨¡à©€à¨²à¨° à¨•à©€ à¨•à¨¹à¨¿à©°à¨¦à©‡ à¨¹à¨¨'
                 : 'What Dealers Say'
           )}
           subtitle={pageContent.testimonialSubtitle || (
             language === 'Hindi'
-              ? 'रियल नेटवर्क पार्टनर्स की राय, जिन्होंने एसआरवी के साथ बिजनेस को और मजबूत बनाया।'
+              ? 'à¤°à¤¿à¤¯à¤² à¤¨à¥‡à¤Ÿà¤µà¤°à¥à¤• à¤ªà¤¾à¤°à¥à¤Ÿà¤¨à¤°à¥à¤¸ à¤•à¥€ à¤°à¤¾à¤¯, à¤œà¤¿à¤¨à¥à¤¹à¥‹à¤‚à¤¨à¥‡ à¤à¤¸à¤†à¤°à¤µà¥€ à¤•à¥‡ à¤¸à¤¾à¤¥ à¤¬à¤¿à¤œà¤¨à¥‡à¤¸ à¤•à¥‹ à¤”à¤° à¤®à¤œà¤¬à¥‚à¤¤ à¤¬à¤¨à¤¾à¤¯à¤¾à¥¤'
               : language === 'Punjabi'
-                ? 'ਅਸਲ ਨੈੱਟਵਰਕ ਪਾਰਟਨਰਾਂ ਦੀ ਰਾਇ, ਜਿਨ੍ਹਾਂ ਨੇ SRV ਨਾਲ ਆਪਣਾ ਕਾਰੋਬਾਰ ਹੋਰ ਮਜ਼ਬੂਤ ਕੀਤਾ।'
+                ? 'à¨…à¨¸à¨² à¨¨à©ˆà©±à¨Ÿà¨µà¨°à¨• à¨ªà¨¾à¨°à¨Ÿà¨¨à¨°à¨¾à¨‚ à¨¦à©€ à¨°à¨¾à¨‡, à¨œà¨¿à¨¨à©à¨¹à¨¾à¨‚ à¨¨à©‡ SRV à¨¨à¨¾à¨² à¨†à¨ªà¨£à¨¾ à¨•à¨¾à¨°à©‹à¨¬à¨¾à¨° à¨¹à©‹à¨° à¨®à¨œà¨¼à¨¬à©‚à¨¤ à¨•à©€à¨¤à¨¾à¥¤'
                 : 'Real partner feedback from dealers who are growing faster with SRV.'
           )}
           items={dealerTestimonials}
@@ -854,7 +857,7 @@ export function HomeScreen({
                   {tx('Call Electrician')}
                 </Text>
                 <Text style={[styles.statValue, darkMode ? styles.statValueDark : null]}>
-                  {formatCountText(language, connectedCount, 'contacts', 'कॉन्टैक्ट्स', 'ਸੰਪਰਕ')}
+                  {formatCountText(language, connectedCount, 'contacts', 'à¤•à¥‰à¤¨à¥à¤Ÿà¥ˆà¤•à¥à¤Ÿà¥à¤¸', 'à¨¸à©°à¨ªà¨°à¨•')}
                 </Text>
                 <Text style={[styles.statHint, darkMode ? styles.statHintDark : null]}>
                   {tx('Open phone and WhatsApp actions')}
@@ -907,8 +910,8 @@ export function HomeScreen({
                           language,
                           tier.nextAt - connectedCount,
                           'more electricians for next grade',
-                          'अगले ग्रेड के लिए और इलेक्ट्रीशियन',
-                          'ਅਗਲੇ ਗ੍ਰੇਡ ਲਈ ਹੋਰ ਇਲੈਕਟ੍ਰੀਸ਼ਨ'
+                          'à¤…à¤—à¤²à¥‡ à¤—à¥à¤°à¥‡à¤¡ à¤•à¥‡ à¤²à¤¿à¤ à¤”à¤° à¤‡à¤²à¥‡à¤•à¥à¤Ÿà¥à¤°à¥€à¤¶à¤¿à¤¯à¤¨',
+                          'à¨…à¨—à¨²à©‡ à¨—à©à¨°à©‡à¨¡ à¨²à¨ˆ à¨¹à©‹à¨° à¨‡à¨²à©ˆà¨•à¨Ÿà©à¨°à©€à¨¸à¨¼à¨¨'
                         )
                       : tx('Top dealer grade unlocked')}
                   </Text>
@@ -1261,6 +1264,121 @@ const styles = StyleSheet.create({
   activityTitleDark: { color: '#F8FAFC' },
   activityCopy: { color: '#70819C', fontSize: 12.5, lineHeight: 19, marginTop: 8 },
   activityCopyDark: { color: '#CBD5E1' },
+  // â”€â”€ Play Zone promo banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  playZoneCard: {
+    width: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 12,
+    shadowColor: '#6A2F12',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 7,
+  },
+  playZoneCardDark: {
+    shadowColor: '#1A0503',
+    shadowOpacity: 0.45,
+  },
+  playZoneGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  playZoneBlob1: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    top: -40,
+    right: 60,
+  },
+  playZoneBlob2: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    bottom: -30,
+    right: -10,
+  },
+  playZoneLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    flex: 1,
+  },
+  playZoneIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  playZoneTextBlock: {
+    flex: 1,
+    gap: 3,
+  },
+  playZoneBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  playZoneBadge: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  playZoneBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  playZoneEyebrow: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  playZoneTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 21,
+  },
+  playZoneSub: {
+    color: 'rgba(255,255,255,0.68)',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  playZoneArrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+  },
+  playZoneArrowText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
 });
 
 const homeCatStyles = StyleSheet.create({
@@ -1286,3 +1404,6 @@ const homeCatStyles = StyleSheet.create({
   pill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   pillText: { fontSize: 10, fontWeight: '700' },
 });
+
+
+

@@ -372,22 +372,6 @@ function ScanIcon({ color = '#10254A', size = 22 }: { color?: string; size?: num
   );
 }
 
-function GiftIcon({ color = '#10254A', size = 22 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="8" width="18" height="4" rx="1.2" stroke={color} strokeWidth={1.8} />
-      <Path d="M19 12v7a2 2 0 01-2 2H7a2 2 0 01-2-2v-7" stroke={color} strokeWidth={1.8} />
-      <Path
-        d="M12 8v13M12 8C12 8 9 6 9 4.5a3 3 0 016 0C15 6 12 8 12 8z"
-        stroke={color}
-        strokeWidth={1.8}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function WhatsAppIcon({ color = '#10254A', size = 22 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -400,6 +384,20 @@ function WhatsAppIcon({ color = '#10254A', size = 22 }: { color?: string; size?:
       <Path
         d="M9.15 8.95c.18-.4.39-.42.57-.42h.49c.15 0 .36.06.54.46.18.4.6 1.45.66 1.56.06.11.1.24.02.38-.08.15-.13.25-.25.38-.11.13-.24.29-.34.39-.11.11-.22.22-.09.42.13.2.58.95 1.25 1.54.86.76 1.58 1 1.8 1.1.22.1.35.09.48-.07.13-.16.54-.64.68-.86.14-.22.29-.18.48-.11.2.07 1.24.59 1.45.7.21.1.35.16.4.25.05.09.05.54-.13 1.04-.18.51-1.02.98-1.42 1.03-.37.06-.85.09-1.36-.07-.31-.1-.71-.23-1.23-.46-2.15-.94-3.56-3.16-3.67-3.32-.11-.16-.89-1.18-.89-2.25 0-1.07.56-1.6.76-1.82z"
         fill={color}
+      />
+    </Svg>
+  );
+}
+
+function PlayZoneIcon({ color = '#7C3AED', size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 5.5v13l10-6.5-10-6.5z" fill={color} />
+      <Path
+        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinecap="round"
       />
     </Svg>
   );
@@ -460,7 +458,7 @@ export function HomeScreen({
   const showNotifications = isRoleFeatureEnabled(rolePageControls, 'electrician', 'notification');
   const showScan = isRoleFeatureEnabled(rolePageControls, 'electrician', 'scan');
   const showCatalog = isRoleFeatureEnabled(rolePageControls, 'electrician', 'catalog_pdf');
-  const showRewards = isRoleFeatureEnabled(rolePageControls, 'electrician', 'rewards');
+  const showPlay = isRoleFeatureEnabled(rolePageControls, 'electrician', 'play');
   const showWhatsapp = isRoleFeatureEnabled(rolePageControls, 'electrician', 'whatsapp_support');
   const showWallet = isRoleFeatureEnabled(rolePageControls, 'electrician', 'wallet');
   const showElectricianTier = isRoleFeatureEnabled(rolePageControls, 'electrician', 'electrician_tier');
@@ -636,15 +634,15 @@ export function HomeScreen({
       hidden: !showCatalog,
     },
     {
-      testID: 'electrician-home-action-rewards',
-      accessibilityLabel: 'Electrician home quick action gift store',
-      title: tx('Gift Store'),
-      sub: tx('Redeem rewards'),
-      icon: GiftIcon,
+      testID: 'electrician-home-action-play-zone',
+      accessibilityLabel: 'Electrician home quick action play zone',
+      title: tx('Play Zone'),
+      sub: tx('Watch videos and guides'),
+      icon: PlayZoneIcon,
       iconColors: ['#F3E8FF', '#DDD6FE'] as const,
       iconTint: '#7C3AED',
-      onPress: () => onNavigate('rewards'),
-      hidden: !showRewards,
+      onPress: () => onNavigate('play'),
+      hidden: !showPlay,
     },
     {
       testID: 'electrician-home-action-whatsapp',
@@ -659,7 +657,7 @@ export function HomeScreen({
       hidden: !showWhatsapp,
     },
   ].filter((item) => !item.hidden), [
-    tx, showScan, showCatalog, showRewards, showWhatsapp,
+    tx, showScan, showCatalog, showPlay, showWhatsapp,
     onNavigate, openCatalog, catalogPdfUrl, appSettings?.whatsappNumber,
   ]);
 
@@ -703,7 +701,7 @@ export function HomeScreen({
           })}
         </View>
       ),
-      browse_categories: categories.length > 0 ? (
+      browse_categories: displayedCategories.length > 0 ? (
         <View key="browse_categories">
           <View style={styles.sectionHeader}>
             <View>

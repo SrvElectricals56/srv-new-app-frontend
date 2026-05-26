@@ -825,13 +825,28 @@ export function PrimaryBtn({ label, onPress }: { label: string; onPress: () => v
   );
 }
 
-export function EmptyState({ emoji, message }: { emoji: string; message: string }) {
+export function EmptyState({
+  emoji,
+  message,
+  title,
+  iconName,
+}: {
+  emoji?: string;
+  message: string;
+  title?: string;
+  iconName?: IconName;
+}) {
   const { theme } = usePreferenceContext();
   return (
-    <View style={shared.emptyWrap}>
+    <View style={[shared.emptyWrap, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={[shared.emptyCircle, { backgroundColor: theme.accentSoft }]}>
-        <Text style={shared.emptyEmoji}>{emoji}</Text>
+        {iconName ? (
+          <AppIcon name={iconName} size={34} color={theme.accent} strokeWidth={2} />
+        ) : (
+          <Text style={shared.emptyEmoji}>{emoji}</Text>
+        )}
       </View>
+      {title ? <Text style={[shared.emptyTitle, { color: theme.textPrimary }]}>{title}</Text> : null}
       <Text style={[shared.emptyText, { color: theme.textMuted }]}>{message}</Text>
     </View>
   );
@@ -864,16 +879,36 @@ export const shared = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryLabel: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
-  emptyWrap: { alignItems: 'center', paddingVertical: 60 },
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: 38,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    borderWidth: 1,
+    marginTop: 12,
+  },
   emptyCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: C.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   emptyEmoji: { fontSize: 40 },
-  emptyText: { fontSize: 15, color: C.muted, fontWeight: '600', textAlign: 'center' },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: C.muted,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 21,
+    maxWidth: 280,
+  },
 });

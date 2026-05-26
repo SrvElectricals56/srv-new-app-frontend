@@ -91,7 +91,7 @@ const BASE_FEATURES: Record<AppFeatureKey, boolean> = {
 export const DEFAULT_ROLE_PAGE_CONTROLS: RolePageControls = {
   electrician: {
     ...BASE_FEATURES,
-    play: false,
+    play: true,
     rewards: true,
     scan: true,
     electrician_tier: true,
@@ -99,6 +99,7 @@ export const DEFAULT_ROLE_PAGE_CONTROLS: RolePageControls = {
   },
   dealer: {
     ...BASE_FEATURES,
+    play: true,
     rewards: true,
     electricians: true,
     call_electrician: true,
@@ -115,6 +116,7 @@ export const DEFAULT_ROLE_PAGE_CONTROLS: RolePageControls = {
   },
   counterboy: {
     ...BASE_FEATURES,
+    play: true,
     transfer_points: false,
   },
 };
@@ -138,6 +140,11 @@ export function resolveRolePageControls(input?: unknown): RolePageControls {
       }
     }
   }
+
+  // Dealer Play Zone stays available even if older server-side settings omit or disable it.
+  normalized.dealer.play = true;
+  normalized.electrician.play = true;
+  normalized.counterboy.play = true;
 
   return normalized;
 }

@@ -1174,13 +1174,12 @@ export function OnboardingScreen({
   const handleOtp = (setter: (value: string) => void) => (value: string) =>
     setter(value.replace(/\D/g, '').slice(0, 4));
   const handleSignupEmail = (value: string) => {
-    const nextEmail = sanitizeEmailInput(value);
-    setSignupEmail(nextEmail);
+    setSignupEmail(value);
     setError(
       'signupEmail',
-      isValidOptionalEmail(nextEmail)
-        ? undefined
-        : 'Please enter a valid email address without spaces, like name@example.com.'
+      value && !isValidOptionalEmail(value)
+        ? 'Please enter a valid email address without spaces, like name@example.com.'
+        : undefined
     );
   };
   const handleSignupPhone = (value: string) => {

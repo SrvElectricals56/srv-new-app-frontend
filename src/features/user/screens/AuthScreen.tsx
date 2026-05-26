@@ -174,7 +174,7 @@ export function UserAuthScreen({
     return digits.slice(-10);
   };
   const handleSignupEmail = (value: string) => {
-    setSEmail(sanitizeEmailInput(value));
+    setSEmail(value);
   };
 
   const requestCurrentLocation = useCallback(async () => {

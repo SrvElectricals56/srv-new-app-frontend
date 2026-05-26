@@ -8,6 +8,8 @@ import type { UserRole } from '@/shared/types/navigation';
 
 type ApprovalPendingScreenProps = {
   role: Extract<UserRole, 'dealer'>;
+  accountStatus?: string | null;
+  rejectionReason?: string | null;
   supportPhone?: string | null;
   whatsappNumber?: string | null;
   onUseAnotherNumber?: () => void;
@@ -36,6 +38,8 @@ function sanitizeWhatsapp(value?: string | null) {
 
 export function ApprovalPendingScreen({
   role,
+  accountStatus,
+  rejectionReason,
   supportPhone,
   whatsappNumber,
   onUseAnotherNumber,
@@ -44,15 +48,23 @@ export function ApprovalPendingScreen({
   const roleTheme = ROLE_THEME[role];
   const safePhone = sanitizePhone(supportPhone);
   const safeWhatsapp = sanitizeWhatsapp(whatsappNumber || supportPhone);
+  const normalizedStatus = String(accountStatus ?? '').trim().toLowerCase();
+  const isRejected = normalizedStatus === 'inactive' || normalizedStatus === 'rejected';
 
   const roleLabel = 'Dealer';
   const statusRows = useMemo(
-      () => [
+      () => (isRejected
+        ? [
+        'Your account request was reviewed by admin',
+        'This dealer registration is currently rejected',
+        'Check the reason below or contact support for help',
+      ]
+        : [
         'Your account request has been received',
         'Admin approval is required before access',
         'You can contact support for urgent queries',
-      ],
-    []
+      ]),
+    [isRejected]
   );
 
   const handleCall = () => {
@@ -63,7 +75,9 @@ export function ApprovalPendingScreen({
   const handleWhatsapp = () => {
     if (!safeWhatsapp) return;
     const message = encodeURIComponent(
-      `Hello SRV Team, my ${roleLabel.toLowerCase()} account is waiting for admin approval.`
+      isRejected
+        ? `Hello SRV Team, my ${roleLabel.toLowerCase()} account request was rejected. Please help me with the next steps.`
+        : `Hello SRV Team, my ${roleLabel.toLowerCase()} account is waiting for admin approval.`
     );
     void Linking.openURL(`https://wa.me/${safeWhatsapp}?text=${message}`).catch(() => {});
   };
@@ -81,7 +95,7 @@ export function ApprovalPendingScreen({
           <View style={[styles.statusChip, { backgroundColor: roleTheme.chip }]}>
             <AppIcon name="warning" size={15} color={roleTheme.accentDeep} />
             <Text style={[styles.statusChipText, { color: roleTheme.accentDeep }]}>
-              Approval Pending
+              {isRejected ? 'Rejected' : 'Approval Pending'}
             </Text>
           </View>
           <View style={[styles.roleChip, { backgroundColor: '#FFFFFF' }]}>
@@ -92,12 +106,24 @@ export function ApprovalPendingScreen({
 
         <Text style={[styles.eyebrow, { color: roleTheme.accentDeep }]}>Admin Review</Text>
         <Text style={[styles.title, { color: theme.textPrimary }]}>
-          Wait for admin approval to access your account
+          {isRejected
+            ? 'Your dealer account request was rejected'
+            : 'Wait for admin approval to access your account'}
         </Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          Your {roleLabel.toLowerCase()} account is created, but the next pages will unlock only
-          after admin approval.
+          {isRejected
+            ? `Your ${roleLabel.toLowerCase()} account is not approved right now. Please review the reason and contact support if you need help.`
+            : `Your ${roleLabel.toLowerCase()} account is created, but the next pages will unlock only after admin approval.`}
         </Text>
+
+        {isRejected ? (
+          <View style={styles.reasonCard}>
+            <Text style={[styles.reasonLabel, { color: roleTheme.accentDeep }]}>Rejection Reason</Text>
+            <Text style={[styles.reasonValue, { color: theme.textPrimary }]}>
+              {rejectionReason?.trim() || 'Your dealer request was rejected by admin.'}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.progressCard}>
           {statusRows.map((item, index) => (
@@ -264,6 +290,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',
+  },
+  reasonCard: {
+    marginTop: 14,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFFCC',
+    borderWidth: 1,
+    borderColor: '#DCEAFF',
+    gap: 6,
+  },
+  reasonLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  reasonValue: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
   },
   supportCard: {
     borderRadius: 28,

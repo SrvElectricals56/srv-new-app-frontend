@@ -485,6 +485,8 @@ function AppContent() {
       return (
         <ApprovalPendingScreen
           role={pendingApprovalRole}
+          accountStatus={user?.status}
+          rejectionReason={user?.approvalRejectionReason}
           supportPhone={appSettings?.supportPhone}
           whatsappNumber={appSettings?.whatsappNumber}
           onUseAnotherNumber={handleUseAnotherApprovalNumber}
@@ -1040,6 +1042,8 @@ function AppContent() {
     handleUseAnotherApprovalNumber,
     profileInitialSubPage,
     isPreviewMode,
+    user?.status,
+    user?.approvalRejectionReason,
     user?.kycStatus,
   ]);
 

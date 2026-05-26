@@ -25,6 +25,12 @@ import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
 import { usePreferenceContext } from '@/shared/preferences';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { authApi, dealerApi } from '@/shared/api';
+import {
+  isValidOptionalEmail,
+  isValidOptionalGstOrPanNumber,
+  normalizeGstOrPanNumber,
+  sanitizeEmailInput,
+} from '@/shared/utils/validation';
 import type { UserRole } from '@/shared/types/navigation';
 type IntroStep = 'language' | 'role' | 'auth';
 type AuthMode = 'login' | 'signup';
@@ -99,13 +105,6 @@ const languageOptions = [
     description: 'à¨†à¨¨à¨¬à©‹à¨°à¨¡à¨¿à©°à¨— à¨…à¨¤à©‡ à¨°à¨¿à¨µà¨¾à¨°à¨¡ à¨²à¨ˆà¥¤',
   },
 ] as const;
-
-const isValidEmail = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return true;
-  if (!/^[^@\s]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/.test(trimmed)) return false;
-  return true;
-};
 
 const dealerSignupMeta: Partial<
   Record<SignupStep, { stepLabel: string; title: string; description: string; buttonLabel: string }>
@@ -964,7 +963,7 @@ export function OnboardingScreen({
       role !== 'dealer' ||
       signupStep !== 'name' ||
       !signupEmail.trim() ||
-      !isValidEmail(signupEmail) ||
+      !isValidOptionalEmail(signupEmail) ||
       signupAddress.trim() ||
       locationLoading ||
       dealerAutoAddressRequestedRef.current
@@ -1119,10 +1118,13 @@ export function OnboardingScreen({
   const handleOtp = (setter: (value: string) => void) => (value: string) =>
     setter(value.replace(/\D/g, '').slice(0, 4));
   const handleSignupEmail = (value: string) => {
-    setSignupEmail(value);
+    const nextEmail = sanitizeEmailInput(value);
+    setSignupEmail(nextEmail);
     setError(
       'signupEmail',
-      isValidEmail(value) ? undefined : 'Please enter a valid email address like name@example.com.'
+      isValidOptionalEmail(nextEmail)
+        ? undefined
+        : 'Please enter a valid email address without spaces, like name@example.com.'
     );
   };
   const handleSignupPhone = (value: string) => {
@@ -1235,6 +1237,7 @@ export function OnboardingScreen({
     if (role === 'counterboy') {
       return (
         signupName.trim().length >= 3 &&
+        signupAddress.trim().length >= 5 &&
         signupPhone.length === 10 &&
         signupOtpVerified &&
         signupPasswordReady &&
@@ -1372,13 +1375,13 @@ export function OnboardingScreen({
         const res = await authApi.registerDealer({
           name: signupName.trim(),
           phone: signupPhone,
-          email: signupEmail.trim() || undefined,
+          email: sanitizeEmailInput(signupEmail).trim() || undefined,
           town: signupCity.trim(),
           district: signupCity.trim(),
           state: signupState.trim(),
           address: signupAddress.trim(),
           pincode: signupPincode.trim() || undefined,
-          gstNumber: signupGstNumber.trim() || undefined,
+          gstNumber: normalizeGstOrPanNumber(signupGstNumber) || undefined,
           password: signupPass.trim() || undefined,
         });
         finishLogin(res.user);
@@ -1389,11 +1392,11 @@ export function OnboardingScreen({
         const res = await authApi.registerCounterBoy({
           name: signupName.trim(),
           phone: signupPhone,
-          email: signupEmail.trim() || undefined,
+          email: sanitizeEmailInput(signupEmail).trim() || undefined,
           city: signupCity.trim() || undefined,
           district: signupCity.trim() || undefined,
           state: signupState.trim() || undefined,
-          address: signupAddress.trim() || undefined,
+          address: signupAddress.trim(),
           pincode: signupPincode.trim() || undefined,
           password: signupPass.trim() || undefined,
         });
@@ -1404,7 +1407,7 @@ export function OnboardingScreen({
       const res = await authApi.registerElectrician({
         name: signupName.trim(),
         phone: signupPhone,
-        email: signupEmail.trim() || undefined,
+        email: sanitizeEmailInput(signupEmail).trim() || undefined,
         city: signupCity.trim(),
         district: signupCity.trim(),
         state: signupState.trim(),
@@ -1553,7 +1556,9 @@ export function OnboardingScreen({
         if (res.devOtp) {
           setError('signupPhone', `Dev OTP: ${res.devOtp}`);
         }
-        if (role === 'electrician' || role === 'counterboy') setSignupStep('otp');
+        if (role === 'electrician' || role === 'counterboy') {
+          setSignupStep('otp');
+        }
       })
       .catch((err: Error) => {
         setError('signupPhone', err.message || 'Could not send OTP. Please try again.');
@@ -1572,7 +1577,11 @@ export function OnboardingScreen({
       .verifySignupOtp(signupPhone, role, signupOtp)
       .then(() => {
         setSignupOtpVerified(true);
-        setSignupStep(role === 'electrician' ? 'address' : 'password');
+        setSignupStep(
+          role === 'electrician' || role === 'counterboy'
+            ? 'address'
+            : 'password'
+        );
       })
       .catch((err: Error) => {
         setError('signupOtp', err.message || 'Invalid OTP. Please try again.');
@@ -1586,9 +1595,15 @@ export function OnboardingScreen({
       if (signupStep === 'name') {
         if (signupName.trim().length < 3)
           return setError('signupName', 'Please fill the full name field.');
+        if (signupEmail.trim() && !isValidOptionalEmail(signupEmail))
+          return setError(
+            'signupEmail',
+            'Please enter a valid email address without spaces, like name@example.com.'
+          );
         if (signupAddress.trim().length < 5)
           return setError('signupAddress', 'Please fill the address field.');
         setError('signupName');
+        setError('signupEmail');
         setError('signupAddress');
         setSignupStep('location');
         return;
@@ -1607,6 +1622,11 @@ export function OnboardingScreen({
       }
 
       if (signupStep === 'identity') {
+        if (signupGstNumber.trim() && !isValidOptionalGstOrPanNumber(signupGstNumber))
+          return setError(
+            'signupGstNumber',
+            'Please enter a valid GSTIN or PAN number in the proper format.'
+          );
         setError('signupGstNumber');
         setError('signupGstHolderName');
         setSignupStep('holders');
@@ -2387,18 +2407,20 @@ export function OnboardingScreen({
                                   label={tx('GST / PAN Number')}
                                   value={signupGstNumber}
                                   onChangeText={(value) => {
-                                    setSignupGstNumber(
-                                      value
-                                        .toUpperCase()
-                                        .replace(/[^A-Z0-9]/g, '')
-                                        .slice(0, 13)
+                                    const nextValue = normalizeGstOrPanNumber(value);
+                                    setSignupGstNumber(nextValue);
+                                    setError(
+                                      'signupGstNumber',
+                                      isValidOptionalGstOrPanNumber(nextValue)
+                                        ? undefined
+                                        : 'Please enter a valid GSTIN or PAN number in the proper format.'
                                     );
-                                    setError('signupGstNumber');
                                   }}
                                   placeholder={tx('Enter GST or PAN number')}
                                   error={errors.signupGstNumber}
                                   onFocus={scrollToForm}
                                   inputRef={signupGstNumberRef}
+                                  maxLength={15}
                                   returnKeyType="next"
                                   blurOnSubmit={false}
                                   onSubmitEditing={() => signupGstHolderRef.current?.focus()}

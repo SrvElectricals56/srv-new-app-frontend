@@ -723,6 +723,7 @@ export type UserProfile = {
   gstNumber?: string;
   // Common
   status?: string;
+  approvalRejectionReason?: string;
   kycStatus?: string;
   kycRejectionReason?: string;
   bankLinked?: boolean;
@@ -829,6 +830,8 @@ export type Testimonial = {
 export type DealerInfo = {
   id: string;
   name: string;
+  businessName?: string;
+  contactPerson?: string;
   phone: string;
   dealerCode: string;
   town: string;

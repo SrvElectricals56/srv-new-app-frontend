@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
 import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
 import { authApi } from '@/shared/api';
+import { isValidOptionalEmail, sanitizeEmailInput } from '@/shared/utils/validation';
 
 // Role-based color themes - Customer theme updated
 const THEMES = {
@@ -30,6 +31,7 @@ const EyeIcon   = ({ c = '#9CA3AF', s = 18 }) => <Svg width={s} height={s} viewB
 const EyeOffIcon= ({ c = '#9CA3AF', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M3 3l18 18" stroke={c} strokeWidth={1.8} strokeLinecap="round"/><Path d="M10.6 5.2c.5-.1.9-.2 1.4-.2 6.2 0 9.5 5 9.5 5a15.5 15.5 0 01-3.4 3.6M6.3 6.3A15.7 15.7 0 002.5 12s3.3 5 9.5 5c1 0 1.9-.1 2.7-.4" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
 const SwitchRoleIcon = ({ c = '#fff', s = 16 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M7 16H3m0 0l3-3m-3 3l3 3" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><Path d="M17 8h4m0 0l-3-3m3 3l-3 3" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><Path d="M3 8h10M11 16h10" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2"/></Svg>;
 const LocationIcon = ({ c = '#6A2F12', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke={c} strokeWidth={1.8}/><Circle cx="12" cy="9" r="2.5" stroke={c} strokeWidth={1.8}/></Svg>;
+const ArrowLeft = ({ c = '#6A2F12', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M19 12H5M11 18l-6-6 6-6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 const ArrowRight  = ({ c = '#fff', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M5 12h14M13 6l6 6-6 6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 
 // â”€â”€ Floating orbs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -60,13 +62,13 @@ function Orbs({ color }: { color: string }) {
 function Input({
   label, value, onChange, placeholder, icon, keyboard = 'default',
   secure = false, toggleSecure, autoCap = 'none', ref: inputRef,
-  onSubmit, returnKey = 'next', darkMode, accentColor = '#6A2F12',
+  onSubmit, returnKey = 'next', darkMode, accentColor = '#6A2F12', maxLength,
 }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder: string; icon: React.ReactNode;
   keyboard?: any; secure?: boolean; toggleSecure?: () => void;
   autoCap?: any; ref?: React.RefObject<TextInput | null>;
-  onSubmit?: () => void; returnKey?: any; darkMode: boolean; accentColor?: string;
+  onSubmit?: () => void; returnKey?: any; darkMode: boolean; accentColor?: string; maxLength?: number;
 }) {
   const [focused, setFocused] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
@@ -87,6 +89,7 @@ function Input({
           keyboardType={keyboard} secureTextEntry={secure}
           autoCapitalize={autoCap} onFocus={focus} onBlur={blur}
           onSubmitEditing={onSubmit} returnKeyType={returnKey}
+          maxLength={maxLength}
         />
         {toggleSecure && (
           <Pressable onPress={toggleSecure} style={{ padding: 6 }}>
@@ -146,6 +149,7 @@ export function UserAuthScreen({
   const [showSP, setShowSP] = useState(false);
   const [otpSentSignup, setOtpSentSignup] = useState(false);
   const [otpSignupPhone, setOtpSignupPhone] = useState('');
+  const [signupStep, setSignupStep] = useState<'identity' | 'otp' | 'details'>('identity');
   const sPhoneRef = useRef<TextInput>(null);
   const sEmailRef = useRef<TextInput>(null);
   const sOtpRef   = useRef<TextInput>(null);
@@ -168,6 +172,9 @@ export function UserAuthScreen({
       return digits.slice(2).slice(-10);
     }
     return digits.slice(-10);
+  };
+  const handleSignupEmail = (value: string) => {
+    setSEmail(sanitizeEmailInput(value));
   };
 
   const requestCurrentLocation = useCallback(async () => {
@@ -279,6 +286,7 @@ export function UserAuthScreen({
       setOtpSignupPhone('');
       setSOtp('');
       setShowSP(false);
+      setSignupStep('identity');
     }
   }, [mode]);
 
@@ -303,6 +311,7 @@ export function UserAuthScreen({
       setOtpSentSignup(false);
       setOtpSignupPhone('');
       setSOtp('');
+      setSignupStep('identity');
     }
   }, [sPhone, otpSentSignup, otpSignupPhone]);
 
@@ -333,6 +342,7 @@ export function UserAuthScreen({
   };
 
   const sendOtpSignup = async () => {
+    if (!sName.trim()) { Alert.alert('', tx('Please enter your name')); return; }
     if (!sPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
     const cleanPhone = normalizePhone(sPhone);
     if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
@@ -342,6 +352,7 @@ export function UserAuthScreen({
       setSPhone(cleanPhone);
       setOtpSentSignup(true);
       setOtpSignupPhone(cleanPhone);
+      setSignupStep('otp');
       Alert.alert(
         tx('OTP Sent'),
         data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP')
@@ -406,39 +417,59 @@ export function UserAuthScreen({
     }
   };
 
-  const signup = async () => {
+  const verifySignup = async () => {
     if (!sName.trim())  { Alert.alert('', tx('Please enter your name')); return; }
     if (!sPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
     if (!sOtp.trim())   { Alert.alert('', tx('Please enter the OTP')); return; }
     const cleanPhone = normalizePhone(sPhone);
     if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
-    
+
     setLoading(true);
     try {
-      // Step 1: Verify OTP
       await authApi.verifySignupOtp(cleanPhone, role, sOtp.trim());
+      setSignupStep('details');
     } catch (e: any) {
       const msg = e?.message ?? '';
       if (msg.toLowerCase().includes('expired')) {
         Alert.alert(tx('OTP Expired'), tx('Your OTP has expired. Please request a new one.'));
         setOtpSentSignup(false);
         setSOtp('');
+        setSignupStep('identity');
       } else if (msg.toLowerCase().includes('invalid')) {
         Alert.alert(tx('Invalid OTP'), tx('The OTP you entered is incorrect. Please try again.'));
         setSOtp('');
       } else {
         Alert.alert(tx('OTP Error'), msg || tx('OTP verification failed. Please try again.'));
       }
+    } finally {
       setLoading(false);
+    }
+  };
+
+  const signup = async () => {
+    if (!sName.trim())  { Alert.alert('', tx('Please enter your name')); return; }
+    if (!sPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
+    if (!otpSentSignup || signupStep !== 'details') {
+      Alert.alert('', tx('Please verify your OTP first'));
+      return;
+    }
+    const cleanPhone = normalizePhone(sPhone);
+    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
+    if ((role === 'user' || role === 'counterboy') && sAddress.trim().length < 5) {
+      Alert.alert('', tx('Please enter your address'));
+      return;
+    }
+    if (!isValidOptionalEmail(sEmail)) {
+      Alert.alert('', tx('Please enter a valid email address without spaces'));
       return;
     }
 
-    // Step 2: Register
+    setLoading(true);
     try {
       const registerData = await authApi.register({
         name: sName.trim(),
         phone: cleanPhone,
-        email: sEmail.trim() || undefined,
+        email: sanitizeEmailInput(sEmail).trim() || undefined,
         password: sPwd.trim() || undefined,
         role,
         address: sAddress.trim() || undefined,
@@ -527,6 +558,8 @@ export function UserAuthScreen({
   }
 
   const isLogin = mode === 'login';
+  const isSignupOtpStep = !isLogin && signupStep === 'otp';
+  const isSignupDetailsStep = !isLogin && signupStep === 'details';
 
   // â”€â”€ LOGIN / SIGNUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
@@ -545,19 +578,22 @@ export function UserAuthScreen({
 
           {/* Card */}
           <View style={[S.formCard, { backgroundColor: card, borderColor: bdr }]}>
-            {!isLogin && (
+            {!isLogin && !isSignupDetailsStep && (
               <Input label={tx('Full Name')} value={sName} onChange={setSName}
                 placeholder={tx('Your full name')} icon={<UserIcon c={P1} />}
                 autoCap="words" onSubmit={() => sPhoneRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
             )}
             
+            {(isLogin || !isSignupDetailsStep) && (
             <Input label={tx('Phone Number')} value={isLogin ? lPhone : sPhone}
-              onChange={isLogin ? setLPhone : setSPhone}
+              onChange={isLogin ? (v) => setLPhone(normalizePhone(v)) : (v) => setSPhone(normalizePhone(v))}
               placeholder={tx('10-digit mobile number')} icon={<PhoneIcon c={P1} />}
               keyboard="phone-pad"
+              maxLength={10}
               ref={isLogin ? undefined : sPhoneRef}
-              onSubmit={isLogin ? (useOtpLogin ? () => {} : () => lPwdRef.current?.focus()) : () => sEmailRef.current?.focus()}
+              onSubmit={isLogin ? (useOtpLogin ? () => {} : () => lPwdRef.current?.focus()) : sendOtpSignup}
               darkMode={darkMode} accentColor={P1} />
+            )}
             
             {/* Signup: Send OTP Button */}
             {!isLogin && !otpSentSignup && (
@@ -571,31 +607,59 @@ export function UserAuthScreen({
             )}
             
             {/* Signup: OTP Input */}
-            {!isLogin && otpSentSignup && (
-              <Input label={tx('Enter OTP')} value={sOtp} onChange={setSOtp}
-                placeholder={tx('6-digit OTP')} icon={<LockIcon c={P1} />}
-                keyboard="number-pad" ref={sOtpRef}
-                onSubmit={() => sEmailRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
+            {isSignupOtpStep && (
+              <View style={S.stepBlock}>
+                <View style={[S.stepBadge, { backgroundColor: SOFT, borderColor: `${P1}25` }]}>
+                  <Text style={[S.stepBadgeText, { color: P1 }]}>{tx('Step 1 of 2')}</Text>
+                </View>
+                <Text style={[S.stepTitle, { color: tp }]}>{tx('Verify your phone number')}</Text>
+                <Text style={[S.stepSub, { color: tm }]}>{tx('Enter the OTP and verify before continuing to the remaining details.')}</Text>
+                <Input label={tx('Enter OTP')} value={sOtp} onChange={setSOtp}
+                  placeholder={tx('6-digit OTP')} icon={<LockIcon c={P1} />}
+                  keyboard="number-pad" ref={sOtpRef}
+                  onSubmit={verifySignup} darkMode={darkMode} accentColor={P1} />
+                <Pressable onPress={verifySignup} disabled={loading || !sOtp.trim()}
+                  android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+                  style={[S.btnShell, { marginTop: 4 }, (loading || !sOtp.trim()) && { opacity: 0.5 }]}>
+                  <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[S.btnPrimary, { height: 44 }]}>
+                    <Text style={[S.btnPrimaryText, { fontSize: 13 }]}>{loading ? tx('Verifying...') : tx('Verify OTP')}</Text>
+                  </LinearGradient>
+                </Pressable>
+              </View>
             )}
 
-            {!isLogin && otpSentSignup && (
+            {!isLogin && otpSentSignup && signupStep !== 'details' && (
               <Pressable onPress={sendOtpSignup} style={{ alignSelf: 'flex-end', marginTop: -4 }}>
                 <Text style={{ color: P1, fontSize: 12, fontWeight: '700' }}>{loading ? tx('Sending...') : tx('Resend OTP')}</Text>
               </Pressable>
             )}
             
-            {!isLogin && otpSentSignup && (
-              <Input label={`${tx('Email')} (${tx('optional')})`} value={sEmail} onChange={setSEmail}
-                placeholder={tx('your@email.com')} icon={<MailIcon c={P1} />}
-                keyboard="email-address" ref={sEmailRef}
-                onSubmit={() => sPwdRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
+            {isSignupDetailsStep && (
+              <View style={S.stepBlock}>
+                <View style={[S.stepBadge, { backgroundColor: SOFT, borderColor: `${P1}25` }]}>
+                  <Text style={[S.stepBadgeText, { color: P1 }]}>{tx('Step 2 of 2')}</Text>
+                </View>
+                <Text style={[S.stepTitle, { color: tp }]}>{tx('Complete your profile')}</Text>
+                <Text style={[S.stepSub, { color: tm }]}>{tx('Add the remaining details below to finish creating your account.')}</Text>
+                <Pressable onPress={() => setSignupStep('otp')} style={[S.stepBackRow, { borderColor: `${P1}20`, backgroundColor: SOFT }]}>
+                  <ArrowLeft c={P1} s={16} />
+                  <Text style={[S.switchText, { color: P1, fontSize: 12, fontWeight: '700' }]}>{tx('Previous')}</Text>
+                </Pressable>
+                <Input label={`${tx('Email')} (${tx('optional')})`} value={sEmail} onChange={handleSignupEmail}
+                  placeholder={tx('your@email.com')} icon={<MailIcon c={P1} />}
+                  keyboard="email-address" ref={sEmailRef}
+                  onSubmit={() => sAddressRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
+              </View>
             )}
             
             {/* Signup: Address with location fetch */}
-            {!isLogin && otpSentSignup && (
+            {isSignupDetailsStep && (
               <View style={{ gap: 8 }}>
                 <View style={S.inputWrap}>
-                  <Text style={[S.inputLabel, { color: darkMode ? '#94A3B8' : '#6B7280' }]}>{tx('Address')} ({tx('optional')})</Text>
+                  <Text style={[S.inputLabel, { color: darkMode ? '#94A3B8' : '#6B7280' }]}>
+                    {tx('Address')}
+                    {role === 'user' || role === 'counterboy' ? '' : ` (${tx('optional')})`}
+                  </Text>
                   <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
                     <View style={S.inputIcon}><LocationIcon c={P1} /></View>
                     <TextInput
@@ -603,7 +667,13 @@ export function UserAuthScreen({
                       style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
                       value={sAddress}
                       onChangeText={setSAddress}
-                      placeholder={locationLoading ? tx('Fetching current address...') : tx('Enter your complete address')}
+                      placeholder={
+                        locationLoading
+                          ? tx('Fetching current address...')
+                          : role === 'user' || role === 'counterboy'
+                            ? tx('Enter your complete address')
+                            : tx('Enter your complete address')
+                      }
                       placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -633,8 +703,8 @@ export function UserAuthScreen({
                       <TextInput
                         ref={sStateRef}
                         style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
-                        value={sState}
-                        onChangeText={setSState}
+                      value={sState}
+                      onChangeText={(v) => setSState(v.replace(/[^A-Za-z ]/g, ''))}
                         placeholder={tx('State')}
                         placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
                         autoCapitalize="words"
@@ -649,8 +719,8 @@ export function UserAuthScreen({
                       <TextInput
                         ref={sCityRef}
                         style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
-                        value={sCity}
-                        onChangeText={setSCity}
+                      value={sCity}
+                      onChangeText={(v) => setSCity(v.replace(/[^A-Za-z ]/g, ''))}
                         placeholder={tx('City')}
                         placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
                         autoCapitalize="words"
@@ -680,7 +750,7 @@ export function UserAuthScreen({
               </View>
             )}
 
-            {!isLogin && otpSentSignup && (
+            {isSignupDetailsStep && (
               <Input
                 label={`${tx('Password')} (${tx('optional')})`}
                 value={sPwd}
@@ -744,7 +814,7 @@ export function UserAuthScreen({
           </View>
 
           {/* Submit - Only show when ready */}
-          {((isLogin && (!useOtpLogin || otpSentLogin)) || (!isLogin && otpSentSignup)) && (
+          {((isLogin && (!useOtpLogin || otpSentLogin)) || isSignupDetailsStep) && (
             <Pressable onPress={isLogin ? login : signup} disabled={loading}
               android_ripple={{ color: 'rgba(255,255,255,0.2)' }} style={[S.btnShell, loading && { opacity: 0.7 }]}>
               <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
@@ -867,6 +937,28 @@ const S = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
+  },
+  stepBlock: { gap: 10 },
+  stepBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  stepBadgeText: { fontSize: 11, fontWeight: '800' },
+  stepTitle: { fontSize: 16, fontWeight: '800' },
+  stepSub: { fontSize: 12, lineHeight: 18 },
+  stepBackRow: {
+    alignSelf: 'flex-start',
+    marginTop: -2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
 
   // Input

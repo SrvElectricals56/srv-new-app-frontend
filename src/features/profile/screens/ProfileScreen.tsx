@@ -430,7 +430,10 @@ export function ProfileScreen({
     ) {
       nextValue = value.replace(/[^A-Za-z ]/g, '');
     } else if (key === 'phone' || key === 'pincode') {
-      nextValue = value.replace(/\D/g, '');
+      nextValue =
+        key === 'phone'
+          ? value.replace(/\D/g, '').slice(0, 10)
+          : value.replace(/\D/g, '').slice(0, 6);
     } else if (key === 'email') {
       nextValue = value.replace(/\s/g, '');
     }
@@ -446,6 +449,12 @@ export function ProfileScreen({
       return Alert.alert(
         tx('Invalid phone number'),
         tx('Phone number should contain only integers.')
+      );
+    }
+    if (draft.phone.trim() && draft.phone.trim().length !== 10) {
+      return Alert.alert(
+        tx('Invalid phone number'),
+        tx('Please enter a valid 10-digit phone number.')
       );
     }
     if (draft.email.trim() && !/^[^\s@]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/.test(draft.email.trim())) {

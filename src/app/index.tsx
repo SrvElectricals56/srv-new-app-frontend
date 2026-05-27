@@ -513,7 +513,7 @@ function AppContent() {
           electricians: { title: 'Associated Electricians', description: 'Login or signup to manage your electrician network and dealer relationships.' },
           call_electrician: { title: 'Call Electrician', description: 'Login or signup to access your connected electricians and outreach tools.' },
           dealer_tier: { title: 'Dealer Tier', description: 'Login or signup to check your dealer growth level and next tier progress.' },
-          bank_details: { title: 'Bank Details', description: 'Login or signup to add bank details and manage dealer payouts securely.' },
+          bank_details: { title: 'Bank Transfer', description: 'Login or signup to request dealer bonus payouts and review linked bank details.' },
           transfer_points: { title: 'Transfers', description: 'Login or signup to access dealer transfer and linked wallet actions.' },
           dealer_bonus: { title: 'Dealer Bonus', description: 'Login or signup to view your bonus earnings and withdrawal requests.' },
         },
@@ -522,14 +522,14 @@ function AppContent() {
           notification: { title: 'Notifications', description: 'Login or signup to see your latest alerts, offers and updates.' },
           profile: { title: 'Profile', description: 'Login or signup to manage your profile, password and personal settings.' },
           rewards: { title: 'Gift Store', description: 'Login or signup to redeem rewards and explore member-only benefits.' },
-          bank_details: { title: 'Bank Details', description: 'Login or signup to manage your banking and linked account settings.' },
+          bank_details: { title: 'Bank Transfer', description: 'Login or signup to request bank payouts and review your linked account details.' },
           transfer_points: { title: 'Transfers', description: 'Login or signup to access point transfer and wallet actions.' },
         },
         counterboy: {
           wallet: { title: 'Wallet', description: 'Login or signup to view your points, rewards and account-linked wallet details.' },
           notification: { title: 'Notifications', description: 'Login or signup to read counter boy alerts, offers and updates.' },
           profile: { title: 'Profile', description: 'Login or signup to manage your profile, password and app preferences.' },
-          bank_details: { title: 'Bank Details', description: 'Login or signup to manage your banking and linked account settings.' },
+          bank_details: { title: 'Bank Transfer', description: 'Login or signup to request bank payouts and review your linked account details.' },
           transfer_points: { title: 'Transfers', description: 'Login or signup to access wallet-linked transfer actions.' },
         },
         electrician: {
@@ -539,7 +539,7 @@ function AppContent() {
           rewards: { title: 'Rewards', description: 'Login or signup to redeem gifts and access your earned member rewards.' },
           scan: { title: 'Scan & Earn', description: 'Login or signup to scan products, earn points and track scan history.' },
           electrician_tier: { title: 'Member Tier', description: 'Login or signup to view your tier progress and reward level benefits.' },
-          bank_details: { title: 'Bank Details', description: 'Login or signup to add bank details and manage wallet-linked settings.' },
+          bank_details: { title: 'Bank Transfer', description: 'Login or signup to request bank payouts and review your linked account details.' },
           transfer_points: { title: 'Transfer Points', description: 'Login or signup to transfer points and access wallet actions securely.' },
         },
       };
@@ -647,6 +647,10 @@ function AppContent() {
           return (
             <WalletBankDetailsScreen
               onBack={() => setCurrentScreen('wallet')}
+              onManageBankDetails={() => {
+                setProfileInitialSubPage('Bank Details');
+                setCurrentScreen('profile');
+              }}
               language={language}
               onLanguageChange={setLanguage}
               darkMode={darkMode}
@@ -854,6 +858,10 @@ function AppContent() {
           return (
             <WalletBankDetailsScreen
               onBack={() => setCurrentScreen('wallet')}
+              onManageBankDetails={() => {
+                setProfileInitialSubPage('Bank Details');
+                setCurrentScreen('profile');
+              }}
               language={language}
               onLanguageChange={setLanguage}
               darkMode={darkMode}
@@ -973,6 +981,10 @@ function AppContent() {
         return (
           <WalletBankDetailsScreen
             onBack={() => setCurrentScreen('wallet')}
+            onManageBankDetails={() => {
+              setProfileInitialSubPage('Bank Details');
+              setCurrentScreen('profile');
+            }}
             language={language}
             onLanguageChange={setLanguage}
             darkMode={darkMode}

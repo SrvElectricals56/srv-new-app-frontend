@@ -12,8 +12,9 @@ import {
 } from 'react-native';
 import { AppIcon, C, PageHeader, Screen } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
-import { walletApi, dealerApi } from '@/shared/api';
+import { walletApi, type TransferRecipient } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
+import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
 
 const transferImage = require('../assets/transfer.png');
@@ -28,13 +29,14 @@ export function TransferPointsPage({
   currentRole: 'dealer' | 'electrician' | 'user' | 'counterboy';
 }) {
   const { t, tx, theme } = usePreferenceContext();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
+  const { refreshAll } = useAppData();
   const pageContent = useAppPageContent(currentRole, 'transfer_points');
   const [mobile, setMobile] = useState('');
   const [points, setPoints] = useState('');
   const [searching, setSearching] = useState(false);
   const [transferring, setTransferring] = useState(false);
-  const [foundUser, setFoundUser] = useState<{ name: string; phone: string } | null>(null);
+  const [foundUser, setFoundUser] = useState<TransferRecipient | null>(null);
   const [searchError, setSearchError] = useState('');
 
   const availablePoints = user?.totalPoints ?? user?.walletBalance ?? 0;
@@ -47,15 +49,10 @@ export function TransferPointsPage({
     setFoundUser(null);
     setSearchError('');
     try {
-      const res = await dealerApi.getByPhone(mobile.trim());
-      if (res) {
-        setFoundUser({ name: res.name, phone: res.phone });
-      } else {
-        setSearchError(tx('User not found'));
-      }
-    } catch {
-      // Try electrician lookup via dealer endpoint fallback
-      setSearchError(tx('User not found with this number'));
+      const res = await walletApi.lookupTransferRecipient(mobile.trim());
+      setFoundUser(res);
+    } catch (err: any) {
+      setSearchError(err?.message ?? tx('User not found with this number'));
     } finally {
       setSearching(false);
     }
@@ -70,6 +67,7 @@ export function TransferPointsPage({
     setTransferring(true);
     try {
       await walletApi.transferPoints({ receiverPhone: foundUser.phone, points: pts });
+      await Promise.allSettled([refreshProfile(), refreshAll()]);
       Alert.alert(tx('Success'), `${pts} ${tx('points transferred to')} ${foundUser.name}`);
       setMobile('');
       setPoints('');
@@ -125,7 +123,9 @@ export function TransferPointsPage({
           {foundUser && (
             <View style={[styles.resultBox, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }]}>
               <AppIcon name="refer" size={18} color={C.success} />
-              <Text style={[styles.resultText, { color: '#166534' }]}>{foundUser.name} (+91 {foundUser.phone})</Text>
+              <Text style={[styles.resultText, { color: '#166534' }]}>
+                {foundUser.name} ({foundUser.role}) (+91 {foundUser.phone})
+              </Text>
             </View>
           )}
           {searchError ? (

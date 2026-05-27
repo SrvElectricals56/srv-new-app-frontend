@@ -301,7 +301,7 @@ export function WalletScreen({
     {
       id: 'bank',
       label: 'Bank Transfer',
-      detail: 'Fast withdrawal',
+      detail: 'Request payout',
       icon: TransferIcon,
       tint: '#DDEAFE',
       target: 'bank_details' as Screen,
@@ -328,7 +328,7 @@ export function WalletScreen({
     {
       id: 'bank',
       label: 'Bank Transfer',
-      detail: 'Fast withdrawal',
+      detail: 'Request payout',
       icon: TransferIcon,
       tint: '#DDEAFE',
       target: 'bank_details' as Screen,
@@ -347,7 +347,7 @@ export function WalletScreen({
     {
       id: 'bank',
       label: 'Bank Transfer',
-      detail: 'Fast withdrawal',
+      detail: 'Request payout',
       icon: TransferIcon,
       tint: '#DDEAFE',
       target: 'bank_details' as Screen,
@@ -366,7 +366,7 @@ export function WalletScreen({
     {
       id: 'bank',
       label: 'Bank Transfer',
-      detail: 'Fast withdrawal',
+      detail: 'Request payout',
       icon: TransferIcon,
       tint: '#DDEAFE',
       target: 'bank_details' as Screen,

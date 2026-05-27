@@ -17,13 +17,13 @@ type FilterRange = 'This Month' | 'Last 30 Days' | 'All';
 export function RedemptionPage({
   onBack,
   onNavigate,
-  onOpenBankDetails,
+  onOpenBankTransfer,
   onOpenTransferPoints,
   currentRole,
 }: {
   onBack: () => void;
   onNavigate: (screen: Screen) => void;
-  onOpenBankDetails: () => void;
+  onOpenBankTransfer: () => void;
   onOpenTransferPoints: () => void;
   currentRole: UserRole;
 }) {
@@ -97,7 +97,7 @@ export function RedemptionPage({
   const openTabDestination = (tab: RedemptionTab) => {
     setActiveTab(tab);
     if (tab === 'Buy Schemes') return onNavigate('rewards');
-    if (tab === 'Bank Transfer') return onOpenBankDetails();
+    if (tab === 'Bank Transfer') return onOpenBankTransfer();
     onOpenTransferPoints();
   };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BankDetailsPage } from './BankDetailsScreen';
+import { BankTransferRequestPage } from './BankTransferRequestScreen';
 import { PartnerCommissionPage } from './PartnerCommissionScreen';
 import { PreferenceContext, type AppLanguage, usePreferenceValue } from '@/shared/preferences';
 import { TransferPointsPage } from './TransferPointsScreen';
@@ -15,12 +15,13 @@ type WalletPreferenceProps = {
 
 export function WalletBankDetailsScreen({
   onBack,
+  onManageBankDetails,
   language,
   onLanguageChange,
   darkMode,
   onDarkModeChange,
   currentRole,
-}: { onBack: () => void } & WalletPreferenceProps) {
+}: { onBack: () => void; onManageBankDetails?: () => void } & WalletPreferenceProps) {
   const preferenceValue = usePreferenceValue({
     language,
     setLanguage: onLanguageChange,
@@ -31,7 +32,7 @@ export function WalletBankDetailsScreen({
 
   return (
     <PreferenceContext.Provider value={preferenceValue}>
-      <BankDetailsPage onBack={onBack} />
+      <BankTransferRequestPage onBack={onBack} onManageBankDetails={onManageBankDetails} />
     </PreferenceContext.Provider>
   );
 }

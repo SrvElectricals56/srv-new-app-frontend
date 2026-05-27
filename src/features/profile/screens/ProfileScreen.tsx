@@ -642,7 +642,7 @@ export function ProfileScreen({
       <RedemptionPage
         onBack={() => setSubPage(null)}
         onNavigate={onNavigate}
-        onOpenBankDetails={() => setSubPage('Bank Details')}
+        onOpenBankTransfer={() => onNavigate('bank_details')}
         onOpenTransferPoints={() =>
           setSubPage(currentRole === 'dealer' ? 'Dealer Bonus' : 'Transfer Points')
         }

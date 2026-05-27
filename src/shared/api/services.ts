@@ -509,6 +509,16 @@ export const walletApi = {
   redeemReward: (data: { schemeId: string; note?: string }) =>
     api.post<{ message: string }>('/mobile/wallet/redeem', data, true),
 
+  requestBankTransfer: (data: { amount: number }) =>
+    api.post<{ message: string; redemptionId?: string; walletBalance?: number }>(
+      '/mobile/wallet/bank-transfer-request',
+      data,
+      true
+    ),
+
+  lookupTransferRecipient: (phone: string) =>
+    api.get<TransferRecipient>('/mobile/wallet/transfer/recipient', { phone }, true),
+
   transferPoints: (data: { receiverPhone: string; points: number }) =>
     api.post<{ message: string }>('/mobile/wallet/transfer', data, true),
 
@@ -639,7 +649,13 @@ export const profileApi = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const supportApi = {
   createTicket: (data: { subject: string; comment: string; photoUrl?: string }) =>
-    api.post<{ message: string }>('/mobile/support', data, true),
+    api.post<{ message: string; ticketId: string }>('/mobile/support', data, true),
+  getMyTickets: () =>
+    api.get<{ data: any[] }>('/mobile/support/tickets', undefined, true),
+  replyToTicket: (ticketId: string, message: string) =>
+    api.post<{ message: string }>(`/mobile/support/tickets/${ticketId}/reply`, { message }, true),
+  closeTicket: (ticketId: string) =>
+    api.patch<{ message: string }>(`/mobile/support/tickets/${ticketId}/close`, undefined, true),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -825,6 +841,13 @@ export type DealerInfo = {
   state: string;
   electricianCount?: number;
   nextElectricianSerial?: number | string;
+};
+
+export type TransferRecipient = {
+  id: string;
+  name: string;
+  phone: string;
+  role: 'electrician' | 'dealer' | 'user' | 'counterboy';
 };
 
 export type AppSettings = {

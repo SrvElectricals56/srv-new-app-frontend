@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  FlatList,
   Image,
   Linking,
   Modal,
@@ -18,16 +20,27 @@ import * as LegacyFileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
-import { settingsApi } from '@/shared/api';
+import { settingsApi, supportApi } from '@/shared/api';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+
+type Ticket = {
+  id: string;
+  subject: string;
+  message: string;
+  status: string;
+  replies?: { sender: string; senderName: string; message: string; timestamp: string }[];
+  createdAt: string;
+};
 
 export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
   const { role } = useAuth();
   const { submitSupportTicket } = useAppData();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'need_help');
+
+  const [tab, setTab] = useState<'new' | 'tickets'>('new');
   const [subject, setSubject] = useState('');
   const [comment, setComment] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -36,12 +49,19 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   const [supportMail, setSupportMail] = useState('info@srvelectricals.com');
   const [supportWhatsapp, setSupportWhatsapp] = useState('918837684004');
   const [submitting, setSubmitting] = useState(false);
+
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+
   const subjectOptions = [
     tx('Normal Inquiry'),
     tx('Bulk Inquiry'),
     tx('Electrician Related Inquiry'),
     tx('QR Related Inquiry'),
   ];
+
+  const accentColor = theme.accent || C.primary;
 
   useEffect(() => {
     settingsApi.getAppSettings()
@@ -51,6 +71,22 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       })
       .catch(() => {});
   }, []);
+
+  const loadTickets = useCallback(async () => {
+    setLoadingTickets(true);
+    try {
+      const res = await supportApi.getMyTickets();
+      setTickets(res.data ?? []);
+    } catch {
+      // silent fail
+    } finally {
+      setLoadingTickets(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'tickets') loadTickets();
+  }, [tab, loadTickets]);
 
   const pickPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -78,14 +114,10 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     `SRV ${tx('Support Request')}\n${tx('Subject')}: ${subject.trim()}\n\n${tx('Comment')}:\n${comment.trim()}`;
 
   const toDataUri = async (assetUri: string) => {
-    if (assetUri.startsWith('data:image/')) {
-      return assetUri;
-    }
-
+    if (assetUri.startsWith('data:image/')) return assetUri;
     const base64 = await LegacyFileSystem.readAsStringAsync(assetUri, {
       encoding: LegacyFileSystem.EncodingType.Base64,
     });
-
     return `data:image/jpeg;base64,${base64}`;
   };
 
@@ -93,7 +125,6 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     if (!subject.trim() || !comment.trim()) {
       return Alert.alert(tx('incompleteForm'), tx('fillSubjectComment'));
     }
-
     setSubmitting(true);
     try {
       const photoUrl = photo ? await toDataUri(photo) : undefined;
@@ -106,11 +137,9 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       setComment('');
       setPhoto(null);
       Alert.alert(tx('Support Request'), tx('Your request has been submitted successfully.'));
+      setTab('tickets');
     } catch {
-      Alert.alert(
-        tx('Support Request'),
-        tx('We could not submit your request right now. Please try again.')
-      );
+      Alert.alert(tx('Support Request'), tx('We could not submit your request right now. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -127,30 +156,17 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     if (canOpenApp) {
       await Linking.openURL(appUrl);
       if (photo) {
-        Alert.alert(
-          tx('Photo ready'),
-          tx(
-            'WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.'
-          )
-        );
+        Alert.alert(tx('Photo ready'), tx('WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.'));
       }
       return;
     }
     const canOpenWeb = await Linking.canOpenURL(webUrl);
     if (!canOpenWeb) {
-      return Alert.alert(
-        tx('WhatsApp unavailable'),
-        tx('Please install or enable WhatsApp to send your request.')
-      );
+      return Alert.alert(tx('WhatsApp unavailable'), tx('Please install or enable WhatsApp to send your request.'));
     }
     await Linking.openURL(webUrl);
     if (photo) {
-      Alert.alert(
-        tx('Photo ready'),
-        tx(
-          'WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.'
-        )
-      );
+      Alert.alert(tx('Photo ready'), tx('WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.'));
     }
   };
 
@@ -165,195 +181,370 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         body: buildSupportMessage(),
         attachments: photo ? [photo] : [],
       });
-      return;
     } catch {
       const mailSubject = encodeURIComponent(`SRV Support: ${subject.trim()}`);
       const mailBody = encodeURIComponent(buildSupportMessage());
       const fallbackUrl = `mailto:${supportMail}?subject=${mailSubject}&body=${mailBody}`;
       const canOpenFallback = await Linking.canOpenURL(fallbackUrl);
       if (!canOpenFallback) {
-        return Alert.alert(
-          tx('Mail unavailable'),
-          tx('Please configure a mail app to send your request.')
-        );
+        return Alert.alert(tx('Mail unavailable'), tx('Please configure a mail app to send your request.'));
       }
       await Linking.openURL(fallbackUrl);
-      if (photo) {
-        Alert.alert(
-          tx('Attachment note'),
-          tx(
-            'Mail app opened, but attachment support is only available when the native mail composer is enabled on the device.'
-          )
-        );
-      }
     }
   };
+
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  const isTicketClosed = selectedTicket?.status === 'closed' || selectedTicket?.status === 'resolved';
+
+  const handleSendReply = async () => {
+    if (!selectedTicket || !replyText.trim() || isTicketClosed) return;
+    setSendingReply(true);
+    try {
+      await supportApi.replyToTicket(selectedTicket.id, replyText.trim());
+      const newReply = { sender: 'user', senderName: 'You', message: replyText.trim(), timestamp: new Date().toISOString() };
+      const updatedTicket = {
+        ...selectedTicket,
+        replies: [...(selectedTicket.replies || []), newReply],
+        status: 'open' as string,
+      };
+      setSelectedTicket(updatedTicket);
+      setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
+      setReplyText('');
+    } catch {
+      Alert.alert(tx('Error'), tx('Could not send reply. Please try again.'));
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const handleCloseTicket = async () => {
+    if (!selectedTicket) return;
+    setClosing(true);
+    try {
+      await supportApi.closeTicket(selectedTicket.id);
+      const updatedTicket = { ...selectedTicket, status: 'closed' };
+      setSelectedTicket(updatedTicket);
+      setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
+      Alert.alert(tx('Ticket Closed'), tx('Your ticket has been closed.'));
+    } catch {
+      Alert.alert(tx('Error'), tx('Could not close ticket. Please try again.'));
+    } finally {
+      setClosing(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open': return '#F59E0B';
+      case 'in_progress': return '#3B82F6';
+      case 'resolved': return '#10B981';
+      case 'closed': return '#6B7280';
+      default: return theme.textMuted;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'open': return tx('Pending');
+      case 'in_progress': return tx('In Progress');
+      case 'resolved': return tx('Resolved');
+      case 'closed': return tx('Closed');
+      default: return status;
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours < 1) return tx('Just now');
+    if (hours < 24) return `${hours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  if (selectedTicket) {
+    const messages = [
+      { type: 'user', message: selectedTicket.message, createdAt: selectedTicket.createdAt },
+      ...(selectedTicket.replies || []).map(r => ({ type: r.sender, message: r.message, createdAt: r.timestamp, senderName: r.senderName })),
+    ];
+
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <PageHeader title={selectedTicket.subject} onBack={() => setSelectedTicket(null)} />
+        <FlatList
+          data={messages}
+          keyExtractor={(_, i) => String(i)}
+          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 80 }}
+          renderItem={({ item }) => (
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-end', justifyContent: item.type === 'admin' ? 'flex-end' : 'flex-start' }}>
+              {item.type !== 'admin' && (
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: accentColor, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>
+                    {(item as any).senderName && (item as any).senderName !== 'You' ? (item as any).senderName.charAt(0) : 'U'}
+                  </Text>
+                </View>
+              )}
+              <View style={{ maxWidth: '75%' }}>
+                <View style={{
+                  padding: 12, borderRadius: 16,
+                  backgroundColor: item.type === 'admin' ? '#EDE9FE' : theme.surface,
+                  borderWidth: 1,
+                  borderColor: item.type === 'admin' ? '#DDD6FE' : theme.border,
+                }}>
+                  <Text style={{ fontSize: 13, color: theme.textPrimary, lineHeight: 19 }}>{item.message}</Text>
+                </View>
+                <Text style={{ fontSize: 10, color: theme.textMuted, marginTop: 4, textAlign: item.type === 'admin' ? 'right' : 'left' }}>
+                  {formatDate(item.createdAt as string)}
+                </Text>
+              </View>
+              {item.type === 'admin' && (
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>A</Text>
+                </View>
+              )}
+            </View>
+          )}
+        />
+
+        {/* Chat Input + Close Button */}
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: theme.surface, borderTopWidth: 1, borderTopColor: theme.border, padding: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TextInput
+              style={{
+                flex: 1, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: theme.border,
+                backgroundColor: theme.soft, color: theme.textPrimary, paddingHorizontal: 14, fontSize: 13,
+              }}
+              placeholder={isTicketClosed ? tx('This ticket is closed') : tx('Type a message...')}
+              placeholderTextColor={theme.textMuted}
+              value={replyText}
+              onChangeText={setReplyText}
+              editable={!isTicketClosed}
+              multiline
+            />
+            <TouchableOpacity
+              style={{
+                width: 44, height: 44, borderRadius: 12, backgroundColor: isTicketClosed || !replyText.trim() ? theme.border : accentColor,
+                alignItems: 'center', justifyContent: 'center',
+              }}
+              onPress={() => void handleSendReply()}
+              disabled={isTicketClosed || !replyText.trim() || sendingReply}
+              activeOpacity={0.8}
+            >
+              {sendingReply ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <AppIcon name="mail" size={18} color={isTicketClosed || !replyText.trim() ? theme.textMuted : '#fff'} />
+              )}
+            </TouchableOpacity>
+          </View>
+          {!isTicketClosed && (
+            <TouchableOpacity
+              style={{ alignSelf: 'center', marginTop: 8 }}
+              onPress={() => {
+                Alert.alert(tx('Close Ticket'), tx('Are you sure you want to close this ticket?'), [
+                  { text: tx('Cancel'), style: 'cancel' },
+                  { text: tx('Close'), style: 'destructive', onPress: () => void handleCloseTicket() },
+                ]);
+              }}
+              disabled={closing}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '600' }}>
+                {closing ? tx('Closing...') : tx('Close Ticket')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {isTicketClosed && (
+            <Text style={{ fontSize: 11, color: theme.textMuted, textAlign: 'center', marginTop: 6 }}>
+              {getStatusLabel(selectedTicket.status)} - {tx('You cannot send more messages')}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <PageHeader title={pageContent.pageTitle || t('needHelp')} onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.headerRow}>
-            <View style={styles.iconWrap}>
-              <AppIcon name="support" size={24} color={C.teal} />
-            </View>
-            <View>
-              <Text style={[styles.title, { color: theme.textPrimary }]}>
-                {pageContent.cardTitle || tx('Support Request')}
-              </Text>
-              <Text style={[styles.sub, { color: theme.textMuted }]}>
-                {pageContent.cardSubtitle || tx('We typically respond within 24 hours')}
-              </Text>
-            </View>
-          </View>
-          <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Subject')}</Text>
-          <TouchableOpacity
-            style={[
-              styles.input,
-              styles.dropdownTrigger,
-              { backgroundColor: theme.soft, borderColor: theme.border },
-            ]}
-            onPress={() => setShowSubjectDropdown(true)}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={[
-                styles.dropdownValue,
-                { color: subject ? theme.textPrimary : theme.textMuted },
-              ]}
-              numberOfLines={1}
-            >
-              {subject || tx('Select subject')}
-            </Text>
-            <AppIcon name="chevronDown" size={18} color={theme.textMuted} />
-          </TouchableOpacity>
-          <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Comment')}</Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.soft,
-                borderColor: theme.border,
-                color: theme.textPrimary,
-                height: 110,
-                textAlignVertical: 'top',
-                paddingTop: 14,
-              },
-            ]}
-            placeholder={tx('Describe your issue in detail...')}
-            placeholderTextColor={theme.textMuted}
-            value={comment}
-            onChangeText={setComment}
-            multiline
-          />
-          <TouchableOpacity
-            style={[styles.uploadBox, { backgroundColor: theme.soft, borderColor: theme.border }]}
-            onPress={pickPhoto}
-            activeOpacity={0.8}
-          >
-            {photo ? (
-              <Image source={{ uri: photo }} style={styles.previewImage} />
-            ) : (
-              <View style={styles.uploadInner}>
-                <AppIcon name="gallery" size={20} color={C.muted} />
-                <Text style={styles.uploadText}>{tx('Upload Photo')}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+
+      {/* Tab Switcher */}
+      <View style={{ flexDirection: 'row', marginHorizontal: 16, marginTop: 12, borderRadius: 12, backgroundColor: theme.soft, padding: 3 }}>
         <TouchableOpacity
-          style={[
-            styles.primaryAction,
-            { backgroundColor: C.primary },
-            submitting && { opacity: 0.7 },
-          ]}
-          onPress={() => void submitToSrv()}
-          disabled={submitting}
-          activeOpacity={0.85}
+          style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: tab === 'new' ? accentColor : 'transparent', alignItems: 'center' }}
+          onPress={() => setTab('new')}
         >
-          <Text style={styles.primaryActionText}>
-            {submitting ? tx('Submitting...') : pageContent.primaryCtaLabel || tx('Submit Request')}
+          <Text style={{ fontSize: 13, fontWeight: '700', color: tab === 'new' ? '#fff' : theme.textMuted }}>
+            {tx('New Request')}
           </Text>
         </TouchableOpacity>
-        <Text style={[styles.helperText, { color: theme.textMuted }]}>
-          {pageContent.helperText || tx('This saves your issue in the SRV system so admin can track and resolve it.')}
-        </Text>
-        <View style={styles.actionGrid}>
-          <TouchableOpacity onPress={() => void openWhatsapp()} activeOpacity={0.9}>
-            <LinearGradient
-              colors={['#E8FFF1', '#C6F3D8', '#E0F2FE']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.actionBtn}
-            >
-              <View style={[styles.actionIconWrap, styles.whatsappIconWrap]}>
-                <AppIcon name="whatsapp" size={18} color="#16A34A" />
-              </View>
-              <View style={styles.actionCopy}>
-                <Text style={styles.actionTitle}>{tx('Send to WhatsApp')}</Text>
-                <Text style={styles.actionSub}>{pageContent.supportText || tx('Open SRV support chat')}</Text>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: tab === 'tickets' ? accentColor : 'transparent', alignItems: 'center' }}
+          onPress={() => setTab('tickets')}
+        >
+          <Text style={{ fontSize: 13, fontWeight: '700', color: tab === 'tickets' ? '#fff' : theme.textMuted }}>
+            {tx('My Tickets')}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-          <TouchableOpacity onPress={() => void openMail()} activeOpacity={0.9}>
-            <LinearGradient
-              colors={['#FFF4EE', '#FFE1D6', '#FDE7F3']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.actionBtn}
-            >
-              <View style={[styles.actionIconWrap, styles.mailIconWrap]}>
-                <AppIcon name="mail" size={18} color={C.primary} />
+      {tab === 'new' ? (
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.headerRow}>
+              <View style={styles.iconWrap}>
+                <AppIcon name="support" size={24} color={C.teal} />
               </View>
-              <View style={styles.actionCopy}>
-                <Text style={styles.actionTitle}>{tx('Send to Mail')}</Text>
-                <Text style={styles.actionSub}>
-                  {tx('Send to')} {supportMail}
+              <View>
+                <Text style={[styles.title, { color: theme.textPrimary }]}>
+                  {pageContent.cardTitle || tx('Support Request')}
+                </Text>
+                <Text style={[styles.sub, { color: theme.textMuted }]}>
+                  {pageContent.cardSubtitle || tx('We typically respond within 24 hours')}
                 </Text>
               </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-
-      <Modal
-        visible={showSubjectDropdown}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setShowSubjectDropdown(false)}
-      >
-        <Pressable style={styles.dropdownOverlay} onPress={() => setShowSubjectDropdown(false)}>
-          <View
-            style={[
-              styles.dropdownSheet,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
+            </View>
+            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Subject')}</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.dropdownTrigger, { backgroundColor: theme.soft, borderColor: theme.border }]}
+              onPress={() => setShowSubjectDropdown(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.dropdownValue, { color: subject ? theme.textPrimary : theme.textMuted }]} numberOfLines={1}>
+                {subject || tx('Select subject')}
+              </Text>
+              <AppIcon name="chevronDown" size={18} color={theme.textMuted} />
+            </TouchableOpacity>
+            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Comment')}</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.soft, borderColor: theme.border, color: theme.textPrimary, height: 110, textAlignVertical: 'top', paddingTop: 14 }]}
+              placeholder={tx('Describe your issue in detail...')}
+              placeholderTextColor={theme.textMuted}
+              value={comment}
+              onChangeText={setComment}
+              multiline
+            />
+            <TouchableOpacity style={[styles.uploadBox, { backgroundColor: theme.soft, borderColor: theme.border }]} onPress={pickPhoto} activeOpacity={0.8}>
+              {photo ? (
+                <Image source={{ uri: photo }} style={styles.previewImage} />
+              ) : (
+                <View style={styles.uploadInner}>
+                  <AppIcon name="gallery" size={20} color={C.muted} />
+                  <Text style={styles.uploadText}>{tx('Upload Photo')}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={[styles.primaryAction, { backgroundColor: accentColor }, submitting && { opacity: 0.7 }]}
+            onPress={() => void submitToSrv()}
+            disabled={submitting}
+            activeOpacity={0.85}
           >
-            <Text style={[styles.dropdownTitle, { color: theme.textPrimary }]}>
-              {tx('Select Subject')}
+            <Text style={styles.primaryActionText}>
+              {submitting ? tx('Submitting...') : pageContent.primaryCtaLabel || tx('Submit Request')}
             </Text>
+          </TouchableOpacity>
+          <Text style={[styles.helperText, { color: theme.textMuted }]}>
+            {pageContent.helperText || tx('This saves your issue in the SRV system so admin can track and resolve it.')}
+          </Text>
+          <View style={styles.actionGrid}>
+            <TouchableOpacity onPress={() => void openWhatsapp()} activeOpacity={0.9}>
+              <LinearGradient colors={['#E8FFF1', '#C6F3D8', '#E0F2FE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionBtn}>
+                <View style={[styles.actionIconWrap, styles.whatsappIconWrap]}>
+                  <AppIcon name="whatsapp" size={18} color="#16A34A" />
+                </View>
+                <View style={styles.actionCopy}>
+                  <Text style={styles.actionTitle}>{tx('Send to WhatsApp')}</Text>
+                  <Text style={styles.actionSub}>{pageContent.supportText || tx('Open SRV support chat')}</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => void openMail()} activeOpacity={0.9}>
+              <LinearGradient colors={['#FFF4EE', '#FFE1D6', '#FDE7F3']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.actionBtn}>
+                <View style={[styles.actionIconWrap, styles.mailIconWrap]}>
+                  <AppIcon name="mail" size={18} color={C.primary} />
+                </View>
+                <View style={styles.actionCopy}>
+                  <Text style={styles.actionTitle}>{tx('Send to Mail')}</Text>
+                  <Text style={styles.actionSub}>{tx('Send to')} {supportMail}</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      ) : (
+        <View style={{ flex: 1, padding: 16 }}>
+          {loadingTickets ? (
+            <ActivityIndicator size="large" color={accentColor} style={{ marginTop: 40 }} />
+          ) : tickets.length === 0 ? (
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <AppIcon name="support" size={48} color={C.muted} />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: theme.textMuted, marginTop: 12 }}>
+                {tx('No tickets yet')}
+              </Text>
+              <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
+                {tx('Create a new request to get help')}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={tickets}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ gap: 10 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.ticketCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                  onPress={() => setSelectedTicket(item)}
+                  activeOpacity={0.85}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textPrimary, flex: 1 }} numberOfLines={1}>
+                      {item.subject}
+                    </Text>
+                    <View style={{ backgroundColor: getStatusColor(item.status) + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: getStatusColor(item.status) }}>
+                        {getStatusLabel(item.status)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }} numberOfLines={2}>
+                    {item.message}
+                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                    <Text style={{ fontSize: 10, color: theme.textMuted }}>
+                      {formatDate(item.createdAt)}
+                    </Text>
+                    {item.replies && item.replies.length > 0 && (
+                      <Text style={{ fontSize: 10, color: '#7C3AED' }}>
+                        {item.replies.length} {tx('replies')}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      )}
+
+      <Modal visible={showSubjectDropdown} animationType="fade" transparent onRequestClose={() => setShowSubjectDropdown(false)}>
+        <Pressable style={styles.dropdownOverlay} onPress={() => setShowSubjectDropdown(false)}>
+          <View style={[styles.dropdownSheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.dropdownTitle, { color: theme.textPrimary }]}>{tx('Select Subject')}</Text>
             {subjectOptions.map((option, index) => (
               <TouchableOpacity
                 key={option}
-                style={[
-                  styles.dropdownItem,
-                  index < subjectOptions.length - 1 && {
-                    borderBottomWidth: 1,
-                    borderBottomColor: theme.border,
-                  },
-                ]}
-                onPress={() => {
-                  setSubject(option);
-                  setShowSubjectDropdown(false);
-                }}
+                style={[styles.dropdownItem, index < subjectOptions.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border }]}
+                onPress={() => { setSubject(option); setShowSubjectDropdown(false); }}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.dropdownItemText, { color: theme.textPrimary }]}>
-                  {option}
-                </Text>
-                {subject === option ? <AppIcon name="check" size={16} color={C.primary} /> : null}
+                <Text style={[styles.dropdownItemText, { color: theme.textPrimary }]}>{option}</Text>
+                {subject === option ? <AppIcon name="check" size={16} color={accentColor} /> : null}
               </TouchableOpacity>
             ))}
           </View>
@@ -362,31 +553,14 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
 
       <Modal visible={!!pendingPhoto} animationType="fade" transparent onRequestClose={cancelPhoto}>
         <View style={styles.dropdownOverlay}>
-          <View
-            style={[
-              styles.dropdownSheet,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
-            {pendingPhoto ? (
-              <Image source={{ uri: pendingPhoto }} style={styles.confirmPreview} />
-            ) : null}
-            <Text style={[styles.dropdownTitle, { color: theme.textPrimary }]}>
-              {tx('Use this photo?')}
-            </Text>
+          <View style={[styles.dropdownSheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            {pendingPhoto ? <Image source={{ uri: pendingPhoto }} style={styles.confirmPreview} /> : null}
+            <Text style={[styles.dropdownTitle, { color: theme.textPrimary }]}>{tx('Use this photo?')}</Text>
             <View style={styles.confirmActions}>
-              <TouchableOpacity
-                style={styles.confirmCancelBtn}
-                onPress={cancelPhoto}
-                activeOpacity={0.85}
-              >
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={cancelPhoto} activeOpacity={0.85}>
                 <Text style={styles.confirmCancelText}>{tx('Cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmDoneBtn}
-                onPress={confirmPhoto}
-                activeOpacity={0.85}
-              >
+              <TouchableOpacity style={[styles.confirmDoneBtn, { backgroundColor: accentColor }]} onPress={confirmPhoto} activeOpacity={0.85}>
                 <Text style={styles.confirmDoneText}>{tx('Done')}</Text>
               </TouchableOpacity>
             </View>
@@ -477,7 +651,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 52,
     borderRadius: 16,
-    backgroundColor: C.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -518,4 +691,9 @@ const styles = StyleSheet.create({
   actionCopy: { flex: 1 },
   actionTitle: { color: '#152238', fontSize: 15, fontWeight: '800' },
   actionSub: { color: '#6B7A93', fontSize: 11.5, marginTop: 3, lineHeight: 16 },
+  ticketCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+  },
 });

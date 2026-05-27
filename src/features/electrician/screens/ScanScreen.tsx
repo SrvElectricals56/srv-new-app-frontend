@@ -45,24 +45,36 @@ const Colors = {
 
 type PendingRewardItem = Omit<RewardHistoryItem, 'id' | 'time'>;
 
-const resolveRewardFromCode = async (value?: string): Promise<PendingRewardItem | null> => {
-  if (!value) return null;
+type ScanErrorType = 'already_scanned' | 'invalid' | null;
+
+type ScanResolveResult =
+  | { reward: PendingRewardItem; errorType: null }
+  | { reward: null; errorType: ScanErrorType };
+
+const resolveRewardFromCode = async (value?: string): Promise<ScanResolveResult> => {
+  if (!value) return { reward: null, errorType: 'invalid' };
   const scannedText = value.trim();
   try {
     const result = await scanApi.submit(scannedText, 'single');
     return {
-      code: scannedText,
-      label: result.scan.productName,
-      points: result.pointsEarned,
-      mode: 'single' as const,
+      reward: {
+        code: scannedText,
+        label: result.scan.productName,
+        points: result.pointsEarned,
+        mode: 'single' as const,
+      },
+      errorType: null,
     };
   } catch (err: any) {
-    // If already scanned or not found, return null
-    if (err.message?.includes('already been scanned') || err.message?.includes('not found')) {
-      return null;
+    const msg: string = err?.message ?? '';
+    if (
+      msg.includes('already been scanned') ||
+      msg.includes('already redeemed') ||
+      msg.includes('already scanned')
+    ) {
+      return { reward: null, errorType: 'already_scanned' };
     }
-    // Fallback for dev/testing
-    return null;
+    return { reward: null, errorType: 'invalid' };
   }
 };
 
@@ -236,6 +248,7 @@ export function ScanScreen({
   const [earnedPoints, setEarnedPoints] = useState(0);
   const [batchItems, setBatchItems] = useState<PendingRewardItem[]>([]);
   const [showAllBatchItems, setShowAllBatchItems] = useState(false);
+  const [scanErrorType, setScanErrorType] = useState<ScanErrorType>(null);
   const frameSize = Math.min(width - 80, 280);
 
   const laserY = useRef(new Animated.Value(0)).current;
@@ -513,6 +526,7 @@ export function ScanScreen({
     setPreviewImage(null);
     setDetectedLabel('SRV MCB 32A detected');
     setEarnedPoints(0);
+    setScanErrorType(null);
     if (scanMode === 'single') {
       setBatchItems([]);
     }
@@ -531,40 +545,48 @@ export function ScanScreen({
     if (scanLockedRef.current) return;
     scanLockedRef.current = true;
 
-    const reward = await resolveRewardFromCode(data);
+    const result = await resolveRewardFromCode(data);
 
-    if (!reward) {
+    if (!result.reward) {
+      const errType = result.errorType ?? 'invalid';
+      setScanErrorType(errType);
       setScanned(true);
       setEarnedPoints(0);
-      setDetectedLabel('Invalid QR Code');
+      setDetectedLabel(
+        errType === 'already_scanned' ? 'Already Scanned' : 'Invalid QR Code'
+      );
 
       if (scanMode === 'multi') {
         setTimeout(() => {
           scanLockedRef.current = false;
           setScanned(false);
+          setScanErrorType(null);
           setDetectedLabel('Scan next product');
-        }, 1500);
+        }, 2000);
       } else {
         setScanning(false);
       }
       return;
     }
 
+    setScanErrorType(null);
+
     if (scanMode === 'single') {
       setScanning(false);
       setScanned(true);
-      commitSingleScan(reward);
+      commitSingleScan(result.reward);
       return;
     }
 
     // Multi mode
-    setBatchItems((current) => [...current, { ...reward, mode: 'multi' }]);
-    onCommitRewards([{ ...reward, mode: 'multi' }]);
-    setDetectedLabel(`${reward.label} added`);
+    setBatchItems((current) => [...current, { ...result.reward!, mode: 'multi' }]);
+    onCommitRewards([{ ...result.reward, mode: 'multi' }]);
+    setDetectedLabel(`${result.reward.label} added`);
     setScanned(true);
     setTimeout(() => {
       scanLockedRef.current = false;
       setScanned(false);
+      setScanErrorType(null);
       setDetectedLabel('Scan next product');
     }, 1200);
   };
@@ -625,6 +647,7 @@ export function ScanScreen({
     scanLockedRef.current = false;
     animationTriggeredRef.current = false;
     setScanned(false);
+    setScanErrorType(null);
     setPreviewImage(null);
     if (cameraGranted === true || (await requestCameraAccess())) {
       setScanning(true);
@@ -861,25 +884,69 @@ export function ScanScreen({
                 ]}
               />
 
+        {/* derive scan-state color once */}
+        {(() => {
+          const scanColor =
+            scanned && scanErrorType === 'already_scanned'
+              ? Colors.warning          // yellow
+              : scanned && scanErrorType === 'invalid'
+                ? '#EF4444'             // red
+                : scanMode === 'single'
+                  ? Colors.primary      // blue
+                  : Colors.accent;      // indigo
+
+          return (
+            <>
               {scanned ? (
                 <Animated.View
                   style={[
                     styles.successOverlay,
                     scanMode === 'multi' ? styles.successOverlayMulti : null,
+                    scanErrorType === 'already_scanned'
+                      ? styles.successOverlayWarning
+                      : scanErrorType === 'invalid'
+                        ? styles.successOverlayError
+                        : null,
                     { transform: [{ scale: successScale }], opacity: successOpacity },
                   ]}
                 >
                   {scanMode === 'multi' ? (
-                    <View style={styles.multiSuccessBadge}>
-                      <CheckBadgeIcon size={20} color="#FFFFFF" />
+                    <View style={[
+                      styles.multiSuccessBadge,
+                      scanErrorType === 'already_scanned' ? styles.multiSuccessBadgeWarning
+                        : scanErrorType === 'invalid' ? styles.multiSuccessBadgeError : null,
+                    ]}>
+                      {scanErrorType === 'already_scanned' ? (
+                        <Text style={styles.multiSuccessIcon}>⚠️</Text>
+                      ) : scanErrorType === 'invalid' ? (
+                        <Text style={styles.multiSuccessIcon}>✕</Text>
+                      ) : (
+                        <CheckBadgeIcon size={20} color="#FFFFFF" />
+                      )}
                       <Text style={styles.multiSuccessText}>{detectedLabel}</Text>
                     </View>
                   ) : (
                     <>
                       <View style={styles.successBadge}>
-                        <CheckBadgeIcon size={48} color={Colors.success} />
+                        {scanErrorType === 'already_scanned' ? (
+                          <Text style={{ fontSize: 48 }}>⚠️</Text>
+                        ) : scanErrorType === 'invalid' ? (
+                          <Text style={{ fontSize: 48 }}>❌</Text>
+                        ) : (
+                          <CheckBadgeIcon size={48} color={Colors.success} />
+                        )}
                       </View>
-                      <Text style={styles.verifiedText}>{tx('Verified')}</Text>
+                      <Text style={[
+                        styles.verifiedText,
+                        scanErrorType === 'already_scanned' ? { color: Colors.warning }
+                          : scanErrorType === 'invalid' ? { color: '#EF4444' } : null,
+                      ]}>
+                        {scanErrorType === 'already_scanned'
+                          ? 'Already Scanned'
+                          : scanErrorType === 'invalid'
+                            ? 'Invalid QR'
+                            : tx('Verified')}
+                      </Text>
                     </>
                   )}
                 </Animated.View>
@@ -892,23 +959,14 @@ export function ScanScreen({
                   { pointerEvents: 'none' },
                 ]}
               >
-                <QrCorner
-                  position="tl"
-                  color={scanMode === 'single' ? Colors.primary : Colors.accent}
-                />
-                <QrCorner
-                  position="tr"
-                  color={scanMode === 'single' ? Colors.primary : Colors.accent}
-                />
-                <QrCorner
-                  position="bl"
-                  color={scanMode === 'single' ? Colors.primary : Colors.accent}
-                />
-                <QrCorner
-                  position="br"
-                  color={scanMode === 'single' ? Colors.primary : Colors.accent}
-                />
+                <QrCorner position="tl" color={scanColor} />
+                <QrCorner position="tr" color={scanColor} />
+                <QrCorner position="bl" color={scanColor} />
+                <QrCorner position="br" color={scanColor} />
               </Animated.View>
+            </>
+          );
+        })()}
             </Animated.View>
           </View>
 
@@ -926,10 +984,20 @@ export function ScanScreen({
             ) : null}
             {scanned ? (
               <View style={styles.statusSuccess}>
-                {detectedLabel === 'Invalid QR Code' ? (
-                  <Text style={[styles.statusSuccessText, { color: Colors.textMuted }]}>
-                    {tx('Invalid QR Code')}
-                  </Text>
+                {scanErrorType === 'already_scanned' ? (
+                  <View style={[styles.statusPill, styles.statusPillWarning]}>
+                    <Text style={styles.statusPillIcon}>⚠️</Text>
+                    <Text style={[styles.statusSuccessText, { color: '#92400E' }]}>
+                      {tx('Already Scanned')}
+                    </Text>
+                  </View>
+                ) : scanErrorType === 'invalid' ? (
+                  <View style={[styles.statusPill, styles.statusPillError]}>
+                    <Text style={styles.statusPillIcon}>✕</Text>
+                    <Text style={[styles.statusSuccessText, { color: '#991B1B' }]}>
+                      {tx('Invalid QR Code')}
+                    </Text>
+                  </View>
                 ) : (
                   <>
                     <CheckBadgeIcon size={18} color={Colors.success} />
@@ -948,23 +1016,42 @@ export function ScanScreen({
             style={[
               styles.successBox,
               isDark ? styles.successBoxDark : null,
+              scanErrorType === 'already_scanned' ? styles.successBoxWarning : null,
+              scanErrorType === 'invalid' ? styles.successBoxError : null,
               { transform: [{ scale: successScale }], opacity: successOpacity },
             ]}
           >
             <View style={styles.successBoxHeader}>
-              <Text style={styles.successTitle}>{detectedLabel}</Text>
-              {earnedPoints > 0 && (
+              <Text style={[
+                styles.successTitle,
+                scanErrorType === 'already_scanned' ? { color: '#92400E' }
+                  : scanErrorType === 'invalid' ? { color: '#991B1B' } : null,
+              ]}>
+                {scanErrorType === 'already_scanned'
+                  ? '⚠️  Already Scanned'
+                  : scanErrorType === 'invalid'
+                    ? '❌  Invalid QR Code'
+                    : detectedLabel}
+              </Text>
+              {!scanErrorType && earnedPoints > 0 && (
                 <View style={styles.pointsBadge}>
                   <Text style={styles.pointsBadgeText}>+{earnedPoints}</Text>
                 </View>
               )}
             </View>
-            <Text style={[styles.successSub, isDark ? styles.successSubDark : null]}>
-              {detectedLabel === 'Invalid QR Code'
-                ? tx('This QR is not registered with SRV products.')
-                : earnedPoints > 0
-                  ? tx('Points credited to your wallet!')
-                  : tx('Points for this QR were already claimed.')}
+            <Text style={[
+              styles.successSub,
+              isDark ? styles.successSubDark : null,
+              scanErrorType === 'already_scanned' ? { color: '#92400E' }
+                : scanErrorType === 'invalid' ? { color: '#991B1B' } : null,
+            ]}>
+              {scanErrorType === 'already_scanned'
+                ? tx('This QR code has already been scanned and redeemed.')
+                : scanErrorType === 'invalid'
+                  ? tx('This QR is not registered with SRV products.')
+                  : earnedPoints > 0
+                    ? tx('Points credited to your wallet!')
+                    : tx('Points for this QR were already claimed.')}
             </Text>
           </Animated.View>
         )}
@@ -1448,6 +1535,45 @@ const styles = StyleSheet.create({
   pointsBadgeText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   successSub: { marginTop: 8, fontSize: 13, color: '#065F46', lineHeight: 18 },
   successSubDark: { color: '#A7F3D0' },
+
+  // Already-scanned (yellow) result card
+  successBoxWarning: {
+    backgroundColor: Colors.warningLight,
+    borderColor: '#FCD34D',
+  },
+  // Invalid QR (red) result card
+  successBoxError: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+  },
+
+  // Status pill for already-scanned / invalid
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  statusPillWarning: { backgroundColor: Colors.warningLight },
+  statusPillError: { backgroundColor: '#FEE2E2' },
+  statusPillIcon: { fontSize: 13 },
+
+  // Scanner overlay tints
+  successOverlayWarning: {},
+  successOverlayError: {},
+
+  // Multi-scan badge variants
+  multiSuccessBadgeWarning: {
+    backgroundColor: Colors.warning,
+    ...createShadow({ color: Colors.warning, offsetY: 4, blur: 8, opacity: 0.4, elevation: 6 }),
+  },
+  multiSuccessBadgeError: {
+    backgroundColor: '#EF4444',
+    ...createShadow({ color: '#EF4444', offsetY: 4, blur: 8, opacity: 0.4, elevation: 6 }),
+  },
+  multiSuccessIcon: { fontSize: 16 },
 
   batchCard: {
     width: '100%',

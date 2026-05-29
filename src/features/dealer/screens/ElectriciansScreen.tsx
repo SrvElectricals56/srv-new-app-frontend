@@ -23,6 +23,7 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import type { Screen } from '@/shared/types/navigation';
 import { electriciansApi } from '@/shared/api';
+import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
 
 type ElectricianStatus = 'Active' | 'Pending';
@@ -125,6 +126,7 @@ function StatCard({
 export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Screen) => void }) {
   const { tx, darkMode, theme } = usePreferenceContext();
   const { user: authUser } = useAuth();
+  const { appSettings } = useAppData();
   const pageContent = useAppPageContent('dealer', 'electricians');
   const [electricians, setElectricians] = useState<Electrician[]>([]);
   const [apiLoaded, setApiLoaded] = useState(false);
@@ -340,17 +342,19 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
               'Dealers can review every connected electrician here and add new electricians to their network from the same page.'
             )}
           </Text>
-          <TouchableOpacity
-            style={styles.heroButton}
-            onPress={() => {
-              resetForm();
-              setShowAddModal(true);
-            }}
-            activeOpacity={0.9}
-          >
-            <PlusIcon />
-            <Text style={styles.heroButtonText}>{pageContent.primaryCtaLabel || tx('Add Electrician')}</Text>
-          </TouchableOpacity>
+          {appSettings?.dealerCanAddElectrician !== false && (
+            <TouchableOpacity
+              style={styles.heroButton}
+              onPress={() => {
+                resetForm();
+                setShowAddModal(true);
+              }}
+              activeOpacity={0.9}
+            >
+              <PlusIcon />
+              <Text style={styles.heroButtonText}>{pageContent.primaryCtaLabel || tx('Add Electrician')}</Text>
+            </TouchableOpacity>
+          )}
         </LinearGradient>
 
         <View style={styles.statsRow}>

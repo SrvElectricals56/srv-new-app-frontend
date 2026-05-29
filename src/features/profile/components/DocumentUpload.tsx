@@ -35,6 +35,7 @@ export function DocumentUpload({
 }: DocumentUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [localUri, setLocalUri] = useState<string | null>(currentUrl || null);
+  const pickerAspect: [number, number] = documentType === 'aadhar-front' ? [4, 3] : [3, 2];
 
   const pickDocument = async () => {
     try {
@@ -75,7 +76,8 @@ export function DocumentUpload({
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.8,
+      aspect: pickerAspect,
+      quality: 0.9,
     });
 
     if (!result.canceled && result.assets?.length) {
@@ -95,7 +97,9 @@ export function DocumentUpload({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.8,
+      aspect: pickerAspect,
+      quality: 0.9,
+      legacy: true,
     });
 
     if (!result.canceled && result.assets?.length) {

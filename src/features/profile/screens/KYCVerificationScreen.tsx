@@ -21,7 +21,7 @@ interface KYCVerificationScreenProps {
 export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationScreenProps) {
   const { user: authUser, refreshProfile } = useAuth();
   const { theme, tx, darkMode } = usePreferenceContext();
-  
+
   const [draftAadhar, setDraftAadhar] = useState<string | null>(null);
   const [draftPan, setDraftPan] = useState<string | null>(null);
   const [draftGst, setDraftGst] = useState<string | null>(null);
@@ -34,10 +34,13 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
   const hasPan = authUser?.panDocument || draftPan;
   const hasGst = authUser?.gstDocument || draftGst;
   const isDealer = currentRole === 'dealer';
-  
-  // KYC status logic
+  const hasDraftChanges = Boolean(draftAadhar || draftPan || draftGst);
   const kycComplete = hasAadhar && (isDealer ? (hasPan || hasGst) : true);
   const kycStatus = authUser?.kycStatus || 'not_submitted';
+  const canShowSubmit = kycStatus !== 'verified' || hasDraftChanges;
+  const submitLabel = hasDraftChanges && (kycStatus === 'verified' || kycStatus === 'rejected')
+    ? 'Resubmit for Verification'
+    : 'Submit for Verification';
 
   const handleSubmit = async () => {
     if (!hasAadhar) {
@@ -52,19 +55,25 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
 
     try {
       setIsSaving(true);
-      
-      const updateData: any = { kycStatus: 'pending' };
+
+      const updateData: any = {
+        kycStatus: 'pending',
+        kycRejectionReason: null,
+      };
       const finalAadhar = draftAadhar || authUser?.aadharFrontImage;
       if (finalAadhar) updateData.aadharFrontImage = finalAadhar;
-      if (draftPan) updateData.panDocument = draftPan;
-      if (draftGst) updateData.gstDocument = draftGst;
+      if (draftPan || authUser?.panDocument) updateData.panDocument = draftPan || authUser?.panDocument || null;
+      if (draftGst || authUser?.gstDocument) updateData.gstDocument = draftGst || authUser?.gstDocument || null;
 
       await authApi.updateProfile(updateData);
       await refreshProfile();
+      setDraftAadhar(null);
+      setDraftPan(null);
+      setDraftGst(null);
 
       Alert.alert(
         tx('Success'),
-        tx('KYC documents submitted successfully. Admin will verify soon.'),
+        tx(hasDraftChanges ? 'KYC documents resubmitted successfully. Admin will verify soon.' : 'KYC documents submitted successfully. Admin will verify soon.'),
         [{ text: 'OK', onPress: onBack }]
       );
     } catch (error) {
@@ -133,6 +142,17 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
               </Text>
               <Text style={[styles.rejectionText, { color: darkMode ? '#FEE2E2' : '#DC2626' }]}>
                 {authUser.kycRejectionReason}
+              </Text>
+            </View>
+          )}
+
+          {hasDraftChanges && (
+            <View style={[styles.rejectionBox, { backgroundColor: darkMode ? '#0F3D2E' : '#ECFDF5', borderColor: darkMode ? '#14532D' : '#86EFAC' }]}>
+              <Text style={[styles.rejectionTitle, { color: darkMode ? '#BBF7D0' : '#166534' }]}>
+                {tx('Ready to Resubmit')}:
+              </Text>
+              <Text style={[styles.rejectionText, { color: darkMode ? '#DCFCE7' : '#15803D' }]}>
+                {tx('Your updated documents are ready. Tap submit to send them for fresh admin review.')}
               </Text>
             </View>
           )}
@@ -240,20 +260,20 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
       </ScrollView>
 
       {/* Submit Button */}
-      {kycStatus !== 'verified' && (
+      {canShowSubmit && (
         <View style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={isSaving || !kycComplete}
+            disabled={isSaving || !kycComplete || (kycStatus === 'verified' && !hasDraftChanges)}
             style={[
               styles.submitBtn,
               { backgroundColor: roleColor },
-              (!kycComplete || isSaving) && { opacity: 0.5 }
+              (!kycComplete || isSaving || (kycStatus === 'verified' && !hasDraftChanges)) && { opacity: 0.5 }
             ]}
             activeOpacity={0.8}
           >
             <Text style={styles.submitText}>
-              {isSaving ? tx('Submitting...') : tx('Submit for Verification')}
+              {isSaving ? tx('Submitting...') : tx(submitLabel)}
             </Text>
           </TouchableOpacity>
         </View>

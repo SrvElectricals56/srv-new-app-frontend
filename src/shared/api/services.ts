@@ -59,7 +59,7 @@ function sanitizeUserProfileUpdatePayload(data: Partial<UserProfile>) {
     'address', 'pincode', 'gstNumber', 'accountHolderName', 'bankAccount',
     'ifsc', 'bankName', 'upiId', 'bankLinked', 'language', 'darkMode',
     'pushEnabled', 'profileImage',
-    'kycStatus', 'aadharFrontImage', 'panDocument', 'gstDocument',
+    'kycStatus', 'kycRejectionReason', 'aadharFrontImage', 'panDocument', 'gstDocument',
   ] as const;
   const out: Record<string, unknown> = {};
   for (const key of allowed) {
@@ -626,21 +626,7 @@ export const profileApi = {
     }
 
     const result = await response.json();
-    const url = result.url as string;
-
-    // Map documentType to the correct profile field and save to DB
-    const fieldMap: Record<string, string> = {
-      'aadhar-front': 'aadharFrontImage',
-      'aadhar-back':  'aadharFrontImage',
-      'pan':          'panDocument',
-      'gst':          'gstDocument',
-    };
-    const field = fieldMap[documentType];
-    if (field) {
-      await authApi.updateProfile({ [field]: url });
-    }
-
-    return url;
+    return result.url as string;
   },
 };
 
@@ -655,7 +641,7 @@ export const supportApi = {
   replyToTicket: (ticketId: string, message: string) =>
     api.post<{ message: string }>(`/mobile/support/tickets/${ticketId}/reply`, { message }, true),
   closeTicket: (ticketId: string) =>
-    api.patch<{ message: string }>(`/mobile/support/tickets/${ticketId}/close`, undefined, true),
+    api.patch<{ message: string }>(`/mobile/support/tickets/${ticketId}/close`, {}, true),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -864,6 +850,7 @@ export type AppSettings = {
   referralEnabled: boolean;
   testimonialsEnabled: boolean;
   playEnabled: boolean;
+  dealerCanAddElectrician: boolean;
   playStoreUrl?: string;
   appStoreUrl?: string;
   generalCatalogPdfUrl?: string | null;

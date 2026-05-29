@@ -1529,11 +1529,17 @@ export function OnboardingScreen({
         setDealerVerified(true);
         setVerifiedDealerName(dealer.name);
         setVerifiedDealerCode(dealer.dealerCode ?? '');
-        const nextSerial = Number(dealer.nextElectricianSerial ?? dealer.electricianCount ?? 0) + 1;
+        const nextSerial = Number(
+          dealer.nextElectricianSerial ??
+          ((dealer.electricianCount ?? 0) + 1)
+        );
         setVerifiedDealerNextSerial(String(nextSerial).padStart(3, '0'));
       })
-      .catch(() => {
-        setError('signupDealerPhone', 'Dealer not found. Please check the number and try again.');
+      .catch((err: Error) => {
+        setError(
+          'signupDealerPhone',
+          err.message || 'Dealer not found. Please check the number and try again.'
+        );
       })
       .finally(() => setLoading(false));
   };

@@ -8,7 +8,7 @@ import { createShadow } from '@/shared/theme/shadows';
 
 const WEBSITE_URL  = 'https://srvelectricals.com';
 const WHATSAPP_URL = 'https://wa.me/918837684004';
-const INSTAGRAM_URL = 'https://www.instagram.com/srvelectricals_11';
+const INSTAGRAM_URL = 'https://www.instagram.com/srv__electricals/';
 const FACEBOOK_URL  = 'https://www.facebook.com/people/SRV-Electricals/61575756084140/';
 const TWITTER_URL   = 'https://x.com/Srv_Electricals';
 

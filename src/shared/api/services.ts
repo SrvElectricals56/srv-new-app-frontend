@@ -3,6 +3,10 @@ import { API_BASE_URL as apiBaseUrl } from './config';
 import { storage } from './storage';
 import type { AppPageContentMap } from '@/shared/config/appPageContent';
 
+function normalizePhone(phone?: string | null) {
+  return String(phone ?? '').replace(/\D/g, '').slice(-10);
+}
+
 function sanitizeDealerSignupPayload(data: {
   name: string;
   phone: string;
@@ -17,7 +21,7 @@ function sanitizeDealerSignupPayload(data: {
 }) {
   return {
     name: data.name,
-    phone: data.phone,
+    phone: normalizePhone(data.phone),
     email: data.email,
     town: data.town,
     district: data.district,
@@ -42,7 +46,7 @@ function sanitizeCounterBoySignupPayload(data: {
 }) {
   return {
     name: data.name.trim(),
-    phone: data.phone.trim(),
+    phone: normalizePhone(data.phone),
     email: data.email?.trim() || undefined,
     city: data.city?.trim() || undefined,
     state: data.state?.trim() || undefined,
@@ -135,14 +139,14 @@ function sanitizeElectricianPayload(data: {
   const dealerCodePrefix = data.dealerCode?.trim();
   return {
     name: data.name,
-    phone: data.phone,
+    phone: normalizePhone(data.phone),
     email: data.email,
     city: data.city?.trim() || data.district?.trim() || '',
     district: data.district?.trim() || data.city?.trim() || '',
     state: data.state?.trim() || '',
     address: data.address?.trim() || undefined,
     pincode: data.pincode?.trim() || undefined,
-    dealerPhone: data.dealerPhone?.trim() || '',
+    dealerPhone: normalizePhone(data.dealerPhone),
     password: data.password?.trim() || undefined,
     subCategory: data.subCategory?.trim() || undefined,
     tier: data.tier ?? 'Silver',
@@ -151,11 +155,11 @@ function sanitizeElectricianPayload(data: {
       data.electricianCode?.trim() ||
       (dealerCodePrefix ? `${dealerCodePrefix}-001` : '') ||
       buildElectricianCodeFallback({
-        phone: data.phone,
+        phone: normalizePhone(data.phone),
         state: data.state,
         pincode: data.pincode,
         district: data.district ?? data.city,
-        dealerPhone: data.dealerPhone,
+        dealerPhone: normalizePhone(data.dealerPhone),
       }),
   };
 }
@@ -233,17 +237,17 @@ export const authApi = {
 
   sendOtp: (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy') =>
     api.post<{ success: boolean; message: string; devOtp?: string }>(
-      '/mobile/auth/send-otp', { phone, role }
+      '/mobile/auth/send-otp', { phone: normalizePhone(phone), role }
     ),
 
   sendSignupOtp: (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy') =>
     api.post<{ success: boolean; message: string; devOtp?: string }>(
-      '/mobile/auth/signup/send-otp', { phone, role }
+      '/mobile/auth/signup/send-otp', { phone: normalizePhone(phone), role }
     ),
 
   verifyOtp: async (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy', otp: string) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
-      '/mobile/auth/verify-otp', { phone, role, otp }
+      '/mobile/auth/verify-otp', { phone: normalizePhone(phone), role, otp }
     );
     await storage.setTokens(res.accessToken, res.refreshToken);
     await storage.setUserProfile(res.user);
@@ -254,7 +258,7 @@ export const authApi = {
   verifySignupOtp: (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy', otp: string) =>
     api.post<{ success: boolean; message: string }>(
       '/mobile/auth/signup/verify-otp',
-      { phone, role, otp }
+      { phone: normalizePhone(phone), role, otp }
     ),
 
   loginWithPassword: async (
@@ -264,7 +268,7 @@ export const authApi = {
   ) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/password-login',
-      { phone, role, password }
+      { phone: normalizePhone(phone), role, password }
     );
     await storage.setTokens(res.accessToken, res.refreshToken);
     await storage.setUserProfile(res.user);
@@ -334,7 +338,7 @@ export const authApi = {
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/user',
-      data
+      { ...data, phone: normalizePhone(data.phone) }
     );
     await storage.setTokens(res.accessToken, res.refreshToken);
     await storage.setUserProfile(res.user);
@@ -480,7 +484,7 @@ export const testimonialsApi = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const dealerApi = {
   getByPhone: (phone: string) =>
-    api.get<DealerInfo>('/mobile/dealer/by-phone', { phone }),
+    api.get<DealerInfo>('/mobile/dealer/by-phone', { phone: normalizePhone(phone) }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -43,14 +43,14 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   const [showBankOptions, setShowBankOptions] = useState(false);
   const [upiError, setUpiError] = useState('');
 
-  // Pre-fill from latest profile on mount
+  // Pre-fill when the signed-in user changes. Avoid resetting while the user is typing.
   useEffect(() => {
     setAccountHolderName(user?.accountHolderName ?? '');
     setAccountNumber(user?.bankAccount ?? '');
     setIfsc(user?.ifsc ?? '');
     setUpi(user?.upiId ?? '');
     setSelectedBank(user?.bankName ?? '');
-  }, [user]);
+  }, [role, user?.id]);
 
   const isValidUpi = (value: string) =>
     /^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$/.test(value.trim());

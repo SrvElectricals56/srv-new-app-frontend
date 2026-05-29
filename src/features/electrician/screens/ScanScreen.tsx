@@ -51,17 +51,17 @@ type ScanResolveResult =
   | { reward: PendingRewardItem; errorType: null }
   | { reward: null; errorType: ScanErrorType };
 
-const resolveRewardFromCode = async (value?: string): Promise<ScanResolveResult> => {
+const resolveRewardFromCode = async (value?: string, mode: ScanMode = 'single'): Promise<ScanResolveResult> => {
   if (!value) return { reward: null, errorType: 'invalid' };
   const scannedText = value.trim();
   try {
-    const result = await scanApi.submit(scannedText, 'single');
+    const result = await scanApi.submit(scannedText, mode);
     return {
       reward: {
         code: scannedText,
         label: result.scan.productName,
         points: result.pointsEarned,
-        mode: 'single' as const,
+        mode,
       },
       errorType: null,
     };
@@ -545,7 +545,7 @@ export function ScanScreen({
     if (scanLockedRef.current) return;
     scanLockedRef.current = true;
 
-    const result = await resolveRewardFromCode(data);
+    const result = await resolveRewardFromCode(data, scanMode);
 
     if (!result.reward) {
       const errType = result.errorType ?? 'invalid';

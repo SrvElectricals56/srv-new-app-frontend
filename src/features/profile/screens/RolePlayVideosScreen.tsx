@@ -170,7 +170,7 @@ export function RolePlayVideosScreen({
   };
 
   const heroCopy = ROLE_COPY[currentRole];
-  const heroColors = [
+  const heroColors: [string, string] = [
     theme.accentSoft ?? '#FDECEC',
     theme.surface,
   ];

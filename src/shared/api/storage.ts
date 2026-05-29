@@ -33,15 +33,31 @@ const safeRemove = async (key: string): Promise<void> => {
   delete memoryStore[key];
 };
 
+const safeGetAllKeys = async (): Promise<string[]> => {
+  try {
+    if (AsyncStorageModule) return Array.from(await AsyncStorageModule.getAllKeys());
+  } catch {}
+  return Object.keys(memoryStore);
+};
+
 const KEYS = {
   ACCESS_TOKEN: 'srv_access_token',
   REFRESH_TOKEN: 'srv_refresh_token',
   USER_PROFILE: 'srv_user_profile',
   USER_ROLE: 'srv_user_role',
-  SEEN_NOTIFICATION_IDS: 'srv_seen_notification_ids',
+  SEEN_NOTIFICATION_IDS_PREFIX: 'srv_seen_notification_ids',
+  CLEARED_NOTIFICATION_IDS_PREFIX: 'srv_cleared_notification_ids',
 };
 
 export const storage = {
+  buildNotificationSeenKey(scope = 'global') {
+    return `${KEYS.SEEN_NOTIFICATION_IDS_PREFIX}:${scope}`;
+  },
+
+  buildNotificationClearedKey(scope = 'global') {
+    return `${KEYS.CLEARED_NOTIFICATION_IDS_PREFIX}:${scope}`;
+  },
+
   async setTokens(accessToken: string, refreshToken: string) {
     await Promise.all([
       safeSet(KEYS.ACCESS_TOKEN, accessToken),
@@ -75,19 +91,43 @@ export const storage = {
   },
 
   async clearAll() {
-    await Promise.all(Object.values(KEYS).map(safeRemove));
+    const allKeys = await safeGetAllKeys();
+    const scopedKeys = allKeys.filter(
+      (key) =>
+        key.startsWith(`${KEYS.SEEN_NOTIFICATION_IDS_PREFIX}:`) ||
+        key.startsWith(`${KEYS.CLEARED_NOTIFICATION_IDS_PREFIX}:`),
+    );
+    const directKeys = [
+      KEYS.ACCESS_TOKEN,
+      KEYS.REFRESH_TOKEN,
+      KEYS.USER_PROFILE,
+      KEYS.USER_ROLE,
+    ];
+    await Promise.all([...directKeys, ...scopedKeys].map(safeRemove));
   },
 
   // ── Notification seen tracking ────────────────────────────────────
-  async getSeenNotificationIds(): Promise<Set<string>> {
-    const raw = await safeGet(KEYS.SEEN_NOTIFICATION_IDS);
+  async getSeenNotificationIds(scope = 'global'): Promise<Set<string>> {
+    const raw = await safeGet(this.buildNotificationSeenKey(scope));
     if (!raw) return new Set();
     try { return new Set(JSON.parse(raw) as string[]); } catch { return new Set(); }
   },
 
-  async markNotificationsAsSeen(ids: string[]): Promise<void> {
-    const existing = await this.getSeenNotificationIds();
+  async markNotificationsAsSeen(ids: string[], scope = 'global'): Promise<void> {
+    const existing = await this.getSeenNotificationIds(scope);
     ids.forEach(id => existing.add(id));
-    await safeSet(KEYS.SEEN_NOTIFICATION_IDS, JSON.stringify([...existing]));
+    await safeSet(this.buildNotificationSeenKey(scope), JSON.stringify([...existing]));
+  },
+
+  async getClearedNotificationIds(scope = 'global'): Promise<Set<string>> {
+    const raw = await safeGet(this.buildNotificationClearedKey(scope));
+    if (!raw) return new Set();
+    try { return new Set(JSON.parse(raw) as string[]); } catch { return new Set(); }
+  },
+
+  async clearNotifications(ids: string[], scope = 'global'): Promise<void> {
+    const existing = await this.getClearedNotificationIds(scope);
+    ids.forEach((id) => existing.add(id));
+    await safeSet(this.buildNotificationClearedKey(scope), JSON.stringify([...existing]));
   },
 };

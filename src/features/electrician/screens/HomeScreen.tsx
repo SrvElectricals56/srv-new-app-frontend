@@ -667,6 +667,7 @@ export function HomeScreen({
     if (!homeSections.length) return [];
 
     const sectionMap: Record<HomePageSectionKey, React.ReactNode | null> = {
+      hero_banner: null,
       home_banner: authUser && apiBannerSlides.length > 0 ? (
         <View key="home_banner">
           <BannerCarousel slides={apiBannerSlides} height={heroImageHeight} darkMode={darkMode} />

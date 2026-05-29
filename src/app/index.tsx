@@ -66,6 +66,21 @@ type OnboardingStartOptions = {
   passwordValue?: string;
 };
 
+function resolveRewardPoints(
+  profile:
+    | {
+        totalPoints?: number | null;
+        walletBalance?: number | null;
+      }
+    | null
+    | undefined
+) {
+  return Math.max(
+    Number(profile?.totalPoints ?? 0),
+    Number(profile?.walletBalance ?? 0),
+  );
+}
+
 function roleNeedsAdminApproval(role: UserRole | null | undefined): role is 'dealer' {
   return role === 'dealer';
 }
@@ -168,7 +183,7 @@ function AppContent() {
     counterboy: '',
   });
   const [electricianRewardPoints, setElectricianRewardPoints] = useState(
-    user?.totalPoints ?? 0
+    resolveRewardPoints(user)
   );
   const [electricianRewardScans, setElectricianRewardScans] = useState(
     user?.totalScans ?? 0
@@ -221,7 +236,7 @@ function AppContent() {
       if (isAuthenticated && user && authRole) {
         setCurrentRole(authRole as UserRole);
         // Sync points/scans from real API profile
-        setElectricianRewardPoints(user.totalPoints ?? 0);
+        setElectricianRewardPoints(resolveRewardPoints(user));
         setElectricianRewardScans(user.totalScans ?? 0);
         setShowOnboarding(false);
       }
@@ -242,8 +257,8 @@ function AppContent() {
   // Always use server value — admin can increase OR decrease points
   useEffect(() => {
     if (user) {
-      if (user.totalPoints !== undefined) {
-        setElectricianRewardPoints(user.totalPoints);
+      if (user.totalPoints !== undefined || user.walletBalance !== undefined) {
+        setElectricianRewardPoints(resolveRewardPoints(user));
       }
       if (user.totalScans !== undefined) {
         setElectricianRewardScans(user.totalScans);
@@ -271,8 +286,12 @@ function AppContent() {
         const { notificationsApi: notifApi } = await import('@/shared/api');
         const res = await notifApi.getAll(authRole as string, user.id);
         if (!res.data?.length) { setHasUnreadNotif(false); return; }
-        const seenIds = await storage.getSeenNotificationIds();
-        const hasNew = res.data.some((n: any) => !seenIds.has(n.id));
+        const notifScope = `${authRole ?? 'guest'}:${user.id}`;
+        const [seenIds, clearedIds] = await Promise.all([
+          storage.getSeenNotificationIds(notifScope),
+          storage.getClearedNotificationIds(notifScope),
+        ]);
+        const hasNew = res.data.some((n: any) => !seenIds.has(n.id) && !clearedIds.has(n.id));
         setHasUnreadNotif(hasNew);
       } catch { /* silent */ }
     };
@@ -384,7 +403,7 @@ function AppContent() {
       if (realUser) {
         login(realUser, role);
         if (role === 'electrician' || role === 'user' || role === 'counterboy') {
-          setElectricianRewardPoints(realUser.totalPoints ?? 0);
+          setElectricianRewardPoints(resolveRewardPoints(realUser));
           setElectricianRewardScans(realUser.totalScans ?? 0);
         }
         delete (globalThis as typeof globalThis & { __srvLoginUser?: typeof user }).__srvLoginUser;
@@ -394,7 +413,7 @@ function AppContent() {
           if (!storedProfile) return;
           login(storedProfile, role);
           if (role === 'electrician' || role === 'user' || role === 'counterboy') {
-            setElectricianRewardPoints(storedProfile.totalPoints ?? 0);
+            setElectricianRewardPoints(resolveRewardPoints(storedProfile));
             setElectricianRewardScans(storedProfile.totalScans ?? 0);
           }
         })();

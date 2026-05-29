@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -131,13 +131,18 @@ export function NotificationScreen({
   const { user } = useAuth();
   const [notifItems, setNotifItems] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const notifScope = `${role}:${user?.id ?? 'guest'}`;
 
   const loadAndMarkSeen = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await notificationsApi.getAll(role, user?.id);
-      if (res.data?.length) {
-        const mapped: NotifItem[] = res.data.map((n: any, i: number) => ({
+      const [res, clearedIds] = await Promise.all([
+        notificationsApi.getAll(role, user?.id),
+        storage.getClearedNotificationIds(notifScope),
+      ]);
+      const visibleNotifications = (res.data ?? []).filter((n: any) => !clearedIds.has(n.id));
+      if (visibleNotifications.length) {
+        const mapped: NotifItem[] = visibleNotifications.map((n: any, i: number) => ({
           id: n.id,
           title: n.title,
           body: n.message,
@@ -147,10 +152,8 @@ export function NotificationScreen({
           icon: ICON_CYCLE[i % ICON_CYCLE.length],
         }));
         setNotifItems(mapped);
-        // Mark all as seen in storage
         const ids = mapped.map(n => n.id);
-        await storage.markNotificationsAsSeen(ids);
-        // Tell HomeScreen to remove red dot
+        await storage.markNotificationsAsSeen(ids, notifScope);
         onNotificationsSeen?.();
       } else {
         setNotifItems([]);
@@ -160,7 +163,32 @@ export function NotificationScreen({
     } finally {
       setLoading(false);
     }
-  }, [role, user?.id, onNotificationsSeen, roleTheme.cycle]);
+  }, [notifScope, onNotificationsSeen, role, roleTheme.cycle, user?.id]);
+
+  const handleClearNotification = useCallback(async (id: string) => {
+    await storage.clearNotifications([id], notifScope);
+    setNotifItems((current) => current.filter((item) => item.id !== id));
+  }, [notifScope]);
+
+  const handleClearAllNotifications = useCallback(() => {
+    if (!notifItems.length) return;
+    Alert.alert(
+      tx('Clear all notifications'),
+      tx('This will hide all current notifications only for your account.'),
+      [
+        { text: tx('Cancel'), style: 'cancel' },
+        {
+          text: tx('Clear All'),
+          style: 'destructive',
+          onPress: async () => {
+            await storage.clearNotifications(notifItems.map((item) => item.id), notifScope);
+            setNotifItems([]);
+            onNotificationsSeen?.();
+          },
+        },
+      ],
+    );
+  }, [notifItems, notifScope, onNotificationsSeen, tx]);
 
   useEffect(() => {
     loadAndMarkSeen();
@@ -214,10 +242,21 @@ export function NotificationScreen({
           <Text style={[styles.sectionTitle, darkMode ? styles.sectionTitleDark : null]}>
             {pageContent.sectionTitle || tx('Latest updates')}
           </Text>
-          <View style={styles.unreadPill}>
-            <Text style={styles.unreadText}>
-              {notifItems.length} {tx('new')}
-            </Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={handleClearAllNotifications}
+              activeOpacity={0.85}
+              style={[styles.clearAllBtn, darkMode ? styles.clearAllBtnDark : null]}
+            >
+              <Text style={[styles.clearAllBtnText, darkMode ? styles.clearAllBtnTextDark : null]}>
+                {tx('Clear All')}
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.unreadPill}>
+              <Text style={styles.unreadText}>
+                {notifItems.length} {tx('updates')}
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -256,9 +295,20 @@ export function NotificationScreen({
                 <Text style={[styles.cardType, darkMode ? styles.cardTypeDark : null]}>
                   {item.type}
                 </Text>
-                <Text style={[styles.cardTime, darkMode ? styles.cardTimeDark : null]}>
-                  {item.time}
-                </Text>
+                <View style={styles.metaActions}>
+                  <Text style={[styles.cardTime, darkMode ? styles.cardTimeDark : null]}>
+                    {item.time}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => void handleClearNotification(item.id)}
+                    activeOpacity={0.8}
+                    style={[styles.clearBtn, darkMode ? styles.clearBtnDark : null]}
+                  >
+                    <Text style={[styles.clearBtnText, darkMode ? styles.clearBtnTextDark : null]}>
+                      {tx('Clear')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
             <Text style={[styles.cardTitle, darkMode ? styles.cardTitleDark : null]}>
@@ -338,8 +388,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 6,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sectionTitle: { color: '#6A2F12', fontSize: 20, fontWeight: '900' },
   sectionTitleDark: { color: '#F8FAFC' },
+  clearAllBtn: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(106,47,18,0.12)',
+  },
+  clearAllBtnDark: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  clearAllBtnText: {
+    color: '#6A2F12',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  clearAllBtnTextDark: {
+    color: '#FBF1E7',
+  },
   unreadPill: {
     backgroundColor: '#8D4A1E',
     borderRadius: 999,
@@ -372,8 +444,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  metaActions: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   cardType: { color: '#6A2F12', fontSize: 12.5, fontWeight: '800' },
   cardTime: { color: '#8B6A52', fontSize: 11.5, fontWeight: '700' },
+  clearBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(106,47,18,0.12)',
+  },
+  clearBtnDark: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  clearBtnText: {
+    color: '#6A2F12',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  clearBtnTextDark: {
+    color: '#FBF1E7',
+  },
   cardTitle: { color: '#6A2F12', fontSize: 17, fontWeight: '900' },
   cardBody: { color: '#6E5947', fontSize: 12.5, lineHeight: 19, marginTop: 8 },
   cardTypeDark: { color: '#E2E8F0' },

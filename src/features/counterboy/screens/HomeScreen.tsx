@@ -348,6 +348,7 @@ export function HomeScreen({
     if (!homeSections.length) return [];
 
     const sectionMap: Record<HomePageSectionKey, React.ReactNode | null> = {
+      hero_banner: null,
       home_banner: null,
       quick_actions: (
         <View key="quick_actions" style={styles.quickGrid}>

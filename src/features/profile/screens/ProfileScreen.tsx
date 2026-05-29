@@ -102,6 +102,10 @@ const SETTINGS_FEATURE_MAP: Record<string, AppFeatureKey> = {
   'Privacy Policy': 'privacy_policy',
 };
 
+function resolveProfilePoints(...values: Array<number | null | undefined>) {
+  return Math.max(...values.map((value) => Number(value ?? 0)));
+}
+
 export function ProfileScreen({
   currentRole,
   onNavigate,
@@ -344,7 +348,11 @@ export function ProfileScreen({
     [currentRole, rolePageControls]
   );
   const electricianCount = authUser?.electricianCount ?? 0;
-  const electricianPoints = totalPoints ?? authUser?.totalPoints ?? 0;
+  const electricianPoints = resolveProfilePoints(
+    totalPoints,
+    authUser?.totalPoints,
+    authUser?.walletBalance,
+  );
   const electricianScans = totalScans ?? authUser?.totalScans ?? 0;
   const electricianRedemptions = authUser?.totalRedemptions ?? 0;
   const dealerMembership = useMemo(() => getDealerMembership(electricianCount), [electricianCount]);

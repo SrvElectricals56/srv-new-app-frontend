@@ -441,7 +441,8 @@ export const notificationsApi = {
     if (userId) params.userId = userId;
     return api.get<{ data: AppNotification[] }>(
       '/mobile/notifications',
-      Object.keys(params).length ? params : undefined
+      Object.keys(params).length ? params : undefined,
+      true
     );
   },
   delete: (id: string) =>

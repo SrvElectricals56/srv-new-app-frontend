@@ -39,7 +39,10 @@ export function TransferPointsPage({
   const [foundUser, setFoundUser] = useState<TransferRecipient | null>(null);
   const [searchError, setSearchError] = useState('');
 
-  const availablePoints = user?.totalPoints ?? user?.walletBalance ?? 0;
+  const availablePoints = Math.max(
+    Number(user?.totalPoints ?? 0),
+    Number(user?.walletBalance ?? 0),
+  );
 
   const handleSearch = async () => {
     if (mobile.trim().length !== 10) {

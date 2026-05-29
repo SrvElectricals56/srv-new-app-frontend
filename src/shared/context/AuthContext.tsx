@@ -21,6 +21,25 @@ type AuthContextType = AuthState & {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function resolveProfilePoints(profile: UserProfile | null | undefined) {
+  return Math.max(
+    Number(profile?.totalPoints ?? 0),
+    Number(profile?.walletBalance ?? 0),
+  );
+}
+
+function normalizeProfile(profile: UserProfile | null | undefined): UserProfile | null {
+  if (!profile) return null;
+
+  return {
+    ...profile,
+    totalPoints:
+      profile.role === 'dealer'
+        ? profile.totalPoints
+        : resolveProfilePoints(profile),
+  };
+}
+
 function buildPreviewUser(role: UserRole): UserProfile {
   const base = {
     id: `preview-${role}`,
@@ -105,10 +124,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ]);
 
         if (token && profile && role) {
+          const normalizedProfile = normalizeProfile(profile);
           setState({
             isLoading: false,
             isAuthenticated: true,
-            user: profile,
+            user: normalizedProfile,
             role: role as UserRole,
           });
         } else {
@@ -122,7 +142,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback((user: UserProfile, role: UserRole) => {
-    setState({ isLoading: false, isAuthenticated: true, user, role });
+    setState({
+      isLoading: false,
+      isAuthenticated: true,
+      user: normalizeProfile(user),
+      role,
+    });
   }, []);
 
   const logout = useCallback(async () => {
@@ -137,8 +162,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await storage.getAccessToken();
       if (!token) return;
       const profile = await profileApi.get();
-      await storage.setUserProfile(profile);
-      setState((s) => ({ ...s, user: profile }));
+      const normalizedProfile = normalizeProfile(profile);
+      if (!normalizedProfile) return;
+      await storage.setUserProfile(normalizedProfile);
+      setState((s) => ({ ...s, user: normalizedProfile }));
     } catch (err: any) {
       // Session expired — force logout
       if (err?.message === 'SESSION_EXPIRED') {
@@ -168,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateUser = useCallback((data: Partial<UserProfile>) => {
     setState((s) => {
-      const updated = s.user ? { ...s.user, ...data } : null;
+      const updated = s.user ? normalizeProfile({ ...s.user, ...data }) : null;
       if (updated) storage.setUserProfile(updated);
       return { ...s, user: updated };
     });

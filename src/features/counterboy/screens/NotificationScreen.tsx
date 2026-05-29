@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -107,13 +107,18 @@ export function NotificationScreen({
   const { user } = useAuth();
   const [notifItems, setNotifItems] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const notifScope = `${role}:${user?.id ?? 'guest'}`;
 
   const loadAndMarkSeen = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await notificationsApi.getAll(role, user?.id);
-      if (res.data?.length) {
-        const mapped: NotifItem[] = res.data.map((n: any, i: number) => ({
+      const [res, clearedIds] = await Promise.all([
+        notificationsApi.getAll(role, user?.id),
+        storage.getClearedNotificationIds(notifScope),
+      ]);
+      const visibleNotifications = (res.data ?? []).filter((n: any) => !clearedIds.has(n.id));
+      if (visibleNotifications.length) {
+        const mapped: NotifItem[] = visibleNotifications.map((n: any, i: number) => ({
           id: n.id,
           title: n.title,
           body: n.message,
@@ -124,7 +129,7 @@ export function NotificationScreen({
         }));
         setNotifItems(mapped);
         const ids = mapped.map((n) => n.id);
-        await storage.markNotificationsAsSeen(ids);
+        await storage.markNotificationsAsSeen(ids, notifScope);
         onNotificationsSeen?.();
       } else {
         setNotifItems([]);
@@ -134,7 +139,32 @@ export function NotificationScreen({
     } finally {
       setLoading(false);
     }
-  }, [role, user?.id, onNotificationsSeen]);
+  }, [notifScope, onNotificationsSeen, role, user?.id]);
+
+  const handleClearNotification = useCallback(async (id: string) => {
+    await storage.clearNotifications([id], notifScope);
+    setNotifItems((current) => current.filter((item) => item.id !== id));
+  }, [notifScope]);
+
+  const handleClearAllNotifications = useCallback(() => {
+    if (!notifItems.length) return;
+    Alert.alert(
+      tx('Clear all notifications'),
+      tx('This will hide all current notifications only for your account.'),
+      [
+        { text: tx('Cancel'), style: 'cancel' },
+        {
+          text: tx('Clear All'),
+          style: 'destructive',
+          onPress: async () => {
+            await storage.clearNotifications(notifItems.map((item) => item.id), notifScope);
+            setNotifItems([]);
+            onNotificationsSeen?.();
+          },
+        },
+      ],
+    );
+  }, [notifItems, notifScope, onNotificationsSeen, tx]);
 
   useEffect(() => {
     loadAndMarkSeen();
@@ -182,8 +212,19 @@ export function NotificationScreen({
           <Text style={[styles.sectionTitle, darkMode ? styles.sectionTitleDark : null]}>
             {pageContent.sectionTitle || tx('Latest updates')}
           </Text>
-          <View style={styles.unreadPill}>
-            <Text style={styles.unreadText}>{notifItems.length} {tx('new')}</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={handleClearAllNotifications}
+              activeOpacity={0.85}
+              style={[styles.clearAllBtn, darkMode ? styles.clearAllBtnDark : null]}
+            >
+              <Text style={[styles.clearAllBtnText, darkMode ? styles.clearAllBtnTextDark : null]}>
+                {tx('Clear All')}
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.unreadPill}>
+              <Text style={styles.unreadText}>{notifItems.length} {tx('updates')}</Text>
+            </View>
           </View>
         </View>
       )}
@@ -216,7 +257,18 @@ export function NotificationScreen({
               </View>
               <View style={styles.meta}>
                 <Text style={[styles.cardType, darkMode ? styles.cardTypeDark : null]}>{item.type}</Text>
-                <Text style={[styles.cardTime, darkMode ? styles.cardTimeDark : null]}>{item.time}</Text>
+                <View style={styles.metaActions}>
+                  <Text style={[styles.cardTime, darkMode ? styles.cardTimeDark : null]}>{item.time}</Text>
+                  <TouchableOpacity
+                    onPress={() => void handleClearNotification(item.id)}
+                    activeOpacity={0.8}
+                    style={[styles.clearBtn, darkMode ? styles.clearBtnDark : null]}
+                  >
+                    <Text style={[styles.clearBtnText, darkMode ? styles.clearBtnTextDark : null]}>
+                      {tx('Clear')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
             <Text style={[styles.cardTitle, darkMode ? styles.cardTitleDark : null]}>{item.title}</Text>
@@ -248,8 +300,18 @@ const styles = StyleSheet.create({
   heroGhostBtn: { backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
   heroGhostText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12.5 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { color: cb.text, fontSize: 20, fontWeight: '900' },
   sectionTitleDark: { color: cb.darkText },
+  clearAllBtn: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(111,78,55,0.14)',
+  },
+  clearAllBtnDark: { backgroundColor: 'rgba(255,255,255,0.12)' },
+  clearAllBtnText: { color: cb.primaryDeep, fontSize: 11, fontWeight: '800' },
+  clearAllBtnTextDark: { color: cb.darkText },
   unreadPill: { backgroundColor: CB_PRIMARY, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   unreadText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   card: {
@@ -261,8 +323,18 @@ const styles = StyleSheet.create({
   iconWrap: { width: 46, height: 46, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.72)', alignItems: 'center', justifyContent: 'center' },
   iconWrapDark: { backgroundColor: 'rgba(255,255,255,0.08)' },
   meta: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  metaActions: { alignItems: 'flex-end', gap: 6 },
   cardType: { color: cb.text, fontSize: 12.5, fontWeight: '800' },
   cardTime: { color: cb.muted, fontSize: 11.5, fontWeight: '700' },
+  clearBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(111,78,55,0.14)',
+  },
+  clearBtnDark: { backgroundColor: 'rgba(255,255,255,0.12)' },
+  clearBtnText: { color: cb.primaryDeep, fontSize: 10.5, fontWeight: '800' },
+  clearBtnTextDark: { color: cb.darkText },
   cardTitle: { color: cb.text, fontSize: 17, fontWeight: '900' },
   cardBody: { color: cb.primaryInk, fontSize: 12.5, lineHeight: 19, marginTop: 8 },
   cardTypeDark: { color: cb.darkText },

@@ -36,13 +36,11 @@ export function BankTransferRequestPage({
     if (isDealer) {
       return Number(dealerBonus?.availableBonus ?? 0);
     }
-    return Number(
-      wallet?.totalPoints ??
-      wallet?.balance ??
-      wallet?.wallet_balance ??
-      user?.totalPoints ??
-      user?.walletBalance ??
-      0,
+    return Math.max(
+      Number(wallet?.totalPoints ?? 0),
+      Number(wallet?.balance ?? 0),
+      Number(user?.totalPoints ?? 0),
+      Number(user?.walletBalance ?? 0),
     );
   }, [
     dealerBonus?.availableBonus,
@@ -51,7 +49,6 @@ export function BankTransferRequestPage({
     user?.walletBalance,
     wallet?.balance,
     wallet?.totalPoints,
-    wallet?.wallet_balance,
   ]);
 
   const bankReady = Boolean(

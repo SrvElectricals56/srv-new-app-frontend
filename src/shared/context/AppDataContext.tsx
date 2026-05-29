@@ -284,6 +284,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     debugLog('🔄 Loading private data for user:', user?.id, 'role:', role);
     try {
+      const notificationScope = `${role ?? 'guest'}:${user?.id ?? 'guest'}`;
       const shouldLoadScanHistory = role === 'electrician';
       const [prof, wal, scans, notifs, reds] = await Promise.all([
         profileApi.get().catch((err) => {
@@ -333,7 +334,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       } else if (!shouldLoadScanHistory) {
         setScanHistory(null);
       }
-      setNotifications(notifs.data ?? []);
+      const clearedIds = await storage.getClearedNotificationIds(notificationScope);
+      setNotifications((notifs.data ?? []).filter((notification) => !clearedIds.has(notification.id)));
       setRedemptions(reds.data ?? []);
 
       // Dealer-specific
@@ -498,9 +500,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteNotification = useCallback(async (id: string) => {
-    await notificationsApi.delete(id);
+    const notificationScope = `${role ?? 'guest'}:${user?.id ?? 'guest'}`;
+    await storage.clearNotifications([id], notificationScope);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+  }, [role, user?.id]);
 
   const submitRating = useCallback(async (rating: number, review?: string) => {
     await ratingApi.submit(rating, review);

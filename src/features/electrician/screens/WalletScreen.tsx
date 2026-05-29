@@ -112,6 +112,10 @@ type ApiTxItem = {
   accent: string;
 };
 
+function resolveDisplayedPoints(...values: Array<number | null | undefined>) {
+  return Math.max(...values.map((value) => Number(value ?? 0)));
+}
+
 // ── Role-wise theme tokens ────────────────────────────────────────────
 const ROLE_THEME: Record<string, {
   heroGradient: [string, string, string];
@@ -254,7 +258,13 @@ export function WalletScreen({
 
   useEffect(() => {
     walletApi.get(1, 50).then((res) => {
-      setApiBalance(res.totalPoints ?? res.balance ?? null);
+      setApiBalance(
+        resolveDisplayedPoints(
+          res.totalPoints,
+          res.balance,
+          (res as { wallet_balance?: number | null }).wallet_balance,
+        ),
+      );
       setApiTotalScans(res.totalScans ?? null);
       if (res.transactions?.data?.length) {
         const mapped: ApiTxItem[] = res.transactions.data.map((tx: any) => ({
@@ -269,7 +279,7 @@ export function WalletScreen({
     }).catch(() => {}).finally(() => setApiLoading(false));
   }, []);
 
-  const totalPoints = apiBalance ?? propTotalPoints;
+  const totalPoints = apiBalance !== null ? apiBalance : propTotalPoints;
   const totalScans = apiTotalScans ?? propTotalScans;
 
   const allMappedItems: ApiTxItem[] = apiTxItems ?? (isDealer

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
-import { notificationsApi } from '@/shared/api';
+import { notificationsApi, storage } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 
@@ -12,67 +12,86 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'notifications');
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const notifScope = `${role ?? 'guest'}:${user?.id ?? 'guest'}`;
   const [notifData, setNotifData] = useState<
     { id: string; title: string; body: string; time: string }[]
   >([]);
 
-  const fetchNotifications = useCallback(() => {
+  const fetchNotifications = useCallback(async () => {
     setLoading(true);
-    notificationsApi.getAll(role ?? undefined, user?.id).then((res) => {
-      const data = res.data ?? [];
+    try {
+      const [res, seenIds, clearedIds] = await Promise.all([
+        notificationsApi.getAll(role ?? undefined, user?.id),
+        storage.getSeenNotificationIds(notifScope),
+        storage.getClearedNotificationIds(notifScope),
+      ]);
+      const data = (res.data ?? []).filter((n: any) => !clearedIds.has(String(n.id)));
+      setReadIds(Array.from(seenIds));
       setNotifData(
         data.map((n: any) => ({
           id: String(n.id),
           title: n.title ?? '',
           body: n.message ?? n.body ?? '',
-          time: n.sentAt
-            ? new Date(n.sentAt).toLocaleString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : 'Recent',
+          time: new Date(n.sentAt ?? n.createdAt ?? Date.now()).toLocaleString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
         }))
       );
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [role, user?.id]);
+    } catch {
+      setNotifData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [notifScope, role, user?.id]);
+
+  const handleClearNotification = useCallback(async (id: string) => {
+    await storage.clearNotifications([id], notifScope);
+    setNotifData((current) => current.filter((notification) => notification.id !== id));
+    setReadIds((current) => current.filter((readId) => readId !== id));
+  }, [notifScope]);
+
+  const handleClearAllNotifications = useCallback(() => {
+    if (!notifData.length) return;
+    Alert.alert(
+      tx('Clear all notifications'),
+      tx('This will hide all current notifications only for your account.'),
+      [
+        { text: tx('cancel'), style: 'cancel' },
+        {
+          text: tx('Clear All'),
+          style: 'destructive',
+          onPress: async () => {
+            await storage.clearNotifications(notifData.map((notification) => notification.id), notifScope);
+            setNotifData([]);
+            setReadIds([]);
+          },
+        },
+      ],
+    );
+  }, [notifData, notifScope, tx]);
 
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      tx('Delete Notification'),
-      'Are you sure you want to delete this notification?',
-      [
-        { text: tx('cancel'), style: 'cancel' },
-        {
-          text: tx('delete'),
-          style: 'destructive',
-          onPress: async () => {
-            setDeletingId(id);
-            try {
-              await notificationsApi.delete(id);
-              setNotifData((current) => current.filter((n) => n.id !== id));
-              setReadIds((current) => current.filter((readId) => readId !== id));
-            } catch {
-              Alert.alert('Error', 'Failed to delete notification');
-            } finally {
-              setDeletingId(null);
-            }
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <PageHeader title={pageContent.pageTitle || t('notification')} onBack={onBack} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {notifData.length > 0 ? (
+          <View style={styles.topActionRow}>
+            <TouchableOpacity
+              onPress={handleClearAllNotifications}
+              style={[styles.clearAllBtn, { backgroundColor: theme.soft, borderColor: theme.border }]}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.clearAllBtnText, { color: theme.textPrimary }]}>{tx('Clear All')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         {loading ? (
           <ActivityIndicator color={theme.accent} style={{ marginTop: 32 }} />
         ) : notifData.length === 0 ? (
@@ -90,12 +109,12 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
                 { backgroundColor: theme.surface, borderColor: theme.border },
                 readIds.includes(n.id) && { opacity: 0.65 },
               ]}
-              onPress={() =>
-                setReadIds((current) =>
-                  current.includes(n.id) ? current : [...current, n.id]
-                )
-              }
-              onLongPress={() => handleDelete(n.id)}
+              onPress={async () => {
+                if (readIds.includes(n.id)) return;
+                const nextReadIds = [...readIds, n.id];
+                setReadIds(nextReadIds);
+                await storage.markNotificationsAsSeen([n.id], notifScope);
+              }}
               activeOpacity={0.8}
             >
               <View style={styles.iconWrap}>
@@ -110,17 +129,13 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
               </View>
               <View style={styles.metaColumn}>
                 <Text style={[styles.meta, { color: theme.textMuted }]}>{n.time}</Text>
-                {deletingId === n.id ? (
-                  <ActivityIndicator color={theme.accent} size="small" style={{ marginTop: 4 }} />
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => handleDelete(n.id)}
-                    style={styles.deleteBtn}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <AppIcon name="trash" size={16} color={C.error} />
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  onPress={() => void handleClearNotification(n.id)}
+                  style={[styles.clearBtn, { backgroundColor: theme.soft, borderColor: theme.border }]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.clearBtnText, { color: theme.textPrimary }]}>{tx('Clear')}</Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           ))
@@ -132,6 +147,9 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
 
 const styles = StyleSheet.create({
   scrollContent: { padding: 16, gap: 12, paddingBottom: 32 },
+  topActionRow: { alignItems: 'flex-end' },
+  clearAllBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
+  clearAllBtnText: { fontSize: 11.5, fontWeight: '800' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -154,7 +172,8 @@ const styles = StyleSheet.create({
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
   meta: { fontSize: 11, fontWeight: '600' },
   metaColumn: { alignItems: 'flex-end', gap: 6 },
-  deleteBtn: { padding: 4 },
+  clearBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  clearBtnText: { fontSize: 11, fontWeight: '800' },
   emptyCard: {
     borderRadius: 22,
     padding: 24,

@@ -150,7 +150,7 @@ function sanitizeElectricianPayload(data: {
     password: data.password?.trim() || undefined,
     subCategory: data.subCategory?.trim() || undefined,
     tier: data.tier ?? 'Silver',
-    status: data.status ?? 'pending',
+    status: data.status ?? 'active',
     electricianCode:
       data.electricianCode?.trim() ||
       (dealerCodePrefix ? `${dealerCodePrefix}-001` : '') ||
@@ -606,6 +606,9 @@ export const profileApi = {
   changePassword: (data: { currentPassword?: string; newPassword: string }) =>
     api.patch<{ message: string }>('/mobile/profile/password', data, true),
 
+  setPasswordFallback: (password: string) =>
+    api.patch<UserProfile>('/mobile/auth/profile', { password }, true),
+
   updatePreferences: (data: { language?: string; darkMode?: boolean; pushEnabled?: boolean }) =>
     api.patch<UserProfile>('/mobile/auth/profile', data, true),
 
@@ -714,6 +717,8 @@ export type UserProfile = {
   town?: string;
   electricianCount?: number;
   gstNumber?: string;
+  bonusPoints?: number;
+  bonusStatus?: string;
   // Common
   status?: string;
   approvalRejectionReason?: string;

@@ -75,6 +75,8 @@ function buildPreviewUser(role: UserRole): UserProfile {
       dealerName: 'Preview Dealer',
       electricianCount: 18,
       gstNumber: '03ABCDE1234F1Z5',
+      bonusPoints: 210,
+      bonusStatus: 'pending',
     } as UserProfile;
   }
 

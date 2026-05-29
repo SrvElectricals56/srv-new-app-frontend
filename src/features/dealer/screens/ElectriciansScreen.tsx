@@ -248,7 +248,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
           ? `${authUser.dealerCode}-${nextElectricianSerial}`
           : undefined,
         tier: 'Silver',
-        status: 'pending',
+        status: 'active',
       });
       const e = res.electrician;
       setElectricians((current) => [

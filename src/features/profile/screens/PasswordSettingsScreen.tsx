@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
+import { authApi, profileApi, storage } from '@/shared/api';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import { useAuth } from '@/shared/context/AuthContext';
@@ -179,7 +181,7 @@ export function PasswordSettingsPage({
   onPasswordChange,
 }: PasswordSettingsPageProps) {
   const { tx, theme } = usePreferenceContext();
-  const { role } = useAuth();
+  const { role, user, login, refreshProfile } = useAuth();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'password');
   const [mode, setMode] = useState<PasswordMode>(hasPasswordConfigured ? 'change' : 'set');
   const [setPassword, setSetPassword] = useState('');
@@ -194,6 +196,7 @@ export function PasswordSettingsPage({
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [errors, setErrors] = useState<PasswordErrors>({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [fieldOffsets, setFieldOffsets] = useState<Record<string, number>>({});
   const setPasswordRef = useRef<TextInput | null>(null);
@@ -202,6 +205,7 @@ export function PasswordSettingsPage({
   const newPasswordRef = useRef<TextInput | null>(null);
   const confirmNewPasswordRef = useRef<TextInput | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSetDisabled = hasPasswordConfigured && mode === 'set';
   const isChangeDisabled = !hasPasswordConfigured && mode === 'change';
 
@@ -218,7 +222,7 @@ export function PasswordSettingsPage({
     newPassword.length >= 8 &&
     confirmNewPassword.length >= 8 &&
     newPassword === confirmNewPassword;
-  const isSaveDisabled = mode === 'set' ? !canSaveSet : !canSaveChange;
+  const isSaveDisabled = isSaving || (mode === 'set' ? !canSaveSet : !canSaveChange);
 
   useEffect(() => {
     setMode(hasPasswordConfigured ? 'change' : 'set');
@@ -248,6 +252,14 @@ export function PasswordSettingsPage({
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
+
   const clearFieldError = (field: keyof PasswordErrors) => {
     setErrors((current) => ({ ...current, [field]: undefined }));
   };
@@ -270,14 +282,77 @@ export function PasswordSettingsPage({
 
   const selectMode = (nextMode: PasswordMode) => {
     Keyboard.dismiss();
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
     setMode(nextMode);
     setErrors({});
     setSuccessMessage('');
   };
 
-  const handleSave = () => {
+  const scheduleBackNavigation = () => {
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+    }
+
+    redirectTimerRef.current = setTimeout(() => {
+      redirectTimerRef.current = null;
+      onBack();
+    }, 900);
+  };
+
+  const isMissingPasswordError = (message: string) => {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('no password set') ||
+      normalized.includes('password not set') ||
+      normalized.includes('use otp login')
+    );
+  };
+
+  const persistAndVerifyPassword = async (password: string, currentPasswordValue?: string) => {
+    await profileApi.changePassword(
+      currentPasswordValue
+        ? { currentPassword: currentPasswordValue, newPassword: password }
+        : { newPassword: password }
+    );
+
+    if (!user?.phone || !role) {
+      return;
+    }
+
+    const verifyPasswordLogin = async () => {
+      const result = await authApi.loginWithPassword(user.phone, role, password);
+      login(result.user, role);
+      await storage.setPasswordConfigured(role, true);
+      await refreshProfile();
+      return result;
+    };
+
+    try {
+      await verifyPasswordLogin();
+    } catch (error: any) {
+      const message = String(error?.message ?? '').trim();
+      if (!isMissingPasswordError(message)) {
+        throw error;
+      }
+
+      await profileApi.setPasswordFallback(password);
+      await verifyPasswordLogin();
+    }
+  };
+
+  const handleSave = async () => {
+    if (isSaving) {
+      return;
+    }
+
     Keyboard.dismiss();
     const nextErrors: PasswordErrors = {};
+    const trimmedSetPassword = setPassword.trim();
+    const trimmedCurrentPassword = currentPassword.trim();
+    const trimmedNewPassword = newPassword.trim();
 
     if (mode === 'set') {
       if (hasPasswordConfigured) {
@@ -285,13 +360,13 @@ export function PasswordSettingsPage({
         return;
       }
 
-      if (setPassword.trim().length < 8) {
+      if (trimmedSetPassword.length < 8) {
         nextErrors.setPassword = tx('Please enter a password with at least 8 characters.');
       }
 
       if (confirmSetPassword.trim().length === 0) {
         nextErrors.confirmSetPassword = tx('Please confirm your password to continue.');
-      } else if (confirmSetPassword !== setPassword) {
+      } else if (confirmSetPassword !== trimmedSetPassword) {
         nextErrors.confirmSetPassword = tx(
           'Passwords do not match. Please enter the same password again.'
         );
@@ -303,25 +378,59 @@ export function PasswordSettingsPage({
         return;
       }
 
-      onPasswordChange(setPassword.trim());
-      onPasswordConfiguredChange(true);
-      setSuccessMessage(tx('Password saved successfully.'));
-      setSetPassword('');
-      setConfirmSetPassword('');
+      setIsSaving(true);
+      setSuccessMessage('');
+
+      try {
+        await persistAndVerifyPassword(trimmedSetPassword);
+        onPasswordChange(trimmedSetPassword);
+        onPasswordConfiguredChange(true);
+        setErrors({});
+        setSuccessMessage(tx('Password saved successfully.'));
+        setSetPassword('');
+        setConfirmSetPassword('');
+        scheduleBackNavigation();
+      } catch (error: any) {
+        const message = String(error?.message ?? '').trim();
+        const lowerMessage = message.toLowerCase();
+
+        if (lowerMessage.includes('already') && lowerMessage.includes('password')) {
+          onPasswordConfiguredChange(true);
+          setMode('change');
+          Alert.alert(
+            '',
+            tx('A password is already active for this account. Use Change Password to update it.')
+          );
+          return;
+        }
+
+        if (
+          lowerMessage.includes('at least') ||
+          lowerMessage.includes('minimum') ||
+          lowerMessage.includes('too short')
+        ) {
+          setErrors({
+            setPassword: tx('Please enter a password with at least 8 characters.'),
+          });
+          return;
+        }
+
+        Alert.alert('', message || tx('Please try again.'));
+      } finally {
+        setIsSaving(false);
+      }
       return;
     }
 
     if (!hasPasswordConfigured) {
       nextErrors.currentPassword = tx('Set a password first before trying to change it.');
-    } else if (currentPassword.trim().length === 0) {
+    } else if (trimmedCurrentPassword.length === 0) {
       nextErrors.currentPassword = tx('Please enter your current password.');
-    } else if (storedPassword && currentPassword !== storedPassword) {
-      nextErrors.currentPassword = tx('The current password you entered is incorrect.');
     }
 
-    if (newPassword.trim().length < 8) {
+    if (trimmedNewPassword.length < 8) {
       nextErrors.newPassword = tx('Please enter a password with at least 8 characters.');
-    } else if (storedPassword && newPassword === storedPassword) {
+    } else if (trimmedNewPassword === trimmedCurrentPassword) {
       nextErrors.newPassword = tx(
         'Please choose a new password that is different from the current password.'
       );
@@ -329,7 +438,7 @@ export function PasswordSettingsPage({
 
     if (confirmNewPassword.trim().length === 0) {
       nextErrors.confirmNewPassword = tx('Please confirm your new password to continue.');
-    } else if (confirmNewPassword !== newPassword) {
+    } else if (confirmNewPassword !== trimmedNewPassword) {
       nextErrors.confirmNewPassword = tx(
         'Passwords do not match. Please enter the same password again.'
       );
@@ -341,12 +450,62 @@ export function PasswordSettingsPage({
       return;
     }
 
-    onPasswordChange(newPassword.trim());
-    onPasswordConfiguredChange(true);
-    setSuccessMessage(tx('Password updated successfully.'));
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmNewPassword('');
+    setIsSaving(true);
+    setSuccessMessage('');
+
+    try {
+      await persistAndVerifyPassword(trimmedNewPassword, trimmedCurrentPassword);
+      onPasswordChange(trimmedNewPassword);
+      onPasswordConfiguredChange(true);
+      setErrors({});
+      setSuccessMessage(tx('Password updated successfully.'));
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      scheduleBackNavigation();
+    } catch (error: any) {
+      const message = String(error?.message ?? '').trim();
+      const lowerMessage = message.toLowerCase();
+
+      if (
+        lowerMessage.includes('current password') ||
+        lowerMessage.includes('incorrect') ||
+        lowerMessage.includes('invalid password') ||
+        lowerMessage.includes('wrong password')
+      ) {
+        setErrors({
+          currentPassword: tx('The current password you entered is incorrect.'),
+        });
+        return;
+      }
+
+      if (
+        lowerMessage.includes('different') ||
+        lowerMessage.includes('same as current')
+      ) {
+        setErrors({
+          newPassword: tx(
+            'Please choose a new password that is different from the current password.'
+          ),
+        });
+        return;
+      }
+
+      if (
+        lowerMessage.includes('at least') ||
+        lowerMessage.includes('minimum') ||
+        lowerMessage.includes('too short')
+      ) {
+        setErrors({
+          newPassword: tx('Please enter a password with at least 8 characters.'),
+        });
+        return;
+      }
+
+      Alert.alert('', message || tx('Please try again.'));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -560,6 +719,7 @@ export function PasswordSettingsPage({
             <TouchableOpacity
               style={[
                 styles.primaryBtn,
+                { backgroundColor: theme.accent },
                 isSetDisabled || isChangeDisabled || isSaveDisabled
                   ? styles.primaryBtnDisabled
                   : null,
@@ -569,7 +729,11 @@ export function PasswordSettingsPage({
               disabled={isSetDisabled || isChangeDisabled || isSaveDisabled}
             >
               <Text style={styles.primaryBtnText}>
-                {mode === 'set' ? tx('Save Password') : tx('Update Password')}
+                {isSaving
+                  ? tx('Saving...')
+                  : mode === 'set'
+                    ? tx('Save Password')
+                    : tx('Update Password')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -656,7 +820,6 @@ const styles = StyleSheet.create({
   primaryBtn: {
     height: 56,
     borderRadius: 18,
-    backgroundColor: C.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },

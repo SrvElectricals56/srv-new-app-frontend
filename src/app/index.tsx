@@ -219,6 +219,33 @@ function AppContent() {
     ? currentScreen
     : 'home';
 
+  useEffect(() => {
+    if (isPreviewMode) {
+      return;
+    }
+
+    void (async () => {
+      const roles: UserRole[] = ['dealer', 'electrician', 'user', 'counterboy'];
+      const entries = await Promise.all(
+        roles.map(async (role) => [role, await storage.getPasswordConfigured(role)] as const)
+      );
+
+      setPasswordConfiguredByRole((current) => {
+        const next = { ...current };
+        let changed = false;
+
+        for (const [role, configured] of entries) {
+          if (next[role] !== configured) {
+            next[role] = configured;
+            changed = true;
+          }
+        }
+
+        return changed ? next : current;
+      });
+    })();
+  }, [isPreviewMode]);
+
   // Once auth loading is done, set initial state
   useEffect(() => {
     if (isPreviewMode) {
@@ -380,16 +407,18 @@ function AppContent() {
     setHasUnreadNotif(false);
   }, []);
 
+  const handlePasswordConfiguredChange = useCallback((role: UserRole, configured: boolean) => {
+    setPasswordConfiguredByRole((current) => ({ ...current, [role]: configured }));
+    if (!configured) {
+      setPasswordValueByRole((current) => ({ ...current, [role]: '' }));
+    }
+    void storage.setPasswordConfigured(role, configured);
+  }, []);
+
   const handleAuthenticatedRoleStart = useCallback(
     (role: UserRole, options?: OnboardingStartOptions) => {
       if (typeof options?.passwordConfigured === 'boolean') {
-        setPasswordConfiguredByRole((current) => ({
-          ...current,
-          [role]: options.passwordConfigured,
-        }));
-        if (!options.passwordConfigured) {
-          setPasswordValueByRole((current) => ({ ...current, [role]: '' }));
-        }
+        handlePasswordConfiguredChange(role, options.passwordConfigured);
       }
 
       if (typeof options?.passwordValue === 'string') {
@@ -424,7 +453,7 @@ function AppContent() {
       setGuestAuthRole(null);
       setShowOnboarding(false);
     },
-    [login]
+    [handlePasswordConfiguredChange, login]
   );
 
   const renderGuestFeatureGate = useCallback(
@@ -643,7 +672,7 @@ function AppContent() {
               hasPasswordConfigured={passwordConfiguredByRole.dealer}
               storedPassword={passwordValueByRole.dealer}
               onPasswordConfiguredChange={(configured) =>
-                setPasswordConfiguredByRole((current) => ({ ...current, dealer: configured }))
+                handlePasswordConfiguredChange('dealer', configured)
               }
               onPasswordChange={(password) =>
                 setPasswordValueByRole((current) => ({ ...current, dealer: password }))
@@ -763,7 +792,7 @@ function AppContent() {
               hasPasswordConfigured={passwordConfiguredByRole.user}
               storedPassword={passwordValueByRole.user}
               onPasswordConfiguredChange={(configured) =>
-                setPasswordConfiguredByRole((current) => ({ ...current, user: configured }))
+                handlePasswordConfiguredChange('user', configured)
               }
               onPasswordChange={(password) =>
                 setPasswordValueByRole((current) => ({ ...current, user: password }))
@@ -854,7 +883,7 @@ function AppContent() {
               hasPasswordConfigured={passwordConfiguredByRole.counterboy}
               storedPassword={passwordValueByRole.counterboy}
               onPasswordConfiguredChange={(configured) =>
-                setPasswordConfiguredByRole((current) => ({ ...current, counterboy: configured }))
+                handlePasswordConfiguredChange('counterboy', configured)
               }
               onPasswordChange={(password) =>
                 setPasswordValueByRole((current) => ({ ...current, counterboy: password }))
@@ -960,7 +989,7 @@ function AppContent() {
             hasPasswordConfigured={passwordConfiguredByRole.electrician}
             storedPassword={passwordValueByRole.electrician}
             onPasswordConfiguredChange={(configured) =>
-              setPasswordConfiguredByRole((current) => ({ ...current, electrician: configured }))
+              handlePasswordConfiguredChange('electrician', configured)
             }
             onPasswordChange={(password) =>
               setPasswordValueByRole((current) => ({ ...current, electrician: password }))
@@ -1062,6 +1091,7 @@ function AppContent() {
     handleElectricianRewardCommit,
     handleNavigate,
     handleOpenProductCategory,
+    handlePasswordConfiguredChange,
     handleSignOut,
     handleNotificationsSeen,
     handleAuthenticatedRoleStart,

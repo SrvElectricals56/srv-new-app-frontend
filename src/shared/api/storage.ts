@@ -45,6 +45,7 @@ const KEYS = {
   REFRESH_TOKEN: 'srv_refresh_token',
   USER_PROFILE: 'srv_user_profile',
   USER_ROLE: 'srv_user_role',
+  PASSWORD_CONFIGURED_PREFIX: 'srv_password_configured',
   SEEN_NOTIFICATION_IDS_PREFIX: 'srv_seen_notification_ids',
   CLEARED_NOTIFICATION_IDS_PREFIX: 'srv_cleared_notification_ids',
 };
@@ -56,6 +57,10 @@ export const storage = {
 
   buildNotificationClearedKey(scope = 'global') {
     return `${KEYS.CLEARED_NOTIFICATION_IDS_PREFIX}:${scope}`;
+  },
+
+  buildPasswordConfiguredKey(role: string) {
+    return `${KEYS.PASSWORD_CONFIGURED_PREFIX}:${role}`;
   },
 
   async setTokens(accessToken: string, refreshToken: string) {
@@ -90,10 +95,19 @@ export const storage = {
     return safeGet(KEYS.USER_ROLE);
   },
 
+  async setPasswordConfigured(role: string, configured: boolean) {
+    await safeSet(this.buildPasswordConfiguredKey(role), configured ? 'true' : 'false');
+  },
+
+  async getPasswordConfigured(role: string): Promise<boolean> {
+    return (await safeGet(this.buildPasswordConfiguredKey(role))) === 'true';
+  },
+
   async clearAll() {
     const allKeys = await safeGetAllKeys();
     const scopedKeys = allKeys.filter(
       (key) =>
+        key.startsWith(`${KEYS.PASSWORD_CONFIGURED_PREFIX}:`) ||
         key.startsWith(`${KEYS.SEEN_NOTIFICATION_IDS_PREFIX}:`) ||
         key.startsWith(`${KEYS.CLEARED_NOTIFICATION_IDS_PREFIX}:`),
     );

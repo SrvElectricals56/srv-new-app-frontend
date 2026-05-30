@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,20 @@ export function BankTransferRequestPage({
   const pageContent = useAppPageContent(currentRole, 'bank_details');
   const [amount, setAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [freshBalance, setFreshBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (currentRole !== 'dealer') {
+      walletApi.get().then((res) => {
+        const balance = Math.max(
+          Number(res?.balance ?? 0),
+          Number((res as any)?.wallet_balance ?? 0),
+          Number(res?.totalPoints ?? 0),
+        );
+        setFreshBalance(balance);
+      }).catch(() => {});
+    }
+  }, [currentRole]);
 
   const isDealer = currentRole === 'dealer';
   const availableBalance = useMemo(() => {
@@ -37,6 +51,7 @@ export function BankTransferRequestPage({
       return Number(dealerBonus?.availableBonus ?? 0);
     }
     return Math.max(
+      freshBalance ?? 0,
       Number(wallet?.totalPoints ?? 0),
       Number(wallet?.balance ?? 0),
       Number(user?.totalPoints ?? 0),
@@ -44,6 +59,7 @@ export function BankTransferRequestPage({
     );
   }, [
     dealerBonus?.availableBonus,
+    freshBalance,
     isDealer,
     user?.totalPoints,
     user?.walletBalance,
@@ -52,10 +68,12 @@ export function BankTransferRequestPage({
   ]);
 
   const bankReady = Boolean(
-    user?.bankLinked && user?.accountHolderName && user?.bankAccount && user?.ifsc,
+    user?.bankLinked && user?.accountHolderName && user?.upiId,
   );
   const bankSummary = bankReady
-    ? `${user?.bankName ?? tx('Linked account')} **** ${String(user?.bankAccount ?? '').slice(-4)}`
+    ? user?.bankAccount
+      ? `${user?.bankName ?? tx('Linked account')} **** ${String(user.bankAccount).slice(-4)}`
+      : `${tx('UPI ID')}: ${user?.upiId}`
     : tx('Add bank details before raising a withdrawal request');
 
   const handleSubmit = async () => {

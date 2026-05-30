@@ -725,11 +725,11 @@ export type UserProfile = {
   kycStatus?: string;
   kycRejectionReason?: string;
   bankLinked?: boolean;
-  upiId?: string;
-  bankAccount?: string;
-  ifsc?: string;
-  bankName?: string;
-  accountHolderName?: string;
+  upiId?: string | null;
+  bankAccount?: string | null;
+  ifsc?: string | null;
+  bankName?: string | null;
+  accountHolderName?: string | null;
   // KYC documents
   aadharFrontImage?: string | null;
   panDocument?: string | null;
@@ -974,10 +974,10 @@ export type DealerBonus = {
 
 export type BankAccountPayload = {
   accountHolderName: string;
-  bankName: string;
-  accountNumber: string;
-  ifsc: string;
-  upiId?: string;
+  upiId: string;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  ifsc?: string | null;
 };
 
 export type CallListItem = {

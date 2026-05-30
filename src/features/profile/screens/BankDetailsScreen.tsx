@@ -19,6 +19,12 @@ import { useAppPageContent } from '@/shared/hooks';
 const bankOptions = [
   'State Bank of India',
   'Punjab National Bank',
+  'Bank of India',
+  'Central Bank of India',
+  'Indian Bank',
+  'Indian Overseas Bank',
+  'Punjab & Sind Bank',
+  'UCO Bank',
   'HDFC Bank',
   'ICICI Bank',
   'Axis Bank',
@@ -27,6 +33,13 @@ const bankOptions = [
   'Union Bank of India',
   'Kotak Mahindra Bank',
   'IDFC FIRST Bank',
+  'Yes Bank',
+  'IndusInd Bank',
+  'Federal Bank',
+  'RBL Bank',
+  'Bandhan Bank',
+  'AU Small Finance Bank',
+  'Other Bank',
 ];
 
 export function BankDetailsPage({ onBack }: { onBack: () => void }) {
@@ -58,9 +71,6 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   const handleSave = async () => {
     if (
       !accountHolderName.trim() ||
-      !accountNumber.trim() ||
-      !ifsc.trim() ||
-      !selectedBank.trim() ||
       !upi.trim()
     ) {
       return Alert.alert(tx('Required fields'), tx('Please fill all required fields.'));
@@ -71,7 +81,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
         tx('Account holder name should contain only letters and spaces.')
       );
     }
-    if (!/^\d+$/.test(accountNumber.trim())) {
+    if (accountNumber.trim() && !/^\d+$/.test(accountNumber.trim())) {
       return Alert.alert(
         tx('Invalid account number'),
         tx('Account number should contain only numbers.')
@@ -89,9 +99,9 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
     try {
       const updated = await authApi.updateProfile({
         accountHolderName: accountHolderName.trim(),
-        bankAccount: accountNumber.trim(),
-        ifsc: ifsc.trim().toUpperCase(),
-        bankName: selectedBank,
+        bankAccount: accountNumber.trim() || null,
+        ifsc: ifsc.trim().toUpperCase() || null,
+        bankName: selectedBank.trim() || null,
         upiId: upi.trim(),
         bankLinked: true,
       });
@@ -153,7 +163,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
           </View>
 
           <View>
-            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Account Number')} *</Text>
+            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Account Number')}</Text>
             <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}>
               <AppIcon name="bank" size={18} color={C.gold} />
               <TextInput
@@ -169,7 +179,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
           </View>
 
           <View>
-            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('IFSC Code')} *</Text>
+            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('IFSC Code')}</Text>
             <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}>
               <AppIcon name="bank" size={18} color={C.gold} />
               <TextInput
@@ -185,7 +195,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
           </View>
 
           <View>
-            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Select Bank')} *</Text>
+            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Select Bank')}</Text>
             <TouchableOpacity
               style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}
               activeOpacity={0.85}

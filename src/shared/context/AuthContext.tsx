@@ -183,16 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         void refreshProfile();
       }
     });
-    // Poll every 30s while active so admin updates show up in the app without being too aggressive.
-    const interval = setInterval(() => {
-      if (AppState.currentState === 'active') {
-        void refreshProfile();
-      }
-    }, 30000);
-    return () => {
-      sub.remove();
-      clearInterval(interval);
-    };
+    return () => sub.remove();
   }, [refreshProfile]);
 
   const updateUser = useCallback((data: Partial<UserProfile>) => {

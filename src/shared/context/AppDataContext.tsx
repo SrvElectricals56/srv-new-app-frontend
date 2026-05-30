@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { API_BASE_URL } from '../api/config';
 import {
   bannersApi,
   catalogApi,
@@ -38,6 +37,7 @@ import {
   type WalletData,
 } from '../api/services';
 import { storage } from '../api/storage';
+import { clearCache } from '../api/client';
 import { useAuth } from './AuthContext';
 import { useAppPreviewState } from '../preview/appPreviewStore';
 
@@ -286,7 +286,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     try {
       const notificationScope = `${role ?? 'guest'}:${user?.id ?? 'guest'}`;
       const shouldLoadScanHistory = role === 'electrician';
-      const [prof, wal, scans, notifs, reds] = await Promise.all([
+      const [prof, wal, scans, notifs, reds, qr, ref] = await Promise.all([
         profileApi.get().catch((err) => {
           logDataWarning('Profile API failed.', err?.message ?? err);
           if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
@@ -314,6 +314,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
           return { data: [] as RedemptionRecord[], total: 0, page: 1, totalPages: 1 };
         }),
+        // QR code — parallelized
+        profileApi.getQrCode().catch((err) => {
+          logDataWarning('QR code API failed.', err?.message ?? err);
+          if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
+          return null;
+        }),
+        // Referral — parallelized
+        referralApi.get().catch((err) => {
+          logDataWarning('Referral API failed.', err?.message ?? err);
+          if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
+          return null;
+        }),
       ]);
 
       debugLog('✅ Private data loaded:', {
@@ -337,10 +349,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const clearedIds = await storage.getClearedNotificationIds(notificationScope);
       setNotifications((notifs.data ?? []).filter((notification) => !clearedIds.has(notification.id)));
       setRedemptions(reds.data ?? []);
+      if (qr) setUserQrCode(qr);
+      if (ref) setReferral(ref);
 
       // Dealer-specific
       if (role === 'dealer') {
-        debugLog('🔄 Loading dealer-specific data...');
         const [elecs, bonus] = await Promise.all([
           electriciansApi.getAll().catch((err) => {
             logDataWarning('Electricians API failed.', err?.message ?? err);
@@ -353,29 +366,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             return null;
           }),
         ]);
-        debugLog('✅ Dealer data loaded:', {
-          electricians: !!elecs,
-          dealerBonus: !!bonus,
-        });
         if (elecs) setElectricians(elecs);
         if (bonus) setDealerBonus(bonus);
       }
-
-      // QR code
-      const qr = await profileApi.getQrCode().catch((err) => {
-        logDataWarning('QR code API failed.', err?.message ?? err);
-        if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
-        return null;
-      });
-      if (qr) setUserQrCode(qr);
-
-      // Referral
-      const ref = await referralApi.get().catch((err) => {
-        logDataWarning('Referral API failed.', err?.message ?? err);
-        if (err.message === 'SESSION_EXPIRED') void handleSessionExpired();
-        return null;
-      });
-      if (ref) setReferral(ref);
     } catch (error) {
       logDataWarning('Private data loading failed.', error);
     }
@@ -383,30 +376,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
-    debugLog('🔄 Starting data refresh...');
-    debugLog('🔧 Using API URL:', API_BASE_URL);
-
-    // Test basic connectivity first
-    try {
-      const healthUrl = `${API_BASE_URL.replace('/api/v1', '')}/health`;
-      debugLog('🏥 Testing health endpoint:', healthUrl);
-      const testResponse = await fetch(healthUrl, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      debugLog('✅ Health check response:', testResponse.status, testResponse.statusText);
-      if (testResponse.ok) {
-        const healthData = await testResponse.json();
-        debugLog('📊 Health data:', healthData);
-      }
-    } catch (healthError: any) {
-      logDataWarning('Health check failed.', healthError?.message ?? healthError);
-      debugLog('🔍 Backend might not be running at:', API_BASE_URL);
-    }
-
+    clearCache();
     try {
       await Promise.all([loadPublicData(), loadPrivateData()]);
-      debugLog('✅ Data refresh completed successfully');
     } catch (error) {
       logDataWarning('Data refresh failed.', error);
     } finally {
@@ -417,29 +389,17 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   // Initial load — include `role` so banners/offers refetch when session role is available or changes
   useEffect(() => { void refreshAll(); }, [refreshAll]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (AppState.currentState !== 'active') return;
-      settingsApi
-        .getAppSettings()
-        .then(setAppSettings)
-        .catch((err) => logDataWarning('Settings poll failed.', err?.message ?? err));
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // AppState polling — refresh when app comes to foreground
+  // AppState — clear cache and refresh when app comes to foreground
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
-      if (/inactive|background/.test(prev) && next === 'active') void refreshAll();
+      if (/inactive|background/.test(prev) && next === 'active') {
+        clearCache();
+        void refreshAll();
+      }
     });
-    const interval = setInterval(() => {
-      if (AppState.currentState === 'active') void refreshAll();
-    }, 30000);
-    return () => { sub.remove(); clearInterval(interval); };
+    return () => sub.remove();
   }, [refreshAll]);
 
   // ── Actions ───────────────────────────────────────────────────────────────

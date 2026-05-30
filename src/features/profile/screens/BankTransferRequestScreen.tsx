@@ -77,7 +77,11 @@ export function BankTransferRequestPage({
 
     setSubmitting(true);
     try {
-      await walletApi.requestBankTransfer({ amount: numericAmount });
+      if (isDealer) {
+        await walletApi.requestDealerBonusWithdrawal({ amount: numericAmount });
+      } else {
+        await walletApi.requestBankTransfer({ amount: numericAmount });
+      }
       await Promise.allSettled([refreshProfile(), refreshAll()]);
       Alert.alert(
         tx('Request submitted'),

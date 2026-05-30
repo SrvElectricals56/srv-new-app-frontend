@@ -2,6 +2,43 @@ import { API_BASE_URL } from './config';
 import { storage } from './storage';
 import { sessionEvents } from './sessionEvents';
 
+// ── In-memory Cache ──────────────────────────────────────────────────────────
+interface CacheEntry {
+  data: unknown;
+  expiry: number;
+}
+
+const cache = new Map<string, CacheEntry>();
+const DEFAULT_TTL = 15_000; // 15 seconds
+
+function getCached<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+function setCache(key: string, data: unknown, ttl = DEFAULT_TTL) {
+  cache.set(key, { data, expiry: Date.now() + ttl });
+}
+
+export function clearCache(pattern?: string) {
+  if (!pattern) { cache.clear(); return; }
+  for (const key of cache.keys()) {
+    if (key.includes(pattern)) cache.delete(key);
+  }
+}
+
+// ── Request Deduplication ────────────────────────────────────────────────────
+const inflightRequests = new Map<string, Promise<unknown>>();
+
+function dedupKey(path: string, options: RequestOptions): string {
+  return `${options.method ?? 'GET'}:${path}:${JSON.stringify(options.params ?? {})}`;
+}
+
 const debugLog = (...args: unknown[]) => {
   if (__DEV__) {
     console.warn(...args);
@@ -173,15 +210,39 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 export const api = {
-  get: <T>(path: string, params?: Record<string, string | number | undefined>, auth = false) =>
-    request<T>(path, { method: 'GET', params, auth }),
+  get: <T>(path: string, params?: Record<string, string | number | undefined>, auth = false) => {
+    const key = dedupKey(path, { method: 'GET', params, auth });
+    const cached = getCached<T>(key);
+    if (cached !== null) return Promise.resolve(cached);
 
-  post: <T>(path: string, body: object, auth = false) =>
-    request<T>(path, { method: 'POST', body, auth }),
+    const inflight = inflightRequests.get(key) as Promise<T> | undefined;
+    if (inflight) return inflight;
 
-  patch: <T>(path: string, body: object, auth = false) =>
-    request<T>(path, { method: 'PATCH', body, auth }),
+    const promise = request<T>(path, { method: 'GET', params, auth }).then((data) => {
+      setCache(key, data);
+      inflightRequests.delete(key);
+      return data;
+    }).catch((err) => {
+      inflightRequests.delete(key);
+      throw err;
+    });
 
-  delete: <T>(path: string, auth = false) =>
-    request<T>(path, { method: 'DELETE', auth }),
+    inflightRequests.set(key, promise);
+    return promise;
+  },
+
+  post: <T>(path: string, body: object, auth = false) => {
+    clearCache(path);
+    return request<T>(path, { method: 'POST', body, auth });
+  },
+
+  patch: <T>(path: string, body: object, auth = false) => {
+    clearCache(path);
+    return request<T>(path, { method: 'PATCH', body, auth });
+  },
+
+  delete: <T>(path: string, auth = false) => {
+    clearCache(path);
+    return request<T>(path, { method: 'DELETE', auth });
+  },
 };

@@ -9,6 +9,7 @@ import { createShadow } from '@/shared/theme/shadows';
 import type { Screen, UserRole } from '@/shared/types/navigation';
 import type { RewardHistoryItem } from '@/shared/types/rewards';
 import { walletApi } from '@/shared/api';
+import { useAppData } from '@/shared/context/AppDataContext';
 
 type WalletScreenProps = {
   role?: UserRole;
@@ -242,6 +243,7 @@ export function WalletScreen({
   historyItems = [],
 }: WalletScreenProps) {
   const { darkMode, tx } = usePreferenceContext();
+  const { dealerBonus } = useAppData();
   const isDealer = role === 'dealer';
   const t = ROLE_THEME[role] ?? ROLE_THEME.electrician;
   const contentRole = role === 'user' ? 'user' : role;
@@ -279,7 +281,8 @@ export function WalletScreen({
     }).catch(() => {}).finally(() => setApiLoading(false));
   }, []);
 
-  const totalPoints = apiBalance !== null ? apiBalance : propTotalPoints;
+  const dealerBonusValue = isDealer ? Number(dealerBonus?.availableBonus ?? 0) : 0;
+  const totalPoints = isDealer ? dealerBonusValue : (apiBalance !== null ? apiBalance : propTotalPoints);
   const totalScans = apiTotalScans ?? propTotalScans;
 
   const allMappedItems: ApiTxItem[] = apiTxItems ?? (isDealer

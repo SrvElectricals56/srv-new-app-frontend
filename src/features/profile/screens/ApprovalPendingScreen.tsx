@@ -1,13 +1,26 @@
 import { useMemo } from 'react';
 import { Image, Linking, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AppIcon } from '../components/ProfileShared';
+import { AppIcon, type IconName } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import type { UserRole } from '@/shared/types/navigation';
 
+type AccountGatedRole = UserRole;
+
+type ApprovalTheme = {
+  shell: string;
+  hero: [string, string, string];
+  accent: string;
+  accentDeep: string;
+  soft: string;
+  chip: string;
+  glow: string;
+  support: string;
+};
+
 type ApprovalPendingScreenProps = {
-  role: Extract<UserRole, 'dealer'>;
+  role: AccountGatedRole;
   accountStatus?: string | null;
   rejectionReason?: string | null;
   supportPhone?: string | null;
@@ -15,26 +28,111 @@ type ApprovalPendingScreenProps = {
   onUseAnotherNumber?: () => void;
 };
 
-const PENDING_THEME = {
-  shell: '#F4F8FF',
-  hero: ['#F8FBFF', '#E2ECFF', '#D4E3FF'] as [string, string, string],
-  accent: '#214D99',
-  accentDeep: '#173E80',
-  soft: '#EAF3FF',
-  chip: '#DCEAFF',
-  glow: 'rgba(33,77,153,0.18)',
-  support: '#0F766E',
-};
-
-const REJECTED_THEME = {
-  shell: '#FFF5F5',
-  hero: ['#FFF8F8', '#FFE8E8', '#FFD6D6'] as [string, string, string],
-  accent: '#C0392B',
-  accentDeep: '#922B21',
-  soft: '#FFE8E8',
-  chip: '#FFD6D6',
-  glow: 'rgba(192,57,43,0.15)',
-  support: '#0F766E',
+const ROLE_META: Record<
+  AccountGatedRole,
+  {
+    label: string;
+    icon: IconName;
+    pending: ApprovalTheme;
+    rejected: ApprovalTheme;
+  }
+> = {
+  dealer: {
+    label: 'Dealer',
+    icon: 'building',
+    pending: {
+      shell: '#F4F8FF',
+      hero: ['#F8FBFF', '#E2ECFF', '#D4E3FF'],
+      accent: '#214D99',
+      accentDeep: '#173E80',
+      soft: '#EAF3FF',
+      chip: '#DCEAFF',
+      glow: 'rgba(33,77,153,0.18)',
+      support: '#0F766E',
+    },
+    rejected: {
+      shell: '#FFF5F5',
+      hero: ['#FFF8F8', '#FFE8E8', '#FFD6D6'],
+      accent: '#C0392B',
+      accentDeep: '#922B21',
+      soft: '#FFE8E8',
+      chip: '#FFD6D6',
+      glow: 'rgba(192,57,43,0.15)',
+      support: '#0F766E',
+    },
+  },
+  electrician: {
+    label: 'Electrician',
+    icon: 'star',
+    pending: {
+      shell: '#F4F8FF',
+      hero: ['#F7FBFF', '#E8F1FF', '#D6E6FA'],
+      accent: '#173E80',
+      accentDeep: '#14213D',
+      soft: '#EAF3FF',
+      chip: '#D6E6FA',
+      glow: 'rgba(23,62,128,0.16)',
+      support: '#0F766E',
+    },
+    rejected: {
+      shell: '#FFF5F5',
+      hero: ['#FFF8F8', '#FFE8E8', '#FFD6D6'],
+      accent: '#B91C1C',
+      accentDeep: '#7F1D1D',
+      soft: '#FFE8E8',
+      chip: '#FFD6D6',
+      glow: 'rgba(185,28,28,0.14)',
+      support: '#0F766E',
+    },
+  },
+  user: {
+    label: 'Customer',
+    icon: 'gift',
+    pending: {
+      shell: '#FFF8F3',
+      hero: ['#FFFBF7', '#FFEEDD', '#FFDCC4'],
+      accent: '#EA580C',
+      accentDeep: '#C2410C',
+      soft: '#FFEDD5',
+      chip: '#FED7AA',
+      glow: 'rgba(234,88,12,0.16)',
+      support: '#0F766E',
+    },
+    rejected: {
+      shell: '#FFF5F5',
+      hero: ['#FFF8F8', '#FFE8E8', '#FFD6D6'],
+      accent: '#DC2626',
+      accentDeep: '#991B1B',
+      soft: '#FFE8E8',
+      chip: '#FFD6D6',
+      glow: 'rgba(220,38,38,0.14)',
+      support: '#0F766E',
+    },
+  },
+  counterboy: {
+    label: 'Counter Boy',
+    icon: 'scan',
+    pending: {
+      shell: '#F9F4ED',
+      hero: ['#F9F4ED', '#F5EDE4', '#F0DFD0'],
+      accent: '#8B3C2A',
+      accentDeep: '#6B2D1D',
+      soft: '#EDE0D4',
+      chip: '#E0D0C0',
+      glow: 'rgba(139,60,42,0.16)',
+      support: '#0F766E',
+    },
+    rejected: {
+      shell: '#FFF5F5',
+      hero: ['#FFF8F8', '#FFE8E8', '#FFD6D6'],
+      accent: '#9A3412',
+      accentDeep: '#7C2D12',
+      soft: '#FFE8E8',
+      chip: '#FFD6D6',
+      glow: 'rgba(154,52,18,0.14)',
+      support: '#0F766E',
+    },
+  },
 };
 
 function sanitizePhone(value?: string | null) {
@@ -57,25 +155,33 @@ export function ApprovalPendingScreen({
   const safePhone = sanitizePhone(supportPhone);
   const safeWhatsapp = sanitizeWhatsapp(whatsappNumber || supportPhone);
   const normalizedStatus = String(accountStatus ?? '').trim().toLowerCase();
-  const isRejected = normalizedStatus === 'inactive' || normalizedStatus === 'rejected';
+  const isSuspended = normalizedStatus === 'suspended';
+  const isRejected = isSuspended || normalizedStatus === 'inactive' || normalizedStatus === 'rejected';
 
-  const T = isRejected ? REJECTED_THEME : PENDING_THEME;
-  const roleLabel = 'Dealer';
+  const meta = ROLE_META[role];
+  const T = isRejected ? meta.rejected : meta.pending;
+  const roleLabel = meta.label;
 
   const statusRows = useMemo(
     () =>
-      isRejected
+      isSuspended
         ? [
-            { icon: 'check' as const,   text: 'Your registration was reviewed by admin' },
-            { icon: 'alert' as const,   text: 'Account has been rejected by admin' },
+            { icon: 'alert' as const, text: 'Your account access has been suspended by admin' },
+            { icon: 'message' as const, text: 'Contact support to understand suspension and next steps' },
+            { icon: 'phone' as const, text: 'App features stay locked until status is restored' },
+          ]
+        : isRejected
+        ? [
+            { icon: 'check' as const, text: `Your ${roleLabel.toLowerCase()} account was reviewed by admin` },
+            { icon: 'alert' as const, text: 'Account has been marked inactive by admin' },
             { icon: 'message' as const, text: 'Contact support for help or clarification' },
           ]
         : [
-            { icon: 'check' as const,   text: 'Your account request has been received' },
-            { icon: 'clock' as const,   text: 'Admin approval is required before access' },
+            { icon: 'check' as const, text: 'Your account request has been received' },
+            { icon: 'clock' as const, text: 'Admin approval is required before access' },
             { icon: 'message' as const, text: 'Contact support for urgent queries' },
           ],
-    [isRejected]
+    [isRejected, isSuspended, roleLabel]
   );
 
   const handleCall = () => {
@@ -86,66 +192,72 @@ export function ApprovalPendingScreen({
   const handleWhatsapp = () => {
     if (!safeWhatsapp) return;
     const message = encodeURIComponent(
-      isRejected
-        ? `Hello SRV Team, my dealer account was rejected. Please help me with the next steps.`
-        : `Hello SRV Team, my dealer account is waiting for admin approval.`
+      isSuspended
+        ? `Hello SRV Team, my ${roleLabel.toLowerCase()} account is suspended. Please help me restore access.`
+        : isRejected
+        ? `Hello SRV Team, my ${roleLabel.toLowerCase()} account is inactive. Please help me with the next steps.`
+        : `Hello SRV Team, my ${roleLabel.toLowerCase()} account is waiting for admin approval.`
     );
     void Linking.openURL(`https://wa.me/${safeWhatsapp}?text=${message}`).catch(() => {});
   };
+
+  const headline = isSuspended
+    ? `Your ${roleLabel.toLowerCase()} account\nis suspended`
+    : isRejected
+    ? `Your ${roleLabel.toLowerCase()} account\nis inactive`
+    : 'Waiting for admin\napproval';
+
+  const subtitle = isSuspended
+    ? `Your ${roleLabel.toLowerCase()} account is suspended. Contact support to restore access once admin reactivates your account.`
+    : isRejected
+    ? `Your ${roleLabel.toLowerCase()} account was reviewed and marked inactive. See the reason below and contact support if you need help.`
+    : `Your ${roleLabel.toLowerCase()} account is created. The app will unlock fully once admin sets your account to active.`;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: T.shell }]}>
       <View style={styles.container}>
 
-        {/* ── Hero card ── */}
         <LinearGradient colors={T.hero} style={styles.heroCard}>
           <View style={[styles.heroGlow, { backgroundColor: T.glow }]} />
 
-          {/* Top chips */}
           <View style={styles.topRow}>
             <View style={[styles.statusChip, { backgroundColor: T.chip }]}>
               <AppIcon name={isRejected ? 'alert' : 'warning'} size={12} color={T.accentDeep} />
               <Text style={[styles.chipText, { color: T.accentDeep }]}>
-                {isRejected ? 'Rejected' : 'Approval Pending'}
+                {isSuspended ? 'Suspended' : isRejected ? 'Inactive' : 'Approval Pending'}
               </Text>
             </View>
             <View style={[styles.roleChip, { backgroundColor: '#FFFFFF' }]}>
-              <AppIcon name="building" size={12} color={T.accent} />
+              <AppIcon name={meta.icon} size={12} color={T.accent} />
               <Text style={[styles.chipText, { color: T.accentDeep }]}>{roleLabel}</Text>
             </View>
           </View>
 
-          {/* Title block */}
           <View style={styles.titleBlock}>
             <Text style={[styles.eyebrow, { color: T.accentDeep }]}>
-              {isRejected ? 'Registration Rejected' : 'Admin Review'}
+              {isSuspended ? 'Access Suspended' : isRejected ? 'Account Inactive' : 'Admin Review'}
             </Text>
-            <Text style={[styles.title, { color: theme.textPrimary }]}>
-              {isRejected
-                ? 'Your dealer account\nwas rejected'
-                : 'Waiting for admin\napproval'}
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              {isRejected
-                ? `Your ${roleLabel.toLowerCase()} registration was reviewed and rejected. See the reason below and contact support if you need help.`
-                : `Your ${roleLabel.toLowerCase()} account is created. The app will unlock fully once admin approves your account.`}
-            </Text>
+            <Text style={[styles.title, { color: theme.textPrimary }]}>{headline}</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
           </View>
 
-          {/* Rejection reason */}
           {isRejected ? (
             <View style={[styles.reasonBox, { borderColor: T.chip }]}>
-              <Text style={[styles.reasonLabel, { color: T.accentDeep }]}>Rejection Reason</Text>
+              <Text style={[styles.reasonLabel, { color: T.accentDeep }]}>
+                {isSuspended ? 'Suspension Note' : 'Inactive Reason'}
+              </Text>
               <Text style={[styles.reasonText, { color: theme.textPrimary }]}>
-                {rejectionReason?.trim() || 'Rejected by admin. Contact support for details.'}
+                {rejectionReason?.trim() ||
+                  (isSuspended
+                    ? 'Account suspended by admin. Contact support for details.'
+                    : 'Marked inactive by admin. Contact support for details.')}
               </Text>
             </View>
           ) : null}
 
-          {/* Status steps */}
           <View style={[styles.stepsCard, isRejected && { backgroundColor: '#FFF4F4' }]}>
             <Text style={[styles.stepsHeading, { color: T.accentDeep }]}>
-              {isRejected ? 'What happened' : 'What to expect'}
+              {isSuspended ? 'What this means' : isRejected ? 'What happened' : 'What to expect'}
             </Text>
             <View style={styles.stepsList}>
               {statusRows.map((item, index) => (
@@ -158,19 +270,19 @@ export function ApprovalPendingScreen({
               ))}
             </View>
 
-            {/* Info note */}
             <View style={[styles.noteRow, { backgroundColor: T.soft }]}>
               <AppIcon name="info" size={12} color={T.accentDeep} />
               <Text style={[styles.noteText, { color: T.accentDeep }]}>
-                {isRejected
-                  ? 'You may contact our support team to understand the rejection and discuss next steps.'
-                  : 'Approval usually takes 1–2 business days. You will be notified once approved.'}
+                {isSuspended
+                  ? 'Support can guide you on why the account was suspended and what is needed to restore access.'
+                  : isRejected
+                  ? 'You may contact our support team to understand why the account was deactivated and discuss next steps.'
+                  : 'When admin changes your status to active, reopen the app and your account will unlock automatically.'}
               </Text>
             </View>
           </View>
         </LinearGradient>
 
-        {/* ── Support card ── */}
         <View style={[styles.supportCard, { backgroundColor: theme.surface ?? '#FFFFFF' }]}>
           <Text style={[styles.supportTitle, { color: theme.textPrimary }]}>
             {isRejected ? 'Need help?' : 'Need help right now?'}
@@ -206,7 +318,6 @@ export function ApprovalPendingScreen({
           ) : null}
         </View>
 
-        {/* ── Website promo ── */}
         <Pressable
           onPress={() => Linking.openURL('https://srvelectricals.com').catch(() => {})}
           style={[styles.websiteCard, { backgroundColor: theme.surface ?? '#FFFFFF' }]}
@@ -244,8 +355,6 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     gap: 10,
   },
-
-  /* Hero */
   heroCard: {
     borderRadius: 24,
     paddingHorizontal: 16,
@@ -288,8 +397,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
   },
-
-  /* Title block */
   titleBlock: {
     gap: 4,
   },
@@ -308,8 +415,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
-
-  /* Reason box */
   reasonBox: {
     borderRadius: 12,
     borderWidth: 1,
@@ -329,8 +434,6 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontWeight: '600',
   },
-
-  /* Steps card */
   stepsCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -379,8 +482,6 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     fontWeight: '600',
   },
-
-  /* Support card */
   supportCard: {
     borderRadius: 20,
     paddingHorizontal: 15,
@@ -443,8 +544,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-
-  /* Website promo */
   websiteCard: {
     flexDirection: 'row',
     alignItems: 'center',

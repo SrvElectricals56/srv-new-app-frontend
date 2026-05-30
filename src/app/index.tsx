@@ -81,8 +81,8 @@ function resolveRewardPoints(
   );
 }
 
-function roleNeedsAdminApproval(role: UserRole | null | undefined): role is 'dealer' {
-  return role === 'dealer';
+function roleNeedsAdminApproval(role: UserRole | null | undefined): role is UserRole {
+  return role === 'dealer' || role === 'electrician' || role === 'user' || role === 'counterboy';
 }
 
 function isApprovedAccountStatus(status?: string | null) {

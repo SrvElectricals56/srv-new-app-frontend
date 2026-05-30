@@ -40,6 +40,13 @@ function normalizeProfile(profile: UserProfile | null | undefined): UserProfile 
   };
 }
 
+function isApprovedAccountStatus(status?: string | null) {
+  const normalized = String(status ?? '').trim().toLowerCase();
+  return normalized === 'active' || normalized === 'approved';
+}
+
+const ACCOUNT_STATUS_POLL_MS = 2000;
+
 function buildPreviewUser(role: UserRole): UserProfile {
   const base = {
     id: `preview-${role}`,
@@ -185,6 +192,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     return () => sub.remove();
   }, [refreshProfile]);
+
+  // While account is pending/inactive, poll profile so admin status changes unlock the app immediately.
+  useEffect(() => {
+    if (!state.isAuthenticated || !state.user) {
+      return;
+    }
+
+    if (isApprovedAccountStatus(state.user.status)) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const pollProfile = () => {
+      if (!cancelled) {
+        void refreshProfile();
+      }
+    };
+
+    pollProfile();
+    const intervalId = setInterval(pollProfile, ACCOUNT_STATUS_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [refreshProfile, state.isAuthenticated, state.user?.status]);
 
   const updateUser = useCallback((data: Partial<UserProfile>) => {
     setState((s) => {

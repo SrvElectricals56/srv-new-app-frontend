@@ -1627,11 +1627,12 @@ export function OnboardingScreen({
       }
 
       if (signupStep === 'identity') {
-        if (signupGstNumber.trim() && !isValidOptionalGstOrPanNumber(signupGstNumber))
-          return setError(
-            'signupGstNumber',
-            'Please enter a valid GSTIN or PAN number in the proper format.'
-          );
+        if (!signupGstNumber.trim())
+          return setError('signupGstNumber', 'Please enter GST/PAN number or tap Skip for Now.');
+        if (!signupGstHolderName.trim())
+          return setError('signupGstHolderName', 'Please enter shop/business name or tap Skip for Now.');
+        if (!isValidOptionalGstOrPanNumber(signupGstNumber))
+          return setError('signupGstNumber', 'Please enter a valid GSTIN or PAN number in the proper format.');
         setError('signupGstNumber');
         setError('signupGstHolderName');
         setSignupStep('holders');
@@ -1683,6 +1684,12 @@ export function OnboardingScreen({
     if (signupStep === 'otp') {
       verifySignupOtp();
     }
+  };
+
+  const skipIdentityStep = () => {
+    setError('signupGstNumber');
+    setError('signupGstHolderName');
+    setSignupStep('holders');
   };
 
   return (
@@ -2449,7 +2456,7 @@ export function OnboardingScreen({
                                   disabled={false}
                                   secondary
                                 />
-                                <Pressable style={s.skipBtn} onPress={continueSignup}>
+                                <Pressable style={s.skipBtn} onPress={skipIdentityStep}>
                                   <Text style={s.skipBtnText}>{tx('Skip for Now')}</Text>
                                 </Pressable>
                               </>
@@ -2470,7 +2477,7 @@ export function OnboardingScreen({
                                   onSubmitEditing={sendSignupOtp}
                                   maxLength={10}
                                 />
-                                {!signupOtpSent || !signupOtpVerified ? (
+                                {!signupOtpSent ? (
                                   <Button
                                     label={tx('Send OTP')}
                                     onPress={sendSignupOtp}

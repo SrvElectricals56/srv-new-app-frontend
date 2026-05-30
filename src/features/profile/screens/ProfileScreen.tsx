@@ -922,59 +922,6 @@ export function ProfileScreen({
                 </TouchableOpacity>
               ))}
             </View>
-          ) : currentRole === 'dealer' ? (
-            <View style={styles.statsRow}>
-              {[
-                {
-                  val: electricianCount.toLocaleString(),
-                  label: 'Active Electricians',
-                  icon: 'refer' as IconName,
-                  bg: C.primaryLight,
-                  color: C.primary,
-                  onPress: () => setSubPage('Dealer Bonus'),
-                  translate: false,
-                },
-                {
-                  val: `Rs ${dealerAvailableBonus.toLocaleString('en-IN')}`,
-                  label: 'Dealer Bonus',
-                  icon: 'gift' as IconName,
-                  bg: dealerMembership.soft,
-                  color: dealerMembership.accent,
-                  onPress: () => setSubPage('Dealer Bonus'),
-                  translate: false,
-                },
-                {
-                  val: `Rs ${dealerTotalBonus.toLocaleString('en-IN')}`,
-                  label: 'Total Bonus',
-                  icon: 'bank' as IconName,
-                  bg: C.tealLight,
-                  color: C.teal,
-                  onPress: () => setSubPage('Dealer Bonus'),
-                  translate: false,
-                },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[
-                    styles.statBox,
-                    {
-                      backgroundColor: counterboySurface,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                  onPress={item.onPress}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.statIcon, { backgroundColor: item.bg }]}>
-                    <AppIcon name={item.icon} size={18} color={item.color} />
-                  </View>
-                  <Text style={[styles.statVal, { color: item.color }]}>{item.val}</Text>
-                  <Text style={[styles.statLbl, { color: theme.textMuted }]}>
-                    {item.translate === false ? item.label : tx(item.label)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
           ) : null}
 
           <View

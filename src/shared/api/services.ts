@@ -417,6 +417,12 @@ export const catalogApi = {
 
   getProductById: (id: string) =>
     api.get<Product>(`/mobile/products/${id}`),
+
+  addToCart: (data: { productId: string; quantity?: number }) =>
+    api.post<{ message: string; item: ProductCartItem }>('/mobile/cart', data, true),
+
+  buyNow: (data: { productId: string; quantity?: number; shippingAddress?: string }) =>
+    api.post<{ message: string; order: ProductOrder }>('/mobile/product-orders', data, true),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -762,8 +768,37 @@ export type Product = {
   points: number;
   badge?: string;
   price: number;
+  mrp?: number | null;
+  stock?: number;
+  sku?: string | null;
+  weight?: string | null;
   isActive: boolean;
   totalScanned?: number;
+};
+
+export type ProductCartItem = {
+  id: string;
+  userId: string;
+  userRole: string;
+  productId: string;
+  productName: string;
+  productImage?: string | null;
+  quantity: number;
+  price: number;
+  addedAt: string;
+};
+
+export type ProductOrder = {
+  id: string;
+  userId: string;
+  userRole: string;
+  productId: string;
+  productName: string;
+  productImage?: string | null;
+  quantity: number;
+  price: number;
+  status: string;
+  orderedAt: string;
 };
 
 export type Banner = {
@@ -861,6 +896,7 @@ export type AppSettings = {
   testimonialsEnabled: boolean;
   playEnabled: boolean;
   dealerCanAddElectrician: boolean;
+  upiOnlyMode?: boolean;
   playStoreUrl?: string;
   appStoreUrl?: string;
   generalCatalogPdfUrl?: string | null;
@@ -957,8 +993,13 @@ export type RedemptionRecord = {
 
 export type UserOrder = {
   id: string;
+  type: 'gift' | 'product';
   status: string;
   title: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  total: number;
   userId: string;
   userName: string;
   points: number;

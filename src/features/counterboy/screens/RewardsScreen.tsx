@@ -1,3 +1,8 @@
+/**
+ * Counter Boy — Gift Store / Rewards Screen
+ * Counter boys earn points by scanning SRV products.
+ */
+
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -15,43 +20,24 @@ import Svg, { Circle, Path, Defs, RadialGradient, Stop } from 'react-native-svg'
 import { AppIcon, shared } from '@/features/profile/components/ProfileShared';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAppData } from '@/shared/context/AppDataContext';
-import { useAuth } from '@/shared/context/AuthContext';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
+import { counterboyTheme as cb } from '@/features/counterboy/theme';
 import type { GiftProduct } from '@/shared/api';
-
-// ── Colors ────────────────────────────────────────────────────────────────────
-const C = {
-  primary: '#2563EB',
-  primaryLight: '#EAF2FF',
-  gold: '#F59E0B',
-  goldLight: '#FFF8E1',
-  goldDark: '#92400E',
-  bg: '#EEF4FF',
-  surface: '#FFFFFF',
-  border: '#D8E5FF',
-  textDark: '#1C1E2E',
-  textMuted: '#9898A8',
-  success: '#22c55e',
-  successLight: '#e6fdf0',
-};
 
 // ── Coin SVG Icon ─────────────────────────────────────────────────────────────
 function CoinIcon({ size = 18 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Defs>
-        <RadialGradient id="coinGrad" cx="40%" cy="35%" r="65%">
+        <RadialGradient id="cbCoinGrad" cx="40%" cy="35%" r="65%">
           <Stop offset="0%" stopColor="#FFE066" />
           <Stop offset="60%" stopColor="#F59E0B" />
           <Stop offset="100%" stopColor="#B45309" />
         </RadialGradient>
       </Defs>
-      {/* Coin body */}
-      <Circle cx="12" cy="12" r="10" fill="url(#coinGrad)" />
-      {/* Shine */}
+      <Circle cx="12" cy="12" r="10" fill="url(#cbCoinGrad)" />
       <Circle cx="9" cy="8.5" r="2.5" fill="rgba(255,255,255,0.28)" />
-      {/* ₹ symbol */}
       <Path
         d="M9.5 8h5M9.5 10.5h5M12 10.5V16M9.5 13h3.5"
         stroke="#7C3A00"
@@ -105,7 +91,7 @@ function GiftCard({
           </View>
         ) : null}
 
-        {/* Lock overlay if can't afford */}
+        {/* Lock overlay */}
         {!canAfford && (
           <View style={styles.lockOverlay}>
             <Text style={styles.lockIcon}>🔒</Text>
@@ -115,11 +101,7 @@ function GiftCard({
         {/* Image */}
         <View style={[styles.imgWrap, darkMode && styles.imgWrapDark]}>
           {gift.imageUrl ? (
-            <Image
-              source={{ uri: gift.imageUrl }}
-              style={styles.img}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: gift.imageUrl }} style={styles.img} resizeMode="contain" />
           ) : (
             <Text style={styles.imgPlaceholder}>🎁</Text>
           )}
@@ -130,12 +112,9 @@ function GiftCard({
           <Text style={[styles.giftName, darkMode && styles.giftNameDark]} numberOfLines={2}>
             {gift.name}
           </Text>
-
           {gift.mrp > 0 && (
             <Text style={styles.mrp}>M.R.P. ₹{gift.mrp.toLocaleString('en-IN')}</Text>
           )}
-
-          {/* Points row */}
           <View style={styles.ptsRow}>
             <CoinIcon size={18} />
             <Text style={[styles.pts, canAfford ? styles.ptsAffordable : styles.ptsLocked]}>
@@ -152,24 +131,20 @@ function GiftCard({
 export function RewardsScreen({ onBack }: { onBack?: () => void }) {
   const { darkMode, tx, theme } = usePreferenceContext();
   const { giftProducts, wallet, walletSummary, redeemReward, refreshAll } = useAppData();
-  const { role } = useAuth();
   const { width } = useWindowDimensions();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const isDealer = role === 'dealer';
   const currentPoints = wallet?.totalPoints ?? walletSummary?.totalPoints ?? 0;
   const cardW = Math.floor((width - 32 - 12) / 2);
 
-  // Auto-filter by user role — no tabs needed
-  // Show gifts targeted to this role OR targeted to 'all'
+  // Show gifts for counterboy or 'all' (counterboy shares gifts with electrician)
   const filtered = useMemo<GiftProduct[]>(() => {
-    if (!role) return giftProducts;
     return giftProducts.filter((g) => {
       const t = (g.targetRole ?? 'all').toLowerCase();
-      return t === 'all' || t === 'both' || t === role.toLowerCase();
+      return t === 'all' || t === 'both' || t === 'counterboy' || t === 'electrician';
     });
-  }, [giftProducts, role]);
+  }, [giftProducts]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -180,18 +155,14 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
     if (currentPoints < 100) {
       Alert.alert(
         tx('Minimum Points Required'),
-        isDealer
-          ? `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Your bonus grows as your electricians redeem more!')}`
-          : `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Scan SRV products to earn more!')}`,
+        `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Keep scanning to earn more!')}`,
       );
       return;
     }
     if (currentPoints < gift.pointsRequired) {
       Alert.alert(
         tx('Not Enough Points'),
-        isDealer
-          ? `${tx('You need')} ${gift.pointsRequired} ${tx('pts but have')} ${currentPoints} ${tx('pts. Keep growing your electrician network to unlock this gift!')}`
-          : `${tx('You need')} ${gift.pointsRequired} ${tx('pts but have')} ${currentPoints} ${tx('pts. Keep scanning to unlock this gift!')}`,
+        `${tx('You need')} ${gift.pointsRequired} ${tx('pts but have')} ${currentPoints} ${tx('pts. Keep scanning to unlock this gift!')}`,
       );
       return;
     }
@@ -228,14 +199,14 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: darkMode ? '#08111F' : C.bg }}>
+    <View style={{ flex: 1, backgroundColor: darkMode ? cb.darkBg : cb.bg }}>
       {/* Header */}
       {onBack ? (
-        <View style={[shared.header, { backgroundColor: theme.surface, borderBottomColor: theme.border, paddingTop: 12 }]}>
+        <View style={[shared.header, { backgroundColor: darkMode ? cb.darkSurface : cb.surface, borderBottomColor: darkMode ? cb.darkBorder : cb.border, paddingTop: 12 }]}>
           <TouchableOpacity onPress={onBack} style={shared.backBtn} activeOpacity={0.75}>
-            <AppIcon name="backArrow" size={22} color={theme.textPrimary} />
+            <AppIcon name="backArrow" size={22} color={darkMode ? cb.darkText : cb.text} />
           </TouchableOpacity>
-          <Text style={[shared.title, { color: theme.textPrimary }]}>{tx('Gift Store')}</Text>
+          <Text style={[shared.title, { color: darkMode ? cb.darkText : cb.text }]}>{tx('Gift Store')}</Text>
           <View style={{ width: 36 }} />
         </View>
       ) : null}
@@ -244,7 +215,7 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={cb.primary} />
         }
       >
         {/* Points Banner */}
@@ -258,21 +229,17 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
               </Text>
             </View>
           </View>
-          {!isDealer && (
-            <View style={styles.pointsHint}>
-              <Text style={styles.pointsHintText}>
-                {tx('Scan products to earn more')}
-              </Text>
-            </View>
-          )}
+          <View style={styles.pointsHint}>
+            <Text style={styles.pointsHintText}>{tx('Scan & earn to redeem gifts')}</Text>
+          </View>
         </View>
 
         {/* Grid */}
         {filtered.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>🎁</Text>
-            <Text style={[styles.emptyTitle, darkMode && { color: '#F8FAFC' }]}>{tx('No gifts available')}</Text>
-            <Text style={[styles.emptySub, darkMode && { color: '#94A3B8' }]}>{tx('Check back soon!')}</Text>
+            <Text style={[styles.emptyTitle, darkMode && { color: cb.darkText }]}>{tx('No gifts available')}</Text>
+            <Text style={[styles.emptySub, darkMode && { color: cb.darkMuted }]}>{tx('Check back soon!')}</Text>
           </View>
         ) : (
           <View style={styles.grid}>
@@ -305,37 +272,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: C.surface,
+    backgroundColor: cb.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: C.border,
-    ...createShadow({ color: '#000', offsetY: 2, blur: 8, opacity: 0.05, elevation: 2 }),
+    borderColor: cb.border,
+    ...createShadow({ color: cb.primary, offsetY: 2, blur: 8, opacity: 0.06, elevation: 2 }),
   },
-  pointsBannerDark: { backgroundColor: '#111827', borderColor: '#243043' },
-  pointsLabel: { fontSize: 12, fontWeight: '600', color: C.textMuted, marginBottom: 4 },
-  pointsLabelDark: { color: '#94A3B8' },
+  pointsBannerDark: { backgroundColor: cb.darkSurface, borderColor: cb.darkBorder },
+  pointsLabel: { fontSize: 12, fontWeight: '600', color: cb.muted, marginBottom: 4 },
+  pointsLabelDark: { color: cb.darkMuted },
   pointsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pointsValue: { fontSize: 22, fontWeight: '900', color: C.textDark },
-  pointsValueDark: { color: '#F8FAFC' },
-  pointsHint: { backgroundColor: C.goldLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
-  pointsHintText: { fontSize: 11, fontWeight: '700', color: C.goldDark },
+  pointsValue: { fontSize: 22, fontWeight: '900', color: cb.text },
+  pointsValueDark: { color: cb.darkText },
+  pointsHint: {
+    backgroundColor: cb.softBg,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: cb.border,
+  },
+  pointsHintText: { fontSize: 11, fontWeight: '700', color: cb.primaryDeep },
 
   // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
   // Card
   card: {
-    backgroundColor: C.surface,
+    backgroundColor: cb.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: cb.border,
     overflow: 'hidden',
-    ...createShadow({ color: '#000', offsetY: 3, blur: 10, opacity: 0.07, elevation: 3 }),
+    ...createShadow({ color: cb.primary, offsetY: 3, blur: 10, opacity: 0.07, elevation: 3 }),
   },
-  cardDark: { backgroundColor: '#111827', borderColor: '#243043' },
-  cardLocked: { opacity: 0.75 },
+  cardDark: { backgroundColor: cb.darkSurface, borderColor: cb.darkBorder },
+  cardLocked: { opacity: 0.72 },
 
   // Badge
   badge: {
@@ -343,7 +317,7 @@ const styles = StyleSheet.create({
     top: 8,
     left: 8,
     zIndex: 2,
-    backgroundColor: C.primary,
+    backgroundColor: cb.primary,
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -368,12 +342,12 @@ const styles = StyleSheet.create({
   // Image
   imgWrap: {
     height: 130,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: cb.softBg,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
   },
-  imgWrapDark: { backgroundColor: '#1E293B' },
+  imgWrapDark: { backgroundColor: cb.darkSurface },
   img: { width: '100%', height: '100%' },
   imgPlaceholder: { fontSize: 48 },
 
@@ -382,23 +356,23 @@ const styles = StyleSheet.create({
   giftName: {
     fontSize: 13,
     fontWeight: '800',
-    color: C.textDark,
+    color: cb.text,
     lineHeight: 18,
     marginBottom: 4,
     minHeight: 36,
   },
-  giftNameDark: { color: '#F1F5F9' },
-  mrp: { fontSize: 11, color: C.textMuted, marginBottom: 6 },
+  giftNameDark: { color: cb.darkText },
+  mrp: { fontSize: 11, color: cb.muted, marginBottom: 6 },
 
   // Points row
   ptsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   pts: { fontSize: 14, fontWeight: '900' },
-  ptsAffordable: { color: C.primary },
-  ptsLocked: { color: C.textMuted },
+  ptsAffordable: { color: cb.primary },
+  ptsLocked: { color: cb.muted },
 
   // Empty
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: C.textDark, marginBottom: 6 },
-  emptySub: { fontSize: 13, color: C.textMuted },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: cb.text, marginBottom: 6 },
+  emptySub: { fontSize: 13, color: cb.muted },
 });

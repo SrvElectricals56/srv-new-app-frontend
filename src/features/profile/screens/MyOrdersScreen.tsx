@@ -126,12 +126,15 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
               ]}
             >
               <View style={styles.orderHead}>
-                <View style={styles.orderIcon}>
-                  <AppIcon name="order" size={20} color={C.purple} />
+                <View style={[styles.orderIcon, { backgroundColor: order.type === 'product' ? '#DBEAFE' : C.purpleLight }]}>
+                  <AppIcon name={order.type === 'product' ? 'order' : 'redeem'} size={20} color={order.type === 'product' ? '#1D4ED8' : C.purple} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.orderTitle, { color: theme.textPrimary }]}>
                     {order.title || tx('Reward redemption')}
+                  </Text>
+                  <Text style={[styles.orderType, { color: order.type === 'product' ? '#1D4ED8' : C.purple }]}>
+                    {order.type === 'product' ? `${tx('Product')} · ${tx('Qty')}: ${order.quantity}` : tx('Gift')}
                   </Text>
                   <Text style={[styles.orderMeta, { color: theme.textMuted }]}>{order.id}</Text>
                 </View>
@@ -145,8 +148,9 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
                 </Text>
                 <Text style={[styles.dot, { color: theme.textMuted }]}>•</Text>
                 <Text style={[styles.detailText, { color: theme.textSecondary }]}>
-                  {`${order.points.toLocaleString('en-IN')} pts`}
-                </Text>
+                  {order.type === 'product'
+                    ? `₹${order.total.toLocaleString('en-IN')}`
+                    : `${order.points.toLocaleString('en-IN')} pts`}</Text>
               </View>
             </View>
           ))
@@ -173,6 +177,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   orderTitle: { fontSize: 15, fontWeight: '800' },
+  orderType: { fontSize: 11, fontWeight: '700', marginTop: 2 },
   orderMeta: { fontSize: 12, marginTop: 3 },
   statusChip: {
     borderRadius: 999,

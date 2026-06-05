@@ -380,7 +380,7 @@ export function UserAuthScreen({
       try {
         const data = await authApi.verifyOtp(cleanPhone, role, lOtp.trim());
         (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = data.user;
-        onAuthenticated(role, { passwordConfigured: false, passwordValue: '' });
+        onAuthenticated(role, { passwordValue: '' });
       } catch (e: any) {
         const msg = e?.message ?? '';
         if (msg.toLowerCase().includes('expired')) {

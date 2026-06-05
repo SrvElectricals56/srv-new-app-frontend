@@ -1,4 +1,5 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { memo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,17 +7,71 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { useAppPageContent } from '@/shared/hooks';
 import { createShadow } from '@/shared/theme/shadows';
 
-// Customer theme colors matching Customer_Slide
-const PRIMARY = '#6A2F12';
-const PRIMARY_DARK = '#8D4A1E';
-const PRIMARY_SOFT = '#FBF1E7';
-const MINT_SOFT = '#F0DEC9';
+type CartRole = 'electrician' | 'dealer' | 'customer' | 'counterboy';
+
+const ROLE_THEMES: Record<CartRole, {
+  primary: string; primaryDark: string; primarySoft: string;
+  bg: string; bgDark: string;
+  card: string; cardDark: string;
+  border: string; borderDark: string;
+  text: string; textDark: string;
+  muted: string; mutedDark: string;
+  mintSoft: string;
+  gradient: [string, string];
+  gradientDark: [string, string];
+}> = {
+  electrician: {
+    primary: '#E8453C', primaryDark: '#C0392B', primarySoft: '#FFF0EF',
+    bg: '#F2F3F7', bgDark: '#0F172A',
+    card: '#FFFFFF', cardDark: '#172033',
+    border: '#E5E7EB', borderDark: '#25344E',
+    text: '#1C1E2E', textDark: '#F8FAFC',
+    muted: '#6B7280', mutedDark: '#A8B3C7',
+    mintSoft: '#FDE8E8',
+    gradient: ['#E8453C', '#C0392B'],
+    gradientDark: ['#C0392B', '#A93226'],
+  },
+  dealer: {
+    primary: '#173E80', primaryDark: '#355C95', primarySoft: '#EAF3FF',
+    bg: '#F4F8FF', bgDark: '#0F172A',
+    card: '#FFFFFF', cardDark: '#172033',
+    border: '#E5E7EB', borderDark: '#2B3A52',
+    text: '#1F2937', textDark: '#F8FAFC',
+    muted: '#6B7280', mutedDark: '#9FB0C4',
+    mintSoft: '#DCE8FF',
+    gradient: ['#173E80', '#355C95'],
+    gradientDark: ['#173E80', '#1D4ED8'],
+  },
+  customer: {
+    primary: '#6A2F12', primaryDark: '#8D4A1E', primarySoft: '#FBF1E7',
+    bg: '#F2F3F7', bgDark: '#0F172A',
+    card: '#FFFFFF', cardDark: '#162132',
+    border: '#E5D4C1', borderDark: '#2B3A52',
+    text: '#1F2937', textDark: '#F8FAFC',
+    muted: '#6B7280', mutedDark: '#9FB0C4',
+    mintSoft: '#F0DEC9',
+    gradient: ['#6A2F12', '#8D4A1E'],
+    gradientDark: ['#8D4A1E', '#6A2F12'],
+  },
+  counterboy: {
+    primary: '#8B3C2A', primaryDark: '#6B2D1D', primarySoft: '#F5EDE4',
+    bg: '#F9F4ED', bgDark: '#0F172A',
+    card: '#FFFFFF', cardDark: '#1A0F0A',
+    border: '#E0D0C0', borderDark: '#2B3A52',
+    text: '#2D1A10', textDark: '#F8FAFC',
+    muted: '#8A7A6E', mutedDark: '#9FB0C4',
+    mintSoft: '#E8DCD0',
+    gradient: ['#8B3C2A', '#6B2D1D'],
+    gradientDark: ['#6B2D1D', '#5C3D2E'],
+  },
+};
 
 export type CartItem = {
   id: string;
   name: string;
   desc: string;
   image: any;
+  price: number;
   qty: number;
 };
 
@@ -51,37 +106,37 @@ function MinusIcon({ size = 16, color = '#fff' }: { size?: number; color?: strin
   );
 }
 
-function CartHeroIcon() {
+function CartHeroIcon({ primarySoft, primaryDark }: { primarySoft: string; primaryDark: string }) {
   return (
     <Svg width={86} height={86} viewBox="0 0 86 86" fill="none">
-      <Rect x="8" y="14" width="70" height="48" rx="18" fill={PRIMARY_SOFT} />
+      <Rect x="8" y="14" width="70" height="48" rx="18" fill={primarySoft} />
       <Path
         d="M24 28h8l4 20h25l5-14H34"
-        stroke={PRIMARY_DARK}
+        stroke={primaryDark}
         strokeWidth={4}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <Circle cx="40" cy="58" r="4.5" fill={PRIMARY_DARK} />
-      <Circle cx="60" cy="58" r="4.5" fill={PRIMARY_DARK} />
+      <Circle cx="40" cy="58" r="4.5" fill={primaryDark} />
+      <Circle cx="60" cy="58" r="4.5" fill={primaryDark} />
       <Circle cx="65" cy="24" r="9" fill="#F6E3A1" />
     </Svg>
   );
 }
 
-function EmptyCartIcon() {
+function EmptyCartIcon({ primarySoft, primaryDark }: { primarySoft: string; primaryDark: string }) {
   return (
     <Svg width={92} height={92} viewBox="0 0 92 92" fill="none">
-      <Rect x="10" y="14" width="72" height="60" rx="24" fill={PRIMARY_SOFT} />
+      <Rect x="10" y="14" width="72" height="60" rx="24" fill={primarySoft} />
       <Path
         d="M27 31h8l4.8 24h29l5.2-15H37.8"
-        stroke={PRIMARY_DARK}
+        stroke={primaryDark}
         strokeWidth={3.8}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <Circle cx="44" cy="63" r="4.8" fill={PRIMARY_DARK} />
-      <Circle cx="64" cy="63" r="4.8" fill={PRIMARY_DARK} />
+      <Circle cx="44" cy="63" r="4.8" fill={primaryDark} />
+      <Circle cx="64" cy="63" r="4.8" fill={primaryDark} />
       <Path
         d="M58 20l2.8 2.8L67 16.5"
         stroke="#D95D39"
@@ -93,27 +148,89 @@ function EmptyCartIcon() {
   );
 }
 
+const CartItemRow = memo(function CartItemRow({
+  item, theme, darkMode, cardBg, cardSoft, border, textPrimary, textMuted, onUpdateQty, onRemove,
+}: {
+  item: CartItem;
+  theme: (typeof ROLE_THEMES)[CartRole];
+  darkMode: boolean;
+  cardBg: string; cardSoft: string; border: string;
+  textPrimary: string; textMuted: string;
+  onUpdateQty: (id: string, qty: number) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <View style={[styles.itemCard, { backgroundColor: cardBg, borderColor: border }]}>
+      <View style={[styles.itemImageWrap, { backgroundColor: cardSoft }]}>
+        <Image source={item.image} style={styles.itemImage} resizeMode="contain" />
+      </View>
+      <View style={styles.itemInfo}>
+        <View style={styles.itemTextWrap}>
+          <Text style={[styles.itemName, { color: textPrimary }]} numberOfLines={2}>{item.name}</Text>
+          <Text style={[styles.itemDesc, { color: textMuted }]} numberOfLines={2}>{item.desc}</Text>
+        </View>
+        <View style={styles.itemBottomRow}>
+          <View style={[styles.qtyPill, { backgroundColor: darkMode ? '#223049' : theme.primarySoft }]}>
+            <Pressable
+              style={[styles.qtyBtn, { backgroundColor: theme.primaryDark }]}
+              onPress={() => (item.qty > 1 ? onUpdateQty(item.id, item.qty - 1) : onRemove(item.id))}
+              android_ripple={{ color: 'rgba(255,255,255,0.22)', borderless: true }}
+            >
+              <MinusIcon size={13} />
+            </Pressable>
+            <Text style={[styles.qtyText, { color: textPrimary }]}>{item.qty}</Text>
+            <Pressable
+              style={[styles.qtyBtn, { backgroundColor: theme.primary }]}
+              onPress={() => onUpdateQty(item.id, item.qty + 1)}
+              android_ripple={{ color: 'rgba(255,255,255,0.22)', borderless: true }}
+            >
+              <PlusIcon size={13} />
+            </Pressable>
+          </View>
+          <Pressable
+            style={[styles.removeBtn, { backgroundColor: darkMode ? '#2A2230' : '#FFF2EC' }]}
+            onPress={() => onRemove(item.id)}
+            android_ripple={{ color: 'rgba(217,93,57,0.14)' }}
+          >
+            <TrashIcon size={17} />
+          </Pressable>
+        </View>
+      </View>
+      <View style={styles.itemPriceCol}>
+        <Text style={[styles.itemPriceLabel, { color: textMuted }]}>₹{item.price.toLocaleString('en-IN')}</Text>
+        <Text style={[styles.itemTotal, { color: theme.primary }]}>₹{(item.price * item.qty).toLocaleString('en-IN')}</Text>
+      </View>
+    </View>
+  );
+});
+
 export function CartScreen({
   cartItems,
   onUpdateQty,
   onRemove,
   onNavigate,
+  onCheckout,
+  role = 'customer',
 }: {
   cartItems: CartItem[];
   onUpdateQty: (id: string, qty: number) => void;
   onRemove: (id: string) => void;
   onNavigate: (screen: any) => void;
+  onCheckout?: () => void;
+  role?: CartRole;
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const insets = useSafeAreaInsets();
-  const pageContent = useAppPageContent('user', 'cart');
+  const pageContent = useAppPageContent(role === 'customer' ? 'user' : role, 'cart');
 
-  const bg = darkMode ? '#0F172A' : '#F2F3F7';
-  const cardBg = darkMode ? '#162132' : '#FFFFFF';
-  const cardSoft = darkMode ? '#1D2A3D' : '#FBF1E7';
-  const borderColor = darkMode ? '#2B3A52' : '#E5D4C1';
-  const textPrimary = darkMode ? '#F8FAFC' : '#1F2937';
-  const textMuted = darkMode ? '#9FB0C4' : '#6B7280';
+  const theme = ROLE_THEMES[role] ?? ROLE_THEMES.customer;
+
+  const bg = darkMode ? theme.bgDark : theme.bg;
+  const cardBg = darkMode ? theme.cardDark : theme.card;
+  const cardSoft = darkMode ? theme.borderDark : theme.primarySoft;
+  const borderColor = darkMode ? theme.borderDark : theme.border;
+  const textPrimary = darkMode ? theme.textDark : theme.text;
+  const textMuted = darkMode ? theme.mutedDark : theme.muted;
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.qty, 0);
   const totalUnits = cartItems.length;
@@ -125,13 +242,13 @@ export function CartScreen({
         contentContainerStyle={{ paddingBottom: cartItems.length ? insets.bottom + 150 : insets.bottom + 40 }}
       >
         <LinearGradient
-          colors={darkMode ? ['#1B2638', '#182131', '#111827'] : ['#FBF1E7', '#F5E8DC', '#F0DEC9']}
+          colors={darkMode ? ['#1B2638', '#182131', '#111827'] : [theme.primarySoft, theme.mintSoft, '#F0DEC9']}
           style={[styles.heroCard, { borderColor }]}
         >
           <View style={[styles.heroGlow, { backgroundColor: darkMode ? 'rgba(141,74,30,0.16)' : 'rgba(106,47,18,0.12)' }]} />
           <View style={styles.heroTopRow}>
             <View>
-              <Text style={[styles.heroEyebrow, { color: PRIMARY_DARK }]}>{pageContent.pageTitle || tx('Customer Cart')}</Text>
+              <Text style={[styles.heroEyebrow, { color: theme.primaryDark }]}>{pageContent.pageTitle || ({ dealer: tx('Dealer Cart'), counterboy: tx('Counterboy Cart'), electrician: tx('Cart'), customer: tx('Customer Cart') } as Record<string, string>)[role] || tx('Cart')}</Text>
               <Text style={[styles.heroTitle, { color: textPrimary }]}>{pageContent.heroTitle || tx('My Cart')}</Text>
               <Text style={[styles.heroSubtitle, { color: textMuted }]}>
                 {pageContent.heroSubtitle || (cartItems.length
@@ -139,7 +256,7 @@ export function CartScreen({
                   : tx('Save your favorite items here and enquire when you are ready.'))}
               </Text>
             </View>
-            <CartHeroIcon />
+            <CartHeroIcon primarySoft={theme.primarySoft} primaryDark={theme.primaryDark} />
           </View>
 
           <View style={styles.heroStats}>
@@ -156,7 +273,7 @@ export function CartScreen({
 
         {cartItems.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: cardBg, borderColor }]}>
-            <EmptyCartIcon />
+            <EmptyCartIcon primarySoft={theme.primarySoft} primaryDark={theme.primaryDark} />
             <Text style={[styles.emptyTitle, { color: textPrimary }]}>{pageContent.emptyStateTitle || tx('Your cart is empty')}</Text>
             <Text style={[styles.emptySubtitle, { color: textMuted }]}>
               {pageContent.emptyStateSubtitle || tx('Browse categories, explore products and add items here for a cleaner enquiry flow.')}
@@ -166,7 +283,7 @@ export function CartScreen({
               onPress={() => onNavigate('categories')}
               android_ripple={{ color: 'rgba(255,255,255,0.18)' }}
             >
-              <LinearGradient colors={[PRIMARY, PRIMARY_DARK]} style={styles.shopButton}>
+              <LinearGradient colors={[theme.primary, theme.primaryDark]} style={styles.shopButton}>
                 <Text style={styles.shopButtonText}>{pageContent.primaryCtaLabel || tx('Browse Products')}</Text>
               </LinearGradient>
             </Pressable>
@@ -174,50 +291,19 @@ export function CartScreen({
         ) : (
           <View style={styles.listWrap}>
             {cartItems.map((item) => (
-              <View key={item.id} style={[styles.itemCard, { backgroundColor: cardBg, borderColor }]}>
-                <View style={[styles.itemImageWrap, { backgroundColor: cardSoft }]}>
-                  <Image source={item.image} style={styles.itemImage} resizeMode="contain" />
-                </View>
-
-                <View style={styles.itemInfo}>
-                  <View style={styles.itemTextWrap}>
-                    <Text style={[styles.itemName, { color: textPrimary }]} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                    <Text style={[styles.itemDesc, { color: textMuted }]} numberOfLines={2}>
-                      {item.desc}
-                    </Text>
-                  </View>
-
-                  <View style={styles.itemBottomRow}>
-                    <View style={[styles.qtyPill, { backgroundColor: darkMode ? '#223049' : PRIMARY_SOFT }]}>
-                      <Pressable
-                        style={[styles.qtyBtn, { backgroundColor: PRIMARY_DARK }]}
-                        onPress={() => (item.qty > 1 ? onUpdateQty(item.id, item.qty - 1) : onRemove(item.id))}
-                        android_ripple={{ color: 'rgba(255,255,255,0.22)', borderless: true }}
-                      >
-                        <MinusIcon size={13} />
-                      </Pressable>
-                      <Text style={[styles.qtyText, { color: textPrimary }]}>{item.qty}</Text>
-                      <Pressable
-                        style={[styles.qtyBtn, { backgroundColor: PRIMARY }]}
-                        onPress={() => onUpdateQty(item.id, item.qty + 1)}
-                        android_ripple={{ color: 'rgba(255,255,255,0.22)', borderless: true }}
-                      >
-                        <PlusIcon size={13} />
-                      </Pressable>
-                    </View>
-
-                    <Pressable
-                      style={[styles.removeBtn, { backgroundColor: darkMode ? '#2A2230' : '#FFF2EC' }]}
-                      onPress={() => onRemove(item.id)}
-                      android_ripple={{ color: 'rgba(217,93,57,0.14)' }}
-                    >
-                      <TrashIcon size={17} />
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
+              <CartItemRow
+                key={item.id}
+                item={item}
+                theme={theme as any}
+                darkMode={darkMode}
+                cardBg={cardBg}
+                cardSoft={cardSoft}
+                border={borderColor}
+                textPrimary={textPrimary}
+                textMuted={textMuted}
+                onUpdateQty={onUpdateQty}
+                onRemove={onRemove}
+              />
             ))}
           </View>
         )}
@@ -228,19 +314,19 @@ export function CartScreen({
           <View style={[styles.footerCard, { backgroundColor: cardBg, borderColor }]}>
             <View style={styles.footerRow}>
               <View>
-                <Text style={[styles.footerLabel, { color: textMuted }]}>{tx('Ready to enquire')}</Text>
+                <Text style={[styles.footerLabel, { color: textMuted }]}>{tx('Order Summary')}</Text>
                 <Text style={[styles.footerValue, { color: textPrimary }]}>
-                  {totalItems} {tx('item(s) selected')}
+                  {totalItems} {tx('item(s)')}
                 </Text>
               </View>
-              <View style={[styles.footerBadge, { backgroundColor: darkMode ? '#223049' : MINT_SOFT }]}>
-                <Text style={[styles.footerBadgeText, { color: PRIMARY_DARK }]}>{tx('Fast Response')}</Text>
-              </View>
+              <Text style={[styles.footerTotalPrice, { color: theme.primary }]}>
+                ₹{cartItems.reduce((sum, i) => sum + i.price * i.qty, 0).toLocaleString('en-IN')}
+              </Text>
             </View>
 
-            <Pressable style={styles.enquireShell} android_ripple={{ color: 'rgba(255,255,255,0.18)' }}>
-              <LinearGradient colors={[PRIMARY, PRIMARY_DARK]} style={styles.enquireBtn}>
-                <Text style={styles.enquireBtnText}>{tx('Enquire All Items')}</Text>
+            <Pressable style={styles.enquireShell} android_ripple={{ color: 'rgba(255,255,255,0.18)' }} onPress={onCheckout}>
+              <LinearGradient colors={[theme.primary, theme.primaryDark]} style={styles.enquireBtn}>
+                <Text style={styles.enquireBtnText}>{tx('Proceed to Checkout')}</Text>
               </LinearGradient>
             </Pressable>
           </View>
@@ -314,7 +400,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     width: '100%',
-    ...createShadow({ color: PRIMARY, offsetY: 6, blur: 14, opacity: 0.22, elevation: 5 }),
   },
   shopButton: {
     height: 54,
@@ -378,6 +463,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
   },
+  itemPriceCol: { alignItems: 'flex-end', justifyContent: 'center', paddingRight: 4 },
+  itemPriceLabel: { fontSize: 12, fontWeight: '600', textDecorationLine: 'line-through', marginBottom: 2 },
+  itemTotal: { fontSize: 15, fontWeight: '900' },
   removeBtn: {
     width: 40,
     height: 40,
@@ -408,16 +496,10 @@ const styles = StyleSheet.create({
   },
   footerLabel: { fontSize: 12, fontWeight: '700', marginBottom: 3 },
   footerValue: { fontSize: 16, fontWeight: '900' },
-  footerBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  footerBadgeText: { fontSize: 11, fontWeight: '900' },
+  footerTotalPrice: { fontSize: 20, fontWeight: '900' },
   enquireShell: {
     borderRadius: 16,
     overflow: 'hidden',
-    ...createShadow({ color: PRIMARY, offsetY: 6, blur: 14, opacity: 0.22, elevation: 5 }),
   },
   enquireBtn: {
     height: 54,

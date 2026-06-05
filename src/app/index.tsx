@@ -24,6 +24,7 @@ import { ProfileScreen as CounterBoyProfileScreen } from '@/features/counterboy/
 import { ProductScreen as CounterBoyProductScreen } from '@/features/counterboy/screens/ProductScreen';
 import { NotificationScreen as CounterBoyNotificationScreen } from '@/features/counterboy/screens/NotificationScreen';
 import { SupportScreen as CounterBoySupportScreen } from '@/features/counterboy/screens/SupportScreen';
+import { RewardsScreen as CounterBoyRewardsScreen } from '@/features/counterboy/screens/RewardsScreen';
 import { BottomNav as UserBottomNav } from '@/features/user/screens/BottomNav';
 import { HomeScreen as UserHomeScreen } from '@/features/user/screens/HomeScreen';
 import { NotificationScreen as UserNotificationScreen } from '@/features/user/screens/NotificationScreen';
@@ -31,6 +32,7 @@ import { ProfileScreen as UserProfileScreen } from '@/features/user/screens/Prof
 import { RewardsScreen as UserRewardsScreen } from '@/features/user/screens/RewardsScreen';
 import { CategoriesScreen as UserCategoriesScreen } from '@/features/user/screens/CategoriesScreen';
 import { CartScreen as UserCartScreen, type CartItem } from '@/features/user/screens/CartScreen';
+import { CheckoutScreen, type CheckoutItem } from '@/features/user/screens/CheckoutScreen';
 import { WalletScreen as UserWalletScreen } from '@/features/user/screens/WalletScreen';
 import { AuthLandingScreen } from '@/features/profile/screens/AuthLandingScreen';
 import { AccessFeatureGateScreen } from '@/features/profile/screens/AccessFeatureGateScreen';
@@ -191,6 +193,9 @@ function AppContent() {
   const [electricianRewardHistory, setElectricianRewardHistory] = useState<RewardHistoryItem[]>([]);
   const [hasUnreadNotif, setHasUnreadNotif] = useState(false);
   const [userCartItems, setUserCartItems] = useState<CartItem[]>([]);
+  const [dealerCartItems, setDealerCartItems] = useState<CartItem[]>([]);
+  const [counterboyCartItems, setCounterboyCartItems] = useState<CartItem[]>([]);
+  const [checkoutItem, setCheckoutItem] = useState<CheckoutItem | null>(null);
   const [profileInitialSubPage, setProfileInitialSubPage] = useState<Exclude<SubPage, null> | null>(
     null
   );
@@ -341,6 +346,15 @@ function AppContent() {
     (screen: Screen) => {
       if (!isRoleFeatureEnabled(rolePageControls, currentRole, screen)) {
         setCurrentScreen('home');
+        setGuestAuthRole(null);
+        return;
+      }
+
+      // If auth landing is open (guestAuthRole set) and user taps a non-blocked screen,
+      // dismiss the auth flow and navigate normally
+      if (guestAuthRole && screen !== 'wallet' && screen !== 'profile') {
+        setGuestAuthRole(null);
+        setCurrentScreen(screen);
         return;
       }
 
@@ -359,7 +373,7 @@ function AppContent() {
 
       setCurrentScreen(screen);
     },
-    [currentRole, currentScreen, rolePageControls]
+    [currentRole, currentScreen, guestAuthRole, rolePageControls]
   );
 
   const handleOpenProductCategory = useCallback((category: string) => {
@@ -377,12 +391,104 @@ function AppContent() {
     });
   }, []);
 
+  const handleDealerAddToCart = useCallback((item: CartItem) => {
+    setDealerCartItems((prev) => {
+      const existing = prev.find((i) => i.id === item.id);
+      if (existing) {
+        return prev.map((i) => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+      }
+      return [...prev, { ...item, qty: 1 }];
+    });
+  }, []);
+
+  const handleCounterboyAddToCart = useCallback((item: CartItem) => {
+    setCounterboyCartItems((prev) => {
+      const existing = prev.find((i) => i.id === item.id);
+      if (existing) {
+        return prev.map((i) => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+      }
+      return [...prev, { ...item, qty: 1 }];
+    });
+  }, []);
+
   const handleUpdateCartQty = useCallback((id: string, qty: number) => {
     setUserCartItems((prev) => prev.map((i) => i.id === id ? { ...i, qty } : i));
   }, []);
 
   const handleRemoveFromCart = useCallback((id: string) => {
     setUserCartItems((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
+  const handleBuyNow = useCallback((item: CheckoutItem) => {
+    setCheckoutItem(item);
+    setCurrentScreen('checkout');
+  }, []);
+
+  const handleCartCheckout = useCallback(() => {
+    if (userCartItems.length === 0) return;
+    const first = userCartItems[0];
+    setCheckoutItem({
+      id: first.id,
+      name: first.name,
+      desc: first.desc,
+      image: first.image,
+      price: first.price,
+      qty: first.qty,
+    });
+    setCurrentScreen('checkout');
+  }, [userCartItems]);
+
+  const handleDealerUpdateCartQty = useCallback((id: string, qty: number) => {
+    setDealerCartItems((prev) => prev.map((i) => i.id === id ? { ...i, qty } : i));
+  }, []);
+
+  const handleDealerRemoveFromCart = useCallback((id: string) => {
+    setDealerCartItems((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
+  const handleDealerCartCheckout = useCallback(() => {
+    if (dealerCartItems.length === 0) return;
+    const first = dealerCartItems[0];
+    setCheckoutItem({
+      id: first.id,
+      name: first.name,
+      desc: first.desc,
+      image: first.image,
+      price: first.price,
+      qty: first.qty,
+    });
+    setCurrentScreen('checkout');
+  }, [dealerCartItems]);
+
+  const handleCounterboyUpdateCartQty = useCallback((id: string, qty: number) => {
+    setCounterboyCartItems((prev) => prev.map((i) => i.id === id ? { ...i, qty } : i));
+  }, []);
+
+  const handleCounterboyRemoveFromCart = useCallback((id: string) => {
+    setCounterboyCartItems((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
+  const handleCounterboyCartCheckout = useCallback(() => {
+    if (counterboyCartItems.length === 0) return;
+    const first = counterboyCartItems[0];
+    setCheckoutItem({
+      id: first.id,
+      name: first.name,
+      desc: first.desc,
+      image: first.image,
+      price: first.price,
+      qty: first.qty,
+    });
+    setCurrentScreen('checkout');
+  }, [counterboyCartItems]);
+
+  const handleCheckoutUpdateQty = useCallback((id: string, qty: number) => {
+    setCheckoutItem((prev) => prev ? { ...prev, qty } : prev);
+  }, []);
+
+  const handleOrderPlaced = useCallback(() => {
+    setCheckoutItem(null);
+    setCurrentScreen('home');
   }, []);
 
   const handleSignOut = useCallback(() => {
@@ -577,6 +683,7 @@ function AppContent() {
           wallet: { title: 'Wallet', description: 'Login or signup to view your points, rewards and account-linked wallet details.' },
           notification: { title: 'Notifications', description: 'Login or signup to read counter boy alerts, offers and updates.' },
           profile: { title: 'Profile', description: 'Login or signup to manage your profile, password and app preferences.' },
+          rewards: { title: 'Gift Store', description: 'Login or signup to redeem gifts and explore rewards with your earned points.' },
           bank_details: { title: 'Bank Transfer', description: 'Login or signup to request bank payouts and review your linked account details.' },
           transfer_points: { title: 'Transfers', description: 'Login or signup to access wallet-linked transfer actions.' },
         },
@@ -605,7 +712,7 @@ function AppContent() {
         const roleSpecific: Record<UserRole, Screen[]> = {
           dealer: ['electricians', 'call_electrician', 'dealer_tier', 'dealer_bonus', ...commonProtected],
           user: ['rewards', ...commonProtected],
-          counterboy: [...commonProtected],
+          counterboy: ['rewards', ...commonProtected],
           electrician: ['scan', 'rewards', 'electrician_tier', ...commonProtected],
         };
         return roleSpecific[role].includes(screen);
@@ -630,7 +737,28 @@ function AppContent() {
             />
           );
         case 'product':
-          return <DealerProductScreen onNavigate={handleNavigate} initialCategory={selectedProductCategory} />;
+          return <DealerProductScreen onNavigate={handleNavigate} onAddToCart={handleDealerAddToCart} onBuyNow={handleBuyNow} initialCategory={selectedProductCategory} />;
+        case 'cart':
+          return (
+            <UserCartScreen
+              cartItems={dealerCartItems}
+              onUpdateQty={handleDealerUpdateCartQty}
+              onRemove={handleDealerRemoveFromCart}
+              onNavigate={handleNavigate}
+              onCheckout={handleDealerCartCheckout}
+              role="dealer"
+            />
+          );
+        case 'checkout':
+          return checkoutItem ? (
+            <CheckoutScreen
+              item={checkoutItem}
+              role="dealer"
+              onBack={() => { setCheckoutItem(null); setCurrentScreen('product'); }}
+              onOrderPlaced={handleOrderPlaced}
+              onUpdateQty={handleCheckoutUpdateQty}
+            />
+          ) : null;
         case 'play':
           return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="dealer" />;
         case 'electricians':
@@ -766,13 +894,22 @@ function AppContent() {
             />
           );
         case 'product':
-          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} initialCategory={selectedProductCategory} />;
+          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} initialCategory={selectedProductCategory} />;
         case 'play':
           return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="user" />;
         case 'notification':
           return <UserNotificationScreen onNavigate={handleNavigate} role="user" onNotificationsSeen={handleNotificationsSeen} />;
         case 'categories':
-          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} />;
+          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} />;
+        case 'checkout':
+          return checkoutItem ? (
+            <CheckoutScreen
+              item={checkoutItem}
+              onBack={() => { setCheckoutItem(null); setCurrentScreen('product'); }}
+              onOrderPlaced={handleOrderPlaced}
+              onUpdateQty={handleCheckoutUpdateQty}
+            />
+          ) : null;
         case 'cart':
           return (
             <UserCartScreen
@@ -780,6 +917,7 @@ function AppContent() {
               onUpdateQty={handleUpdateCartQty}
               onRemove={handleRemoveFromCart}
               onNavigate={handleNavigate}
+              onCheckout={handleCartCheckout}
             />
           );
         case 'rewards':
@@ -858,7 +996,28 @@ function AppContent() {
             />
           );
         case 'product':
-          return <CounterBoyProductScreen onNavigate={handleNavigate} initialCategory={selectedProductCategory} />;
+          return <CounterBoyProductScreen onNavigate={handleNavigate} onAddToCart={handleCounterboyAddToCart} onBuyNow={handleBuyNow} initialCategory={selectedProductCategory} />;
+        case 'cart':
+          return (
+            <UserCartScreen
+              cartItems={counterboyCartItems}
+              onUpdateQty={handleCounterboyUpdateCartQty}
+              onRemove={handleCounterboyRemoveFromCart}
+              onNavigate={handleNavigate}
+              onCheckout={handleCounterboyCartCheckout}
+              role="counterboy"
+            />
+          );
+        case 'checkout':
+          return checkoutItem ? (
+            <CheckoutScreen
+              item={checkoutItem}
+              role="counterboy"
+              onBack={() => { setCheckoutItem(null); setCurrentScreen('product'); }}
+              onOrderPlaced={handleOrderPlaced}
+              onUpdateQty={handleCheckoutUpdateQty}
+            />
+          ) : null;
         case 'play':
           return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="counterboy" />;
         case 'notification':
@@ -875,6 +1034,8 @@ function AppContent() {
           );
         case 'support':
           return <CounterBoySupportScreen onNavigate={handleNavigate} />;
+        case 'rewards':
+          return <CounterBoyRewardsScreen onBack={() => setCurrentScreen('profile')} />;
         case 'profile':
           return (
             <CounterBoyProfileScreen
@@ -1094,12 +1255,16 @@ function AppContent() {
     handlePasswordConfiguredChange,
     handleSignOut,
     handleNotificationsSeen,
+    handleBuyNow,
+    handleCartCheckout,
+    handleOrderPlaced,
     handleAuthenticatedRoleStart,
     renderGuestFeatureGate,
     renderGuestAuthLanding,
     guestAuthRole,
     hasUnreadNotif,
     userCartItems,
+    checkoutItem,
     handleAddToCart,
     handleUpdateCartQty,
     handleRemoveFromCart,

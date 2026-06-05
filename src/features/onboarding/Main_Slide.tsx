@@ -9,7 +9,6 @@ import {
   type ImageStyle,
   View,
 } from 'react-native';
-import { useFonts } from 'expo-font';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect, Line, Polyline } from 'react-native-svg';
 import { hs, isSmallDevice, isTablet, rf, screenWidth, ws } from '@/shared/hooks/useResponsive';
@@ -202,9 +201,8 @@ function RoleCard({
 }
 
 export default function MainSlide({ onRoleSelect }: MainSlideProps) {
-  const [fontsLoaded] = useFonts({
-    LaconicBold: require('../../../assets/fonts/Laconic_Bold.otf'),
-  });
+  // Font is loaded globally in _layout.tsx — always available here
+  const fontsLoaded = true;
   const insets = useSafeAreaInsets();
   const { darkMode } = usePreferenceContext();
   const compact = isSmallDevice;

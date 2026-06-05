@@ -4,6 +4,7 @@ export type Screen =
   | 'play'
   | 'categories'
   | 'cart'
+  | 'checkout'
   | 'electricians'
   | 'call_electrician'
   | 'rewards'

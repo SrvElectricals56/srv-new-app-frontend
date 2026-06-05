@@ -448,8 +448,8 @@ export function HomeScreen({
   const showNotifications = isRoleFeatureEnabled(rolePageControls, 'dealer', 'notification');
   const showElectricians = isRoleFeatureEnabled(rolePageControls, 'dealer', 'electricians');
   const showCatalog = isRoleFeatureEnabled(rolePageControls, 'dealer', 'catalog_pdf');
-  const showCallElectrician = isRoleFeatureEnabled(rolePageControls, 'dealer', 'call_electrician');
   const showWhatsapp = isRoleFeatureEnabled(rolePageControls, 'dealer', 'whatsapp_support');
+  const showCallElectrician = isRoleFeatureEnabled(rolePageControls, 'dealer', 'call_electrician');
   const showDealerTier = isRoleFeatureEnabled(rolePageControls, 'dealer', 'dealer_tier');
   const showProduct = isRoleFeatureEnabled(rolePageControls, 'dealer', 'product');
   const catalogPdfUrl =

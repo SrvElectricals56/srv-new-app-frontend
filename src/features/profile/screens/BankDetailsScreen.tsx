@@ -15,6 +15,7 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { authApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { useAppData } from '@/shared/context/AppDataContext';
 
 const bankOptions = [
   'State Bank of India',
@@ -45,7 +46,11 @@ const bankOptions = [
 export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
   const { role, user, updateUser } = useAuth();
+  const { appSettings } = useAppData();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'bank_details');
+
+  // When upiOnlyMode is ON — show only Account Holder Name + UPI ID
+  const upiOnly = appSettings?.upiOnlyMode === true;
 
   const [saving, setSaving] = useState(false);
   const [accountHolderName, setAccountHolderName] = useState(user?.accountHolderName ?? '');
@@ -81,7 +86,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
         tx('Account holder name should contain only letters and spaces.')
       );
     }
-    if (accountNumber.trim() && !/^\d+$/.test(accountNumber.trim())) {
+    if (!upiOnly && accountNumber.trim() && !/^\d+$/.test(accountNumber.trim())) {
       return Alert.alert(
         tx('Invalid account number'),
         tx('Account number should contain only numbers.')
@@ -99,9 +104,9 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
     try {
       const updated = await authApi.updateProfile({
         accountHolderName: accountHolderName.trim(),
-        bankAccount: accountNumber.trim() || null,
-        ifsc: ifsc.trim().toUpperCase() || null,
-        bankName: selectedBank.trim() || null,
+        bankAccount: upiOnly ? null : (accountNumber.trim() || null),
+        ifsc: upiOnly ? null : (ifsc.trim().toUpperCase() || null),
+        bankName: upiOnly ? null : (selectedBank.trim() || null),
         upiId: upi.trim(),
         bankLinked: true,
       });
@@ -162,65 +167,71 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
             </View>
           </View>
 
-          <View>
-            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Account Number')}</Text>
-            <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}>
-              <AppIcon name="bank" size={18} color={C.gold} />
-              <TextInput
-                style={[styles.input, { color: theme.textPrimary }]}
-                placeholder={tx('Enter Account Number')}
-                placeholderTextColor={theme.textMuted}
-                value={accountNumber}
-                onChangeText={(v) => setAccountNumber(v.replace(/\D/g, ''))}
-                keyboardType="number-pad"
-                maxLength={18}
-              />
-            </View>
-          </View>
-
-          <View>
-            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('IFSC Code')}</Text>
-            <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}>
-              <AppIcon name="bank" size={18} color={C.gold} />
-              <TextInput
-                style={[styles.input, { color: theme.textPrimary }]}
-                placeholder={tx('Enter IFSC Code')}
-                placeholderTextColor={theme.textMuted}
-                value={ifsc}
-                onChangeText={(v) => setIfsc(v.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                autoCapitalize="characters"
-                maxLength={11}
-              />
-            </View>
-          </View>
-
-          <View>
-            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Select Bank')}</Text>
-            <TouchableOpacity
-              style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}
-              activeOpacity={0.85}
-              onPress={() => setShowBankOptions((c) => !c)}
-            >
-              <AppIcon name="bank" size={18} color={C.gold} />
-              <Text style={[styles.input, { color: selectedBank ? theme.textPrimary : theme.textMuted }]}>
-                {selectedBank || tx('Select Bank')}
-              </Text>
-            </TouchableOpacity>
-            {showBankOptions && (
-              <View style={[styles.bankOptionsWrap, { borderColor: theme.border }]}>
-                {bankOptions.map((bank) => (
-                  <TouchableOpacity
-                    key={bank}
-                    style={[styles.bankOption, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}
-                    activeOpacity={0.85}
-                    onPress={() => { setSelectedBank(bank); setShowBankOptions(false); }}
-                  >
-                    <Text style={[styles.bankOptionText, { color: theme.textPrimary }]}>{bank}</Text>
-                  </TouchableOpacity>
-                ))}
+          {!upiOnly && (
+            <View>
+              <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Account Number')}</Text>
+              <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                <AppIcon name="bank" size={18} color={C.gold} />
+                <TextInput
+                  style={[styles.input, { color: theme.textPrimary }]}
+                  placeholder={tx('Enter Account Number')}
+                  placeholderTextColor={theme.textMuted}
+                  value={accountNumber}
+                  onChangeText={(v) => setAccountNumber(v.replace(/\D/g, ''))}
+                  keyboardType="number-pad"
+                  maxLength={18}
+                />
               </View>
-            )}
-          </View>
+            </View>
+          )}
+
+          {!upiOnly && (
+            <View>
+              <Text style={[styles.label, { color: theme.textMuted }]}>{tx('IFSC Code')}</Text>
+              <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                <AppIcon name="bank" size={18} color={C.gold} />
+                <TextInput
+                  style={[styles.input, { color: theme.textPrimary }]}
+                  placeholder={tx('Enter IFSC Code')}
+                  placeholderTextColor={theme.textMuted}
+                  value={ifsc}
+                  onChangeText={(v) => setIfsc(v.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  autoCapitalize="characters"
+                  maxLength={11}
+                />
+              </View>
+            </View>
+          )}
+
+          {!upiOnly && (
+            <View>
+              <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Select Bank')}</Text>
+              <TouchableOpacity
+                style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}
+                activeOpacity={0.85}
+                onPress={() => setShowBankOptions((c) => !c)}
+              >
+                <AppIcon name="bank" size={18} color={C.gold} />
+                <Text style={[styles.input, { color: selectedBank ? theme.textPrimary : theme.textMuted }]}>
+                  {selectedBank || tx('Select Bank')}
+                </Text>
+              </TouchableOpacity>
+              {showBankOptions && (
+                <View style={[styles.bankOptionsWrap, { borderColor: theme.border }]}>
+                  {bankOptions.map((bank) => (
+                    <TouchableOpacity
+                      key={bank}
+                      style={[styles.bankOption, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}
+                      activeOpacity={0.85}
+                      onPress={() => { setSelectedBank(bank); setShowBankOptions(false); }}
+                    >
+                      <Text style={[styles.bankOptionText, { color: theme.textPrimary }]}>{bank}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
 
           <View>
             <Text style={[styles.label, { color: theme.textMuted }]}>{tx('UPI ID')} *</Text>

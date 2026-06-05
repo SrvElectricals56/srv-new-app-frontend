@@ -59,6 +59,7 @@ export const electricianMenuItems: ProfileMenuItem[] = [
     screen: 'My Redemption',
   },
   { label: 'Gift Store', icon: 'gift', color: C.teal, bg: C.tealLight, route: 'rewards' },
+  { label: 'Cart', icon: 'order', color: '#8B5CF6', bg: '#EDE9FE', route: 'cart' },
   {
     label: 'Transfer Points',
     icon: 'transfer',
@@ -108,6 +109,7 @@ export const dealerMenuItems: ProfileMenuItem[] = [
     screen: 'My Redemption',
   },
   { label: 'Gift Store', icon: 'gift', color: C.teal, bg: C.tealLight, route: 'rewards' },
+  { label: 'Cart', icon: 'order', color: '#1D4ED8', bg: '#DBEAFE', route: 'cart' },
   {
     label: 'Dealer Bonus',
     icon: 'transfer',

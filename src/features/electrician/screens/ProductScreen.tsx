@@ -2,11 +2,14 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Easing,
   FlatList,
+  Alert,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,10 +20,11 @@ import {
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAppData } from '@/shared/context/AppDataContext';
+import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
 import type { Screen } from '@/shared/types/navigation';
-import type { Product as ApiProduct, ProductCategory as ApiProductCategory } from '@/shared/api';
+import { catalogApi, type Product as ApiProduct, type ProductCategory as ApiProductCategory } from '@/shared/api';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -310,22 +314,35 @@ type UiProduct = {
   id: string;
   name: string;
   sub: string;
+  description: string;
   category: string;
   imageUrl: string;
   points: number;
   badge: string | null;
+  price: number;
+  mrp: number | null;
+  stock: number;
+  sku: string | null;
+  weight: string | null;
 };
 
 function mapProduct(p: ApiProduct): UiProduct {
   const cat = normCat(p.category);
+  const description = p.description?.trim() || p.sub?.trim() || '';
   return {
     id: p.id,
     name: p.name,
-    sub: p.sub || p.description || '',
+    sub: p.sub || description,
+    description,
     category: cat,
     imageUrl: p.imageUrl || p.image || catImg(cat),
     points: p.points ?? 0,
     badge: p.badge?.trim() || null,
+    price: Number(p.price ?? 0),
+    mrp: p.mrp == null ? null : Number(p.mrp),
+    stock: Number(p.stock ?? 0),
+    sku: p.sku ?? null,
+    weight: p.weight ?? null,
   };
 }
 
@@ -352,8 +369,8 @@ function buildUiCategories(products: UiProduct[], apiCats: ApiProductCategory[])
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 const ProductCard = memo(function ProductCard({
-  product, cardW, onScan, darkMode, actionLabel,
-}: { product: UiProduct; cardW: number; onScan: () => void; darkMode: boolean; actionLabel: string }) {
+  product, cardW, onOpen, darkMode, actionLabel,
+}: { product: UiProduct; cardW: number; onOpen: () => void; darkMode: boolean; actionLabel: string }) {
   const cc = catColor(product.category);
 
   // Entry animation
@@ -399,7 +416,7 @@ const ProductCard = memo(function ProductCard({
   const imgHeight = cardW + 60;
 
   return (
-    <Pressable onPressIn={onIn} onPressOut={onOut}>
+    <Pressable onPress={onOpen} onPressIn={onIn} onPressOut={onOut}>
       <Animated.View style={{ opacity: entryOp, transform: [{ translateY: entryY }] }}>
 
         {/* Coloured glow shadow on press */}
@@ -448,7 +465,7 @@ const ProductCard = memo(function ProductCard({
               <Text style={[styles.productName, darkMode ? styles.productNameDark : null]} numberOfLines={2}>{product.name}</Text>
               <Text style={[styles.productSub,  darkMode ? styles.productSubDark  : null]} numberOfLines={2}>{product.sub}</Text>
             </View>
-            <TouchableOpacity onPress={onScan} style={[styles.scanBtn, { backgroundColor: cc.scanBg }]} activeOpacity={0.8}>
+            <TouchableOpacity onPress={onOpen} style={[styles.scanBtn, { backgroundColor: cc.scanBg }]} activeOpacity={0.8}>
               <ScanIcon size={15} color={cc.scanText} />
               <Text style={[styles.scanBtnText, { color: cc.scanText }]}>{actionLabel}</Text>
             </TouchableOpacity>
@@ -461,20 +478,157 @@ const ProductCard = memo(function ProductCard({
 
 type ProductRow = { key: string; left: UiProduct; right: UiProduct | null };
 
+function ProductDetailView({
+  product,
+  role,
+  darkMode,
+  isCustomer,
+  onBack,
+  onAddToCart,
+  onBuyNow,
+  actionBusy,
+  qty,
+  onQtyChange,
+}: {
+  product: UiProduct;
+  role: 'electrician' | 'dealer' | 'customer' | 'counterboy';
+  darkMode: boolean;
+  isCustomer: boolean;
+  onBack: () => void;
+  onAddToCart: () => void;
+  onBuyNow: () => void;
+  actionBusy: 'cart' | 'buy' | null;
+  qty: number;
+  onQtyChange: (qty: number) => void;
+}) {
+  const { tx } = usePreferenceContext();
+  const cc = catColor(product.category);
+  const bg = darkMode ? '#0F172A' : '#F2F3F7';
+  const card = darkMode ? '#172033' : '#FFFFFF';
+  const text = darkMode ? '#F8FAFC' : '#1C1E2E';
+  const muted = darkMode ? '#A8B3C7' : '#6B7280';
+  const border = darkMode ? '#25344E' : '#E5E7EB';
+  const mrp = product.mrp && product.mrp > product.price ? product.mrp : null;
+  const discount = mrp ? Math.round(((mrp - product.price) / mrp) * 100) : 0;
+
+  return (
+    <View style={[styles.detailScreen, { backgroundColor: bg }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailContent}>
+        <View style={styles.detailHeader}>
+          <TouchableOpacity onPress={onBack} style={[styles.detailBackBtn, { backgroundColor: card, borderColor: border }]} activeOpacity={0.82}>
+            <Text style={[styles.detailBackText, { color: text }]}>‹</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.detailHeaderTitle, { color: text }]} numberOfLines={1}>{tx('Product Details')}</Text>
+            <Text style={[styles.detailHeaderSub, { color: muted }]} numberOfLines={1}>{catLabel(product.category)}</Text>
+          </View>
+        </View>
+
+        <LinearGradient colors={catColor(product.category).cardGradient} style={[styles.detailImagePanel, { borderColor: border }]}>
+          {product.badge ? <Text style={[styles.detailBadge, { backgroundColor: cc.scanText }]}>{product.badge}</Text> : null}
+          {discount > 0 ? <Text style={styles.detailDiscount}>{discount}% OFF</Text> : null}
+          <Image source={{ uri: product.imageUrl }} style={styles.detailImage} contentFit="contain" transition={200} />
+        </LinearGradient>
+
+        <View style={[styles.detailInfoCard, { backgroundColor: card, borderColor: border }]}>
+          <View style={styles.detailTitleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailProductName, { color: text }]}>{product.name}</Text>
+              <Text style={[styles.detailCategory, { color: cc.scanText }]}>{catLabel(product.category)}</Text>
+            </View>
+            <View style={[styles.detailPointsPill, { backgroundColor: cc.scanBg }]}>
+              <Text style={[styles.detailPointsText, { color: cc.scanText }]}>+{product.points} pts</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailPriceRow}>
+            <Text style={[styles.detailPrice, { color: text }]}>₹{product.price.toLocaleString('en-IN')}</Text>
+            {mrp ? <Text style={[styles.detailMrp, { color: muted }]}>₹{mrp.toLocaleString('en-IN')}</Text> : null}
+            <Text style={[styles.detailStock, { color: product.stock > 0 ? '#059669' : '#DC2626' }]}>
+              {product.stock > 0 ? `${product.stock} in stock` : tx('Out of stock')}
+            </Text>
+          </View>
+
+          <View style={styles.detailMetaGrid}>
+            <View style={[styles.detailMetaBox, { backgroundColor: darkMode ? '#111827' : '#F8FAFC', borderColor: border }]}>
+              <Text style={[styles.detailMetaLabel, { color: muted }]}>{tx('SKU')}</Text>
+              <Text style={[styles.detailMetaValue, { color: text }]} numberOfLines={1}>{product.sku || 'SRV'}</Text>
+            </View>
+            <View style={[styles.detailMetaBox, { backgroundColor: darkMode ? '#111827' : '#F8FAFC', borderColor: border }]}>
+              <Text style={[styles.detailMetaLabel, { color: muted }]}>{tx('Weight')}</Text>
+              <Text style={[styles.detailMetaValue, { color: text }]} numberOfLines={1}>{product.weight || tx('Standard')}</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.detailSectionTitle, { color: text }]}>{tx('Description')}</Text>
+          <Text style={[styles.detailDescription, { color: muted }]}>
+            {product.description || product.sub || tx('SRV product details will appear here once updated from admin panel.')}
+          </Text>
+        </View>
+      </ScrollView>
+
+      <View style={[styles.detailFooter, { backgroundColor: card, borderColor: border }]}>
+        <View style={[styles.detailQtyRow, { borderColor: border }]}>
+          <Text style={[styles.detailQtyLabel, { color: muted }]}>{tx('Qty')}</Text>
+          <View style={[styles.detailQtyPicker, { backgroundColor: darkMode ? '#111827' : '#F8FAFC', borderColor: border }]}>
+            <Pressable
+              style={[styles.detailQtyBtn, { backgroundColor: cc.scanText }]}
+              onPress={() => qty > 1 && onQtyChange(qty - 1)}
+            >
+              <Text style={styles.detailQtyBtnText}>−</Text>
+            </Pressable>
+            <Text style={[styles.detailQtyValue, { color: text }]}>{qty}</Text>
+            <Pressable
+              style={[styles.detailQtyBtn, { backgroundColor: cc.scanText }]}
+              onPress={() => onQtyChange(qty + 1)}
+            >
+              <Text style={styles.detailQtyBtnText}>+</Text>
+            </Pressable>
+          </View>
+          <Text style={[styles.detailQtyTotal, { color: text }]}>₹{(product.price * qty).toLocaleString('en-IN')}</Text>
+        </View>
+        <View style={styles.detailFooterButtons}>
+          <TouchableOpacity
+            onPress={onAddToCart}
+            disabled={actionBusy !== null}
+            style={[styles.detailSecondaryBtn, { borderColor: cc.scanText, opacity: actionBusy ? 0.75 : 1 }]}
+            activeOpacity={0.84}
+          >
+            {actionBusy === 'cart' ? <ActivityIndicator color={cc.scanText} /> : <Text style={[styles.detailSecondaryText, { color: cc.scanText }]}>{tx('Add to Cart')}</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onBuyNow}
+            disabled={actionBusy !== null}
+            style={[styles.detailPrimaryBtn, { backgroundColor: isCustomer ? '#6A2F12' : cc.scanText, opacity: actionBusy ? 0.75 : 1 }]}
+            activeOpacity={0.84}
+          >
+            {actionBusy === 'buy' ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.detailPrimaryText}>{tx('Buy Now')}</Text>}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 // ── Main ProductScreen ────────────────────────────────────────────────────────
 export function ProductScreen({
   onNavigate,
+  onAddToCart,
+  onBuyNow,
   initialCategory = 'all',
   showBottomBanner = true,
   role = 'electrician',
 }: {
   onNavigate: (screen: Screen) => void;
+  onAddToCart?: (item: any) => void;
+  onBuyNow?: (item: any) => void;
   initialCategory?: string;
   showBottomBanner?: boolean;
   role?: 'electrician' | 'dealer' | 'customer' | 'counterboy';
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const { products: apiProducts, categories: apiCategories, catalogLoading, refreshAll } = useAppData();
+  const { isAuthenticated } = useAuth();
   const { width } = useWindowDimensions();
   const contentRole = role === 'customer' ? 'user' : role;
   const pageContent = useAppPageContent(contentRole as any, 'product');
@@ -483,6 +637,9 @@ export function ProductScreen({
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<UiProduct | null>(null);
+  const [detailQty, setDetailQty] = useState(1);
+  const [actionBusy, setActionBusy] = useState<'cart' | 'buy' | null>(null);
 
   const PADDING = 14;
   const GAP = 12;
@@ -551,7 +708,58 @@ export function ProductScreen({
   const isCounterboy = role === 'counterboy';
   const productActionLabel = pageContent.primaryCtaLabel || ((isDealer || isCustomer || isCounterboy) ? tx('Buy Now') : tx('Scan to Earn'));
   const bannerActionLabel = pageContent.secondaryCtaLabel || ((isDealer || isCustomer || isCounterboy) ? tx('Buy Now') : tx('Scan & Earn').replace(' ', '\n'));
-  const handleScan = useCallback(() => onNavigate((isDealer || isCustomer || isCounterboy) ? 'rewards' : 'scan'), [onNavigate, isDealer, isCustomer, isCounterboy]);
+  const requireAuth = useCallback(() => {
+    if (isAuthenticated) return true;
+    Alert.alert(tx('Login required'), tx('Please login or signup to continue with this product.'));
+    return false;
+  }, [isAuthenticated, tx]);
+
+  const handleAddSelectedToCart = useCallback(async () => {
+    if (!selectedProduct || !requireAuth()) return;
+    setActionBusy('cart');
+    try {
+      await catalogApi.addToCart({ productId: selectedProduct.id, quantity: detailQty });
+      onAddToCart?.({
+        id: selectedProduct.id,
+        name: selectedProduct.name,
+        desc: selectedProduct.sub || selectedProduct.description,
+        image: { uri: selectedProduct.imageUrl },
+        price: selectedProduct.price,
+        qty: detailQty,
+      });
+      Alert.alert(tx('Added to cart'), tx('Product added to your cart.'));
+    } catch (error: any) {
+      Alert.alert(tx('Cart update failed'), error?.message || tx('Please try again.'));
+    } finally {
+      setActionBusy(null);
+    }
+  }, [onAddToCart, requireAuth, selectedProduct, detailQty, tx]);
+
+  const handleBuySelectedNow = useCallback(async () => {
+    if (!selectedProduct || !requireAuth()) return;
+    if (onBuyNow) {
+      onBuyNow({
+        id: selectedProduct.id,
+        name: selectedProduct.name,
+        desc: selectedProduct.sub || selectedProduct.description,
+        image: { uri: selectedProduct.imageUrl },
+        price: selectedProduct.price,
+        qty: detailQty,
+      });
+      setSelectedProduct(null);
+    } else {
+      setActionBusy('buy');
+      try {
+        await catalogApi.buyNow({ productId: selectedProduct.id, quantity: detailQty });
+        Alert.alert(tx('Order placed'), tx('Your product order has been sent to admin.'));
+        setSelectedProduct(null);
+      } catch (error: any) {
+        Alert.alert(tx('Order failed'), error?.message || tx('Please try again.'));
+      } finally {
+        setActionBusy(null);
+      }
+    }
+  }, [requireAuth, selectedProduct, detailQty, tx, onBuyNow]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -562,12 +770,12 @@ export function ProductScreen({
   // ── Render row ──────────────────────────────────────────────────────────────
   const renderRow = useCallback(({ item }: { item: ProductRow }) => (
     <View style={styles.row}>
-      <ProductCard product={item.left} cardW={cardW} onScan={handleScan} darkMode={darkMode} actionLabel={productActionLabel} />
+      <ProductCard product={item.left} cardW={cardW} onOpen={() => setSelectedProduct(item.left)} darkMode={darkMode} actionLabel={productActionLabel} />
       {item.right
-        ? <ProductCard product={item.right} cardW={cardW} onScan={handleScan} darkMode={darkMode} actionLabel={productActionLabel} />
+        ? <ProductCard product={item.right} cardW={cardW} onOpen={() => setSelectedProduct(item.right!)} darkMode={darkMode} actionLabel={productActionLabel} />
         : <View style={{ width: cardW }} />}
     </View>
-  ), [cardW, handleScan, darkMode, productActionLabel]);
+  ), [cardW, darkMode, productActionLabel]);
 
   const keyExtractor = useCallback((item: ProductRow) => item.key, []);
 
@@ -826,6 +1034,23 @@ export function ProductScreen({
     </View>
   ), [catalogLoading, darkMode, tx]);
 
+  if (selectedProduct) {
+    return (
+      <ProductDetailView
+        product={selectedProduct}
+        role={role}
+        darkMode={darkMode}
+        isCustomer={isCustomer}
+        onBack={() => { setSelectedProduct(null); setDetailQty(1); }}
+        onAddToCart={handleAddSelectedToCart}
+        onBuyNow={handleBuySelectedNow}
+        actionBusy={actionBusy}
+        qty={detailQty}
+        onQtyChange={setDetailQty}
+      />
+    );
+  }
+
   return (
     <FlatList
       style={[styles.screen, darkMode ? styles.screenDark : null, isCounterboy && { backgroundColor: '#F9F4ED' }, isCounterboy && darkMode && { backgroundColor: '#120A07' }]}
@@ -1020,6 +1245,118 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 40 },
   emptyText: { fontSize: 15, fontWeight: '600', color: '#9898A8' },
   emptyTextDark: { color: '#94A3B8' },
+
+  detailScreen: { flex: 1 },
+  detailContent: { padding: 16, paddingBottom: 128 },
+  detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  detailBackBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailBackText: { fontSize: 34, lineHeight: 36, fontWeight: '500' },
+  detailHeaderTitle: { fontSize: 18, fontWeight: '900' },
+  detailHeaderSub: { fontSize: 12.5, marginTop: 2, fontWeight: '600' },
+  detailImagePanel: {
+    height: 320,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  detailImage: { width: '88%', height: '88%' },
+  detailBadge: {
+    position: 'absolute',
+    left: 16,
+    top: 16,
+    zIndex: 2,
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  detailDiscount: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    zIndex: 2,
+    backgroundColor: '#FEF3C7',
+    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '900',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  detailInfoCard: { borderRadius: 22, borderWidth: 1, padding: 18 },
+  detailTitleRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  detailProductName: { fontSize: 22, fontWeight: '900', lineHeight: 29 },
+  detailCategory: { fontSize: 12.5, fontWeight: '800', marginTop: 6, textTransform: 'uppercase' },
+  detailPointsPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  detailPointsText: { fontSize: 12, fontWeight: '900' },
+  detailPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, flexWrap: 'wrap' },
+  detailPrice: { fontSize: 24, fontWeight: '900' },
+  detailMrp: { fontSize: 14, fontWeight: '700', textDecorationLine: 'line-through' },
+  detailStock: { fontSize: 12.5, fontWeight: '900' },
+  detailMetaGrid: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  detailMetaBox: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 12 },
+  detailMetaLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', marginBottom: 5 },
+  detailMetaValue: { fontSize: 13, fontWeight: '800' },
+  detailSectionTitle: { fontSize: 15, fontWeight: '900', marginTop: 18, marginBottom: 8 },
+  detailDescription: { fontSize: 14, lineHeight: 21, fontWeight: '500' },
+  detailFooter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 14,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+  },
+  detailQtyRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1,
+  },
+  detailQtyLabel: { fontSize: 14, fontWeight: '700' },
+  detailQtyPicker: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderRadius: 12, overflow: 'hidden',
+  },
+  detailQtyBtn: {
+    width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
+  },
+  detailQtyBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', lineHeight: 20 },
+  detailQtyValue: {
+    fontSize: 16, fontWeight: '800', minWidth: 40, textAlign: 'center',
+  },
+  detailQtyTotal: { fontSize: 16, fontWeight: '900' },
+  detailFooterButtons: { flexDirection: 'row', gap: 10 },
+  detailSecondaryBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailSecondaryText: { fontSize: 14, fontWeight: '900' },
+  detailPrimaryBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailPrimaryText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
 
   bottomBanner: {
     backgroundColor: '#2D3561', borderRadius: 20, padding: 18,

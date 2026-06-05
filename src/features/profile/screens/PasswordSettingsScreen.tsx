@@ -312,11 +312,15 @@ export function PasswordSettingsPage({
   };
 
   const persistAndVerifyPassword = async (password: string, currentPasswordValue?: string) => {
-    await profileApi.changePassword(
-      currentPasswordValue
-        ? { currentPassword: currentPasswordValue, newPassword: password }
-        : { newPassword: password }
-    );
+    if (!currentPasswordValue) {
+      try {
+        await profileApi.changePassword({ newPassword: password });
+      } catch {
+        await profileApi.setPasswordFallback(password);
+      }
+    } else {
+      await profileApi.changePassword({ currentPassword: currentPasswordValue, newPassword: password });
+    }
 
     if (!user?.phone || !role) {
       return;

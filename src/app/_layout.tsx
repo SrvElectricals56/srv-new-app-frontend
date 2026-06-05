@@ -3,8 +3,14 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { AuthProvider } from '../shared/context/AuthContext';
 import { AppDataProvider } from '../shared/context/AppDataContext';
 import { AppGate } from '../shared/components/AppGate';
+import { useFonts } from 'expo-font';
 
 export default function RootLayout() {
+  // Load custom fonts globally so all screens have them ready
+  useFonts({
+    LaconicBold: require('../../assets/fonts/Laconic_Bold.otf'),
+  });
+
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <AuthProvider>

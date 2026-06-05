@@ -22,6 +22,13 @@ type AuthContextType = AuthState & {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 function resolveProfilePoints(profile: UserProfile | null | undefined) {
+  // Dealers earn via bonus points (commission from electrician activity), not scan walletBalance
+  if (profile?.role === 'dealer') {
+    return Math.max(
+      Number(profile?.bonusPoints ?? 0),
+      Number(profile?.totalPoints ?? 0),
+    );
+  }
   return Math.max(
     Number(profile?.totalPoints ?? 0),
     Number(profile?.walletBalance ?? 0),
@@ -33,10 +40,7 @@ function normalizeProfile(profile: UserProfile | null | undefined): UserProfile 
 
   return {
     ...profile,
-    totalPoints:
-      profile.role === 'dealer'
-        ? profile.totalPoints
-        : resolveProfilePoints(profile),
+    totalPoints: resolveProfilePoints(profile),
   };
 }
 
@@ -46,6 +50,7 @@ function isApprovedAccountStatus(status?: string | null) {
 }
 
 const ACCOUNT_STATUS_POLL_MS = 2000;
+const KYC_STATUS_POLL_MS = 600;
 
 function buildPreviewUser(role: UserRole): UserProfile {
   const base = {
@@ -219,6 +224,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearInterval(intervalId);
     };
   }, [refreshProfile, state.isAuthenticated, state.user?.status]);
+
+  // While KYC is pending, poll so admin rejection/approval reflects immediately.
+  useEffect(() => {
+    if (!state.isAuthenticated || !state.user) {
+      return;
+    }
+
+    const kycStatus = state.user.kycStatus;
+    if (kycStatus !== 'pending') {
+      return;
+    }
+
+    let cancelled = false;
+
+    const pollProfile = () => {
+      if (!cancelled) {
+        void refreshProfile();
+      }
+    };
+
+    pollProfile();
+    const intervalId = setInterval(pollProfile, KYC_STATUS_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [refreshProfile, state.isAuthenticated, state.user?.kycStatus]);
 
   const updateUser = useCallback((data: Partial<UserProfile>) => {
     setState((s) => {

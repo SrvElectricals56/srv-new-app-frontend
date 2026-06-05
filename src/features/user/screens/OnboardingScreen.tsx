@@ -752,6 +752,11 @@ export function OnboardingScreen({
   const [signupState, setSignupState] = useState('');
   const [signupCity, setSignupCity] = useState('');
   const [signupPincode, setSignupPincode] = useState('');
+  // Dirty flags — set when user manually edits a field so auto-fetch won't overwrite it
+  const addressDirtyRef   = useRef(false);
+  const stateDirtyRef     = useRef(false);
+  const cityDirtyRef      = useRef(false);
+  const pincodeDirtyRef   = useRef(false);
   const [signupGstNumber, setSignupGstNumber] = useState('');
   const [signupGstHolderName, setSignupGstHolderName] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
@@ -920,10 +925,10 @@ export function OnboardingScreen({
         return;
       }
 
-      if (resolvedAddress) setSignupAddress(resolvedAddress);
-      if (resolvedState) setSignupState(resolvedState);
-      if (resolvedCity) setSignupCity(resolvedCity);
-      if (resolvedPincode) setSignupPincode(resolvedPincode.replace(/\D/g, '').slice(0, 6));
+      if (resolvedAddress && !addressDirtyRef.current) setSignupAddress(resolvedAddress);
+      if (resolvedState && !stateDirtyRef.current) setSignupState(resolvedState);
+      if (resolvedCity && !cityDirtyRef.current) setSignupCity(resolvedCity);
+      if (resolvedPincode && !pincodeDirtyRef.current) setSignupPincode(resolvedPincode.replace(/\D/g, '').slice(0, 6));
       setLocationMessage('Address fetched successfully. Please review and update if needed.');
     } catch {
       setError('signupAddress', 'Could not fetch location. Please enter address manually.');
@@ -1060,6 +1065,10 @@ export function OnboardingScreen({
     dealerAutoAddressRequestedRef.current = false;
     electricianAddressAutoRequestedRef.current = false;
     electricianPhoneAutoRequestedRef.current = false;
+    addressDirtyRef.current = false;
+    stateDirtyRef.current = false;
+    cityDirtyRef.current = false;
+    pincodeDirtyRef.current = false;
     setErrors({});
     setLoading(false);
     setShowPassword(false);
@@ -1317,11 +1326,9 @@ export function OnboardingScreen({
       const passwordConfigured =
         mode === 'signup'
           ? signupPass.length >= 8
-          : role === 'dealer'
+          : electricianLoginMethod === 'password'
             ? true
-            : electricianLoginMethod === 'password'
-              ? true
-              : undefined;
+            : undefined;
       const passwordValue =
         mode === 'signup'
           ? signupPass.length >= 8 ? signupPass : ''
@@ -2317,6 +2324,7 @@ export function OnboardingScreen({
                                   label={tx('Business Address')}
                                   value={signupAddress}
                                   onChangeText={(value) => {
+                                    addressDirtyRef.current = true;
                                     setSignupAddress(value);
                                     setLocationMessage('');
                                     setError('signupAddress');
@@ -2357,7 +2365,7 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('State')}
                                   value={signupState}
-                                  onChangeText={handleName(setSignupState)}
+                                  onChangeText={handleName((v) => { stateDirtyRef.current = true; setSignupState(v); })}
                                   placeholder={tx('State')}
                                   error={errors.signupState}
                                   onFocus={scrollToForm}
@@ -2369,7 +2377,7 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('City')}
                                   value={signupCity}
-                                  onChangeText={handleName(setSignupCity)}
+                                  onChangeText={handleName((v) => { cityDirtyRef.current = true; setSignupCity(v); })}
                                   placeholder={tx('City')}
                                   error={errors.signupCity}
                                   onFocus={scrollToForm}
@@ -2381,9 +2389,10 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('Pincode')}
                                   value={signupPincode}
-                                  onChangeText={(value) =>
-                                    setSignupPincode(value.replace(/\D/g, '').slice(0, 6))
-                                  }
+                                  onChangeText={(value) => {
+                                    pincodeDirtyRef.current = true;
+                                    setSignupPincode(value.replace(/\D/g, '').slice(0, 6));
+                                  }}
                                   placeholder={tx('Pincode')}
                                   keyboardType="numeric"
                                   error={errors.signupPincode}
@@ -2668,6 +2677,7 @@ export function OnboardingScreen({
                                 label={tx('Address')}
                                 value={signupAddress}
                                 onChangeText={(value) => {
+                                  addressDirtyRef.current = true;
                                   setSignupAddress(value);
                                   setLocationMessage('');
                                   setError('signupAddress');
@@ -2698,7 +2708,7 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('State')}
                                   value={signupState}
-                                  onChangeText={handleName(setSignupState)}
+                                  onChangeText={handleName((v) => { stateDirtyRef.current = true; setSignupState(v); })}
                                   placeholder={tx('State')}
                                   error={errors.signupState}
                                   onFocus={scrollToForm}
@@ -2710,7 +2720,7 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('City')}
                                   value={signupCity}
-                                  onChangeText={handleName(setSignupCity)}
+                                  onChangeText={handleName((v) => { cityDirtyRef.current = true; setSignupCity(v); })}
                                   placeholder={tx('City')}
                                   error={errors.signupCity}
                                   onFocus={scrollToForm}
@@ -2722,9 +2732,10 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('Pincode')}
                                   value={signupPincode}
-                                  onChangeText={(value) =>
-                                    setSignupPincode(value.replace(/\D/g, '').slice(0, 6))
-                                  }
+                                  onChangeText={(value) => {
+                                    pincodeDirtyRef.current = true;
+                                    setSignupPincode(value.replace(/\D/g, '').slice(0, 6));
+                                  }}
                                   placeholder={tx('Pincode')}
                                   keyboardType="numeric"
                                   error={errors.signupPincode}

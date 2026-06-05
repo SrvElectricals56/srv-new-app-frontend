@@ -24,6 +24,7 @@ export const APP_FEATURE_LABELS: Record<AppFeatureKey, string> = {
   play: 'Play',
   categories: 'Categories',
   cart: 'Cart',
+  checkout: 'Checkout',
   electricians: 'Associate Electricians',
   call_electrician: 'Call Electrician',
   support: 'Support',
@@ -60,6 +61,7 @@ const BASE_FEATURES: Record<AppFeatureKey, boolean> = {
   play: false,
   categories: false,
   cart: false,
+  checkout: false,
   electricians: false,
   call_electrician: false,
   support: false,
@@ -99,8 +101,10 @@ export const DEFAULT_ROLE_PAGE_CONTROLS: RolePageControls = {
   },
   dealer: {
     ...BASE_FEATURES,
+    cart: true,
     play: true,
     rewards: true,
+    checkout: true,
     electricians: true,
     call_electrician: true,
     dealer_tier: true,
@@ -111,12 +115,18 @@ export const DEFAULT_ROLE_PAGE_CONTROLS: RolePageControls = {
     play: true,
     categories: true,
     cart: true,
+    checkout: true,
     rewards: true,
     transfer_points: false,
   },
   counterboy: {
     ...BASE_FEATURES,
+    cart: true,
     play: true,
+    rewards: true,
+    checkout: true,
+    scan: true,
+    scan_history: true,
     transfer_points: false,
   },
 };
@@ -145,6 +155,10 @@ export function resolveRolePageControls(input?: unknown): RolePageControls {
   normalized.dealer.play = true;
   normalized.electrician.play = true;
   normalized.counterboy.play = true;
+  // Counter boy Gift Store — always enabled; old server configs may not have this set
+  normalized.counterboy.rewards = true;
+  normalized.counterboy.scan = true;
+  normalized.counterboy.scan_history = true;
 
   return normalized;
 }

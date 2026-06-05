@@ -402,6 +402,27 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [refreshAll]);
 
+  // Poll app settings every 30 seconds so maintenance mode / force update
+  // reflects quickly without requiring the user to restart the app.
+  useEffect(() => {
+    const POLL_INTERVAL = 30_000; // 30 seconds
+
+    const pollSettings = async () => {
+      // Only poll when app is in the foreground
+      if (appStateRef.current !== 'active') return;
+      try {
+        clearCache('/mobile/app-settings');
+        const setts = await settingsApi.getAppSettings();
+        if (setts) setAppSettings(setts);
+      } catch {
+        // silently ignore poll errors
+      }
+    };
+
+    const id = setInterval(() => { void pollSettings(); }, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, []);
+
   // ── Actions ───────────────────────────────────────────────────────────────
   const submitScan = useCallback(async (qrCode: string, mode: 'single' | 'multi'): Promise<ScanResult> => {
     const result = await scanApi.submit(qrCode, mode);

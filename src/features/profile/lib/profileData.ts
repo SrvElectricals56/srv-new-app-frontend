@@ -39,7 +39,7 @@ export type DealerMembership = {
 export const electricianMenuItems: ProfileMenuItem[] = [
   {
     label: 'KYC Verification',
-    icon: 'check',
+    icon: 'shieldCheck',
     color: '#10B981',
     bg: '#D1FAE5',
     screen: 'KYC Verification',
@@ -89,7 +89,7 @@ export const electricianMenuItems: ProfileMenuItem[] = [
 export const dealerMenuItems: ProfileMenuItem[] = [
   {
     label: 'KYC Verification',
-    icon: 'check',
+    icon: 'shieldCheck',
     color: '#10B981',
     bg: '#D1FAE5',
     screen: 'KYC Verification',
@@ -217,7 +217,7 @@ export const counterboyMenuItems: ProfileMenuItem[] = electricianMenuItems.filte
 export const userMenuItems: ProfileMenuItem[] = [
   {
     label: 'KYC Verification',
-    icon: 'check',
+    icon: 'shieldCheck',
     color: '#10B981',
     bg: '#D1FAE5',
     screen: 'KYC Verification',

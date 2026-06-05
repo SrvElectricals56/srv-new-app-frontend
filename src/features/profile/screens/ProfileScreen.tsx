@@ -818,6 +818,12 @@ export function ProfileScreen({
                       : profile.dealerCode}
               </Text>
             </View>
+            {kycStatus === 'verified' ? (
+              <View style={[styles.tag, { backgroundColor: '#DCFCE7' }]}>
+                <AppIcon name="shieldCheck" size={12} color="#16A34A" />
+                <Text style={[styles.tagTxt, { color: '#16A34A' }]}>KYC Verified</Text>
+              </View>
+            ) : null}
           </View>
         </View>
       </View>
@@ -975,7 +981,7 @@ export function ProfileScreen({
                     : { backgroundColor: '#FEF3C7' },
                 ]}>
                   <AppIcon
-                    name={kycStatus === 'rejected' ? 'warning' : kycStatus === 'pending' ? 'clock' : 'warning'}
+                    name={kycStatus === 'rejected' ? 'shieldX' : kycStatus === 'pending' ? 'fileSearch' : 'idCard'}
                     size={18}
                     color={kycStatus === 'rejected' ? '#DC2626' : '#B45309'}
                   />

@@ -111,102 +111,24 @@ function ProfileIcon({ color, size = 24 }: { color: string; size?: number }) {
 }
 
 function CategoriesIcon({ size = 32, compact = false }: { size?: number; compact?: boolean }) {
-  const lidAngle  = useRef(new Animated.Value(0)).current;
-  const floatY    = useRef(new Animated.Value(0)).current;
-  const floatO    = useRef(new Animated.Value(0)).current;
-  const starScale = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const sequence = Animated.loop(
-      Animated.sequence([
-        Animated.delay(600),
-        Animated.timing(lidAngle, withWebSafeNativeDriver({ toValue: 1, duration: 400, easing: Easing.out(Easing.cubic) })),
-        Animated.parallel([
-          Animated.timing(floatY,    withWebSafeNativeDriver({ toValue: 0, duration: 0 })),
-          Animated.timing(floatO,    withWebSafeNativeDriver({ toValue: 0, duration: 0 })),
-          Animated.timing(starScale, withWebSafeNativeDriver({ toValue: 0, duration: 0 })),
-        ]),
-        Animated.parallel([
-          Animated.spring(starScale, withWebSafeNativeDriver({ toValue: 1, tension: 180, friction: 6 })),
-          Animated.timing(floatO,    withWebSafeNativeDriver({ toValue: 1, duration: 200 })),
-          Animated.timing(floatY,    withWebSafeNativeDriver({ toValue: -8, duration: 700, easing: Easing.out(Easing.cubic) })),
-        ]),
-        Animated.timing(floatY, withWebSafeNativeDriver({ toValue: -10, duration: 350, easing: Easing.inOut(Easing.sin) })),
-        Animated.timing(floatY, withWebSafeNativeDriver({ toValue: -8,  duration: 350, easing: Easing.inOut(Easing.sin) })),
-        Animated.parallel([
-          Animated.timing(floatO,    withWebSafeNativeDriver({ toValue: 0, duration: 300 })),
-          Animated.timing(starScale, withWebSafeNativeDriver({ toValue: 0, duration: 250 })),
-          Animated.timing(lidAngle,  withWebSafeNativeDriver({ toValue: 0, duration: 400, easing: Easing.in(Easing.cubic) })),
-        ]),
-        Animated.delay(400),
-      ])
-    );
-    sequence.start();
-    return () => sequence.stop();
-  }, [lidAngle, floatY, floatO, starScale]);
-
-  const lidLeftOpacity  = lidAngle.interpolate({ inputRange: [0, 1], outputRange: [0.7,  0.25] });
-  const lidRightOpacity = lidAngle.interpolate({ inputRange: [0, 1], outputRange: [0.85, 0.35] });
-  const lidLeftY        = lidAngle.interpolate({ inputRange: [0, 1], outputRange: [0, -5] });
-  const lidRightY       = lidAngle.interpolate({ inputRange: [0, 1], outputRange: [0, -5] });
-
-  const s = size;
-
+  const s = compact ? size * 0.80 : size * 0.84;
   return (
-    <View style={{ width: s, height: s + 6, alignItems: 'center', justifyContent: 'center' }}>
-
-      {/* Star popping out */}
-      <Animated.View style={{
-        position: 'absolute', top: 2, alignItems: 'center',
-        opacity: floatO,
-        transform: [{ translateY: floatY }, { scale: starScale }],
-      }}>
-        <Svg width={s * 0.38} height={s * 0.38} viewBox="0 0 20 20" fill="none">
-          <Path
-            d="M10 1L12.5 7.5L19.5 7.5L14 12L16 19L10 15L4 19L6 12L0.5 7.5L7.5 7.5Z"
-            fill="rgba(255,255,255,0.95)"
-            stroke="rgba(255,255,255,0.5)"
-            strokeWidth={0.6}
-            strokeLinejoin="round"
-          />
-        </Svg>
-      </Animated.View>
-
-      {/* Main box body */}
-      <Svg width={s * 1.05} height={s * 1.05} viewBox="0 0 30 30" fill="none"
-        style={{ position: 'absolute', bottom: -4 }}>
-        <Path d="M3 13V22L13 27.5V18.5L3 13Z"
-          fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.9)" strokeWidth={1.2} strokeLinejoin="round" />
-        <Path d="M27 13V22L17 27.5V18.5L27 13Z"
-          fill="rgba(255,255,255,0.45)" stroke="rgba(255,255,255,0.9)" strokeWidth={1.2} strokeLinejoin="round" />
-        <Path d="M13 27.5L17 27.5" stroke="rgba(255,255,255,0.9)" strokeWidth={1.2} strokeLinecap="round" />
-        <Path d="M3 13L15 7L27 13" stroke="white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M15 13V18.5" stroke="rgba(255,255,255,0.6)" strokeWidth={1} strokeLinecap="round" />
-      </Svg>
-
-      {/* Left lid */}
-      <Animated.View style={{
-        position: 'absolute', bottom: -4, width: s * 1.05, height: s * 1.05,
-        opacity: lidLeftOpacity, transform: [{ translateY: lidLeftY }],
-      }}>
-        <Svg width={s * 1.05} height={s * 1.05} viewBox="0 0 30 30" fill="none">
-          <Path d="M3 13L13 8.5L15 13L3 17.5Z"
-            fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.9)" strokeWidth={1.2} strokeLinejoin="round" />
-        </Svg>
-      </Animated.View>
-
-      {/* Right lid */}
-      <Animated.View style={{
-        position: 'absolute', bottom: -4, width: s * 1.05, height: s * 1.05,
-        opacity: lidRightOpacity, transform: [{ translateY: lidRightY }],
-      }}>
-        <Svg width={s * 1.05} height={s * 1.05} viewBox="0 0 30 30" fill="none">
-          <Path d="M27 13L17 8.5L15 13L27 17.5Z"
-            fill="rgba(255,255,255,0.35)" stroke="rgba(255,255,255,0.9)" strokeWidth={1.2} strokeLinejoin="round" />
-        </Svg>
-      </Animated.View>
-
-    </View>
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      {/* Top-left cell — filled accent */}
+      <Rect x="3" y="3" width="8" height="8" rx="2.2"
+        fill="rgba(255,255,255,0.92)" />
+      {/* Top-right cell — outlined */}
+      <Rect x="13" y="3" width="8" height="8" rx="2.2"
+        fill="rgba(255,255,255,0.35)"
+        stroke="rgba(255,255,255,0.8)" strokeWidth={1.4} />
+      {/* Bottom-left cell — outlined */}
+      <Rect x="3" y="13" width="8" height="8" rx="2.2"
+        fill="rgba(255,255,255,0.35)"
+        stroke="rgba(255,255,255,0.8)" strokeWidth={1.4} />
+      {/* Bottom-right cell — filled accent */}
+      <Rect x="13" y="13" width="8" height="8" rx="2.2"
+        fill="rgba(255,255,255,0.92)" />
+    </Svg>
   );
 }
 

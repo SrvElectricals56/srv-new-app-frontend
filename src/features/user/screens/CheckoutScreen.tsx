@@ -182,7 +182,7 @@ export function CheckoutScreen({
             <View style={styles.productPriceRow}>
               <Text style={[styles.productPrice, { color: textPrimary }]}>₹{item.price.toLocaleString('en-IN')}</Text>
               {onUpdateQty ? (
-                <View style={[styles.checkoutQtyPill, { backgroundColor: inputBg, borderColor }]}>
+                <View style={[styles.checkoutQtyPill, { backgroundColor: inputBg, borderColor: border }]}>
                   <Pressable
                     style={[styles.checkoutQtyBtn, { backgroundColor: theme.primaryDark }]}
                     onPress={() => item.qty > 1 && onUpdateQty(item.id, item.qty - 1)}

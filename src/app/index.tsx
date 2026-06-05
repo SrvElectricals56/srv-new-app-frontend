@@ -959,6 +959,21 @@ function AppContent() {
               historyItems={electricianRewardHistory}
             />
           );
+        case 'bank_details':
+          return (
+            <WalletBankDetailsScreen
+              onBack={() => setCurrentScreen('wallet')}
+              onManageBankDetails={() => {
+                setProfileInitialSubPage('Bank Details');
+                setCurrentScreen('profile');
+              }}
+              language={language}
+              onLanguageChange={setLanguage}
+              darkMode={darkMode}
+              onDarkModeChange={setDarkMode}
+              currentRole="user"
+            />
+          );
         default:
           return (
             <UserHomeScreen

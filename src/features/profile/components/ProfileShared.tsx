@@ -114,7 +114,11 @@ export type IconName =
   | 'location'
   | 'search'
   | 'trash'
-  | 'alert';
+  | 'alert'
+  | 'idCard'
+  | 'shieldCheck'
+  | 'shieldX'
+  | 'fileSearch';
 
 export function AppIcon({
   name,
@@ -713,6 +717,94 @@ export function AppIcon({
             strokeLinecap="round"
           />
           <Circle cx="12" cy="16" r="1.3" fill={color} />
+        </Svg>
+      );
+    // KYC-specific icons
+    case 'idCard':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Rect
+            x="2.5"
+            y="5"
+            width="19"
+            height="14"
+            rx="2.5"
+            stroke={color}
+            strokeWidth={strokeWidth}
+          />
+          <Circle cx="8" cy="11" r="2.2" stroke={color} strokeWidth={strokeWidth} />
+          <Path
+            d="M4.5 18c.5-2.2 2-3.5 3.5-3.5s3 1.3 3.5 3.5"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M14 9.5h5M14 12.5h3.5"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+        </Svg>
+      );
+    case 'shieldCheck':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M12 3L4 6.5v5c0 4.4 3.4 8.5 8 9.5 4.6-1 8-5.1 8-9.5v-5L12 3z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M8.5 12l2.3 2.3 4.7-4.6"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      );
+    case 'shieldX':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M12 3L4 6.5v5c0 4.4 3.4 8.5 8 9.5 4.6-1 8-5.1 8-9.5v-5L12 3z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M9.5 9.5l5 5M14.5 9.5l-5 5"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+        </Svg>
+      );
+    case 'fileSearch':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V9l-5-6z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M14 3v5a1 1 0 001 1h5"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinejoin="round"
+          />
+          <Circle cx="11" cy="14.5" r="2.2" stroke={color} strokeWidth={strokeWidth} />
+          <Path
+            d="M17 19.5l-2.5-2.5"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
         </Svg>
       );
     case 'chevronLeft':

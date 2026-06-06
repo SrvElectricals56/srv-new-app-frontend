@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import {
   Image, Linking, ScrollView,
   StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
@@ -199,6 +200,8 @@ export function HomeScreen({
   const pageContent = useAppPageContent('counterboy', 'home');
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const homeScrollRef = useRef<ScrollView>(null);
+  useRegisterScrollToTop('home', homeScrollRef);
   const [apiBannerSlides, setApiBannerSlides] = useState<any[]>([]);
   const [supportWhatsapp, setSupportWhatsapp] = useState('918837684004');
   const heroImageHeight = Math.round((width - 28) * 0.56);
@@ -445,6 +448,7 @@ export function HomeScreen({
 
   return (
     <ScrollView
+      ref={homeScrollRef}
       style={[styles.screen, darkMode ? styles.screenDark : null]}
       showsVerticalScrollIndicator={false}
       bounces={false}

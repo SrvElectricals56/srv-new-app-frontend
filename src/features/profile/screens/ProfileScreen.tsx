@@ -124,6 +124,7 @@ export function ProfileScreen({
   totalScans,
   initialSubPage,
   onInitialSubPageConsumed,
+  profileResetKey,
 }: {
   currentRole: UserRole;
   onNavigate: (screen: Screen) => void;
@@ -142,6 +143,7 @@ export function ProfileScreen({
   totalScans?: number;
   initialSubPage?: Exclude<SubPage, null> | null;
   onInitialSubPageConsumed?: () => void;
+  profileResetKey?: number;
 }) {
   // Real user from auth context
   const { user: authUser, updateUser, refreshProfile } = useAuth();
@@ -236,6 +238,12 @@ export function ProfileScreen({
       onInitialSubPageConsumed?.();
     }
   }, [initialSubPage, onInitialSubPageConsumed]);
+
+  useEffect(() => {
+    if (profileResetKey && profileResetKey > 0) {
+      setSubPage(null);
+    }
+  }, [profileResetKey]);
 
   const preferenceValue = usePreferenceValue({
     language,
@@ -1308,6 +1316,7 @@ export function ProfileScreen({
                 activeOpacity={1}
                 style={[styles.editSheet, { backgroundColor: theme.surface }]}
               >
+
                 <View style={styles.handle} />
                 <View style={styles.editHeader}>
                   <Text style={[styles.editTitle, { color: theme.textPrimary }]}>

@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import {
   Animated,
   Easing,
@@ -470,6 +471,8 @@ export function HomeScreen({
   const pageContent = useAppPageContent('user', 'home');
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const homeScrollRef = useRef<ScrollView>(null);
+  useRegisterScrollToTop('home', homeScrollRef);
   const [apiBannerSlides, setApiBannerSlides] = useState<CarouselSlide[]>([]);
   const statsPulse = useRef(new Animated.Value(1)).current;
   const cardW = (width - 28 - 12) / 2;
@@ -795,7 +798,8 @@ export function HomeScreen({
 
   return (
     <ScrollView
-      style={[styles.container, darkMode ? styles.containerDark : null]}
+      ref={homeScrollRef}
+      style={[styles.screen, darkMode ? styles.screenDark : null]}
       showsVerticalScrollIndicator={false}
       bounces={false}
       overScrollMode="never"

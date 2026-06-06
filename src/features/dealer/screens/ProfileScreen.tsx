@@ -19,6 +19,7 @@ export function ProfileScreen({
   onProfilePhotoChange,
   initialSubPage,
   onInitialSubPageConsumed,
+  profileResetKey,
 }: {
   onNavigate: (screen: Screen) => void;
   onSignOut: () => void;
@@ -34,6 +35,7 @@ export function ProfileScreen({
   onProfilePhotoChange: (photoUri: string | null) => void;
   initialSubPage?: Exclude<SubPage, null> | null;
   onInitialSubPageConsumed?: () => void;
+  profileResetKey?: number;
 }) {
   return (
     <SharedProfileScreen
@@ -52,6 +54,7 @@ export function ProfileScreen({
       onProfilePhotoChange={onProfilePhotoChange}
       initialSubPage={initialSubPage}
       onInitialSubPageConsumed={onInitialSubPageConsumed}
+      profileResetKey={profileResetKey}
     />
   );
 }

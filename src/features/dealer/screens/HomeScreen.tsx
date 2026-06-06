@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import {
   Animated,
   Easing,
@@ -436,6 +437,8 @@ export function HomeScreen({
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const statPulse = useRef(new Animated.Value(1)).current;
+  const homeScrollRef = useRef<ScrollView>(null);
+  useRegisterScrollToTop('home', homeScrollRef);
   const connectedCount = authUser?.electricianCount ?? 0;
   const tier = useMemo(() => getTier(connectedCount), [connectedCount]);
   const cardW = (width - 28 - 12) / 2;
@@ -779,6 +782,7 @@ export function HomeScreen({
 
   return (
     <ScrollView
+      ref={homeScrollRef}
       style={[styles.screen, darkMode ? styles.screenDark : null]}
       showsVerticalScrollIndicator={false}
       bounces={false}

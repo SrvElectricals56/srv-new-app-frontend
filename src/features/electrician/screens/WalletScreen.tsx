@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
 import { colors } from '@/shared/theme/colors';
@@ -249,6 +250,8 @@ export function WalletScreen({
   const contentRole = role === 'user' ? 'user' : role;
   const pageContent = useAppPageContent(contentRole as any, 'wallet');
 
+  const walletScrollRef = useRef<ScrollView>(null);
+  useRegisterScrollToTop('wallet', walletScrollRef);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -411,6 +414,7 @@ export function WalletScreen({
 
   return (
     <ScrollView
+      ref={walletScrollRef}
       style={[styles.screen, { backgroundColor: darkMode ? '#08111F' : t.screenBg }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}

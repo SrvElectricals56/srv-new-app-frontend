@@ -21,6 +21,7 @@ export function ProfileScreen({
   totalScans,
   initialSubPage,
   onInitialSubPageConsumed,
+  profileResetKey,
 }: {
   onNavigate: (screen: Screen) => void;
   onSignOut: () => void;
@@ -38,6 +39,7 @@ export function ProfileScreen({
   totalScans?: number;
   initialSubPage?: Exclude<SubPage, null> | null;
   onInitialSubPageConsumed?: () => void;
+  profileResetKey?: number;
 }) {
   return (
     <SharedProfileScreen
@@ -58,6 +60,7 @@ export function ProfileScreen({
       totalScans={totalScans}
       initialSubPage={initialSubPage}
       onInitialSubPageConsumed={onInitialSubPageConsumed}
+      profileResetKey={profileResetKey}
     />
   );
 }

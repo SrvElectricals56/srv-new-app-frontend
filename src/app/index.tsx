@@ -1,5 +1,5 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav as DealerBottomNav } from '@/features/dealer/screens/BottomNav';
@@ -45,6 +45,7 @@ import {
   WalletDealerBonusScreen,
   WalletTransferPointsScreen,
 } from '@/features/profile/screens/WalletLinkedPages';
+import { NavActionProvider } from '@/shared/context/NavActionContext';
 import { PreferenceContext, type AppLanguage, usePreferenceValue } from '@/shared/preferences';
 import { colors } from '@/shared/theme/colors';
 import type { Screen, UserRole } from '@/shared/types/navigation';
@@ -342,6 +343,13 @@ function AppContent() {
   const appTheme = preferenceValue.theme;
   const statusBarStyle = darkMode ? 'light' : 'dark';
 
+  const scrollToTopFns = useRef<Map<string, () => void>>(new Map());
+  const registerScrollToTop = useCallback((screenId: string, fn: () => void) => {
+    scrollToTopFns.current.set(screenId, fn);
+    return () => { scrollToTopFns.current.delete(screenId); };
+  }, []);
+  const [profileResetKey, setProfileResetKey] = useState(0);
+
   const handleNavigate = useCallback(
     (screen: Screen) => {
       if (!isRoleFeatureEnabled(rolePageControls, currentRole, screen)) {
@@ -359,6 +367,11 @@ function AppContent() {
       }
 
       if (screen === currentScreen) {
+        if (screen === 'profile') {
+          setProfileResetKey((k) => k + 1);
+        } else {
+          scrollToTopFns.current.get(screen)?.();
+        }
         return;
       }
 
@@ -815,6 +828,7 @@ function AppContent() {
               }
               initialSubPage={profileInitialSubPage}
               onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
+              profileResetKey={profileResetKey}
             />
           );
         case 'dealer_tier':
@@ -947,6 +961,7 @@ function AppContent() {
               totalScans={electricianRewardScans}
               initialSubPage={profileInitialSubPage}
               onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
+              profileResetKey={profileResetKey}
             />
           );
         case 'wallet':
@@ -1076,6 +1091,7 @@ function AppContent() {
               totalScans={electricianRewardScans}
               initialSubPage={profileInitialSubPage}
               onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
+              profileResetKey={profileResetKey}
             />
           );
         case 'bank_details':
@@ -1182,6 +1198,7 @@ function AppContent() {
             totalScans={electricianRewardScans}
             initialSubPage={profileInitialSubPage}
             onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
+            profileResetKey={profileResetKey}
           />
         );
       case 'wallet':
@@ -1317,7 +1334,9 @@ function AppContent() {
         <SafeAreaView style={[styles.safeArea, { backgroundColor: appTheme.bg }]} edges={['top']}>
           <ExpoStatusBar style={statusBarStyle} />
           <View style={styles.content}>
-            {activeScreen}
+            <NavActionProvider registerScrollToTop={registerScrollToTop}>
+              {activeScreen}
+            </NavActionProvider>
           </View>
         </SafeAreaView>
         {!pendingApprovalRole ? (

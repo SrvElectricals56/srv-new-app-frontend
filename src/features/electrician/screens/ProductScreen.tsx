@@ -21,6 +21,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAuth } from '@/shared/context/AuthContext';
+import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
 import type { Screen } from '@/shared/types/navigation';
@@ -630,6 +631,8 @@ export function ProductScreen({
   const { products: apiProducts, categories: apiCategories, catalogLoading, refreshAll } = useAppData();
   const { isAuthenticated } = useAuth();
   const { width } = useWindowDimensions();
+  const productListRef = useRef<FlatList>(null);
+  useRegisterScrollToTop('product', productListRef);
   const contentRole = role === 'customer' ? 'user' : role;
   const pageContent = useAppPageContent(contentRole as any, 'product');
 
@@ -1053,6 +1056,7 @@ export function ProductScreen({
 
   return (
     <FlatList
+      ref={productListRef}
       style={[styles.screen, darkMode ? styles.screenDark : null, isCounterboy && { backgroundColor: '#F9F4ED' }, isCounterboy && darkMode && { backgroundColor: '#120A07' }]}
       contentContainerStyle={styles.content}
       data={rows}

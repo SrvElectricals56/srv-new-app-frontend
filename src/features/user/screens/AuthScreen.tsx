@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated, Easing, Image, KeyboardAvoidingView, Linking, Platform,
-  Pressable, ScrollView, StyleSheet, Text, TextInput, View, Alert,
+   Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
@@ -12,6 +12,7 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
 import { authApi } from '@/shared/api';
 import { isValidOptionalEmail, sanitizeEmailInput } from '@/shared/utils/validation';
+import { Dialog } from '@/shared/components/Dialog';
 
 // Role-based color themes - Customer theme updated
 const THEMES = {
@@ -165,6 +166,8 @@ export function UserAuthScreen({
   const [sPincode, setSPincode] = useState('');
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationMessage, setLocationMessage] = useState('');
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const normalizePhone = (value: string) => {
     const digits = value.trim().replace(/\D/g, '');
@@ -192,9 +195,9 @@ export function UserAuthScreen({
         (Platform.OS === 'android' && permission.android?.accuracy !== 'none');
       if (!hasPermission) {
         if (permission.canAskAgain) {
-          Alert.alert('', tx('Please allow location permission to fetch your current address automatically.'));
+          setDialog({ visible: true, variant: 'info', title: '', message: tx('Please allow location permission to fetch your current address automatically.') });
         } else {
-          Alert.alert('', tx('Location permission is blocked. Opening app settings so you can allow it.'));
+          setDialog({ visible: true, variant: 'info', title: '', message: tx('Location permission is blocked. Opening app settings so you can allow it.') });
           await Linking.openSettings();
         }
         return;
@@ -203,11 +206,11 @@ export function UserAuthScreen({
       if (!servicesEnabled) {
         if (Platform.OS === 'android') {
           try { await Location.enableNetworkProviderAsync(); } catch {
-            Alert.alert('', tx('Please turn on device location to fetch the current address automatically.'));
+            setDialog({ visible: true, variant: 'info', title: '', message: tx('Please turn on device location to fetch the current address automatically.') });
             return;
           }
         } else {
-          Alert.alert('', tx('Please turn on device location to fetch the current address automatically.'));
+          setDialog({ visible: true, variant: 'info', title: '', message: tx('Please turn on device location to fetch the current address automatically.') });
           return;
         }
       }
@@ -220,11 +223,11 @@ export function UserAuthScreen({
       }
       const lookup = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       if (!lookup || lookup.length === 0) {
-        Alert.alert('', tx('Could not find address for your location. Please enter manually.'));
+        setDialog({ visible: true, variant: 'info', title: '', message: tx('Could not find address for your location. Please enter manually.') });
         return;
       }
       const addr = lookup[0];
-      if (!addr) { Alert.alert('', tx('Address details not found. Please enter manually.')); return; }
+      if (!addr) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Address details not found. Please enter manually.') }); return; }
       const parts: string[] = [];
       if (addr.formattedAddress) parts.push(addr.formattedAddress);
       if (addr.name) parts.push(addr.name);
@@ -244,7 +247,7 @@ export function UserAuthScreen({
       if (resolvedPincode) setSPincode(resolvedPincode.replace(/\D/g, '').slice(0, 6));
       setLocationMessage(tx('Address fetched successfully. Please review and update if needed.'));
     } catch {
-      Alert.alert('', tx('Could not fetch location. Please enter address manually.'));
+      setDialog({ visible: true, variant: 'info', title: '', message: tx('Could not fetch location. Please enter address manually.') });
     } finally {
       setLocationLoading(false);
     }
@@ -316,36 +319,33 @@ export function UserAuthScreen({
   }, [sPhone, otpSentSignup, otpSignupPhone]);
 
   const sendOtpLogin = async () => {
-    if (!lPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
+    if (!lPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
     const cleanPhone = normalizePhone(lPhone);
-    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
+    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
     setLoading(true);
     try {
       const data = await authApi.sendOtp(cleanPhone, role);
       setLPhone(cleanPhone);
       setOtpSentLogin(true);
       setOtpLoginPhone(cleanPhone);
-      Alert.alert(
-        tx('OTP Sent'), 
-        data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP')
-      );
+      setDialog({ visible: true, variant: 'success', title: tx('OTP Sent'), message: data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP') });
     } catch (e: any) {
       const msg = e?.message ?? '';
       if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('not found')) {
-        Alert.alert(tx('Not Registered'), tx('This phone number is not registered. Please create an account first.'));
+        setDialog({ visible: true, variant: 'info', title: tx('Not Registered'), message: tx('This phone number is not registered. Please create an account first.') });
         setMode('signup');
       } else {
-        Alert.alert(tx('Error'), msg || tx('Failed to send OTP'));
+        setDialog({ visible: true, variant: 'error', title: tx('Error'), message: msg || tx('Failed to send OTP') });
       }
     }
     finally { setLoading(false); }
   };
 
   const sendOtpSignup = async () => {
-    if (!sName.trim()) { Alert.alert('', tx('Please enter your name')); return; }
-    if (!sPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
+    if (!sName.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
+    if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
     const cleanPhone = normalizePhone(sPhone);
-    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
+    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
     setLoading(true);
     try {
       const data = await authApi.sendSignupOtp(cleanPhone, role);
@@ -353,29 +353,26 @@ export function UserAuthScreen({
       setOtpSentSignup(true);
       setOtpSignupPhone(cleanPhone);
       setSignupStep('otp');
-      Alert.alert(
-        tx('OTP Sent'),
-        data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP')
-      );
+      setDialog({ visible: true, variant: 'success', title: tx('OTP Sent'), message: data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP') });
     } catch (e: any) {
       const msg = e?.message ?? '';
       if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('conflict')) {
-        Alert.alert(tx('Already Registered'), msg || tx('This phone number is already registered. Please login instead.'));
+        setDialog({ visible: true, variant: 'info', title: tx('Already Registered'), message: msg || tx('This phone number is already registered. Please login instead.') });
         setMode('login');
       } else {
-        Alert.alert(tx('Error'), msg || tx('Failed to send OTP'));
+        setDialog({ visible: true, variant: 'error', title: tx('Error'), message: msg || tx('Failed to send OTP') });
       }
     }
     finally { setLoading(false); }
   };
 
   const login = async () => {
-    if (!lPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
+    if (!lPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
     const cleanPhone = normalizePhone(lPhone);
-    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
+    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
     
     if (useOtpLogin) {
-      if (!lOtp.trim()) { Alert.alert('', tx('Please enter the OTP')); return; }
+      if (!lOtp.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter the OTP') }); return; }
       setLoading(true);
       try {
         const data = await authApi.verifyOtp(cleanPhone, role, lOtp.trim());
@@ -384,19 +381,19 @@ export function UserAuthScreen({
       } catch (e: any) {
         const msg = e?.message ?? '';
         if (msg.toLowerCase().includes('expired')) {
-          Alert.alert(tx('OTP Expired'), tx('Your OTP has expired. Please request a new one.'));
+          setDialog({ visible: true, variant: 'info', title: tx('OTP Expired'), message: tx('Your OTP has expired. Please request a new one.') });
           setOtpSentLogin(false);
           setLOtp('');
         } else if (msg.toLowerCase().includes('invalid')) {
-          Alert.alert(tx('Invalid OTP'), tx('The OTP you entered is incorrect. Please try again.'));
+          setDialog({ visible: true, variant: 'info', title: tx('Invalid OTP'), message: tx('The OTP you entered is incorrect. Please try again.') });
           setLOtp('');
         } else {
-          Alert.alert(tx('Login Failed'), msg || tx('Something went wrong. Please try again.'));
+          setDialog({ visible: true, variant: 'error', title: tx('Login Failed'), message: msg || tx('Something went wrong. Please try again.') });
         }
       }
       finally { setLoading(false); }
     } else {
-      if (!lPwd.trim()) { Alert.alert('', tx('Please enter your password')); return; }
+      if (!lPwd.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your password') }); return; }
       setLoading(true);
       try {
         const res = await authApi.login({ phone: cleanPhone, password: lPwd.trim(), role });
@@ -405,12 +402,12 @@ export function UserAuthScreen({
       } catch (e: any) {
         const msg = e?.message ?? '';
         if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not registered')) {
-          Alert.alert(tx('Not Registered'), tx('This phone number is not registered. Please create an account first.'));
+          setDialog({ visible: true, variant: 'info', title: tx('Not Registered'), message: tx('This phone number is not registered. Please create an account first.') });
           setMode('signup');
         } else if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('password')) {
-          Alert.alert(tx('Wrong Password'), tx('Incorrect password. Try again or use OTP login.'));
+          setDialog({ visible: true, variant: 'info', title: tx('Wrong Password'), message: tx('Incorrect password. Try again or use OTP login.') });
         } else {
-          Alert.alert(tx('Login Failed'), msg || tx('Check your credentials and try again.'));
+          setDialog({ visible: true, variant: 'error', title: tx('Login Failed'), message: msg || tx('Check your credentials and try again.') });
         }
       }
       finally { setLoading(false); }
@@ -418,11 +415,11 @@ export function UserAuthScreen({
   };
 
   const verifySignup = async () => {
-    if (!sName.trim())  { Alert.alert('', tx('Please enter your name')); return; }
-    if (!sPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
-    if (!sOtp.trim())   { Alert.alert('', tx('Please enter the OTP')); return; }
+    if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
+    if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
+    if (!sOtp.trim())   { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter the OTP') }); return; }
     const cleanPhone = normalizePhone(sPhone);
-    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
+    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
 
     setLoading(true);
     try {
@@ -431,15 +428,15 @@ export function UserAuthScreen({
     } catch (e: any) {
       const msg = e?.message ?? '';
       if (msg.toLowerCase().includes('expired')) {
-        Alert.alert(tx('OTP Expired'), tx('Your OTP has expired. Please request a new one.'));
+        setDialog({ visible: true, variant: 'info', title: tx('OTP Expired'), message: tx('Your OTP has expired. Please request a new one.') });
         setOtpSentSignup(false);
         setSOtp('');
         setSignupStep('identity');
       } else if (msg.toLowerCase().includes('invalid')) {
-        Alert.alert(tx('Invalid OTP'), tx('The OTP you entered is incorrect. Please try again.'));
+        setDialog({ visible: true, variant: 'info', title: tx('Invalid OTP'), message: tx('The OTP you entered is incorrect. Please try again.') });
         setSOtp('');
       } else {
-        Alert.alert(tx('OTP Error'), msg || tx('OTP verification failed. Please try again.'));
+        setDialog({ visible: true, variant: 'error', title: tx('OTP Error'), message: msg || tx('OTP verification failed. Please try again.') });
       }
     } finally {
       setLoading(false);
@@ -447,20 +444,20 @@ export function UserAuthScreen({
   };
 
   const signup = async () => {
-    if (!sName.trim())  { Alert.alert('', tx('Please enter your name')); return; }
-    if (!sPhone.trim()) { Alert.alert('', tx('Please enter your phone number')); return; }
+    if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
+    if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
     if (!otpSentSignup || signupStep !== 'details') {
-      Alert.alert('', tx('Please verify your OTP first'));
+      setDialog({ visible: true, variant: 'info', title: '', message: tx('Please verify your OTP first') });
       return;
     }
     const cleanPhone = normalizePhone(sPhone);
-    if (cleanPhone.length !== 10) { Alert.alert('', tx('Please enter a valid 10-digit phone number')); return; }
+    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
     if ((role === 'user' || role === 'counterboy') && sAddress.trim().length < 5) {
-      Alert.alert('', tx('Please enter your address'));
+      setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your address') });
       return;
     }
     if (!isValidOptionalEmail(sEmail)) {
-      Alert.alert('', tx('Please enter a valid email address without spaces'));
+      setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid email address without spaces') });
       return;
     }
 
@@ -482,10 +479,10 @@ export function UserAuthScreen({
     } catch (e: any) {
       const msg = e?.message ?? '';
       if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('conflict')) {
-        Alert.alert(tx('Already Registered'), msg || tx('This phone number is already registered. Please login instead.'));
+        setDialog({ visible: true, variant: 'info', title: tx('Already Registered'), message: msg || tx('This phone number is already registered. Please login instead.') });
         setMode('login');
       } else {
-        Alert.alert(tx('Registration Failed'), msg || tx('Could not create account. Please try again.'));
+        setDialog({ visible: true, variant: 'error', title: tx('Registration Failed'), message: msg || tx('Could not create account. Please try again.') });
       }
     } finally {
       setLoading(false);
@@ -553,6 +550,13 @@ export function UserAuthScreen({
             </LinearGradient>
           </Pressable>
         )}
+        <Dialog
+          visible={dialog.visible}
+          variant={dialog.variant}
+          title={dialog.title}
+          message={dialog.message}
+          onClose={closeDialog}
+        />
       </View>
     );
   }
@@ -835,6 +839,13 @@ export function UserAuthScreen({
           </Pressable>
         </Animated.View>
       </ScrollView>
+        <Dialog
+          visible={dialog.visible}
+          variant={dialog.variant}
+          title={dialog.title}
+          message={dialog.message}
+          onClose={closeDialog}
+        />
     </KeyboardAvoidingView>
   );
 }

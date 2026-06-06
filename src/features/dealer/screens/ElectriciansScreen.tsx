@@ -1,8 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Dialog } from '@/shared/components/Dialog';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Keyboard,
   KeyboardAvoidingView,
@@ -137,6 +137,8 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
   const [newPhone, setNewPhone] = useState('');
   const [newCity, setNewCity] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const heroFloat = useRef(new Animated.Value(0)).current;
   const homeBtnScale = useRef(new Animated.Value(1)).current;
 
@@ -272,7 +274,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
       const message =
         error?.message ??
         tx('Unable to save electrician right now. Please check the details and try again.');
-      Alert.alert(tx('Add electrician failed'), message);
+      setDialog({ visible: true, variant: 'error', title: tx('Add electrician failed'), message });
       setSubmitting(false);
     }
   };
@@ -560,6 +562,16 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        confirmLabel={dialog.confirmLabel}
+        icon={dialog.icon}
+        onConfirm={dialog.onConfirm}
+        onClose={closeDialog}
+      />
     </>
   );
 }

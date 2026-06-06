@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { notificationsApi, storage } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { Dialog } from '@/shared/components/Dialog';
 
 export function NotificationsPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
@@ -12,6 +13,8 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'notifications');
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const notifScope = `${role ?? 'guest'}:${user?.id ?? 'guest'}`;
   const [notifData, setNotifData] = useState<
     { id: string; title: string; body: string; time: string }[]
@@ -55,22 +58,15 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
 
   const handleClearAllNotifications = useCallback(() => {
     if (!notifData.length) return;
-    Alert.alert(
-      tx('Clear all notifications'),
-      tx('This will hide all current notifications only for your account.'),
-      [
-        { text: tx('cancel'), style: 'cancel' },
-        {
-          text: tx('Clear All'),
-          style: 'destructive',
-          onPress: async () => {
-            await storage.clearNotifications(notifData.map((notification) => notification.id), notifScope);
-            setNotifData([]);
-            setReadIds([]);
-          },
-        },
-      ],
-    );
+    setDialog({
+      visible: true, variant: 'destructive', title: tx('Clear all notifications'), message: tx('This will hide all current notifications only for your account.'),
+      confirmLabel: tx('Clear All'),
+      onConfirm: async () => {
+        await storage.clearNotifications(notifData.map((notification) => notification.id), notifScope);
+        setNotifData([]);
+        setReadIds([]);
+      },
+    });
   }, [notifData, notifScope, tx]);
 
   useEffect(() => {
@@ -141,6 +137,15 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
           ))
         )}
       </ScrollView>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        confirmLabel={dialog.confirmLabel}
+        onConfirm={dialog.onConfirm}
+        onClose={closeDialog}
+      />
     </View>
   );
 }

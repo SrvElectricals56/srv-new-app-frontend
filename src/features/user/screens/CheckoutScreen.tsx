@@ -7,11 +7,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
-  Alert,
   ActivityIndicator,
   useWindowDimensions,
   Image,
 } from 'react-native';
+import { Dialog } from '@/shared/components/Dialog';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -124,6 +124,8 @@ export function CheckoutScreen({
 
   const [address, setAddress] = useState((user as any)?.address ?? '');
   const [placing, setPlacing] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const bg = darkMode ? theme.bgDark : theme.bg;
   const card = darkMode ? theme.cardDark : theme.card;
@@ -137,16 +139,16 @@ export function CheckoutScreen({
 
   const handlePlaceOrder = useCallback(async () => {
     if (!address.trim()) {
-      Alert.alert(tx('Address required'), tx('Please enter your shipping address.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Address required'), message: tx('Please enter your shipping address.') });
       return;
     }
     setPlacing(true);
     try {
       await catalogApi.buyNow({ productId: item.id, quantity: item.qty, shippingAddress: address.trim() });
-      Alert.alert(tx('Order placed'), tx('Your product order has been submitted successfully.'));
+      setDialog({ visible: true, variant: 'success', title: tx('Order placed'), message: tx('Your product order has been submitted successfully.') });
       onOrderPlaced();
     } catch (error: any) {
-      Alert.alert(tx('Order failed'), error?.message || tx('Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Order failed'), message: error?.message || tx('Please try again.') });
     } finally {
       setPlacing(false);
     }
@@ -273,6 +275,16 @@ export function CheckoutScreen({
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        confirmLabel={dialog.confirmLabel}
+        icon={dialog.icon}
+        onConfirm={dialog.onConfirm}
+        onClose={closeDialog}
+      />
     </View>
   );
 }

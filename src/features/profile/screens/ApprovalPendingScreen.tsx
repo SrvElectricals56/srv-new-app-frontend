@@ -166,19 +166,19 @@ export function ApprovalPendingScreen({
     () =>
       isSuspended
         ? [
-            { icon: 'alert' as const, text: 'Your account access has been suspended by admin' },
+            { icon: 'alert' as const, text: 'Your account access has been suspended by SRV Team' },
             { icon: 'message' as const, text: 'Contact support to understand suspension and next steps' },
             { icon: 'phone' as const, text: 'App features stay locked until status is restored' },
           ]
         : isRejected
         ? [
-            { icon: 'check' as const, text: `Your ${roleLabel.toLowerCase()} account was reviewed by admin` },
-            { icon: 'alert' as const, text: 'Account has been marked inactive by admin' },
+            { icon: 'check' as const, text: `Your ${roleLabel.toLowerCase()} account was reviewed by SRV Team` },
+            { icon: 'alert' as const, text: 'Account has been marked inactive by SRV Team' },
             { icon: 'message' as const, text: 'Contact support for help or clarification' },
           ]
         : [
             { icon: 'check' as const, text: 'Your account request has been received' },
-            { icon: 'clock' as const, text: 'Admin approval is required before access' },
+            { icon: 'clock' as const, text: 'SRV Team approval is required before access' },
             { icon: 'message' as const, text: 'Contact support for urgent queries' },
           ],
     [isRejected, isSuspended, roleLabel]
@@ -196,7 +196,7 @@ export function ApprovalPendingScreen({
         ? `Hello SRV Team, my ${roleLabel.toLowerCase()} account is suspended. Please help me restore access.`
         : isRejected
         ? `Hello SRV Team, my ${roleLabel.toLowerCase()} account is inactive. Please help me with the next steps.`
-        : `Hello SRV Team, my ${roleLabel.toLowerCase()} account is waiting for admin approval.`
+        : `Hello SRV Team, my ${roleLabel.toLowerCase()} account is waiting for SRV Team approval.`
     );
     void Linking.openURL(`https://wa.me/${safeWhatsapp}?text=${message}`).catch(() => {});
   };
@@ -205,13 +205,13 @@ export function ApprovalPendingScreen({
     ? `Your ${roleLabel.toLowerCase()} account\nis suspended`
     : isRejected
     ? `Your ${roleLabel.toLowerCase()} account\nis inactive`
-    : 'Waiting for admin\napproval';
+    : 'Waiting for SRV Team\napproval';
 
   const subtitle = isSuspended
-    ? `Your ${roleLabel.toLowerCase()} account is suspended. Contact support to restore access once admin reactivates your account.`
+    ? `Your ${roleLabel.toLowerCase()} account is suspended. Contact support to restore access once SRV Team reactivates your account.`
     : isRejected
     ? `Your ${roleLabel.toLowerCase()} account was reviewed and marked inactive. See the reason below and contact support if you need help.`
-    : `Your ${roleLabel.toLowerCase()} account is created. The app will unlock fully once admin sets your account to active.`;
+    : `Your ${roleLabel.toLowerCase()} account is created. The app will unlock fully once SRV Team sets your account to active.`;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: T.shell }]}>
@@ -235,7 +235,7 @@ export function ApprovalPendingScreen({
 
           <View style={styles.titleBlock}>
             <Text style={[styles.eyebrow, { color: T.accentDeep }]}>
-              {isSuspended ? 'Access Suspended' : isRejected ? 'Account Inactive' : 'Admin Review'}
+              {isSuspended ? 'Access Suspended' : isRejected ? 'Account Inactive' : 'SRV Team Review'}
             </Text>
             <Text style={[styles.title, { color: theme.textPrimary }]}>{headline}</Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
@@ -249,8 +249,8 @@ export function ApprovalPendingScreen({
               <Text style={[styles.reasonText, { color: theme.textPrimary }]}>
                 {rejectionReason?.trim() ||
                   (isSuspended
-                    ? 'Account suspended by admin. Contact support for details.'
-                    : 'Marked inactive by admin. Contact support for details.')}
+                    ? 'Account suspended by SRV Team. Contact support for details.'
+                    : 'Marked inactive by SRV Team. Contact support for details.')}
               </Text>
             </View>
           ) : null}
@@ -277,7 +277,7 @@ export function ApprovalPendingScreen({
                   ? 'Support can guide you on why the account was suspended and what is needed to restore access.'
                   : isRejected
                   ? 'You may contact our support team to understand why the account was deactivated and discuss next steps.'
-                  : 'When admin changes your status to active, reopen the app and your account will unlock automatically.'}
+                  : 'When SRV Team changes your status to active, reopen the app and your account will unlock automatically.'}
               </Text>
             </View>
           </View>

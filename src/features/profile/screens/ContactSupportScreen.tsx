@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, IconName, PageHeader } from '../components/ProfileShared';
+import { Dialog } from '@/shared/components/Dialog';
 import { usePreferenceContext } from '@/shared/preferences';
 import { settingsApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
@@ -17,6 +18,8 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
   const [headOffice] = useState(
     'Paul Electricals\nNangal kalan road, Village Jawaharke, Mansa, Punjab - 151505',
   );
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   useEffect(() => {
     settingsApi.getAppSettings()
@@ -39,7 +42,7 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
           await Linking.openURL(telUrl);
           return;
         }
-        Alert.alert(tx('Call'), `${tx('Call support at')} ${supportPhone}.`);
+        setDialog({ visible: true, variant: 'info', title: tx('Call'), message: `${tx('Call support at')} ${supportPhone}.` });
       },
     },
     {
@@ -53,14 +56,14 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
           await Linking.openURL(mailUrl);
           return;
         }
-        Alert.alert(tx('Email'), `${tx('Email support at')} ${supportEmail}.`);
+        setDialog({ visible: true, variant: 'info', title: tx('Email'), message: `${tx('Email support at')} ${supportEmail}.` });
       },
     },
     {
       icon: 'building' as IconName,
       label: tx('Head Office'),
       value: headOffice,
-      action: () => Alert.alert(tx('Address'), headOffice.replace('\n', ', ')),
+      action: () => setDialog({ visible: true, variant: 'info', title: tx('Address'), message: headOffice.replace('\n', ', ') }),
     },
   ], [headOffice, supportEmail, supportPhone, tx]);
   const faqData = [
@@ -159,6 +162,7 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
               </TouchableOpacity>
             ))}
       </ScrollView>
+      <Dialog visible={dialog.visible} variant={dialog.variant} title={dialog.title} message={dialog.message} onClose={closeDialog} />
     </View>
   );
 }

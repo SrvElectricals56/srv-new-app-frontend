@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Alert,
   Animated,
   Image,
   RefreshControl,
@@ -13,6 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import Svg, { Circle, Path, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { Dialog } from '@/shared/components/Dialog';
 import { AppIcon, shared } from '@/features/profile/components/ProfileShared';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAppData } from '@/shared/context/AppDataContext';
@@ -165,6 +165,8 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
   const { width } = useWindowDimensions();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const currentPoints = wallet?.totalPoints ?? walletSummary?.totalPoints ?? 0;
   const cardW = Math.floor((width - 32 - 12) / 2);
@@ -188,51 +190,45 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
     try { await refreshAll(); } finally { setRefreshing(false); }
   }, [refreshAll]);
 
-  const handleRedeem = async (gift: GiftProduct) => {
+  const handleRedeem = (gift: GiftProduct) => {
     if (currentPoints < 100) {
-      Alert.alert(
-        tx('Minimum Points Required'),
-        `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Scan SRV products to earn more!')}`,
-      );
+      setDialog({
+        visible: true, variant: 'info', title: tx('Minimum Points Required'),
+        message: `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Scan SRV products to earn more!')}`,
+      });
       return;
     }
     if (currentPoints < gift.pointsRequired) {
-      Alert.alert(
-        tx('Not Enough Points'),
-        `${tx('You need')} ${gift.pointsRequired} ${tx('pts but have')} ${currentPoints} ${tx('pts. Keep scanning to unlock this gift!')}`,
-      );
+      setDialog({
+        visible: true, variant: 'info', title: tx('Not Enough Points'),
+        message: `${tx('You need')} ${gift.pointsRequired} ${tx('pts but have')} ${currentPoints} ${tx('pts. Keep scanning to unlock this gift!')}`,
+      });
       return;
     }
     if (gift.stock <= 0) {
-      Alert.alert(tx('Out of Stock'), tx('This gift is currently out of stock. Check back soon!'));
+      setDialog({ visible: true, variant: 'info', title: tx('Out of Stock'), message: tx('This gift is currently out of stock. Check back soon!') });
       return;
     }
 
-    Alert.alert(
-      `${tx('Redeem')} ${gift.name}?`,
-      `${tx('This will use')} ${gift.pointsRequired} ${tx('points from your wallet.')}`,
-      [
-        { text: tx('Cancel'), style: 'cancel' },
-        {
-          text: tx('Confirm'),
-          style: 'default',
-          onPress: async () => {
-            try {
-              setRedeemingId(gift.id);
-              await redeemReward({ schemeId: gift.id, note: gift.name });
-              Alert.alert(
-                '🎁 ' + tx('Redemption Requested!'),
-                `${tx('Your request for')} "${gift.name}" ${tx('has been submitted. SRV team will process it shortly.')}`,
-              );
-            } catch (err: any) {
-              Alert.alert(tx('Redemption Failed'), err?.message ?? tx('Please try again.'));
-            } finally {
-              setRedeemingId(null);
-            }
-          },
-        },
-      ],
-    );
+    setDialog({
+      visible: true, variant: 'confirm', icon: '🎁', title: `${tx('Redeem')} ${gift.name}?`,
+      message: `${tx('This will use')} ${gift.pointsRequired} ${tx('points from your wallet.')}`,
+      confirmLabel: tx('Confirm'),
+      onConfirm: async () => {
+        try {
+          setRedeemingId(gift.id);
+          await redeemReward({ schemeId: gift.id, note: gift.name });
+          setDialog({
+            visible: true, variant: 'success', icon: '🎁', title: tx('Redemption Requested!'),
+            message: `${tx('Your request for')} "${gift.name}" ${tx('has been submitted. SRV team will process it shortly.')}`,
+          });
+        } catch (err: any) {
+          setDialog({ visible: true, variant: 'error', title: tx('Redemption Failed'), message: err?.message ?? tx('Please try again.') });
+        } finally {
+          setRedeemingId(null);
+        }
+      },
+    });
   };
 
   return (
@@ -324,6 +320,16 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        confirmLabel={dialog.confirmLabel}
+        icon={dialog.icon}
+        onConfirm={dialog.onConfirm}
+        onClose={closeDialog}
+      />
     </View>
   );
 }

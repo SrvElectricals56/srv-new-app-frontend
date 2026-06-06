@@ -280,7 +280,7 @@ export function CartScreen({
             </Text>
             <Pressable
               style={styles.shopButtonShell}
-              onPress={() => onNavigate('categories')}
+              onPress={() => onNavigate(role === 'customer' ? 'categories' : 'product')}
               android_ripple={{ color: 'rgba(255,255,255,0.18)' }}
             >
               <LinearGradient colors={[theme.primary, theme.primaryDark]} style={styles.shopButton}>

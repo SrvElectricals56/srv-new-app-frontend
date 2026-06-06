@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import { walletApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { Dialog } from '@/shared/components/Dialog';
 
 export function BankTransferRequestPage({
   onBack,
@@ -30,6 +30,8 @@ export function BankTransferRequestPage({
   const pageContent = useAppPageContent(currentRole, 'bank_details');
   const [amount, setAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const [freshBalance, setFreshBalance] = useState<number | null>(null);
 
   useEffect(() => {
@@ -79,18 +81,18 @@ export function BankTransferRequestPage({
   const handleSubmit = async () => {
     const numericAmount = Number(amount);
     if (!bankReady) {
-      return Alert.alert(tx('Bank details required'), tx('Please add your bank details first.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Bank details required'), message: tx('Please add your bank details first.') }); return;
     }
     if (!amount.trim() || Number.isNaN(numericAmount) || numericAmount <= 0) {
-      return Alert.alert(tx('Invalid amount'), tx('Please enter a valid withdrawal amount.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid amount'), message: tx('Please enter a valid withdrawal amount.') }); return;
     }
     if (numericAmount > availableBalance) {
-      return Alert.alert(
-        tx('Insufficient balance'),
-        isDealer
+      setDialog({
+        visible: true, variant: 'info', title: tx('Insufficient balance'),
+        message: isDealer
           ? tx('Requested amount cannot be more than your available dealer bonus.')
           : tx('Requested points cannot be more than your available balance.'),
-      );
+      }); return;
     }
 
     setSubmitting(true);
@@ -101,15 +103,15 @@ export function BankTransferRequestPage({
         await walletApi.requestBankTransfer({ amount: numericAmount });
       }
       await Promise.allSettled([refreshProfile(), refreshAll()]);
-      Alert.alert(
-        tx('Request submitted'),
-        isDealer
-          ? `Rs. ${numericAmount} ${tx('withdrawal request has been sent for admin approval.')}`
-          : `${numericAmount} ${tx('points withdrawal request has been sent for admin approval.')}`,
-      );
+      setDialog({
+        visible: true, variant: 'success', title: tx('Request submitted'),
+        message: isDealer
+          ? `Rs. ${numericAmount} ${tx('withdrawal request has been sent for SRV Team approval.')}`
+          : `${numericAmount} ${tx('points withdrawal request has been sent for SRV Team approval.')}`,
+      });
       setAmount('');
     } catch (err: any) {
-      Alert.alert(tx('Request failed'), err?.message ?? tx('Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Request failed'), message: err?.message ?? tx('Please try again.') });
     } finally {
       setSubmitting(false);
     }
@@ -132,8 +134,8 @@ export function BankTransferRequestPage({
               </Text>
               <Text style={[styles.heroSub, { color: theme.textMuted }]}>
                 {isDealer
-                  ? tx('Enter the dealer bonus amount you want in your bank account. Admin will review and transfer it manually.')
-                  : tx('Enter how many points you want in your bank account. Admin will review and transfer the payout manually.')}
+                  ? tx('Enter the dealer bonus amount you want in your bank account. SRV Team will review and transfer it manually.')
+                  : tx('Enter how many points you want in your bank account. SRV Team will review and transfer the payout manually.')}
               </Text>
             </View>
           </View>
@@ -233,6 +235,13 @@ export function BankTransferRequestPage({
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        onClose={closeDialog}
+      />
     </View>
   );
 }

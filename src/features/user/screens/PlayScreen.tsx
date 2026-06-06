@@ -326,7 +326,7 @@ function CommentRow({
       <Text style={styles.commentDate}>{new Date(comment.createdAt).toLocaleString()}</Text>
       {(comment.replies ?? []).map((reply) => (
         <View key={reply.id} style={styles.replyCard}>
-          <Text style={styles.replyAuthor}>{reply.authorName || 'Admin'}</Text>
+          <Text style={styles.replyAuthor}>{reply.authorName || 'SRV Team'}</Text>
           <Text style={styles.replyMessage}>{reply.message}</Text>
           <Text style={styles.replyDate}>{new Date(reply.createdAt).toLocaleString()}</Text>
         </View>
@@ -423,7 +423,7 @@ function VideoOverlay({
               </Pressable>
               <View style={styles.commentHint}>
                 <CommentIcon size={16} color="#475569" />
-                <Text style={styles.commentHintText}>Comment here and get admin reply</Text>
+                <Text style={styles.commentHintText}>Comment here and get SRV Team reply</Text>
               </View>
             </View>
 
@@ -492,7 +492,7 @@ function EmptyState({
       <Text style={styles.emptyEmoji}>Video</Text>
       <Text style={[styles.emptyTitle, { color: darkMode ? '#F8FAFC' : '#1D2A1A' }]}>{tx('No videos yet')}</Text>
       <Text style={[styles.emptyText, { color: darkMode ? '#A9B6C6' : '#74816B' }]}>
-        {tx('Videos will appear here once uploaded by the admin')}
+        {tx('Videos will appear here once uploaded by SRV Team')}
       </Text>
       <Pressable onPress={() => onNavigate('categories')} style={styles.browseBtn}>
         <Text style={styles.browseBtnText}>{tx('Browse Categories')}</Text>
@@ -824,7 +824,7 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
           <View style={styles.sectionEmpty}>
             <Text style={[styles.sectionEmptyTitle, { color: darkMode ? '#F8FAFC' : '#0F172A' }]}>{tx('No videos in this category')}</Text>
             <Text style={[styles.sectionEmptyText, { color: darkMode ? '#A8B3C7' : '#64748B' }]}>
-              {tx('Switch category or wait for admin uploads')}
+              {tx('Switch category or wait for SRV Team uploads')}
             </Text>
           </View>
         }

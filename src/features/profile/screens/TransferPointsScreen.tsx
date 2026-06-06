@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Alert,
   ActivityIndicator,
   Image,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Dialog } from '@/shared/components/Dialog';
 import { AppIcon, C, PageHeader, Screen } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { walletApi, type TransferRecipient } from '@/shared/api';
@@ -38,6 +38,8 @@ export function TransferPointsPage({
   const [transferring, setTransferring] = useState(false);
   const [foundUser, setFoundUser] = useState<TransferRecipient | null>(null);
   const [searchError, setSearchError] = useState('');
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const availablePoints = Math.max(
     Number(user?.totalPoints ?? 0),
@@ -46,7 +48,7 @@ export function TransferPointsPage({
 
   const handleSearch = async () => {
     if (mobile.trim().length !== 10) {
-      return Alert.alert(tx('Invalid number'), tx('Please enter a valid 10-digit mobile number.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid number'), message: tx('Please enter a valid 10-digit mobile number.') }); return;
     }
     setSearching(true);
     setFoundUser(null);
@@ -63,20 +65,17 @@ export function TransferPointsPage({
 
   const handleTransfer = async () => {
     const pts = Number(points);
-    if (!foundUser) return Alert.alert(tx('Search first'), tx('Please search for a user first.'));
-    if (!pts || pts <= 0) return Alert.alert(tx('Invalid amount'), tx('Enter valid points to transfer.'));
-    if (pts > availablePoints) return Alert.alert(tx('Insufficient points'), tx('You do not have enough points.'));
+    if (!foundUser) { setDialog({ visible: true, variant: 'info', title: tx('Search first'), message: tx('Please search for a user first.') }); return; }
+    if (!pts || pts <= 0) { setDialog({ visible: true, variant: 'info', title: tx('Invalid amount'), message: tx('Enter valid points to transfer.') }); return; }
+    if (pts > availablePoints) { setDialog({ visible: true, variant: 'info', title: tx('Insufficient points'), message: tx('You do not have enough points.') }); return; }
 
     setTransferring(true);
     try {
       await walletApi.transferPoints({ receiverPhone: foundUser.phone, points: pts });
       await Promise.allSettled([refreshProfile(), refreshAll()]);
-      Alert.alert(tx('Success'), `${pts} ${tx('points transferred to')} ${foundUser.name}`);
-      setMobile('');
-      setPoints('');
-      setFoundUser(null);
+      setDialog({ visible: true, variant: 'success', title: tx('Success'), message: `${pts} ${tx('points transferred to')} ${foundUser.name}`, onOk: () => { closeDialog(); setMobile(''); setPoints(''); setFoundUser(null); } });
     } catch (err: any) {
-      Alert.alert(tx('Transfer failed'), err?.message ?? tx('Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Transfer failed'), message: err?.message ?? tx('Please try again.') });
     } finally {
       setTransferring(false);
     }
@@ -195,6 +194,7 @@ export function TransferPointsPage({
           </View>
         ) : null}
       </ScrollView>
+      <Dialog visible={dialog.visible} variant={dialog.variant} title={dialog.title} message={dialog.message} onClose={closeDialog} />
     </View>
   );
 }

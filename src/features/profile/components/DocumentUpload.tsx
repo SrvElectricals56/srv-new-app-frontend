@@ -4,13 +4,13 @@ import {
   Text,
   TouchableOpacity,
   Image,
-  Alert,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { profileApi } from '@/shared/api';
+import { Dialog, Choice } from '@/shared/components/Dialog';
 
 type DocumentType = 'aadhar-front' | 'pan' | 'gst';
 
@@ -35,41 +35,22 @@ export function DocumentUpload({
 }: DocumentUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [localUri, setLocalUri] = useState<string | null>(currentUrl || null);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void; choices?: Choice[]; cancelButton?: boolean }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const pickerAspect: [number, number] = documentType === 'aadhar-front' ? [4, 3] : [3, 2];
 
   const pickDocument = async () => {
     try {
-      Alert.alert(
-        'Choose Source',
-        'Select document source',
-        [
-          {
-            text: 'Camera',
-            onPress: () => pickFromCamera(),
-          },
-          {
-            text: 'Gallery',
-            onPress: () => pickFromGallery(),
-          },
-          {
-            text: 'Files',
-            onPress: () => pickFromFiles(),
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-        ]
-      );
+      setDialog({ visible: true, variant: 'info', title: 'Choose Source', message: 'Select document source', choices: [{ label: 'Camera', icon: 'camera', onPress: pickFromCamera }, { label: 'Gallery', icon: 'image', onPress: pickFromGallery }, { label: 'File', icon: 'file', onPress: pickFromFiles }] });
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick document');
+      setDialog({ visible: true, variant: 'error', title: 'Error', message: 'Failed to pick document' });
     }
   };
 
   const pickFromCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow camera access to upload documents.');
+      setDialog({ visible: true, variant: 'info', title: 'Permission needed', message: 'Allow camera access to upload documents.' });
       return;
     }
 
@@ -90,7 +71,7 @@ export function DocumentUpload({
   const pickFromGallery = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow gallery access to upload documents.');
+      setDialog({ visible: true, variant: 'info', title: 'Permission needed', message: 'Allow gallery access to upload documents.' });
       return;
     }
 
@@ -122,7 +103,7 @@ export function DocumentUpload({
       setLocalUri(file.uri);
       await uploadDocument(file.uri, file.mimeType || 'application/pdf', file.name);
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick file');
+      setDialog({ visible: true, variant: 'error', title: 'Error', message: 'Failed to pick file' });
     }
   };
 
@@ -131,10 +112,10 @@ export function DocumentUpload({
       setUploading(true);
       const url = await profileApi.uploadDocument({ uri, type, name }, documentType);
       onUploadSuccess(url);
-      Alert.alert('Success', 'Document uploaded successfully');
+      setDialog({ visible: true, variant: 'success', title: 'Success', message: 'Document uploaded successfully' });
     } catch (error: any) {
       const msg = error?.message || 'Unknown error';
-      Alert.alert('Upload Failed', `${msg}\n\nPlease check your connection and try again.`);
+      setDialog({ visible: true, variant: 'error', title: 'Upload Failed', message: `${msg}\n\nPlease check your connection and try again.` });
       setLocalUri(currentUrl || null);
     } finally {
       setUploading(false);
@@ -188,6 +169,7 @@ export function DocumentUpload({
           </View>
         )}
       </TouchableOpacity>
+      <Dialog visible={dialog.visible} variant={dialog.variant} title={dialog.title} message={dialog.message} choices={dialog.choices} cancelButton={dialog.cancelButton} onClose={closeDialog} />
     </View>
   );
 }

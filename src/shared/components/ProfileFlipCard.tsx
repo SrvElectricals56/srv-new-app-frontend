@@ -3,7 +3,6 @@ import * as LegacyFileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Image,
   Platform,
@@ -19,6 +18,7 @@ import { counterboyTheme as cb } from '@/features/counterboy/theme';
 import { useAppPageContent } from '@/shared/hooks/useAppPageContent';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
+import { Dialog } from '@/shared/components/Dialog';
 
 const logoImage = require('../../../assets/srv logo white.jpeg');
 
@@ -158,6 +158,8 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
   const effectivePhotoUri = photoUri ?? apiPhotoUri ?? null;
   const [flipped, setFlipped] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const flipAnim = useRef(new Animated.Value(0)).current;
   const hintPulse = useRef(new Animated.Value(1)).current;
 
@@ -417,7 +419,7 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
         const permission =
           await LegacyFileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert(tx('Save cancelled'), tx('Folder not selected.'));
+          setDialog({ visible: true, variant: 'info', title: tx('Save cancelled'), message: tx('Folder not selected.') });
           return;
         }
 
@@ -432,15 +434,15 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
         await LegacyFileSystem.StorageAccessFramework.writeAsStringAsync(targetUri, base64, {
           encoding: LegacyFileSystem.EncodingType.Base64,
         });
-        Alert.alert(tx('PDF saved'), tx('Profile card PDF saved to your selected device folder.'));
+        setDialog({ visible: true, variant: 'success', title: tx('PDF saved'), message: tx('Profile card PDF saved to your selected device folder.') });
         return;
       }
 
       const destination = `${LegacyFileSystem.documentDirectory ?? LegacyFileSystem.cacheDirectory}${fileName}`;
       await LegacyFileSystem.copyAsync({ from: uri, to: destination });
-      Alert.alert(tx('PDF saved'), `${tx('Saved in local files:')}\n${destination}`);
+      setDialog({ visible: true, variant: 'success', title: tx('PDF saved'), message: `${tx('Saved in local files:')}\n${destination}` });
     } catch {
-      Alert.alert(tx('Download failed'), tx('Unable to create the profile card PDF right now.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Download failed'), message: tx('Unable to create the profile card PDF right now.') });
     } finally {
       setIsDownloading(false);
     }
@@ -673,6 +675,7 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
           <DownloadIcon size={15} />
         </TouchableOpacity>
       </View>
+      <Dialog visible={dialog.visible} variant={dialog.variant} title={dialog.title} message={dialog.message} onClose={closeDialog} />
     </View>
   );
 }

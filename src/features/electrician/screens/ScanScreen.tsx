@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Dialog } from '@/shared/components/Dialog';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, CameraView, scanFromURLAsync } from 'expo-camera';
 import {
-  Alert,
   Animated,
   Easing,
   Image,
@@ -248,6 +248,8 @@ export function ScanScreen({
   const [earnedPoints, setEarnedPoints] = useState(0);
   const [batchItems, setBatchItems] = useState<PendingRewardItem[]>([]);
   const [showAllBatchItems, setShowAllBatchItems] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const [scanErrorType, setScanErrorType] = useState<ScanErrorType>(null);
   const frameSize = Math.min(width - 80, 280);
 
@@ -416,10 +418,7 @@ export function ScanScreen({
     if (!permission.granted) {
       setCameraGranted(false);
       setScanning(false);
-      Alert.alert(
-        tx('Permission Required'),
-        tx('Camera permission is required to scan QR codes.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Permission Required'), message: tx('Camera permission is required to scan QR codes.') });
       return false;
     }
     setCameraGranted(true);
@@ -603,10 +602,7 @@ export function ScanScreen({
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      Alert.alert(
-        tx('Permission Required'),
-        tx('Gallery permission is required to select QR images.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Permission Required'), message: tx('Gallery permission is required to select QR images.') });
       return;
     }
 
@@ -632,9 +628,9 @@ export function ScanScreen({
         completeScan(matches[0]?.data);
         return;
       }
-      Alert.alert(tx('Scan QR Code'), tx('Align QR code within the frame'));
+      setDialog({ visible: true, variant: 'info', title: tx('Scan QR Code'), message: tx('Align QR code within the frame') });
     } catch {
-      Alert.alert(tx('Scan QR Code'), tx('Align QR code within the frame'));
+      setDialog({ visible: true, variant: 'info', title: tx('Scan QR Code'), message: tx('Align QR code within the frame') });
     }
   };
 
@@ -656,7 +652,7 @@ export function ScanScreen({
 
   const handleDoneBatch = () => {
     if (!batchItems.length) {
-      Alert.alert(tx('No scans yet'), tx('Scan at least one SRV product before finishing.'));
+      setDialog({ visible: true, variant: 'info', title: tx('No scans yet'), message: tx('Scan at least one SRV product before finishing.') });
       return;
     }
 
@@ -1328,6 +1324,16 @@ export function ScanScreen({
           </View>
         </View>
       </Modal>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        confirmLabel={dialog.confirmLabel}
+        icon={dialog.icon}
+        onConfirm={dialog.onConfirm}
+        onClose={closeDialog}
+      />
     </View>
   );
 }

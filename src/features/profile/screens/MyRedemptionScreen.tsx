@@ -38,6 +38,7 @@ export function RedemptionPage({
       title: string;
       points: string;
       date: string;
+      rawDate: string;
       status: string;
     }[]
   >([]);
@@ -63,6 +64,7 @@ export function RedemptionPage({
           type: tabType,
           title: r.type ?? 'Redemption',
           points: isCredit ? `+${r.points}` : `-${r.points}`,
+          rawDate: r.requestedAt ?? '',
           date: r.requestedAt
             ? new Date(r.requestedAt).toLocaleDateString('en-IN', {
                 day: '2-digit',
@@ -81,16 +83,22 @@ export function RedemptionPage({
     const now = new Date();
     const byTab = redemptions.filter((item) => item.type === activeTab);
     if (activeFilter === 'All') return byTab;
+
     const cutoff = new Date(now);
     if (activeFilter === 'This Month') {
+      // From the 1st of current month at 00:00:00
       cutoff.setDate(1);
+      cutoff.setHours(0, 0, 0, 0);
     } else {
+      // Last 30 days from now
       cutoff.setDate(cutoff.getDate() - 30);
+      cutoff.setHours(0, 0, 0, 0);
     }
+
     return byTab.filter((item) => {
-      if (!item.date) return false;
-      const d = new Date(item.date);
-      return d >= cutoff;
+      if (!item.rawDate) return false;
+      const d = new Date(item.rawDate);
+      return !isNaN(d.getTime()) && d >= cutoff;
     });
   }, [activeFilter, activeTab, redemptions]);
 

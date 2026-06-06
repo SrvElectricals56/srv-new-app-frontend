@@ -1,12 +1,12 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Dialog } from '@/shared/components/Dialog';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
   Easing,
   FlatList,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -563,7 +563,7 @@ function ProductDetailView({
 
           <Text style={[styles.detailSectionTitle, { color: text }]}>{tx('Description')}</Text>
           <Text style={[styles.detailDescription, { color: muted }]}>
-            {product.description || product.sub || tx('SRV product details will appear here once updated from admin panel.')}
+            {product.description || product.sub || tx('SRV product details will appear here once updated from SRV Team.')}
           </Text>
         </View>
       </ScrollView>
@@ -643,6 +643,8 @@ export function ProductScreen({
   const [selectedProduct, setSelectedProduct] = useState<UiProduct | null>(null);
   const [detailQty, setDetailQty] = useState(1);
   const [actionBusy, setActionBusy] = useState<'cart' | 'buy' | null>(null);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const PADDING = 14;
   const GAP = 12;
@@ -713,7 +715,7 @@ export function ProductScreen({
   const bannerActionLabel = pageContent.secondaryCtaLabel || ((isDealer || isCustomer || isCounterboy) ? tx('Buy Now') : tx('Scan & Earn').replace(' ', '\n'));
   const requireAuth = useCallback(() => {
     if (isAuthenticated) return true;
-    Alert.alert(tx('Login required'), tx('Please login or signup to continue with this product.'));
+    setDialog({ visible: true, variant: 'info', title: tx('Login required'), message: tx('Please login or signup to continue with this product.') });
     return false;
   }, [isAuthenticated, tx]);
 
@@ -730,9 +732,9 @@ export function ProductScreen({
         price: selectedProduct.price,
         qty: detailQty,
       });
-      Alert.alert(tx('Added to cart'), tx('Product added to your cart.'));
+      setDialog({ visible: true, variant: 'success', title: tx('Added to cart'), message: tx('Product added to your cart.') });
     } catch (error: any) {
-      Alert.alert(tx('Cart update failed'), error?.message || tx('Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Cart update failed'), message: error?.message || tx('Please try again.') });
     } finally {
       setActionBusy(null);
     }
@@ -754,10 +756,10 @@ export function ProductScreen({
       setActionBusy('buy');
       try {
         await catalogApi.buyNow({ productId: selectedProduct.id, quantity: detailQty });
-        Alert.alert(tx('Order placed'), tx('Your product order has been sent to admin.'));
+        setDialog({ visible: true, variant: 'success', title: tx('Order placed'), message: tx('Your product order has been sent to SRV Team.') });
         setSelectedProduct(null);
       } catch (error: any) {
-        Alert.alert(tx('Order failed'), error?.message || tx('Please try again.'));
+        setDialog({ visible: true, variant: 'error', title: tx('Order failed'), message: error?.message || tx('Please try again.') });
       } finally {
         setActionBusy(null);
       }
@@ -1037,51 +1039,69 @@ export function ProductScreen({
     </View>
   ), [catalogLoading, darkMode, tx]);
 
+  const dialogEl = (
+    <Dialog
+      visible={dialog.visible}
+      variant={dialog.variant}
+      title={dialog.title}
+      message={dialog.message}
+      confirmLabel={dialog.confirmLabel}
+      icon={dialog.icon}
+      onConfirm={dialog.onConfirm}
+      onClose={closeDialog}
+    />
+  );
+
   if (selectedProduct) {
     return (
-      <ProductDetailView
-        product={selectedProduct}
-        role={role}
-        darkMode={darkMode}
-        isCustomer={isCustomer}
-        onBack={() => { setSelectedProduct(null); setDetailQty(1); }}
-        onAddToCart={handleAddSelectedToCart}
-        onBuyNow={handleBuySelectedNow}
-        actionBusy={actionBusy}
-        qty={detailQty}
-        onQtyChange={setDetailQty}
-      />
+      <>
+        <ProductDetailView
+          product={selectedProduct}
+          role={role}
+          darkMode={darkMode}
+          isCustomer={isCustomer}
+          onBack={() => { setSelectedProduct(null); setDetailQty(1); }}
+          onAddToCart={handleAddSelectedToCart}
+          onBuyNow={handleBuySelectedNow}
+          actionBusy={actionBusy}
+          qty={detailQty}
+          onQtyChange={setDetailQty}
+        />
+        {dialogEl}
+      </>
     );
   }
 
   return (
-    <FlatList
-      ref={productListRef}
-      style={[styles.screen, darkMode ? styles.screenDark : null, isCounterboy && { backgroundColor: '#F9F4ED' }, isCounterboy && darkMode && { backgroundColor: '#120A07' }]}
-      contentContainerStyle={styles.content}
-      data={rows}
-      keyExtractor={keyExtractor}
-      renderItem={renderRow}
-      ListHeaderComponent={ListHeader}
-      ListFooterComponent={ListFooter}
-      ListEmptyComponent={ListEmpty}
-      showsVerticalScrollIndicator={false}
-      // ✨ SUPER OPTIMIZED FOR FAST IMAGE LOADING ✨
-      initialNumToRender={2}           // Render only 2 rows (4 products) initially - FASTEST!
-      maxToRenderPerBatch={2}          // Load 2 rows (4 products) at a time
-      windowSize={3}                   // Keep only 3 screens worth in memory - MINIMAL!
-      removeClippedSubviews={true}     // Remove off-screen items from memory
-      updateCellsBatchingPeriod={50}   // Batch updates every 50ms for ultra-smooth scrolling
-      onEndReachedThreshold={0.3}      // Start loading more when 30% from bottom
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          colors={isCounterboy ? ['#8B3C2A'] : ['#1A3C8F']}
-          tintColor={isCounterboy ? '#8B3C2A' : '#1A3C8F'}
-        />
-      }
-    />
+    <>
+      <FlatList
+        ref={productListRef}
+        style={[styles.screen, darkMode ? styles.screenDark : null, isCounterboy && { backgroundColor: '#F9F4ED' }, isCounterboy && darkMode && { backgroundColor: '#120A07' }]}
+        contentContainerStyle={styles.content}
+        data={rows}
+        keyExtractor={keyExtractor}
+        renderItem={renderRow}
+        ListHeaderComponent={ListHeader}
+        ListFooterComponent={ListFooter}
+        ListEmptyComponent={ListEmpty}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={2}
+        maxToRenderPerBatch={2}
+        windowSize={3}
+        removeClippedSubviews={true}
+        updateCellsBatchingPeriod={50}
+        onEndReachedThreshold={0.3}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={isCounterboy ? ['#8B3C2A'] : ['#1A3C8F']}
+            tintColor={isCounterboy ? '#8B3C2A' : '#1A3C8F'}
+          />
+        }
+      />
+      {dialogEl}
+    </>
   );
 }
 

@@ -3,7 +3,6 @@ import * as LegacyFileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -47,6 +46,7 @@ import { ReferFriendPage } from './ReferFriendScreen';
 import { ScanHistoryPage } from './ScanHistoryScreen';
 import { TransferPointsPage } from './TransferPointsScreen';
 import { createShadow } from '@/shared/theme/shadows';
+import { Dialog } from '@/shared/components/Dialog';
 import { KYCVerificationScreen } from './KYCVerificationScreen';
 import { TierIcon } from '@/features/dealer/screens/MemberTierScreen';
 import { counterboyTheme as cbPalette } from '@/features/counterboy/theme';
@@ -218,6 +218,8 @@ export function ProfileScreen({
   const [draftTaxIdentity, setDraftTaxIdentity] = useState(getTaxIdentityValue(buildProfileFromAuth));
   const [draftTaxHolder, setDraftTaxHolder] = useState(getTaxHolderValue(buildProfileFromAuth));
   const [isSaving, setIsSaving] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   // Sync profile when auth user changes (e.g. after login or background refresh)
   // IMPORTANT: Only sync draft when edit modal is closed — never overwrite user's in-progress edits
@@ -467,46 +469,31 @@ export function ProfileScreen({
 
   const saveProfile = () => {
     if (draft.name.trim() && !/^[A-Za-z ]+$/.test(draft.name.trim())) {
-      return Alert.alert(tx('Invalid name'), tx('Name should contain only alphabets and spaces.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid name'), message: tx('Name should contain only alphabets and spaces.') }); return;
     }
     if (draft.phone.trim() && !/^\d+$/.test(draft.phone.trim())) {
-      return Alert.alert(
-        tx('Invalid phone number'),
-        tx('Phone number should contain only integers.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid phone number'), message: tx('Phone number should contain only integers.') }); return;
     }
     if (draft.phone.trim() && draft.phone.trim().length !== 10) {
-      return Alert.alert(
-        tx('Invalid phone number'),
-        tx('Please enter a valid 10-digit phone number.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid phone number'), message: tx('Please enter a valid 10-digit phone number.') }); return;
     }
     if (draft.email.trim() && !/^[^\s@]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/.test(draft.email.trim())) {
-      return Alert.alert(tx('Invalid email'), tx('Please enter a valid email address.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid email'), message: tx('Please enter a valid email address.') }); return;
     }
     if (draft.city.trim() && !/^[A-Za-z ]+$/.test(draft.city.trim())) {
-      return Alert.alert(tx('Invalid city'), tx('City should contain only alphabets and spaces.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid city'), message: tx('City should contain only alphabets and spaces.') }); return;
     }
     if (draft.state.trim() && !/^[A-Za-z ]+$/.test(draft.state.trim())) {
-      return Alert.alert(
-        tx('Invalid state'),
-        tx('State should contain only alphabets and spaces.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid state'), message: tx('State should contain only alphabets and spaces.') }); return;
     }
     if (draft.district.trim() && !/^[A-Za-z ]+$/.test(draft.district.trim())) {
-      return Alert.alert(
-        tx('Invalid district'),
-        tx('District should contain only alphabets and spaces.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid district'), message: tx('District should contain only alphabets and spaces.') }); return;
     }
     if (draft.pincode.trim() && !/^\d+$/.test(draft.pincode.trim())) {
-      return Alert.alert(tx('Invalid pincode'), tx('Pincode should contain only integers.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid pincode'), message: tx('Pincode should contain only integers.') }); return;
     }
     if (draftTaxHolder.trim() && !/^[A-Za-z ]+$/.test(draftTaxHolder.trim())) {
-      return Alert.alert(
-        tx('Invalid holder name'),
-        tx('GST / PAN holder name should contain only alphabets and spaces.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid holder name'), message: tx('GST / PAN holder name should contain only alphabets and spaces.') }); return;
     }
 
     const nextProfile: Profile =
@@ -568,7 +555,7 @@ export function ProfileScreen({
         }
       })
       .catch(async () => {
-        Alert.alert(tx('Unable to save changes'), tx('Please try again.'));
+        setDialog({ visible: true, variant: 'error', title: tx('Unable to save changes'), message: tx('Please try again.') });
         // Revert local state back to what's in auth context
         await refreshProfile();
       })
@@ -581,10 +568,7 @@ export function ProfileScreen({
       if (source === 'camera') {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert(
-            tx('Permission needed'),
-            tx('Allow camera access to update your profile photo.')
-          );
+          setDialog({ visible: true, variant: 'info', title: tx('Permission needed'), message: tx('Allow camera access to update your profile photo.') });
           return;
         }
 
@@ -603,10 +587,7 @@ export function ProfileScreen({
 
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert(
-          tx('Permission needed'),
-          tx('Allow gallery access to update your profile photo.')
-        );
+        setDialog({ visible: true, variant: 'info', title: tx('Permission needed'), message: tx('Allow gallery access to update your profile photo.') });
         return;
       }
 
@@ -621,7 +602,7 @@ export function ProfileScreen({
         setPendingDraftImage(result.assets[0].uri);
       }
     } catch {
-      Alert.alert(tx('Unable to update photo'), tx('Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Unable to update photo'), message: tx('Please try again.') });
     }
   };
 
@@ -637,7 +618,7 @@ export function ProfileScreen({
       setIsSaving(true);
       void syncRemoteProfilePhoto(pendingDraftImage)
         .catch(() => {
-          Alert.alert(tx('Unable to update photo'), tx('Please try again.'));
+          setDialog({ visible: true, variant: 'error', title: tx('Unable to update photo'), message: tx('Please try again.') });
         })
         .finally(() => setIsSaving(false));
     }
@@ -652,7 +633,7 @@ export function ProfileScreen({
       setIsSaving(true);
       void syncRemoteProfilePhoto(null)
         .catch(() => {
-          Alert.alert(tx('Unable to update photo'), tx('Please try again.'));
+          setDialog({ visible: true, variant: 'error', title: tx('Unable to update photo'), message: tx('Please try again.') });
         })
         .finally(() => setIsSaving(false));
     }
@@ -1012,7 +993,7 @@ export function ProfileScreen({
                     {kycStatus === 'rejected'
                       ? (authUser?.kycRejectionReason ?? 'Documents were rejected')
                       : kycStatus === 'pending'
-                        ? 'Admin will verify your documents soon'
+                        ? 'SRV Team will verify your documents soon'
                         : 'Tap to upload documents'}
                   </Text>
                 </View>
@@ -1547,6 +1528,17 @@ export function ProfileScreen({
             </View>
           </View>
         </Modal>
+
+        <Dialog
+          visible={dialog.visible}
+          variant={dialog.variant}
+          title={dialog.title}
+          message={dialog.message}
+          confirmLabel={dialog.confirmLabel}
+          icon={dialog.icon}
+          onConfirm={dialog.onConfirm}
+          onClose={closeDialog}
+        />
       </>
     </PreferenceContext.Provider>
   );

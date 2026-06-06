@@ -206,7 +206,7 @@ export function RolePlayVideosScreen({
           <View style={[styles.noticeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.noticeTitle, { color: theme.textPrimary }]}>{tx('Play Zone is temporarily disabled')}</Text>
             <Text style={[styles.noticeBody, { color: theme.textSecondary }]}>
-              {tx('Videos will appear here again once the admin enables Play Zone from settings.')}
+              {tx('Videos will appear here again once SRV Team enables Play Zone from settings.')}
             </Text>
           </View>
         ) : null}
@@ -252,7 +252,7 @@ export function RolePlayVideosScreen({
               <EmptyState
                 iconName="play"
                 title={tx('No videos available yet')}
-                message={tx('Fresh videos for this profile will appear here once the admin uploads them.')}
+                message={tx('Fresh videos for this profile will appear here once SRV Team uploads them.')}
               />
             ) : (
               <View style={styles.videoList}>

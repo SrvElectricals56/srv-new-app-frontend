@@ -230,6 +230,33 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
       let bans = roleBans;
 
+      // Handle gift products — resilient to multiple response shapes
+      let giftProductsData: GiftProduct[] = [];
+      const giftRaw: any = gifts;
+      if (Array.isArray(giftRaw)) {
+        giftProductsData = giftRaw;
+      } else if (Array.isArray(giftRaw?.data)) {
+        giftProductsData = giftRaw.data;
+      } else if (Array.isArray(giftRaw?.giftProducts)) {
+        giftProductsData = giftRaw.giftProducts;
+      } else if (Array.isArray(giftRaw?.products)) {
+        giftProductsData = giftRaw.products;
+      }
+      // Fallback: if no gift products from API, show reward schemes as gifts
+      if (giftProductsData.length === 0 && Array.isArray(schemes?.data)) {
+        giftProductsData = schemes.data.map((s: RewardScheme) => ({
+          id: s.id,
+          name: s.name,
+          description: s.description,
+          imageUrl: s.imageUrl ?? null,
+          pointsRequired: s.pointsCost,
+          mrp: s.mrp ?? 0,
+          stock: s.active ? 999 : 0,
+          badge: '',
+          targetRole: 'all',
+        }));
+      }
+
       debugLog('✅ Public data loaded:', {
         products: prods.data?.length || 0,
         categories: cats.data?.length || 0,
@@ -237,7 +264,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         testimonials: tests.data?.length || 0,
         offers: offs.data?.length || 0,
         rewardSchemes: schemes.data?.length || 0,
-        giftProducts: gifts.data?.length || 0,
+        giftProducts: giftProductsData.length,
         appSettings: !!setts,
       });
 
@@ -256,7 +283,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       if (setts) setAppSettings(setts);
       setOffers(offs.data ?? []);
       setRewardSchemes(schemes.data ?? []);
-      setGiftProducts(gifts.data ?? []);
+      setGiftProducts(giftProductsData);
       setCatalogLoading(false);
     } catch (error) {
       logDataWarning('Public data loading failed.', error);

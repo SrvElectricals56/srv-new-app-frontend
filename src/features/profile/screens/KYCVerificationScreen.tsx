@@ -5,13 +5,13 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { AppIcon } from '../components/ProfileShared';
 import { DocumentUpload } from '../components/DocumentUpload';
 import { usePreferenceContext } from '@/shared/preferences';
 import { useAuth } from '@/shared/context/AuthContext';
 import { authApi } from '@/shared/api';
+import { Dialog } from '@/shared/components/Dialog';
 
 interface KYCVerificationScreenProps {
   onBack: () => void;
@@ -26,6 +26,8 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
   const [draftPan, setDraftPan] = useState<string | null>(null);
   const [draftGst, setDraftGst] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const roleColor = theme.accent;
   const roleSoft = theme.accentSoft;
@@ -38,20 +40,25 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
   const kycComplete = hasAadhar && (isDealer ? (hasPan || hasGst) : true);
   const kycStatus = authUser?.kycStatus || 'not_submitted';
   const canShowSubmit = kycStatus !== 'verified' || hasDraftChanges;
-  const submitLabel = hasDraftChanges && (kycStatus === 'verified' || kycStatus === 'rejected')
+  const submitLabel = (kycStatus === 'pending' || kycStatus === 'rejected') && (authUser?.aadharFrontImage || authUser?.panDocument || authUser?.gstDocument)
     ? 'Resubmit for Verification'
     : 'Submit for Verification';
 
   const handleSubmit = async () => {
     if (!hasAadhar) {
-      Alert.alert(tx('Error'), tx('Please upload Aadhar Card'));
-      return;
+      setDialog({ visible: true, variant: 'info', title: tx('Error'), message: tx('Please upload Aadhar Card') }); return;
     }
 
     if (isDealer && !hasPan && !hasGst) {
-      Alert.alert(tx('Error'), tx('Please upload either PAN Card or GST Number'));
-      return;
+      setDialog({ visible: true, variant: 'info', title: tx('Error'), message: tx('Please upload either PAN Card or GST Number') }); return;
     }
+
+    // Capture before async — first submit if no docs existed before AND status is not_submitted
+    const isFirstSubmit =
+      !authUser?.aadharFrontImage &&
+      !authUser?.panDocument &&
+      !authUser?.gstDocument &&
+      kycStatus === 'not_submitted';
 
     try {
       setIsSaving(true);
@@ -71,13 +78,15 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
       setDraftPan(null);
       setDraftGst(null);
 
-      Alert.alert(
-        tx('Success'),
-        tx(hasDraftChanges ? 'KYC documents resubmitted successfully. Admin will verify soon.' : 'KYC documents submitted successfully. Admin will verify soon.'),
-        [{ text: 'OK', onPress: onBack }]
-      );
+      setDialog({
+        visible: true, variant: 'success', title: tx('Success'),
+        message: tx(isFirstSubmit
+          ? 'KYC documents submitted successfully. SRV Team will verify soon.'
+          : 'KYC documents resubmitted successfully. SRV Team will verify soon.'),
+        onOk: onBack,
+      });
     } catch (error) {
-      Alert.alert(tx('Error'), tx('Failed to submit KYC documents. Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Failed to submit KYC documents. Please try again.') });
     } finally {
       setIsSaving(false);
     }
@@ -152,7 +161,7 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
                 {tx('Ready to Resubmit')}:
               </Text>
               <Text style={[styles.rejectionText, { color: darkMode ? '#DCFCE7' : '#15803D' }]}>
-                {tx('Your updated documents are ready. Tap submit to send them for fresh admin review.')}
+                {tx('Your updated documents are ready. Tap submit to send them for fresh SRV Team review.')}
               </Text>
             </View>
           )}
@@ -276,8 +285,17 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
               {isSaving ? tx('Submitting...') : tx(submitLabel)}
             </Text>
           </TouchableOpacity>
-        </View>
-      )}
+      </View>
+    )}
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        onClose={closeDialog}
+        onConfirm={dialog.onOk}
+        confirmLabel="OK"
+      />
     </View>
   );
 }

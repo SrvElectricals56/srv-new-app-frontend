@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  Alert,
   Image,
   Linking,
   ScrollView,
@@ -11,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { AppIcon, C, IconName, PageHeader } from '../components/ProfileShared';
+import { Dialog } from '@/shared/components/Dialog';
 import { usePreferenceContext } from '@/shared/preferences';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAuth } from '@/shared/context/AuthContext';
@@ -19,6 +19,8 @@ import { useAppPageContent } from '@/shared/hooks';
 const referImage = require('../assets/referfriend.png');
 
 export function ReferFriendPage({ onBack }: { onBack: () => void }) {
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const { t, tx, theme } = usePreferenceContext();
   const { role } = useAuth();
   const { referral } = useAppData();
@@ -31,7 +33,7 @@ export function ReferFriendPage({ onBack }: { onBack: () => void }) {
   const copyCode = async () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(referralLink);
-      return Alert.alert('Copied!', 'Referral link copied to clipboard.');
+      setDialog({ visible: true, variant: 'success', title: 'Copied!', message: 'Referral link copied to clipboard.' }); return;
     }
     await Share.share({ message: shareMessage, url: referralLink });
   };
@@ -128,6 +130,7 @@ export function ReferFriendPage({ onBack }: { onBack: () => void }) {
           <Text style={[styles.howText, { color: theme.textPrimary }]}>3. You Make Saving!</Text>
         </View> */}
       </ScrollView>
+      <Dialog visible={dialog.visible} variant={dialog.variant} title={dialog.title} message={dialog.message} onClose={closeDialog} />
     </View>
   );
 }

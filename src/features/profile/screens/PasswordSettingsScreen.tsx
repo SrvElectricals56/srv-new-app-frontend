@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Dialog } from '@/shared/components/Dialog';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { authApi, profileApi, storage } from '@/shared/api';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -199,6 +199,8 @@ export function PasswordSettingsPage({
   const [isSaving, setIsSaving] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [fieldOffsets, setFieldOffsets] = useState<Record<string, number>>({});
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const setPasswordRef = useRef<TextInput | null>(null);
   const confirmSetPasswordRef = useRef<TextInput | null>(null);
   const currentPasswordRef = useRef<TextInput | null>(null);
@@ -401,10 +403,7 @@ export function PasswordSettingsPage({
         if (lowerMessage.includes('already') && lowerMessage.includes('password')) {
           onPasswordConfiguredChange(true);
           setMode('change');
-          Alert.alert(
-            '',
-            tx('A password is already active for this account. Use Change Password to update it.')
-          );
+          setDialog({ visible: true, variant: 'info', title: '', message: tx('A password is already active for this account. Use Change Password to update it.') });
           return;
         }
 
@@ -419,7 +418,7 @@ export function PasswordSettingsPage({
           return;
         }
 
-        Alert.alert('', message || tx('Please try again.'));
+        setDialog({ visible: true, variant: 'error', title: '', message: message || tx('Please try again.') });
       } finally {
         setIsSaving(false);
       }
@@ -506,7 +505,7 @@ export function PasswordSettingsPage({
         return;
       }
 
-      Alert.alert('', message || tx('Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: '', message: message || tx('Please try again.') });
     } finally {
       setIsSaving(false);
     }
@@ -743,6 +742,16 @@ export function PasswordSettingsPage({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        confirmLabel={dialog.confirmLabel}
+        icon={dialog.icon}
+        onConfirm={dialog.onConfirm}
+        onClose={closeDialog}
+      />
     </View>
   );
 }

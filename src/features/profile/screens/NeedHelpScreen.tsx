@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Linking,
@@ -24,6 +23,7 @@ import { settingsApi, supportApi } from '@/shared/api';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { Dialog } from '@/shared/components/Dialog';
 
 type Ticket = {
   id: string;
@@ -91,7 +91,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   const pickPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      return Alert.alert(tx('Permission required'), tx('Please allow gallery access.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Permission required'), message: tx('Please allow gallery access.') }); return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -123,7 +123,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
 
   const submitToSrv = async () => {
     if (!subject.trim() || !comment.trim()) {
-      return Alert.alert(tx('incompleteForm'), tx('fillSubjectComment'));
+      setDialog({ visible: true, variant: 'info', title: tx('incompleteForm'), message: tx('fillSubjectComment') }); return;
     }
     setSubmitting(true);
     try {
@@ -136,10 +136,10 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       setSubject('');
       setComment('');
       setPhoto(null);
-      Alert.alert(tx('Support Request'), tx('Your request has been submitted successfully.'));
+      setDialog({ visible: true, variant: 'success', title: tx('Support Request'), message: tx('Your request has been submitted successfully.') });
       setTab('tickets');
     } catch {
-      Alert.alert(tx('Support Request'), tx('We could not submit your request right now. Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Support Request'), message: tx('We could not submit your request right now. Please try again.') });
     } finally {
       setSubmitting(false);
     }
@@ -147,7 +147,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
 
   const openWhatsapp = async () => {
     if (!subject.trim() || !comment.trim()) {
-      return Alert.alert(tx('incompleteForm'), tx('fillSubjectComment'));
+      setDialog({ visible: true, variant: 'info', title: tx('incompleteForm'), message: tx('fillSubjectComment') }); return;
     }
     const message = encodeURIComponent(buildSupportMessage());
     const appUrl = `whatsapp://send?phone=${supportWhatsapp}&text=${message}`;
@@ -156,23 +156,23 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     if (canOpenApp) {
       await Linking.openURL(appUrl);
       if (photo) {
-        Alert.alert(tx('Photo ready'), tx('WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.'));
+        setDialog({ visible: true, variant: 'info', title: tx('Photo ready'), message: tx('WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.') });
       }
       return;
     }
     const canOpenWeb = await Linking.canOpenURL(webUrl);
     if (!canOpenWeb) {
-      return Alert.alert(tx('WhatsApp unavailable'), tx('Please install or enable WhatsApp to send your request.'));
+      setDialog({ visible: true, variant: 'info', title: tx('WhatsApp unavailable'), message: tx('Please install or enable WhatsApp to send your request.') }); return;
     }
     await Linking.openURL(webUrl);
     if (photo) {
-      Alert.alert(tx('Photo ready'), tx('WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Photo ready'), message: tx('WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.') });
     }
   };
 
   const openMail = async () => {
     if (!subject.trim() || !comment.trim()) {
-      return Alert.alert(tx('incompleteForm'), tx('fillSubjectComment'));
+      setDialog({ visible: true, variant: 'info', title: tx('incompleteForm'), message: tx('fillSubjectComment') }); return;
     }
     try {
       await MailComposer.composeAsync({
@@ -187,7 +187,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       const fallbackUrl = `mailto:${supportMail}?subject=${mailSubject}&body=${mailBody}`;
       const canOpenFallback = await Linking.canOpenURL(fallbackUrl);
       if (!canOpenFallback) {
-        return Alert.alert(tx('Mail unavailable'), tx('Please configure a mail app to send your request.'));
+        setDialog({ visible: true, variant: 'info', title: tx('Mail unavailable'), message: tx('Please configure a mail app to send your request.') }); return;
       }
       await Linking.openURL(fallbackUrl);
     }
@@ -196,6 +196,8 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const isTicketClosed = selectedTicket?.status === 'closed' || selectedTicket?.status === 'resolved';
 
@@ -214,7 +216,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
       setReplyText('');
     } catch {
-      Alert.alert(tx('Error'), tx('Could not send reply. Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Could not send reply. Please try again.') });
     } finally {
       setSendingReply(false);
     }
@@ -228,9 +230,9 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       const updatedTicket = { ...selectedTicket, status: 'closed' };
       setSelectedTicket(updatedTicket);
       setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
-      Alert.alert(tx('Ticket Closed'), tx('Your ticket has been closed.'));
+      setDialog({ visible: true, variant: 'success', title: tx('Ticket Closed'), message: tx('Your ticket has been closed.') });
     } catch {
-      Alert.alert(tx('Error'), tx('Could not close ticket. Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Could not close ticket. Please try again.') });
     } finally {
       setClosing(false);
     }
@@ -345,10 +347,11 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
             <TouchableOpacity
               style={{ alignSelf: 'center', marginTop: 8 }}
               onPress={() => {
-                Alert.alert(tx('Close Ticket'), tx('Are you sure you want to close this ticket?'), [
-                  { text: tx('Cancel'), style: 'cancel' },
-                  { text: tx('Close'), style: 'destructive', onPress: () => void handleCloseTicket() },
-                ]);
+                setDialog({
+                  visible: true, variant: 'destructive', title: tx('Close Ticket'), message: tx('Are you sure you want to close this ticket?'),
+                  confirmLabel: tx('Close'),
+                  onConfirm: () => void handleCloseTicket(),
+                });
               }}
               disabled={closing}
               activeOpacity={0.7}
@@ -450,7 +453,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
             </Text>
           </TouchableOpacity>
           <Text style={[styles.helperText, { color: theme.textMuted }]}>
-            {pageContent.helperText || tx('This saves your issue in the SRV system so admin can track and resolve it.')}
+            {pageContent.helperText || tx('This saves your issue in the SRV system so SRV Team can track and resolve it.')}
           </Text>
           <View style={styles.actionGrid}>
             <TouchableOpacity onPress={() => void openWhatsapp()} activeOpacity={0.9}>
@@ -567,6 +570,15 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
           </View>
         </View>
       </Modal>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        confirmLabel={dialog.confirmLabel}
+        onConfirm={dialog.onConfirm}
+        onClose={closeDialog}
+      />
     </View>
   );
 }

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +15,7 @@ import { authApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { useAppData } from '@/shared/context/AppDataContext';
+import { Dialog } from '@/shared/components/Dialog';
 
 const bankOptions = [
   'State Bank of India',
@@ -53,6 +53,8 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   const upiOnly = appSettings?.upiOnlyMode === true;
 
   const [saving, setSaving] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const [accountHolderName, setAccountHolderName] = useState(user?.accountHolderName ?? '');
   const [accountNumber, setAccountNumber] = useState(user?.bankAccount ?? '');
   const [ifsc, setIfsc] = useState(user?.ifsc ?? '');
@@ -78,26 +80,17 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
       !accountHolderName.trim() ||
       !upi.trim()
     ) {
-      return Alert.alert(tx('Required fields'), tx('Please fill all required fields.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Required fields'), message: tx('Please fill all required fields.') }); return;
     }
     if (!/^[A-Za-z ]+$/.test(accountHolderName.trim())) {
-      return Alert.alert(
-        tx('Invalid account holder name'),
-        tx('Account holder name should contain only letters and spaces.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid account holder name'), message: tx('Account holder name should contain only letters and spaces.') }); return;
     }
     if (!upiOnly && accountNumber.trim() && !/^\d+$/.test(accountNumber.trim())) {
-      return Alert.alert(
-        tx('Invalid account number'),
-        tx('Account number should contain only numbers.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid account number'), message: tx('Account number should contain only numbers.') }); return;
     }
     if (!isValidUpi(upi.trim())) {
       setUpiError(tx('Please enter a valid UPI ID in the format name@bank.'));
-      return Alert.alert(
-        tx('Invalid UPI ID'),
-        tx('Please enter a valid UPI ID in the format name@bank.')
-      );
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid UPI ID'), message: tx('Please enter a valid UPI ID in the format name@bank.') }); return;
     }
     setUpiError('');
     setSaving(true);
@@ -111,9 +104,9 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
         bankLinked: true,
       });
       updateUser(updated);
-      Alert.alert(tx('Saved'), tx('Bank details saved successfully!'));
+      setDialog({ visible: true, variant: 'success', title: tx('Saved'), message: tx('Bank details saved successfully!') });
     } catch {
-      Alert.alert(tx('Error'), tx('Failed to save bank details. Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Failed to save bank details. Please try again.') });
     } finally {
       setSaving(false);
     }
@@ -256,6 +249,13 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
 
         <PrimaryBtn label={saving ? tx('Saving...') : t('save')} onPress={handleSave} />
       </ScrollView>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        onClose={closeDialog}
+      />
     </KeyboardAvoidingView>
   );
 }

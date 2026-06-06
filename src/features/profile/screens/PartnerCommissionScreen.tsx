@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Alert,
   Animated,
   Easing,
   ActivityIndicator,
@@ -19,6 +18,7 @@ import { walletApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { Dialog } from '@/shared/components/Dialog';
 
 export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
   const { theme, tx } = usePreferenceContext();
@@ -29,6 +29,8 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
   const floatY = useRef(new Animated.Value(0)).current;
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const availableBalance = dealerBonus?.availableBonus ?? 0;
   const totalElectricians = electricians?.total ?? user?.electricianCount ?? 0;
@@ -54,19 +56,19 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
   const handleWithdraw = async () => {
     const amount = Number(withdrawAmount);
     if (!withdrawAmount.trim() || Number.isNaN(amount) || amount <= 0) {
-      return Alert.alert(tx('Enter amount'), tx('Please enter a valid withdrawal amount.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Enter amount'), message: tx('Please enter a valid withdrawal amount.') }); return;
     }
     if (amount > availableBalance) {
-      return Alert.alert(tx('Insufficient balance'), tx('Withdrawal amount cannot be more than your available dealer bonus.'));
+      setDialog({ visible: true, variant: 'info', title: tx('Insufficient balance'), message: tx('Withdrawal amount cannot be more than your available dealer bonus.') }); return;
     }
     setSubmitting(true);
     try {
       await walletApi.requestDealerBonusWithdrawal({ amount });
-      Alert.alert(tx('Request submitted'), `Rs. ${amount} ${tx('will be transferred to your bank account after approval.')}`);
+      setDialog({ visible: true, variant: 'success', title: tx('Request submitted'), message: `Rs. ${amount} ${tx('will be transferred to your bank account after approval.')}` });
       setWithdrawAmount('');
       void refreshAll();
     } catch (err: any) {
-      Alert.alert(tx('Failed'), err?.message ?? tx('Please try again.'));
+      setDialog({ visible: true, variant: 'error', title: tx('Failed'), message: err?.message ?? tx('Please try again.') });
     } finally {
       setSubmitting(false);
     }
@@ -195,6 +197,7 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <Dialog visible={dialog.visible} variant={dialog.variant} title={dialog.title} message={dialog.message} onClose={closeDialog} />
     </View>
   );
 }

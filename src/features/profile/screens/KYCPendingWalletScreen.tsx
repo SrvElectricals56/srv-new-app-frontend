@@ -224,7 +224,7 @@ export function KYCPendingWalletScreen({ onGoToKYC, onBack }: KYCPendingWalletSc
             <View style={{ flex: 1 }}>
               <Text style={styles.pendingTitle}>Documents submitted</Text>
               <Text style={styles.pendingText}>
-                Wallet unlocks automatically once admin approves your KYC.
+                Wallet unlocks automatically once SRV Team approves your KYC.
               </Text>
             </View>
           </View>
@@ -234,7 +234,7 @@ export function KYCPendingWalletScreen({ onGoToKYC, onBack }: KYCPendingWalletSc
             <StepRow icon="📋" text="Register as a Dealer" done />
             <StepRow icon="🪪" text="Upload Aadhar Card" done={hasAadhar} />
             <StepRow icon="📄" text="Upload PAN Card or GST Number" done={hasPanOrGst} />
-            <StepRow icon="✅" text="Admin verifies your KYC" done={false} last />
+            <StepRow icon="✅" text="SRV Team verifies your KYC" done={false} last />
           </View>
         )}
 

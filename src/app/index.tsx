@@ -1305,6 +1305,7 @@ function AppContent() {
     pendingApprovalRole,
     handleUseAnotherApprovalNumber,
     profileInitialSubPage,
+    profileResetKey,
     isPreviewMode,
     user?.status,
     user?.approvalRejectionReason,

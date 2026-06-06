@@ -23,6 +23,7 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import type { Screen } from '@/shared/types/navigation';
 import { electriciansApi } from '@/shared/api';
+import { formatISTDate } from '@/shared/utils/dateIST';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
 
@@ -164,7 +165,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
           phone: e.phone,
           electricianCode: e.electricianCode,
           city: e.city ?? '',
-          joinedAt: e.joinedDate ? `Connected ${new Date(e.joinedDate).toLocaleDateString()}` : 'Recently connected',
+          joinedAt: e.joinedDate ? `Connected ${formatISTDate(e.joinedDate)}` : 'Recently connected',
           createdAt: e.joinedDate,
           totalScans: e.totalScans ?? 0,
           points: e.totalPoints ?? 0,

@@ -5,6 +5,7 @@ import { usePreferenceContext } from '@/shared/preferences';
 import type { UserRole } from '@/shared/types/navigation';
 import { redemptionsApi } from '@/shared/api';
 import { useAppPageContent } from '@/shared/hooks';
+import { formatISTDate } from '@/shared/utils/dateIST';
 
 const noDataImage = require('../assets/nodata.png');
 const buySchemeImage = require('../assets/giftstore.png');
@@ -65,13 +66,7 @@ export function RedemptionPage({
           title: r.type ?? 'Redemption',
           points: isCredit ? `+${r.points}` : `-${r.points}`,
           rawDate: r.requestedAt ?? '',
-          date: r.requestedAt
-            ? new Date(r.requestedAt).toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })
-            : '',
+          date: formatISTDate(r.requestedAt),
           status: r.status ?? 'pending',
         };
       });

@@ -5,6 +5,7 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { offersApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { formatISTDate } from '@/shared/utils/dateIST';
 
 export function OffersPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
@@ -69,7 +70,7 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
                   </Text>
                   {offer.validTo && (
                     <Text style={[styles.offerId, { color: theme.textMuted }]}>
-                      Valid till: {new Date(offer.validTo).toLocaleDateString('en-IN')}
+                      Valid till: {formatISTDate(offer.validTo)}
                     </Text>
                   )}
                 </View>

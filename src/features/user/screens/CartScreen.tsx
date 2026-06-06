@@ -21,15 +21,15 @@ const ROLE_THEMES: Record<CartRole, {
   gradientDark: [string, string];
 }> = {
   electrician: {
-    primary: '#E8453C', primaryDark: '#C0392B', primarySoft: '#FFF0EF',
+    primary: '#173E80', primaryDark: '#355C95', primarySoft: '#EAF3FF',
     bg: '#F2F3F7', bgDark: '#0F172A',
     card: '#FFFFFF', cardDark: '#172033',
     border: '#E5E7EB', borderDark: '#25344E',
     text: '#1C1E2E', textDark: '#F8FAFC',
     muted: '#6B7280', mutedDark: '#A8B3C7',
-    mintSoft: '#FDE8E8',
-    gradient: ['#E8453C', '#C0392B'],
-    gradientDark: ['#C0392B', '#A93226'],
+    mintSoft: '#E8F0FE',
+    gradient: ['#173E80', '#355C95'],
+    gradientDark: ['#173E80', '#1D4ED8'],
   },
   dealer: {
     primary: '#173E80', primaryDark: '#355C95', primarySoft: '#EAF3FF',
@@ -242,10 +242,10 @@ export function CartScreen({
         contentContainerStyle={{ paddingBottom: cartItems.length ? insets.bottom + 150 : insets.bottom + 40 }}
       >
         <LinearGradient
-          colors={darkMode ? ['#1B2638', '#182131', '#111827'] : [theme.primarySoft, theme.mintSoft, '#F0DEC9']}
+          colors={darkMode ? ['#1B2638', '#182131', '#111827'] : [theme.primarySoft, theme.mintSoft, theme.primarySoft]}
           style={[styles.heroCard, { borderColor }]}
         >
-          <View style={[styles.heroGlow, { backgroundColor: darkMode ? 'rgba(141,74,30,0.16)' : 'rgba(106,47,18,0.12)' }]} />
+          <View style={[styles.heroGlow, { backgroundColor: darkMode ? `${theme.primaryDark}29` : `${theme.primary}1A` }]} />
           <View style={styles.heroTopRow}>
             <View>
               <Text style={[styles.heroEyebrow, { color: theme.primaryDark }]}>{pageContent.pageTitle || ({ dealer: tx('Dealer Cart'), counterboy: tx('Counterboy Cart'), electrician: tx('Cart'), customer: tx('Customer Cart') } as Record<string, string>)[role] || tx('Cart')}</Text>

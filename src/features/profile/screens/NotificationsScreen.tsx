@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { notificationsApi, storage } from '@/shared/api';
+import { formatISTDateTime } from '@/shared/utils/dateIST';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { Dialog } from '@/shared/components/Dialog';
@@ -35,12 +36,7 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
           id: String(n.id),
           title: n.title ?? '',
           body: n.message ?? n.body ?? '',
-          time: new Date(n.sentAt ?? n.createdAt ?? Date.now()).toLocaleString('en-IN', {
-            day: '2-digit',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
+          time: formatISTDateTime(n.sentAt ?? n.createdAt ?? new Date().toISOString()),
         }))
       );
     } catch {

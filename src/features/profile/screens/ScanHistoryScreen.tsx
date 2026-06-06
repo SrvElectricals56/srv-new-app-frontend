@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { walletApi } from '@/shared/api';
+import { formatISTDateTime } from '@/shared/utils/dateIST';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 
@@ -27,14 +28,7 @@ export function ScanHistoryPage({ onBack }: { onBack: () => void }) {
         items.map((s: any) => ({
           product: s.productName ?? 'Product',
           points: `+${s.points ?? 0}`,
-          time: s.scannedAt
-            ? new Date(s.scannedAt).toLocaleString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : '',
+          time: formatISTDateTime(s.scannedAt),
           code: s.id?.slice(0, 8) ?? '',
         }))
       );

@@ -93,6 +93,8 @@ const BASE_FEATURES: Record<AppFeatureKey, boolean> = {
 export const DEFAULT_ROLE_PAGE_CONTROLS: RolePageControls = {
   electrician: {
     ...BASE_FEATURES,
+    cart: true,
+    checkout: true,
     play: true,
     rewards: true,
     scan: true,
@@ -154,6 +156,8 @@ export function resolveRolePageControls(input?: unknown): RolePageControls {
   // Dealer Play Zone stays available even if older server-side settings omit or disable it.
   normalized.dealer.play = true;
   normalized.electrician.play = true;
+  normalized.electrician.cart = true;
+  normalized.electrician.checkout = true;
   normalized.counterboy.play = true;
   // Counter boy Gift Store — always enabled; old server configs may not have this set
   normalized.counterboy.rewards = true;

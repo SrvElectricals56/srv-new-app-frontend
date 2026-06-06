@@ -50,6 +50,7 @@ import { PreferenceContext, type AppLanguage, usePreferenceValue } from '@/share
 import { colors } from '@/shared/theme/colors';
 import type { Screen, UserRole } from '@/shared/types/navigation';
 import type { RewardHistoryItem } from '@/shared/types/rewards';
+import { formatISTDateTime } from '@/shared/utils/dateIST';
 import { GetStartedScreen } from '@/features/onboarding/GetStartedScreen';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
@@ -196,6 +197,7 @@ function AppContent() {
   const [userCartItems, setUserCartItems] = useState<CartItem[]>([]);
   const [dealerCartItems, setDealerCartItems] = useState<CartItem[]>([]);
   const [counterboyCartItems, setCounterboyCartItems] = useState<CartItem[]>([]);
+  const [electricianCartItems, setElectricianCartItems] = useState<CartItem[]>([]);
   const [checkoutItem, setCheckoutItem] = useState<CheckoutItem | null>(null);
   const [profileInitialSubPage, setProfileInitialSubPage] = useState<Exclude<SubPage, null> | null>(
     null
@@ -459,6 +461,38 @@ function AppContent() {
     setDealerCartItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
+  const handleElectricianAddToCart = useCallback((item: CartItem) => {
+    setElectricianCartItems((prev) => {
+      const existing = prev.find((i) => i.id === item.id);
+      if (existing) {
+        return prev.map((i) => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+      }
+      return [...prev, { ...item, qty: 1 }];
+    });
+  }, []);
+
+  const handleElectricianUpdateCartQty = useCallback((id: string, qty: number) => {
+    setElectricianCartItems((prev) => prev.map((i) => i.id === id ? { ...i, qty } : i));
+  }, []);
+
+  const handleElectricianRemoveFromCart = useCallback((id: string) => {
+    setElectricianCartItems((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
+  const handleElectricianCartCheckout = useCallback(() => {
+    if (electricianCartItems.length === 0) return;
+    const first = electricianCartItems[0];
+    setCheckoutItem({
+      id: first.id,
+      name: first.name,
+      desc: first.desc,
+      image: first.image,
+      price: first.price,
+      qty: first.qty,
+    });
+    setCurrentScreen('checkout');
+  }, [electricianCartItems]);
+
   const handleDealerCartCheckout = useCallback(() => {
     if (dealerCartItems.length === 0) return;
     const first = dealerCartItems[0];
@@ -626,12 +660,7 @@ function AppContent() {
       const committedItems = items.map((item, index) => ({
         ...item,
         id: `${item.code}-${Date.now()}-${index}`,
-        time: new Date().toLocaleString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
+        time: formatISTDateTime(new Date().toISOString()),
       }));
       const addedPoints = committedItems.reduce((sum, item) => sum + item.points, 0);
 
@@ -1156,11 +1185,34 @@ function AppContent() {
         return (
           <ElectricianProductScreen
             onNavigate={handleNavigate}
+            onAddToCart={handleElectricianAddToCart}
+            onBuyNow={handleBuyNow}
             initialCategory={selectedProductCategory}
           />
         );
       case 'play':
         return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="electrician" />;
+      case 'cart':
+        return (
+          <UserCartScreen
+            cartItems={electricianCartItems}
+            onUpdateQty={handleElectricianUpdateCartQty}
+            onRemove={handleElectricianRemoveFromCart}
+            onNavigate={handleNavigate}
+            onCheckout={handleElectricianCartCheckout}
+            role="electrician"
+          />
+        );
+      case 'checkout':
+        return checkoutItem ? (
+          <CheckoutScreen
+            item={checkoutItem}
+            role="electrician"
+            onBack={() => { setCheckoutItem(null); setCurrentScreen('product'); }}
+            onOrderPlaced={handleOrderPlaced}
+            onUpdateQty={handleCheckoutUpdateQty}
+          />
+        ) : null;
       case 'notification':
         return <ElectricianNotificationScreen onNavigate={handleNavigate} role="electrician" onNotificationsSeen={handleNotificationsSeen} />;
       case 'scan':
@@ -1199,6 +1251,7 @@ function AppContent() {
             initialSubPage={profileInitialSubPage}
             onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
             profileResetKey={profileResetKey}
+            cartCount={electricianCartItems.length}
           />
         );
       case 'wallet':

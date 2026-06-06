@@ -27,6 +27,7 @@ import {
   type PlayVideo,
 } from '@/shared/api/services';
 import type { Screen } from '@/shared/types/navigation';
+import { formatISTDateTimeFull } from '@/shared/utils/dateIST';
 
 type VideoCategoryKey = 'all' | 'guides' | 'reels' | 'tips';
 
@@ -323,12 +324,12 @@ function CommentRow({
         <Text style={styles.commentMeta}>{comment.authorRole || 'customer'}</Text>
       </View>
       <Text style={styles.commentMessage}>{comment.message}</Text>
-      <Text style={styles.commentDate}>{new Date(comment.createdAt).toLocaleString()}</Text>
+      <Text style={styles.commentDate}>{formatISTDateTimeFull(comment.createdAt)}</Text>
       {(comment.replies ?? []).map((reply) => (
         <View key={reply.id} style={styles.replyCard}>
           <Text style={styles.replyAuthor}>{reply.authorName || 'SRV Team'}</Text>
           <Text style={styles.replyMessage}>{reply.message}</Text>
-          <Text style={styles.replyDate}>{new Date(reply.createdAt).toLocaleString()}</Text>
+          <Text style={styles.replyDate}>{formatISTDateTimeFull(reply.createdAt)}</Text>
         </View>
       ))}
     </View>

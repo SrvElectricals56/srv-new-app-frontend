@@ -21,7 +21,7 @@ import { type AppLanguage, usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import { useAppData } from '@/shared/context/AppDataContext';
 import type { Screen } from '@/shared/types/navigation';
-import type { Product as ApiProduct, ProductCategory as ApiProductCategory } from '@/shared/api';
+import { type Product as ApiProduct, type ProductCategory as ApiProductCategory, resolveImageUrl } from '@/shared/api';
 
 const Colors = {
   primary: '#E8453C',
@@ -313,7 +313,7 @@ function mapApiToUi(p: ApiProduct): UiProduct {
     category: p.category,
     name: p.name,
     sub: p.sub ?? '',
-    img: p.imageUrl || p.image || REAL_PRODUCT_IMAGES[p.category] || REAL_PRODUCT_IMAGES['fanbox'],
+    img: resolveImageUrl(p.imageUrl) || resolveImageUrl(p.image) || REAL_PRODUCT_IMAGES[p.category] || REAL_PRODUCT_IMAGES['fanbox'],
     points: p.points,
     badge: p.badge ?? null,
   };

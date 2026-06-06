@@ -13,6 +13,19 @@ const fallbackUrl = DEFAULT_URL_BY_PLATFORM[Platform.OS] ?? 'http://127.0.0.1:30
 
 export const API_BASE_URL: string = ENV_URL && ENV_URL.length > 0 ? ENV_URL : fallbackUrl;
 
+export function resolveImageUrl(value?: string | null): string | null {
+  if (!value) return null;
+  let s = value.trim();
+  if (!s) return null;
+  s = s.replace(/\\/g, '/');
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('//')) return `https:${s}`;
+  const origin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+  if (s.startsWith('/')) return `${origin}${s}`;
+  if (/^www\./i.test(s)) return `http://${s}`;
+  return `${origin}/${s.replace(/^\.?\//, '')}`;
+}
+
 if (__DEV__) {
   console.warn(
     `API Configuration: ${JSON.stringify({

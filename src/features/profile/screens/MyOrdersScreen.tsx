@@ -5,22 +5,12 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { ordersApi, type UserOrder } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { formatISTDate } from '@/shared/utils/dateIST';
 
 function formatDate(value?: string | null) {
-  if (!value) {
-    return 'Recent';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 'Recent';
-  }
-
-  return date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  if (!value) return 'Recent';
+  const result = formatISTDate(value);
+  return result || 'Recent';
 }
 
 function toStatusLabel(status?: string) {

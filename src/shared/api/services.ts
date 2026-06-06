@@ -1,6 +1,7 @@
-import { api } from './client';
+import { api, refreshAccessToken } from './client';
 import { API_BASE_URL as apiBaseUrl } from './config';
 import { storage } from './storage';
+import { sessionEvents } from './sessionEvents';
 import type { AppPageContentMap } from '@/shared/config/appPageContent';
 
 function normalizePhone(phone?: string | null) {
@@ -467,6 +468,8 @@ export const settingsApi = {
     api.get<{ maintenanceMode: boolean; message?: string }>('/mobile/settings/maintenance'),
   getAppSettings: () =>
     api.get<AppSettings>('/mobile/app-settings'),
+  updateAppSetting: (key: string, value: unknown) =>
+    api.post<{ message: string }>('/mobile/settings/update', { key, value }, true),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -619,28 +622,46 @@ export const profileApi = {
     api.patch<UserProfile>('/mobile/auth/profile', data, true),
 
   uploadDocument: async (file: { uri: string; type: string; name: string }, documentType: 'aadhar-front' | 'aadhar-back' | 'pan' | 'gst') => {
-    const formData = new FormData();
-    formData.append('file', {
-      uri: file.uri,
-      type: file.type,
-      name: file.name,
-    } as any);
+    const buildFormData = () => {
+      const fd = new FormData();
+      fd.append('file', { uri: file.uri, type: file.type, name: file.name } as any);
+      return fd;
+    };
 
-    const accessToken = await storage.getAccessToken();
-    const response = await fetch(`${apiBaseUrl}/upload/aadhar-image`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: formData,
-    });
+    const sendUpload = async (token: string) => {
+      const res = await fetch(`${apiBaseUrl}/upload/aadhar-image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: buildFormData(),
+      });
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('UNAUTHORIZED');
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error((errBody as any).message || `Upload failed (${res.status})`);
+      }
+      return (await res.json()) as { url: string };
+    };
 
-    if (!response.ok) {
-      throw new Error('Upload failed');
+    let token = await storage.getAccessToken();
+    if (!token) throw new Error('Not authenticated');
+
+    try {
+      const result = await sendUpload(token);
+      return result.url as string;
+    } catch (error: any) {
+      if (error.message === 'UNAUTHORIZED') {
+        try {
+          token = await refreshAccessToken();
+          const result = await sendUpload(token);
+          return result.url as string;
+        } catch {
+          await storage.clearAll();
+          sessionEvents.emitExpired();
+          throw new Error('Session expired. Please login again.');
+        }
+      }
+      throw error;
     }
-
-    const result = await response.json();
-    return result.url as string;
   },
 };
 
@@ -696,6 +717,7 @@ export type UserProfile = {
   email?: string;
   role: 'electrician' | 'dealer' | 'user' | 'counterboy';
   profileImage?: string | null;
+  hasPassword?: boolean;
   // Electrician fields
   electricianCode?: string;
   city?: string;
@@ -907,6 +929,7 @@ export type AppSettings = {
   pageSectionOrder?: Record<string, Record<string, string[]>> | null;
   privacyPolicyContent?: string | null;
   privacyPolicyUpdated?: string | null;
+  dealerBonusRate?: number;
 };
 
 export type ScanResult = {

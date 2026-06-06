@@ -8,6 +8,7 @@ import { createShadow } from '@/shared/theme/shadows';
 import type { Screen, UserRole } from '@/shared/types/navigation';
 import { notificationsApi } from '@/shared/api';
 import { storage } from '@/shared/api/storage';
+import { formatISTDate } from '@/shared/utils/dateIST';
 import { useAuth } from '@/shared/context/AuthContext';
 import { Dialog } from '@/shared/components/Dialog';
 
@@ -104,7 +105,7 @@ function formatNotifTime(dateStr?: string): string {
   const diffDays = Math.floor(diffHrs / 24);
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
-  return d.toLocaleDateString();
+  return formatISTDate(d.toISOString());
 }
 
 type NotifItem = {

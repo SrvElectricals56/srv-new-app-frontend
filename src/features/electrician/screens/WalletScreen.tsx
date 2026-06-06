@@ -11,6 +11,7 @@ import type { Screen, UserRole } from '@/shared/types/navigation';
 import type { RewardHistoryItem } from '@/shared/types/rewards';
 import { walletApi } from '@/shared/api';
 import { useAppData } from '@/shared/context/AppDataContext';
+import { formatISTDateTime } from '@/shared/utils/dateIST';
 
 type WalletScreenProps = {
   role?: UserRole;
@@ -244,7 +245,7 @@ export function WalletScreen({
   historyItems = [],
 }: WalletScreenProps) {
   const { darkMode, tx } = usePreferenceContext();
-  const { dealerBonus } = useAppData();
+  const { dealerBonus, appSettings } = useAppData();
   const isDealer = role === 'dealer';
   const t = ROLE_THEME[role] ?? ROLE_THEME.electrician;
   const contentRole = role === 'user' ? 'user' : role;
@@ -275,7 +276,7 @@ export function WalletScreen({
         const mapped: ApiTxItem[] = res.transactions.data.map((tx: any) => ({
           id: tx.id,
           title: tx.description ?? (tx.source === 'scan' ? 'Product scanned' : tx.source === 'redemption' ? 'Redemption processed' : tx.source === 'bonus' ? 'Bonus credited' : tx.source === 'transfer' ? 'Points transferred' : 'Transaction'),
-          time: tx.createdAt ? new Date(tx.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '',
+          time: tx.createdAt ? formatISTDateTime(tx.createdAt) : '',
           points: tx.type === 'credit' ? `+${tx.amount}` : `-${tx.amount}`,
           accent: tx.type === 'credit' ? '#1F9C5D' : '#B44A3A',
         }));
@@ -325,7 +326,7 @@ export function WalletScreen({
     {
       id: 'bonus',
       label: 'Dealer Bonus',
-      detail: '5% electrician bonus',
+      detail: `${appSettings?.dealerBonusRate ?? 5}% electrician bonus`,
       icon: SparkIcon,
       tint: '#EAF3FF',
       target: 'dealer_bonus' as Screen,

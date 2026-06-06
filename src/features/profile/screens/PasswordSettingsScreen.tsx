@@ -237,6 +237,20 @@ export function PasswordSettingsPage({
     setSuccessMessage('');
   }, [hasPasswordConfigured, storedPassword]);
 
+  // Sync hasPasswordConfigured from backend profile to avoid stale storage state
+  useEffect(() => {
+    if (user && typeof (user as any).hasPassword === 'boolean') {
+      const backendHasPassword = (user as any).hasPassword as boolean;
+      if (backendHasPassword !== hasPasswordConfigured) {
+        onPasswordConfiguredChange(backendHasPassword);
+        if (backendHasPassword) {
+          storage.setPasswordConfigured(role as any, true).catch(() => {});
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -304,20 +318,34 @@ export function PasswordSettingsPage({
     }, 900);
   };
 
-  const isMissingPasswordError = (message: string) => {
+  const isCurrentPasswordRequiredError = (message: string) => {
     const normalized = message.toLowerCase();
     return (
-      normalized.includes('no password set') ||
-      normalized.includes('password not set') ||
-      normalized.includes('use otp login')
+      normalized.includes('current password is required') ||
+      normalized.includes('current password required')
+    );
+  };
+
+  const isAlreadyHasPasswordError = (message: string) => {
+    const normalized = message.toLowerCase();
+    return (
+      (normalized.includes('already') && normalized.includes('password')) ||
+      isCurrentPasswordRequiredError(normalized)
     );
   };
 
   const persistAndVerifyPassword = async (password: string, currentPasswordValue?: string) => {
     if (!currentPasswordValue) {
+      // Set password mode — no current password provided
       try {
         await profileApi.changePassword({ newPassword: password });
-      } catch {
+      } catch (err: any) {
+        const message = String(err?.message ?? '').trim();
+        if (isCurrentPasswordRequiredError(message)) {
+          // Backend says a password already exists — re-throw so handleSave can switch to change mode
+          throw err;
+        }
+        // For any other error, try the profile patch fallback
         await profileApi.setPasswordFallback(password);
       }
     } else {
@@ -325,27 +353,22 @@ export function PasswordSettingsPage({
     }
 
     if (!user?.phone || !role) {
+      // Can't verify with login — just mark as configured and refresh profile
+      await storage.setPasswordConfigured(role as any, true);
+      await refreshProfile();
       return;
     }
 
-    const verifyPasswordLogin = async () => {
+    // Re-login with new password to get fresh tokens (tokenVersion was incremented)
+    try {
       const result = await authApi.loginWithPassword(user.phone, role, password);
       login(result.user, role);
       await storage.setPasswordConfigured(role, true);
       await refreshProfile();
-      return result;
-    };
-
-    try {
-      await verifyPasswordLogin();
-    } catch (error: any) {
-      const message = String(error?.message ?? '').trim();
-      if (!isMissingPasswordError(message)) {
-        throw error;
-      }
-
-      await profileApi.setPasswordFallback(password);
-      await verifyPasswordLogin();
+    } catch {
+      // Login verify failed, but password was saved — still mark as configured
+      await storage.setPasswordConfigured(role, true);
+      await refreshProfile();
     }
   };
 
@@ -400,7 +423,7 @@ export function PasswordSettingsPage({
         const message = String(error?.message ?? '').trim();
         const lowerMessage = message.toLowerCase();
 
-        if (lowerMessage.includes('already') && lowerMessage.includes('password')) {
+        if (isAlreadyHasPasswordError(message) || (lowerMessage.includes('already') && lowerMessage.includes('password'))) {
           onPasswordConfiguredChange(true);
           setMode('change');
           setDialog({ visible: true, variant: 'info', title: '', message: tx('A password is already active for this account. Use Change Password to update it.') });

@@ -10,6 +10,7 @@ import { notificationsApi } from '@/shared/api';
 import { storage } from '@/shared/api/storage';
 import { useAuth } from '@/shared/context/AuthContext';
 import { Dialog } from '@/shared/components/Dialog';
+import { formatISTDate } from '@/shared/utils/dateIST';
 import { counterboyTheme as cb } from '@/features/counterboy/theme';
 
 const CB_PRIMARY = cb.primary;
@@ -81,7 +82,7 @@ function formatNotifTime(dateStr?: string): string {
   const diffDays = Math.floor(diffHrs / 24);
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
-  return d.toLocaleDateString();
+  return formatISTDate(d.toISOString());
 }
 
 type NotifItem = {

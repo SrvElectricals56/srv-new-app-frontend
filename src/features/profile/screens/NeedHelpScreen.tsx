@@ -23,6 +23,7 @@ import { settingsApi, supportApi } from '@/shared/api';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { formatISTDate } from '@/shared/utils/dateIST';
 import { Dialog } from '@/shared/components/Dialog';
 
 type Ticket = {
@@ -265,7 +266,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     if (hours < 1) return tx('Just now');
     if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString();
+    return formatISTDate(date.toISOString());
   };
 
   if (selectedTicket) {

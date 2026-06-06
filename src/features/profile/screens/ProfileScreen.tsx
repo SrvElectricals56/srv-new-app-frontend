@@ -125,6 +125,7 @@ export function ProfileScreen({
   initialSubPage,
   onInitialSubPageConsumed,
   profileResetKey,
+  cartCount,
 }: {
   currentRole: UserRole;
   onNavigate: (screen: Screen) => void;
@@ -144,6 +145,7 @@ export function ProfileScreen({
   initialSubPage?: Exclude<SubPage, null> | null;
   onInitialSubPageConsumed?: () => void;
   profileResetKey?: number;
+  cartCount?: number;
 }) {
   // Real user from auth context
   const { user: authUser, updateUser, refreshProfile } = useAuth();

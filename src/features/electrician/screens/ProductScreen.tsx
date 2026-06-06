@@ -25,7 +25,7 @@ import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
 import type { Screen } from '@/shared/types/navigation';
-import { catalogApi, type Product as ApiProduct, type ProductCategory as ApiProductCategory } from '@/shared/api';
+import { catalogApi, resolveImageUrl, type Product as ApiProduct, type ProductCategory as ApiProductCategory } from '@/shared/api';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -336,7 +336,7 @@ function mapProduct(p: ApiProduct): UiProduct {
     sub: p.sub || description,
     description,
     category: cat,
-    imageUrl: p.imageUrl || p.image || catImg(cat),
+    imageUrl: resolveImageUrl(p.imageUrl) || resolveImageUrl(p.image) || catImg(cat),
     points: p.points ?? 0,
     badge: p.badge?.trim() || null,
     price: Number(p.price ?? 0),
@@ -360,7 +360,7 @@ function buildUiCategories(products: UiProduct[], apiCats: ApiProductCategory[])
     if (!id) return;
     const count = countMap.get(id) ?? (typeof c.productCount === 'number' ? c.productCount : 0);
     if (count <= 0) return;
-    if (!merged.has(id)) merged.set(id, { id, label: c.label?.trim() || catLabel(id), count, imageUrl: c.imageUrl || catImg(id) });
+    if (!merged.has(id)) merged.set(id, { id, label: c.label?.trim() || catLabel(id), count, imageUrl: resolveImageUrl(c.imageUrl) || catImg(id) });
   });
   countMap.forEach((count, id) => {
     if (!merged.has(id)) merged.set(id, { id, label: catLabel(id), count, imageUrl: catImg(id) });

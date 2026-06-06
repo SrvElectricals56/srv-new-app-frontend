@@ -18,6 +18,7 @@ import { playsApi, type PlayVideo } from '@/shared/api/services';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { usePreferenceContext } from '@/shared/preferences';
 import type { UserRole } from '@/shared/types/navigation';
+import { formatISTDate } from '@/shared/utils/dateIST';
 
 type VideoCategoryKey = 'all' | 'guides' | 'reels' | 'tips';
 
@@ -347,7 +348,7 @@ export function RolePlayVideosScreen({
               <View style={styles.modalBody}>
                 <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>{selectedVideo.title}</Text>
                 <Text style={[styles.modalMeta, { color: theme.textMuted }]}>
-                  {selectedVideo.viewCount} {tx('views')} · {new Date(selectedVideo.createdAt).toLocaleDateString('en-IN')}
+                  {selectedVideo.viewCount} {tx('views')} · {formatISTDate(selectedVideo.createdAt)}
                 </Text>
                 {selectedVideo.description ? (
                   <Text style={[styles.modalDescription, { color: theme.textSecondary }]}>

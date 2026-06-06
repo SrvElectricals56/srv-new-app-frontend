@@ -32,14 +32,14 @@ const ROLE_THEMES: Record<CheckoutRole, {
   gradientDark: [string, string];
 }> = {
   electrician: {
-    primary: '#E8453C', primaryDark: '#C0392B', primarySoft: '#FFF0EF',
+    primary: '#173E80', primaryDark: '#355C95', primarySoft: '#EAF3FF',
     bg: '#F2F3F7', bgDark: '#0F172A',
     card: '#FFFFFF', cardDark: '#172033',
     border: '#E5E7EB', borderDark: '#25344E',
     text: '#1C1E2E', textDark: '#F8FAFC',
     muted: '#6B7280', mutedDark: '#A8B3C7',
-    gradient: ['#E8453C', '#C0392B'],
-    gradientDark: ['#C0392B', '#A93226'],
+    gradient: ['#173E80', '#355C95'],
+    gradientDark: ['#173E80', '#1D4ED8'],
   },
   dealer: {
     primary: '#173E80', primaryDark: '#355C95', primarySoft: '#EAF3FF',

@@ -46,6 +46,7 @@ import {
   WalletTransferPointsScreen,
 } from '@/features/profile/screens/WalletLinkedPages';
 import { NavActionProvider } from '@/shared/context/NavActionContext';
+import { SrvLogoLoader } from '@/shared/components/SrvLogoLoader';
 import { PreferenceContext, type AppLanguage, usePreferenceValue } from '@/shared/preferences';
 import { colors } from '@/shared/theme/colors';
 import type { Screen, UserRole } from '@/shared/types/navigation';
@@ -54,7 +55,7 @@ import { formatISTDateTime } from '@/shared/utils/dateIST';
 import { GetStartedScreen } from '@/features/onboarding/GetStartedScreen';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
-import { storage } from '@/shared/api';
+import { activityApi, storage } from '@/shared/api';
 import type { AppContentPage } from '@/shared/config/appPageContent';
 import {
   isRoleFeatureEnabled,
@@ -199,6 +200,8 @@ function AppContent() {
   const [counterboyCartItems, setCounterboyCartItems] = useState<CartItem[]>([]);
   const [electricianCartItems, setElectricianCartItems] = useState<CartItem[]>([]);
   const [checkoutItem, setCheckoutItem] = useState<CheckoutItem | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const routeLoadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [profileInitialSubPage, setProfileInitialSubPage] = useState<Exclude<SubPage, null> | null>(
     null
   );
@@ -351,10 +354,75 @@ function AppContent() {
     return () => { scrollToTopFns.current.delete(screenId); };
   }, []);
   const [profileResetKey, setProfileResetKey] = useState(0);
+  const screenStartRef = useRef({ screen: currentScreen, startedAt: Date.now() });
+  const routeScreenRef = useRef(currentScreen);
+
+  const trackActivity = useCallback((data: Parameters<typeof activityApi.track>[0]) => {
+    void activityApi.track(data).catch(() => {});
+  }, []);
+
+  const showRouteLoader = useCallback(() => {
+    setRouteLoading(true);
+    if (routeLoadingTimeoutRef.current) {
+      clearTimeout(routeLoadingTimeoutRef.current);
+    }
+    routeLoadingTimeoutRef.current = setTimeout(() => {
+      setRouteLoading(false);
+      routeLoadingTimeoutRef.current = null;
+    }, 600);
+  }, []);
+
+  useEffect(() => () => {
+    if (routeLoadingTimeoutRef.current) {
+      clearTimeout(routeLoadingTimeoutRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    const previous = screenStartRef.current;
+    const now = Date.now();
+    if (routeScreenRef.current !== currentScreen) {
+      showRouteLoader();
+      routeScreenRef.current = currentScreen;
+    }
+    if (previous.screen && previous.screen !== currentScreen) {
+      trackActivity({
+        eventType: 'screen_time',
+        eventLabel: `Spent time on ${previous.screen}`,
+        screen: previous.screen,
+        durationMs: Math.max(0, now - previous.startedAt),
+      });
+    }
+    trackActivity({
+      eventType: currentScreen === 'profile' ? 'profile_view' : 'screen_view',
+      eventLabel: currentScreen === 'profile' ? 'Opened Profile' : `Opened ${currentScreen}`,
+      screen: currentScreen,
+      previousScreen: previous.screen !== currentScreen ? previous.screen : undefined,
+    });
+    screenStartRef.current = { screen: currentScreen, startedAt: now };
+  }, [currentScreen, showRouteLoader, trackActivity]);
+
+  useEffect(() => () => {
+    const current = screenStartRef.current;
+    trackActivity({
+      eventType: 'screen_time',
+      eventLabel: `Spent time on ${current.screen}`,
+      screen: current.screen,
+      durationMs: Math.max(0, Date.now() - current.startedAt),
+    });
+  }, [trackActivity]);
 
   const handleNavigate = useCallback(
     (screen: Screen) => {
+      trackActivity({
+        eventType: 'button_tap',
+        eventLabel: `Tapped ${screen}`,
+        screen: currentScreen,
+        metadata: { targetScreen: screen, role: currentRole },
+      });
+
       if (!isRoleFeatureEnabled(rolePageControls, currentRole, screen)) {
+        if (currentScreen !== 'home') showRouteLoader();
         setCurrentScreen('home');
         setGuestAuthRole(null);
         return;
@@ -364,6 +432,7 @@ function AppContent() {
       // dismiss the auth flow and navigate normally
       if (guestAuthRole && screen !== 'wallet' && screen !== 'profile') {
         setGuestAuthRole(null);
+        showRouteLoader();
         setCurrentScreen(screen);
         return;
       }
@@ -386,15 +455,23 @@ function AppContent() {
         setSelectedProductCategory('all');
       }
 
+      showRouteLoader();
       setCurrentScreen(screen);
     },
-    [currentRole, currentScreen, guestAuthRole, rolePageControls]
+    [currentRole, currentScreen, guestAuthRole, rolePageControls, showRouteLoader, trackActivity]
   );
 
   const handleOpenProductCategory = useCallback((category: string) => {
+    trackActivity({
+      eventType: 'button_tap',
+      eventLabel: `Opened product category ${category}`,
+      screen: currentScreen,
+      productCategory: category,
+    });
+    showRouteLoader();
     setSelectedProductCategory(category);
     setCurrentScreen('product');
-  }, []);
+  }, [currentScreen, showRouteLoader, trackActivity]);
 
   const handleAddToCart = useCallback((item: CartItem) => {
     setUserCartItems((prev) => {
@@ -1404,6 +1481,7 @@ function AppContent() {
             <ElectricianBottomNav currentScreen={resolvedCurrentScreen} onNavigate={handleNavigate} />
           )
         ) : null}
+        <SrvLogoLoader visible={routeLoading} label="Opening SRV page..." />
       </View>
     </PreferenceContext.Provider>
   );

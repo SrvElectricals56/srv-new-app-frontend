@@ -212,14 +212,20 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 export const api = {
   get: <T>(path: string, params?: Record<string, string | number | undefined>, auth = false) => {
     const key = dedupKey(path, { method: 'GET', params, auth });
-    const cached = getCached<T>(key);
-    if (cached !== null) return Promise.resolve(cached);
+
+    // No cache for banners and products — always fetch fresh from server
+    const noCache = path.includes('/mobile/banners') || path.includes('/mobile/products');
+
+    if (!noCache) {
+      const cached = getCached<T>(key);
+      if (cached !== null) return Promise.resolve(cached);
+    }
 
     const inflight = inflightRequests.get(key) as Promise<T> | undefined;
     if (inflight) return inflight;
 
     const promise = request<T>(path, { method: 'GET', params, auth }).then((data) => {
-      setCache(key, data);
+      if (!noCache) setCache(key, data);
       inflightRequests.delete(key);
       return data;
     }).catch((err) => {

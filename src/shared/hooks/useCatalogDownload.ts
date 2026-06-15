@@ -1,4 +1,5 @@
 import { Alert, Linking } from 'react-native';
+import { activityApi } from '@/shared/api';
 import { API_BASE_URL } from '@/shared/api/config';
 
 function getApiOrigin() {
@@ -36,11 +37,24 @@ function normalizeCatalogUrl(url: string) {
 export function useCatalogDownload() {
   const openCatalog = (url: string | null | undefined) => {
     const normalizedUrl = url ? normalizeCatalogUrl(url) : '';
+    const trackedAt = new Date().toISOString();
 
     if (!normalizedUrl) {
+      void activityApi.track({
+        eventType: 'button_tap',
+        eventLabel: 'Product catalog unavailable',
+        screen: 'home',
+        metadata: { reason: 'missing_catalog_url', action: 'catalog_download_attempt', trackedAt },
+      }).catch(() => {});
       Alert.alert('Not Available', 'Product catalog has not been uploaded yet.');
       return;
     }
+    void activityApi.track({
+      eventType: 'button_tap',
+      eventLabel: 'Downloaded product catalog',
+      screen: 'home',
+      metadata: { url: normalizedUrl, action: 'catalog_download', trackedAt },
+    }).catch(() => {});
     Linking.openURL(normalizedUrl).catch(() => {
       Alert.alert('Error', 'Could not open catalog link.');
     });

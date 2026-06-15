@@ -450,6 +450,28 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, []);
 
+  // Poll banners and products every 30 seconds so admin changes reflect quickly
+  useEffect(() => {
+    const POLL_INTERVAL = 30_000; // 30 seconds
+
+    const pollPublicContent = async () => {
+      if (appStateRef.current !== 'active') return;
+      try {
+        const [bans, prods] = await Promise.all([
+          bannersApi.getAll(role ?? undefined).catch(() => null),
+          productsApi.getAll().catch(() => null),
+        ]);
+        if (bans?.data) setBanners(bans.data);
+        if (prods?.data) setProducts(prods.data);
+      } catch {
+        // silently ignore poll errors
+      }
+    };
+
+    const id = setInterval(() => { void pollPublicContent(); }, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [role]);
+
   // ── Actions ───────────────────────────────────────────────────────────────
   const submitScan = useCallback(async (qrCode: string, mode: 'single' | 'multi'): Promise<ScanResult> => {
     const result = await scanApi.submit(qrCode, mode);

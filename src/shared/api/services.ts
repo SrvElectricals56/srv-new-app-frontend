@@ -426,6 +426,30 @@ export const catalogApi = {
     api.post<{ message: string; order: ProductOrder }>('/mobile/product-orders', data, true),
 };
 
+export type ActivityEventType =
+  | 'screen_view'
+  | 'screen_time'
+  | 'product_view'
+  | 'product_add_to_cart'
+  | 'product_buy_now'
+  | 'profile_view'
+  | 'button_tap';
+
+export const activityApi = {
+  track: (data: {
+    eventType: ActivityEventType;
+    eventLabel?: string;
+    screen?: string;
+    previousScreen?: string;
+    productId?: string;
+    productName?: string;
+    productCategory?: string;
+    quantity?: number;
+    durationMs?: number;
+    metadata?: Record<string, unknown>;
+  }) => api.post<{ message: string; id: string }>('/mobile/activity', data, true),
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // BANNERS
 // ─────────────────────────────────────────────────────────────────────────────

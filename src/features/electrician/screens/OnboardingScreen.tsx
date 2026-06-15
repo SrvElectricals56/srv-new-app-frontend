@@ -1014,8 +1014,7 @@ export function OnboardingScreen({
       mode !== 'signup' ||
       role !== 'dealer' ||
       signupStep !== 'name' ||
-      !signupEmail.trim() ||
-      !isValidOptionalEmail(signupEmail) ||
+      (signupEmail.trim() && !isValidOptionalEmail(signupEmail)) ||
       signupAddress.trim() ||
       locationLoading ||
       dealerAutoAddressRequestedRef.current
@@ -2592,9 +2591,7 @@ export function OnboardingScreen({
                                 <Button
                                   label={dealerSignupContent?.buttonLabel ?? tx('Continue')}
                                   onPress={continueSignup}
-                                  disabled={
-                                    signupName.trim().length < 3 || signupAddress.trim().length < 5
-                                  }
+                                  disabled={locationLoading}
                                   secondary
                                 />
                               </>
@@ -2605,7 +2602,7 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('State')}
                                   value={signupState}
-                                  onChangeText={handleName((v) => { stateDirtyRef.current = true; setSignupState(v); })}
+                                  onChangeText={handleName((v) => { stateDirtyRef.current = true; setSignupState(v); setError('signupState'); })}
                                   placeholder={tx('State')}
                                   error={errors.signupState}
                                   onFocus={scrollToForm}
@@ -2617,7 +2614,7 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('City')}
                                   value={signupCity}
-                                  onChangeText={handleName((v) => { cityDirtyRef.current = true; setSignupCity(v); })}
+                                  onChangeText={handleName((v) => { cityDirtyRef.current = true; setSignupCity(v); setError('signupCity'); })}
                                   placeholder={tx('City')}
                                   error={errors.signupCity}
                                   onFocus={scrollToForm}
@@ -2632,6 +2629,7 @@ export function OnboardingScreen({
                                   onChangeText={(value) => {
                                     pincodeDirtyRef.current = true;
                                     setSignupPincode(value.replace(/\D/g, '').slice(0, 6));
+                                    setError('signupPincode');
                                   }}
                                   placeholder={tx('Pincode')}
                                   keyboardType="numeric"
@@ -2643,11 +2641,7 @@ export function OnboardingScreen({
                                 <Button
                                   label={dealerSignupContent?.buttonLabel ?? tx('Continue')}
                                   onPress={continueSignup}
-                                  disabled={
-                                    signupState.trim().length < 2 ||
-                                    signupCity.trim().length < 2 ||
-                                    signupPincode.trim().length < 4
-                                  }
+                                  disabled={locationLoading}
                                   secondary
                                 />
                               </>
@@ -2948,7 +2942,7 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('State')}
                                   value={signupState}
-                                  onChangeText={handleName((v) => { stateDirtyRef.current = true; setSignupState(v); })}
+                                  onChangeText={handleName((v) => { stateDirtyRef.current = true; setSignupState(v); setError('signupState'); })}
                                   placeholder={tx('State')}
                                   error={errors.signupState}
                                   onFocus={scrollToForm}
@@ -2960,7 +2954,7 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('City')}
                                   value={signupCity}
-                                  onChangeText={handleName((v) => { cityDirtyRef.current = true; setSignupCity(v); })}
+                                  onChangeText={handleName((v) => { cityDirtyRef.current = true; setSignupCity(v); setError('signupCity'); })}
                                   placeholder={tx('City')}
                                   error={errors.signupCity}
                                   onFocus={scrollToForm}
@@ -2975,6 +2969,7 @@ export function OnboardingScreen({
                                   onChangeText={(value) => {
                                     pincodeDirtyRef.current = true;
                                     setSignupPincode(value.replace(/\D/g, '').slice(0, 6));
+                                    setError('signupPincode');
                                   }}
                                   placeholder={tx('Pincode')}
                                   keyboardType="numeric"
@@ -2989,7 +2984,7 @@ export function OnboardingScreen({
                               <Button
                                 label={tx('Continue')}
                                 onPress={continueSignup}
-                                disabled={signupAddress.trim().length < 5 || locationLoading}
+                                disabled={locationLoading}
                                 secondary
                               />
                             ) : null}

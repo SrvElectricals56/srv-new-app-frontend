@@ -25,7 +25,7 @@ import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
 import type { Screen } from '@/shared/types/navigation';
-import { catalogApi, resolveImageUrl, type Product as ApiProduct, type ProductCategory as ApiProductCategory } from '@/shared/api';
+import { activityApi, catalogApi, resolveImageUrl, type Product as ApiProduct, type ProductCategory as ApiProductCategory } from '@/shared/api';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -643,6 +643,7 @@ export function ProductScreen({
   const [selectedProduct, setSelectedProduct] = useState<UiProduct | null>(null);
   const [detailQty, setDetailQty] = useState(1);
   const [actionBusy, setActionBusy] = useState<'cart' | 'buy' | null>(null);
+  const productViewStartRef = useRef<{ id: string; startedAt: number } | null>(null);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
@@ -719,11 +720,57 @@ export function ProductScreen({
     return false;
   }, [isAuthenticated, tx]);
 
+  const trackProductActivity = useCallback((data: Parameters<typeof activityApi.track>[0]) => {
+    void activityApi.track(data).catch(() => {});
+  }, []);
+
+  const handleOpenProduct = useCallback((product: UiProduct) => {
+    setSelectedProduct(product);
+    setDetailQty(1);
+    productViewStartRef.current = { id: product.id, startedAt: Date.now() };
+    trackProductActivity({
+      eventType: 'product_view',
+      eventLabel: `Viewed ${product.name}`,
+      screen: 'product',
+      productId: product.id,
+      productName: product.name,
+      productCategory: product.category,
+      metadata: { role, price: product.price },
+    });
+  }, [role, trackProductActivity]);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+    return () => {
+      const started = productViewStartRef.current;
+      if (started?.id !== selectedProduct.id) return;
+      trackProductActivity({
+        eventType: 'product_view',
+        eventLabel: `Viewed ${selectedProduct.name} detail`,
+        screen: 'product',
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        productCategory: selectedProduct.category,
+        durationMs: Math.max(0, Date.now() - started.startedAt),
+        metadata: { role, closed: true },
+      });
+    };
+  }, [role, selectedProduct, trackProductActivity]);
+
   const handleAddSelectedToCart = useCallback(async () => {
     if (!selectedProduct || !requireAuth()) return;
     setActionBusy('cart');
     try {
       await catalogApi.addToCart({ productId: selectedProduct.id, quantity: detailQty });
+      trackProductActivity({
+        eventType: 'product_add_to_cart',
+        eventLabel: `Added ${selectedProduct.name} to cart`,
+        screen: 'product',
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        productCategory: selectedProduct.category,
+        quantity: detailQty,
+      });
       onAddToCart?.({
         id: selectedProduct.id,
         name: selectedProduct.name,
@@ -738,11 +785,20 @@ export function ProductScreen({
     } finally {
       setActionBusy(null);
     }
-  }, [onAddToCart, requireAuth, selectedProduct, detailQty, tx]);
+  }, [onAddToCart, requireAuth, selectedProduct, detailQty, tx, trackProductActivity]);
 
   const handleBuySelectedNow = useCallback(async () => {
     if (!selectedProduct || !requireAuth()) return;
     if (onBuyNow) {
+      trackProductActivity({
+        eventType: 'product_buy_now',
+        eventLabel: `Tapped Buy Now for ${selectedProduct.name}`,
+        screen: 'product',
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        productCategory: selectedProduct.category,
+        quantity: detailQty,
+      });
       onBuyNow({
         id: selectedProduct.id,
         name: selectedProduct.name,
@@ -756,6 +812,15 @@ export function ProductScreen({
       setActionBusy('buy');
       try {
         await catalogApi.buyNow({ productId: selectedProduct.id, quantity: detailQty });
+        trackProductActivity({
+          eventType: 'product_buy_now',
+          eventLabel: `Ordered ${selectedProduct.name}`,
+          screen: 'product',
+          productId: selectedProduct.id,
+          productName: selectedProduct.name,
+          productCategory: selectedProduct.category,
+          quantity: detailQty,
+        });
         setDialog({ visible: true, variant: 'success', title: tx('Order placed'), message: tx('Your product order has been sent to SRV Team.') });
         setSelectedProduct(null);
       } catch (error: any) {
@@ -764,7 +829,7 @@ export function ProductScreen({
         setActionBusy(null);
       }
     }
-  }, [requireAuth, selectedProduct, detailQty, tx, onBuyNow]);
+  }, [requireAuth, selectedProduct, detailQty, tx, onBuyNow, trackProductActivity]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -775,12 +840,12 @@ export function ProductScreen({
   // ── Render row ──────────────────────────────────────────────────────────────
   const renderRow = useCallback(({ item }: { item: ProductRow }) => (
     <View style={styles.row}>
-      <ProductCard product={item.left} cardW={cardW} onOpen={() => setSelectedProduct(item.left)} darkMode={darkMode} actionLabel={productActionLabel} />
+      <ProductCard product={item.left} cardW={cardW} onOpen={() => handleOpenProduct(item.left)} darkMode={darkMode} actionLabel={productActionLabel} />
       {item.right
-        ? <ProductCard product={item.right} cardW={cardW} onOpen={() => setSelectedProduct(item.right!)} darkMode={darkMode} actionLabel={productActionLabel} />
+        ? <ProductCard product={item.right} cardW={cardW} onOpen={() => handleOpenProduct(item.right!)} darkMode={darkMode} actionLabel={productActionLabel} />
         : <View style={{ width: cardW }} />}
     </View>
-  ), [cardW, darkMode, productActionLabel]);
+  ), [cardW, darkMode, handleOpenProduct, productActionLabel]);
 
   const keyExtractor = useCallback((item: ProductRow) => item.key, []);
 

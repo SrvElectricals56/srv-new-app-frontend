@@ -223,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [refreshProfile, state.isAuthenticated, state.user?.status]);
+  }, [refreshProfile, state.isAuthenticated, state.user]);
 
   // While KYC is pending, poll so admin rejection/approval reflects immediately.
   useEffect(() => {
@@ -251,7 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [refreshProfile, state.isAuthenticated, state.user?.kycStatus]);
+  }, [refreshProfile, state.isAuthenticated, state.user]);
 
   const updateUser = useCallback((data: Partial<UserProfile>) => {
     setState((s) => {

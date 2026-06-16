@@ -129,7 +129,7 @@ function GiftCard({
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export function RewardsScreen({ onBack }: { onBack?: () => void }) {
-  const { darkMode, tx, theme } = usePreferenceContext();
+  const { darkMode, tx } = usePreferenceContext();
   const { giftProducts, wallet, walletSummary, redeemReward, refreshAll } = useAppData();
   const { width } = useWindowDimensions();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);

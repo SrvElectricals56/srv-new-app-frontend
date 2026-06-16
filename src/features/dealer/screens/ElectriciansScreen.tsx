@@ -201,19 +201,32 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
     );
   };
 
-  const activeCount = electricians.filter((item) => item.status === 'Active').length;
-  const totalElectricians = electricians.length;
-  const addedThisMonth = electricians.filter(isAddedThisMonth).length;
-  const nextElectricianSerial = String(
-    electricians.reduce((max, item) => {
+  const electricianStats = useMemo(() => {
+    let activeCount = 0;
+    let addedThisMonth = 0;
+    let maxSerial = 0;
+
+    for (const item of electricians) {
+      if (item.status === 'Active') activeCount += 1;
+      if (isAddedThisMonth(item)) addedThisMonth += 1;
+
       if (authUser?.dealerCode && item.electricianCode && !item.electricianCode.startsWith(`${authUser.dealerCode}-`)) {
-        return max;
+        continue;
       }
+
       const match = item.electricianCode?.match(/-(\d{3})$/);
-      if (!match) return max;
-      return Math.max(max, Number(match[1]));
-    }, 0) + 1
-  ).padStart(3, '0');
+      if (match) maxSerial = Math.max(maxSerial, Number(match[1]));
+    }
+
+    return {
+      activeCount,
+      totalElectricians: electricians.length,
+      addedThisMonth,
+      nextElectricianSerial: String(maxSerial + 1).padStart(3, '0'),
+    };
+  }, [authUser?.dealerCode, electricians]);
+
+  const { activeCount, totalElectricians, addedThisMonth, nextElectricianSerial } = electricianStats;
   const cleanPhone = newPhone.replace(/\D/g, '').slice(0, 10);
   const canAddElectrician =
     newName.trim().length >= 3 &&

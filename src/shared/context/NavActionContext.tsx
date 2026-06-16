@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect } from 'react';
 
 interface NavActionContextType {
   registerScrollToTop: (screenId: string, fn: () => void) => () => void;

@@ -42,7 +42,7 @@ export function DocumentUpload({
   const pickDocument = async () => {
     try {
       setDialog({ visible: true, variant: 'info', title: 'Choose Source', message: 'Select document source', choices: [{ label: 'Camera', icon: 'camera', onPress: pickFromCamera }, { label: 'Gallery', icon: 'image', onPress: pickFromGallery }, { label: 'File', icon: 'file', onPress: pickFromFiles }] });
-    } catch (error) {
+    } catch {
       setDialog({ visible: true, variant: 'error', title: 'Error', message: 'Failed to pick document' });
     }
   };
@@ -102,7 +102,7 @@ export function DocumentUpload({
       const file = result.assets[0];
       setLocalUri(file.uri);
       await uploadDocument(file.uri, file.mimeType || 'application/pdf', file.name);
-    } catch (error) {
+    } catch {
       setDialog({ visible: true, variant: 'error', title: 'Error', message: 'Failed to pick file' });
     }
   };

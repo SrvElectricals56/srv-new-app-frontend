@@ -1069,7 +1069,7 @@ export function ProductScreen({
         </View>
       )}
     </View>
-  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, cc, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, bannerActionLabel]);
+  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, cc, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, bannerActionLabel, pageContent.pageTitle, pageContent.searchPlaceholder]);
 
   const ListFooter = useMemo(() => (
     <View>
@@ -1102,7 +1102,7 @@ export function ProductScreen({
         {catalogLoading ? tx('Loading products...') : pageContent.emptyStateTitle || tx('No products found')}
       </Text>
     </View>
-  ), [catalogLoading, darkMode, tx]);
+  ), [catalogLoading, darkMode, tx, pageContent.emptyStateTitle]);
 
   const dialogEl = (
     <Dialog

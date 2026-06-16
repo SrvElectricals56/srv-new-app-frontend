@@ -104,9 +104,10 @@ export function RedemptionPage({
     onOpenTransferPoints();
   };
 
-  const totalRedeemed = redemptions.filter(
-    (r) => r.status === 'completed' || r.status === 'approved'
-  ).length;
+  const totalRedeemed = useMemo(
+    () => redemptions.filter((r) => r.status === 'completed' || r.status === 'approved').length,
+    [redemptions],
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>

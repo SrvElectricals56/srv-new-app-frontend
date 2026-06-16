@@ -102,7 +102,7 @@ const SETTINGS_FEATURE_MAP: Record<string, AppFeatureKey> = {
   'Privacy Policy': 'privacy_policy',
 };
 
-function resolveProfilePoints(...values: Array<number | null | undefined>) {
+function resolveProfilePoints(...values: (number | null | undefined)[]) {
   return Math.max(...values.map((value) => Number(value ?? 0)));
 }
 
@@ -153,7 +153,6 @@ export function ProfileScreen({
     uploadProfilePhoto,
     removeProfilePhoto: removeRemoteProfilePhoto,
     appSettings,
-    dealerBonus,
     refreshAll,
   } = useAppData();
 
@@ -373,8 +372,6 @@ export function ProfileScreen({
   );
   const electricianScans = totalScans ?? authUser?.totalScans ?? 0;
   const electricianRedemptions = authUser?.totalRedemptions ?? 0;
-  const dealerAvailableBonus = Number(dealerBonus?.availableBonus ?? authUser?.bonusPoints ?? 0);
-  const dealerTotalBonus = Number(dealerBonus?.totalBonus ?? authUser?.bonusPoints ?? 0);
   const dealerMembership = useMemo(() => getDealerMembership(electricianCount), [electricianCount]);
   const electricianMembership = useMemo(
     () => getElectricianTier(electricianPoints),

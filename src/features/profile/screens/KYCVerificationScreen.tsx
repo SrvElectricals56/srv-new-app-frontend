@@ -85,7 +85,7 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
           : 'KYC documents resubmitted successfully. SRV Team will verify soon.'),
         onOk: onBack,
       });
-    } catch (error) {
+    } catch {
       setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Failed to submit KYC documents. Please try again.') });
     } finally {
       setIsSaving(false);

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { type ReactElement, useEffect, useRef } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -37,7 +37,7 @@ const FileIcon = ({ color = '#475569' }: { color?: string }) => (
   </Svg>
 );
 
-const CHOICE_ICONS: Record<string, (color?: string) => JSX.Element> = {
+const CHOICE_ICONS: Record<string, (color?: string) => ReactElement> = {
   camera: (c) => <CameraIcon color={c} />,
   image: (c) => <ImageIcon color={c} />,
   file: (c) => <FileIcon color={c} />,

@@ -1,5 +1,5 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -232,8 +232,23 @@ export function CartScreen({
   const textPrimary = darkMode ? theme.textDark : theme.text;
   const textMuted = darkMode ? theme.mutedDark : theme.muted;
 
-  const totalItems = cartItems.reduce((sum, item) => sum + item.qty, 0);
-  const totalUnits = cartItems.length;
+  const cartSummary = useMemo(() => {
+    let totalItems = 0;
+    let totalPrice = 0;
+
+    for (const item of cartItems) {
+      totalItems += item.qty;
+      totalPrice += item.price * item.qty;
+    }
+
+    return {
+      totalItems,
+      totalPrice,
+      totalUnits: cartItems.length,
+    };
+  }, [cartItems]);
+
+  const { totalItems, totalPrice, totalUnits } = cartSummary;
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
@@ -320,7 +335,7 @@ export function CartScreen({
                 </Text>
               </View>
               <Text style={[styles.footerTotalPrice, { color: theme.primary }]}>
-                ₹{cartItems.reduce((sum, i) => sum + i.price * i.qty, 0).toLocaleString('en-IN')}
+                ₹{totalPrice.toLocaleString('en-IN')}
               </Text>
             </View>
 

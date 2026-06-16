@@ -331,7 +331,7 @@ export function ApprovalPendingScreen({
           </View>
           <View style={styles.websiteContent}>
             <Text style={[styles.websiteLabel, { color: theme.textSecondary }]}>
-              Don't get bored — check out our website for exciting new products!
+              {"Don't get bored — check out our website for exciting new products!"}
             </Text>
             <Text style={[styles.websiteUrl, { color: T.accent }]}>
               srvelectricals.com →

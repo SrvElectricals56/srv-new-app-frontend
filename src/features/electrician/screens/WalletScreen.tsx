@@ -115,7 +115,7 @@ type ApiTxItem = {
   accent: string;
 };
 
-function resolveDisplayedPoints(...values: Array<number | null | undefined>) {
+function resolveDisplayedPoints(...values: (number | null | undefined)[]) {
   return Math.max(...values.map((value) => Number(value ?? 0)));
 }
 

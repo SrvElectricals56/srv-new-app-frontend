@@ -799,7 +799,7 @@ export function HomeScreen({
   return (
     <ScrollView
       ref={homeScrollRef}
-      style={[styles.screen, darkMode ? styles.screenDark : null]}
+      style={[styles.container, darkMode ? styles.containerDark : null]}
       showsVerticalScrollIndicator={false}
       bounces={false}
       overScrollMode="never"

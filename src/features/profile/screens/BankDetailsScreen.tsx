@@ -70,7 +70,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
     setIfsc(user?.ifsc ?? '');
     setUpi(user?.upiId ?? '');
     setSelectedBank(user?.bankName ?? '');
-  }, [role, user?.id]);
+  }, [role, user?.id, user?.accountHolderName, user?.bankAccount, user?.ifsc, user?.upiId, user?.bankName]);
 
   const isValidUpi = (value: string) =>
     /^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$/.test(value.trim());

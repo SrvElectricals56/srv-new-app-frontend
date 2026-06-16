@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Pressable,
   ActivityIndicator,
-  useWindowDimensions,
   Image,
 } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';

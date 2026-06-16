@@ -32,13 +32,15 @@ export function AppGate({ children }: Props) {
     typeof globalThis.location?.search === 'string' &&
     isAppPreviewSearch(globalThis.location.search);
 
-  if (isPreviewMode) {
-    return <>{children}</>;
-  }
 
   // Check if this force-update has already been dismissed for this version
   useEffect(() => {
     const check = async () => {
+      if (isPreviewMode) {
+        setChecked(true);
+        return;
+      }
+
       if (!appSettings) {
         setChecked(true);
         return;
@@ -76,7 +78,7 @@ export function AppGate({ children }: Props) {
     };
 
     check();
-  }, [appSettings]);
+  }, [appSettings, isPreviewMode]);
 
   // Called when user taps "Update" — record that they acknowledged this version
   const handleGoToStore = useCallback(async () => {
@@ -91,6 +93,10 @@ export function AppGate({ children }: Props) {
   const handleRetry = useCallback(() => {
     void refreshAll();
   }, [refreshAll]);
+
+  if (isPreviewMode) {
+    return <>{children}</>;
+  }
 
   // Wait until we've checked storage before rendering — show children immediately
   // to avoid a blank flash; gate screens will replace them once check resolves

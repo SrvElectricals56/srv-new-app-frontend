@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, CameraView, scanFromURLAsync } from 'expo-camera';
 import {
@@ -651,7 +651,10 @@ export function ScanScreen({
     inputRange: [0, 1],
     outputRange: [0, frameSize - 10],
   });
-  const totalBatchPoints = batchItems.reduce((sum, item) => sum + item.points, 0);
+  const totalBatchPoints = useMemo(
+    () => batchItems.reduce((sum, item) => sum + item.points, 0),
+    [batchItems],
+  );
 
   const isDark = darkMode;
 

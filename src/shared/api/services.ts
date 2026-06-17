@@ -424,6 +424,19 @@ export const catalogApi = {
 
   buyNow: (data: { productId: string; quantity?: number; shippingAddress?: string }) =>
     api.post<{ message: string; order: ProductOrder }>('/mobile/product-orders', data, true),
+
+  createRazorpayOrder: (data: { productId: string; quantity?: number; shippingAddress: string }) =>
+    api.post<RazorpayOrderResponse>('/mobile/payments/razorpay/order', data, true),
+
+  verifyRazorpayPayment: (data: {
+    productOrderId: string;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }) => api.post<{ message: string; order: ProductOrder }>('/mobile/payments/razorpay/verify', data, true),
+
+  recordRazorpayFailure: (data: { productOrderId: string; reason?: string }) =>
+    api.post<{ message: string }>('/mobile/payments/razorpay/failure', data, true),
 };
 
 export type ActivityEventType =
@@ -844,7 +857,36 @@ export type ProductOrder = {
   quantity: number;
   price: number;
   status: string;
+  shippingAddress?: string | null;
+  trackingNumber?: string | null;
+  courierName?: string | null;
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+  paidAt?: string | null;
+  estimatedDeliveryAt?: string | null;
+  dispatchedAt?: string | null;
+  deliveredAt?: string | null;
+  rejectedAt?: string | null;
+  refundStatus?: string | null;
+  refundMessage?: string | null;
+  rejectionReason?: string | null;
+  deliveryNotes?: string | null;
   orderedAt: string;
+};
+
+export type RazorpayOrderResponse = {
+  keyId: string;
+  productOrderId: string;
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  businessName: string;
+  description: string;
+  prefill: {
+    name?: string;
+    contact?: string;
+    email?: string;
+  };
 };
 
 export type Banner = {
@@ -1051,6 +1093,20 @@ export type UserOrder = {
   userName: string;
   points: number;
   deliveredAt?: string | null;
+  orderedAt?: string | null;
+  paidAt?: string | null;
+  estimatedDeliveryAt?: string | null;
+  dispatchedAt?: string | null;
+  rejectedAt?: string | null;
+  shippingAddress?: string | null;
+  trackingNumber?: string | null;
+  courierName?: string | null;
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+  refundStatus?: string | null;
+  refundMessage?: string | null;
+  rejectionReason?: string | null;
+  deliveryNotes?: string | null;
   createdAt: string;
 };
 

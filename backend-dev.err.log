@@ -1,0 +1,117 @@
+(node:12848) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:13200) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:15668) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:21584) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[31m[Nest] 21584  - [39m06/17/2026, 3:06:17 PM [31m  ERROR[39m [38;5;3m[NestApplication] [39m[31mError: listen EADDRINUSE: address already in use 0.0.0.0:3001[39m[38;5;3m +4ms[39m
+node:net:1948
+    const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+               ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at node:net:2214:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3001
+}
+
+Node.js v24.14.0
+ERROR in ./src/modules/product-order/product-order.service.ts:283:46
+TS2769: No overload matches this call.
+  Overload 1 of 2, '(entities: ProductOrder[], options?: RemoveOptions): Promise<ProductOrder[]>', gave the following error.
+    Argument of type '{ id: string; userId: string; userRole: UserRole; userName: string; userPhone: string; userCode: string; productId: string; productName: string; productImage: string; quantity: number; ... 18 more ...; updatedAt: Date; }' is not assignable to parameter of type 'ProductOrder[]'.
+      Type '{ id: string; userId: string; userRole: UserRole; userName: string; userPhone: string; userCode: string; productId: string; productName: string; productImERROR in ./src/modules/product-order/product-order.service.ts:283:46
+TS2769: No overload matches this call.
+  Overload 1 of 2, '(entities: ProductOrder[], options?: RemoveOptions): Promise<ProductOrder[]>', gave the following error.
+    Argument of type '{ id: string; userId: string; userRole: UserRole; userName: string; userPhone: string; userCode: string; productId: string; productName: string; productImage: string; quantity: number; ... 18 more ...; updatedAt: Date; }' is not assignable to parameter of type 'ProductOrder[]'.
+      Type '{ id: string; userId: string; userRole: UserRole; userName: string; userPhone: string; userCode: string; productId: string; productName: string; productImage: string; quantity: number; ... 18 more ...; updatedAt: Date; }' is missing the following properties from type 'ProductOrder[]': length, pop, push, concat, and 29 more.
+  Overload 2 of 2, '(entity: ProductOrder, options?: RemoveOptions): Promise<ProductOrder>', gave the following error.
+    Argument of type '{ id: string; userId: string; userRole: UserRole; userName: string; userPhone: string; userCode: string; productId: string; productName: string; productImage: string; quantity: number; ... 18 more ...; updatedAt: Date; }' is not assignable to parameter of type 'ProductOrder'.
+      Type '{ id: string; userId: string; userRole: UserRole; userName: string; userPhone: string; userCode: string; productId: string; productName: string; productImage: string; quantity: number; ... 18 more ...; updatedAt: Date; }' is missing the following properties from type 'ProductOrder': razorpayOrderId,(node:30408) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:22192) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[31m[Nest] 22192  - [39m06/17/2026, 3:07:04 PM [31m  ERROR[39m [38;5;3m[NestApplication] [39m[31mError: listen EADDRINUSE: address already in use 0.0.0.0:3001[39m[38;5;3m +4ms[39m
+node:net:1948
+    const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+               ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at node:net:2214:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3001
+}
+
+Node.js v24.14.0
+(node:31280) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:31324) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[31m[Nest] 31324  - [39m06/17/2026, 3:13:47 PM [31m  ERROR[39m [38;5;3m[NestApplication] [39m[31mError: listen EADDRINUSE: address already in use 0.0.0.0:3001[39m[38;5;3m +5ms[39m
+node:net:1948
+    const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+               ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at node:net:2214:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3001
+}
+
+Node.js v24.14.0
+(node:26396) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[31m[Nest] 26396  - [39m06/17/2026, 4:35:41 PM [31m  ERROR[39m [38;5;3m[AllExceptionsFilter] [39m[31mDB Error 42703: column order.courierName does not exist[39m
+(node:16428) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[31m[Nest] 16428  - [39m06/17/2026, 4:36:39 PM [31m  ERROR[39m [38;5;3m[NestApplication] [39m[31mError: listen EADDRINUSE: address already in use 0.0.0.0:3001[39m[38;5;3m +3ms[39m
+node:net:1948
+    const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+               ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at node:net:2214:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3001
+}
+
+Node.js v24.14.0
+)
+    at node:net:2214:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3001
+}
+
+Node.js v24.14.0
+(node:29060) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

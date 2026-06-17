@@ -97,7 +97,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_ALIASES: Record<string, string> = {
-  modularbox: 'modular', pvcpipe: 'conduit', ledflood: 'led', boxes: 'mcb', fans: 'exhaust',
+  allproducts: 'all', modularbox: 'modular', pvcpipe: 'conduit', ledflood: 'led', boxes: 'mcb', fans: 'exhaust',
 };
 
 function normCat(id: string): string {

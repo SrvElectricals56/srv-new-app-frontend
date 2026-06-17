@@ -9,6 +9,7 @@ import {
   Pressable,
   ActivityIndicator,
   Image,
+  Platform,
 } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -89,11 +90,11 @@ function BackIcon({ color }: { color: string }) {
   );
 }
 
-function CODCheckIcon({ color }: { color: string }) {
+function PaymentChoiceIcon({ color, selected }: { color: string; selected: boolean }) {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="12" r="10" fill={color} />
-      <Path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx="12" cy="12" r="10" fill={selected ? color : 'transparent'} stroke={color} strokeWidth={1.8} />
+      {selected && <Path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
     </Svg>
   );
 }
@@ -123,8 +124,14 @@ export function CheckoutScreen({
 
   const [address, setAddress] = useState((user as any)?.address ?? '');
   const [placing, setPlacing] = useState(false);
-  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
-  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string; completeOnClose?: boolean }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => {
+    const shouldCompleteOrder = dialog.completeOnClose;
+    setDialog((d) => ({ ...d, visible: false, completeOnClose: false }));
+    if (shouldCompleteOrder) {
+      onOrderPlaced();
+    }
+  };
 
   const bg = darkMode ? theme.bgDark : theme.bg;
   const card = darkMode ? theme.cardDark : theme.card;
@@ -143,15 +150,65 @@ export function CheckoutScreen({
     }
     setPlacing(true);
     try {
-      await catalogApi.buyNow({ productId: item.id, quantity: item.qty, shippingAddress: address.trim() });
-      setDialog({ visible: true, variant: 'success', title: tx('Order placed'), message: tx('Your product order has been submitted successfully.') });
-      onOrderPlaced();
+      if (Platform.OS === 'web') {
+        throw new Error(tx('Online payment is available in the Android app.'));
+      }
+
+      const paymentOrder = await catalogApi.createRazorpayOrder({
+        productId: item.id,
+        quantity: item.qty,
+        shippingAddress: address.trim(),
+      });
+
+      let paymentResponse;
+      try {
+        const { default: RazorpayCheckout } = await import('react-native-razorpay');
+        const checkoutOptions = {
+          key: paymentOrder.keyId,
+          amount: paymentOrder.amount,
+          currency: paymentOrder.currency,
+          name: paymentOrder.businessName,
+          description: paymentOrder.description,
+          order_id: paymentOrder.razorpayOrderId,
+          prefill: paymentOrder.prefill,
+          method: 'upi',
+          retry: { enabled: true, max_count: 3 },
+          theme: { color: theme.primary },
+        };
+        // Razorpay supports `method`, but v3's bundled TypeScript definition omits it.
+        paymentResponse = await RazorpayCheckout.open(checkoutOptions as any);
+      } catch (paymentError: any) {
+        await catalogApi.recordRazorpayFailure({
+          productOrderId: paymentOrder.productOrderId,
+          reason: paymentError?.description || paymentError?.message || 'Payment cancelled',
+        }).catch(() => undefined);
+        throw paymentError;
+      }
+
+      await catalogApi.verifyRazorpayPayment({
+        productOrderId: paymentOrder.productOrderId,
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+      setDialog({
+        visible: true,
+        variant: 'success',
+        title: tx('Order Confirmed'),
+        message: tx('Payment received. Your order has been confirmed and is ready for processing.'),
+        completeOnClose: true,
+      });
     } catch (error: any) {
-      setDialog({ visible: true, variant: 'error', title: tx('Order failed'), message: error?.message || tx('Please try again.') });
+      setDialog({
+        visible: true,
+        variant: 'error',
+        title: tx('Payment failed'),
+        message: error?.description || error?.message || tx('Please try again.'),
+      });
     } finally {
       setPlacing(false);
     }
-  }, [item, address, tx, onOrderPlaced]);
+  }, [item, address, theme.primary, tx]);
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
@@ -234,13 +291,20 @@ export function CheckoutScreen({
 
         <View style={[styles.sectionCard, { backgroundColor: card, borderColor: border }]}>
           <Text style={[styles.sectionTitle, { color: textPrimary }]}>{tx('Payment Method')}</Text>
-          <LinearGradient
-            colors={[theme.primarySoft, theme.primarySoft]}
-            style={[styles.paymentOption, { borderColor: theme.primary }]}
-          >
-            <CODCheckIcon color={theme.primary} />
-            <Text style={[styles.paymentText, { color: theme.primaryDark }]}>Cash on Delivery (COD)</Text>
-          </LinearGradient>
+          <View style={styles.paymentList}>
+            <TouchableOpacity activeOpacity={0.82}>
+              <LinearGradient
+                colors={[theme.primarySoft, theme.primarySoft]}
+                style={[styles.paymentOption, { borderColor: theme.primary }]}
+              >
+                <PaymentChoiceIcon color={theme.primary} selected />
+                <View style={styles.paymentCopy}>
+                  <Text style={[styles.paymentText, { color: textPrimary }]}>{tx('Pay Online with Razorpay')}</Text>
+                  <Text style={[styles.paymentHint, { color: textMuted }]}>{tx('UPI, cards, netbanking and wallets')}</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -269,7 +333,7 @@ export function CheckoutScreen({
             {placing ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.placeOrderText}>{tx('Place Order (COD)')}</Text>
+              <Text style={styles.placeOrderText}>{tx('Pay Securely')}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -394,7 +458,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     gap: 10,
   },
+  paymentList: { gap: 10 },
+  paymentCopy: { flex: 1 },
   paymentText: { fontSize: 14, fontWeight: '600' },
+  paymentHint: { fontSize: 11, marginTop: 3 },
 
   footer: {
     position: 'absolute',

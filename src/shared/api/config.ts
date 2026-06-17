@@ -4,7 +4,7 @@ const ENV_URL = process.env.EXPO_PUBLIC_API_URL?.trim();
 
 const DEFAULT_URL_BY_PLATFORM: Record<string, string> = {
   web: 'http://localhost:3001/api/v1',
-  android: 'http://10.0.2.2:3001/api/v1',
+  android: 'http://127.0.0.1:3001/api/v1',
   ios: 'http://127.0.0.1:3001/api/v1',
 };
 

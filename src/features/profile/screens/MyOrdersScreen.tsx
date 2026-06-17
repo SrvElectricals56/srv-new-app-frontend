@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { ordersApi, type UserOrder } from '@/shared/api';
@@ -13,8 +13,9 @@ function formatDate(value?: string | null) {
   return result || 'Recent';
 }
 
-function toStatusLabel(status?: string) {
+function toStatusLabel(status?: string | null, type?: string | null) {
   const normalized = String(status ?? '').trim().toLowerCase();
+  if (type === 'product' && normalized === 'pending') return 'Order Confirmed';
   if (!normalized) return 'Pending';
   return normalized
     .split(/[_\s-]+/)
@@ -28,12 +29,36 @@ function isClosedStatus(status?: string) {
   return ['approved', 'completed', 'delivered', 'rejected', 'cancelled'].includes(normalized);
 }
 
+function getOrderStatusColors(status?: string | null, paymentStatus?: string | null) {
+  const normalized = String(status ?? '').trim().toLowerCase();
+  if (normalized === 'rejected' || normalized === 'cancelled') {
+    return { background: '#FEE2E2', text: '#B91C1C' };
+  }
+  if (normalized === 'pending' || normalized === 'approved') {
+    return { background: '#DBEAFE', text: '#1D4ED8' };
+  }
+  return { background: '#DCFCE7', text: '#166534' };
+}
+
+function getTrackingSteps(order: UserOrder) {
+  const status = String(order.status ?? '').toLowerCase();
+  const rejected = status === 'rejected';
+  return [
+    { label: 'Order placed', value: formatDate(order.orderedAt ?? order.createdAt), done: true },
+    { label: 'Payment done', value: order.paidAt ? formatDate(order.paidAt) : toStatusLabel(order.paymentStatus), done: order.paymentStatus === 'paid' || order.type === 'gift' },
+    { label: 'Processing', value: rejected ? 'Rejected by admin' : 'Order confirmed', done: !rejected && ['pending', 'approved', 'shipped', 'delivered'].includes(status) },
+    { label: 'Dispatched', value: order.dispatchedAt ? formatDate(order.dispatchedAt) : (order.trackingNumber || 'Waiting for dispatch'), done: ['shipped', 'delivered'].includes(status) },
+    { label: rejected ? 'Refund' : 'Delivery', value: rejected ? (order.refundMessage || 'Refund will be processed within 2 business days.') : (order.deliveredAt ? formatDate(order.deliveredAt) : `Expected ${formatDate(order.estimatedDeliveryAt)}`), done: rejected || status === 'delivered' },
+  ];
+}
+
 export function MyOrdersPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
   const { role } = useAuth();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'my_orders');
   const [orders, setOrders] = useState<UserOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     ordersApi
@@ -107,9 +132,15 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             </Text>
           </View>
         ) : (
-          orders.map((order) => (
-            <View
+          orders.map((order) => {
+            const expanded = expandedOrderId === order.id;
+            const trackingSteps = order.type === 'product' ? getTrackingSteps(order) : [];
+            const statusColors = getOrderStatusColors(order.status, order.paymentStatus);
+            return (
+            <TouchableOpacity
               key={order.id}
+              activeOpacity={0.9}
+              onPress={() => setExpandedOrderId(expanded ? null : order.id)}
               style={[
                 styles.orderCard,
                 { backgroundColor: theme.surface, borderColor: theme.border },
@@ -128,8 +159,8 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
                   </Text>
                   <Text style={[styles.orderMeta, { color: theme.textMuted }]}>{order.id}</Text>
                 </View>
-                <View style={styles.statusChip}>
-                  <Text style={styles.statusText}>{toStatusLabel(order.status)}</Text>
+                <View style={[styles.statusChip, { backgroundColor: statusColors.background }]}>
+                  <Text style={[styles.statusText, { color: statusColors.text }]}>{toStatusLabel(order.status, order.type)}</Text>
                 </View>
               </View>
               <View style={[styles.detailStrip, { backgroundColor: theme.soft }]}>
@@ -142,8 +173,42 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
                     ? `₹${order.total.toLocaleString('en-IN')}`
                     : `${order.points.toLocaleString('en-IN')} pts`}</Text>
               </View>
-            </View>
-          ))
+              {expanded && order.type === 'product' && (
+                <View style={[styles.trackingBox, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                  <Text style={[styles.trackingTitle, { color: theme.textPrimary }]}>{tx('Shipping Details')}</Text>
+                  {trackingSteps.map((step, index) => (
+                    <View key={`${step.label}-${index}`} style={styles.trackingStep}>
+                      <View style={[styles.trackingDot, { backgroundColor: step.done ? '#16A34A' : theme.border }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.trackingLabel, { color: theme.textPrimary }]}>{tx(step.label)}</Text>
+                        <Text style={[styles.trackingValue, { color: theme.textMuted }]}>{step.value}</Text>
+                      </View>
+                    </View>
+                  ))}
+                  <View style={[styles.shipInfo, { borderTopColor: theme.border }]}>
+                    <Text style={[styles.shipInfoText, { color: theme.textSecondary }]}>
+                      {tx('Delivery Address')}: {order.shippingAddress || tx('Address saved with order')}
+                    </Text>
+                    {!!order.trackingNumber && (
+                      <Text style={[styles.shipInfoText, { color: theme.textSecondary }]}>
+                        {tx('Tracking ID')}: {order.trackingNumber}
+                      </Text>
+                    )}
+                    {!!order.courierName && (
+                      <Text style={[styles.shipInfoText, { color: theme.textSecondary }]}>
+                        {tx('Courier Partner')}: {order.courierName}
+                      </Text>
+                    )}
+                    {!!order.deliveryNotes && (
+                      <Text style={[styles.shipInfoText, { color: String(order.status).toLowerCase() === 'rejected' ? '#B91C1C' : '#166534' }]}>
+                        {order.deliveryNotes}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              )}
+            </TouchableOpacity>
+          );})
         )}
       </ScrollView>
     </View>
@@ -185,6 +250,14 @@ const styles = StyleSheet.create({
   },
   detailText: { fontSize: 13, fontWeight: '700' },
   dot: { marginHorizontal: 8, fontSize: 14 },
+  trackingBox: { borderRadius: 18, borderWidth: 1, padding: 14, gap: 10 },
+  trackingTitle: { fontSize: 13, fontWeight: '900', marginBottom: 2 },
+  trackingStep: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  trackingDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
+  trackingLabel: { fontSize: 12, fontWeight: '800' },
+  trackingValue: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  shipInfo: { borderTopWidth: 1, paddingTop: 10, gap: 5 },
+  shipInfoText: { fontSize: 12, fontWeight: '700', lineHeight: 17 },
   emptyCard: {
     borderRadius: 22,
     padding: 24,

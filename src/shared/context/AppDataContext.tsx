@@ -1,5 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 import {
   bannersApi,
   catalogApi,
@@ -119,7 +122,7 @@ type AppDataContextType = {
   redeemReward: (data: { schemeId: string; note?: string }) => Promise<void>;
   transferPoints: (data: { receiverPhone: string; points: number }) => Promise<void>;
   requestDealerBonusWithdrawal: (data: { amount: number }) => Promise<void>;
-  submitSupportTicket: (data: { subject: string; comment: string; photoUrl?: string }) => Promise<void>;
+  submitSupportTicket: (data: { subject: string; comment: string; photoUrl?: string; photoUrls?: string[] }) => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
   submitRating: (rating: number, review?: string) => Promise<void>;
 };
@@ -429,6 +432,43 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [refreshAll]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || Platform.OS === 'web' || !Device.isDevice) return;
+    let active = true;
+    const register = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'SRV Notifications',
+            importance: Notifications.AndroidImportance.HIGH,
+            vibrationPattern: [0, 250, 250, 250],
+          });
+        }
+        const current = await Notifications.getPermissionsAsync();
+        const permission = current.status === 'granted' ? current : await Notifications.requestPermissionsAsync();
+        if (permission.status !== 'granted' || !active) return;
+        const projectId = Constants.easConfig?.projectId ?? (Constants.expoConfig?.extra as any)?.eas?.projectId;
+        if (!projectId) {
+          logDataWarning('Push token registration skipped: EAS projectId is not configured.');
+          return;
+        }
+        const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        if (active && token) await notificationsApi.registerPushToken(token, Platform.OS);
+      } catch (error) {
+        logDataWarning('Push token registration failed.', error);
+      }
+    };
+    void register();
+    const received = Notifications.addNotificationReceivedListener(() => {
+      clearCache('/mobile/notifications');
+      void loadPrivateData();
+    });
+    return () => {
+      active = false;
+      received.remove();
+    };
+  }, [isAuthenticated, loadPrivateData, user?.id]);
+
   // Poll app settings every 30 seconds so maintenance mode / force update
   // reflects quickly without requiring the user to restart the app.
   useEffect(() => {
@@ -525,7 +565,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     void refreshAll();
   }, [refreshAll]);
 
-  const submitSupportTicket = useCallback(async (data: { subject: string; comment: string; photoUrl?: string }) => {
+  const submitSupportTicket = useCallback(async (data: { subject: string; comment: string; photoUrl?: string; photoUrls?: string[] }) => {
     await supportApi.createTicket(data);
   }, []);
 

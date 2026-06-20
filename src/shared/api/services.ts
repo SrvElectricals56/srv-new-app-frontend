@@ -495,6 +495,8 @@ export const notificationsApi = {
   },
   delete: (id: string) =>
     api.delete<{ message: string }>(`/mobile/notifications/${id}`, true),
+  registerPushToken: (token: string, platform: string) =>
+    api.post<{ message: string }>('/mobile/notifications/push-token', { token, platform }, true),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -706,7 +708,7 @@ export const profileApi = {
 // SUPPORT
 // ─────────────────────────────────────────────────────────────────────────────
 export const supportApi = {
-  createTicket: (data: { subject: string; comment: string; photoUrl?: string }) =>
+  createTicket: (data: { subject: string; comment: string; photoUrl?: string; photoUrls?: string[] }) =>
     api.post<{ message: string; ticketId: string }>('/mobile/support', data, true),
   getMyTickets: () =>
     api.get<{ data: any[] }>('/mobile/support/tickets', undefined, true),

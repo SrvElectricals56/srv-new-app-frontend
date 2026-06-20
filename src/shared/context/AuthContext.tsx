@@ -44,8 +44,9 @@ function normalizeProfile(profile: UserProfile | null | undefined): UserProfile 
   };
 }
 
-function isApprovedAccountStatus(status?: string | null) {
+function isApprovedAccountStatus(status?: string | null, role?: UserRole | null) {
   const normalized = String(status ?? '').trim().toLowerCase();
+  if (role === 'dealer' && normalized === 'pending') return true;
   return normalized === 'active' || normalized === 'approved';
 }
 
@@ -198,13 +199,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [refreshProfile]);
 
-  // While account is pending/inactive, poll profile so admin status changes unlock the app immediately.
+  // Poll dealer accounts in every status so an admin changing an active dealer to
+  // inactive is reflected immediately as well as pending/inactive accounts unlocking.
   useEffect(() => {
     if (!state.isAuthenticated || !state.user) {
       return;
     }
 
-    if (isApprovedAccountStatus(state.user.status)) {
+    if (state.role !== 'dealer' && isApprovedAccountStatus(state.user.status, state.role)) {
       return;
     }
 
@@ -223,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [refreshProfile, state.isAuthenticated, state.user]);
+  }, [refreshProfile, state.isAuthenticated, state.role, state.user?.id, state.user?.status]);
 
   // While KYC is pending, poll so admin rejection/approval reflects immediately.
   useEffect(() => {

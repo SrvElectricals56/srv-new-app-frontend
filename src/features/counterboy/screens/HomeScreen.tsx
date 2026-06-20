@@ -188,11 +188,13 @@ export function HomeScreen({
   onOpenProductCategory,
   profilePhotoUri,
   hasUnreadNotif = false,
+  unreadNotificationCount = 0,
 }: {
   onNavigate: (screen: Screen) => void;
   onOpenProductCategory: (category: string) => void;
   profilePhotoUri?: string | null;
   hasUnreadNotif?: boolean;
+  unreadNotificationCount?: number;
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const { user: authUser } = useAuth();
@@ -480,7 +482,7 @@ export function HomeScreen({
               <View style={[styles.topIconCore, styles.notificationCore, darkMode ? styles.notificationCoreDark : null]}>
                 <BellIcon color={darkMode ? '#C4A88C' : '#6F4E37'} />
               </View>
-              {hasUnreadNotif && <View style={styles.redDot} />}
+              {hasUnreadNotif && unreadNotificationCount > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</Text></View> : null}
             </TouchableOpacity>
           ) : null}
         </View>
@@ -538,6 +540,8 @@ const styles = StyleSheet.create({
   notificationCore: { backgroundColor: '#EDE0D4' },
   notificationCoreDark: { backgroundColor: 'rgba(111,78,55,0.2)' },
   redDot: { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: CB_PRIMARY, borderWidth: 1.5, borderColor: '#FFFFFF' },
+  notificationBadge: { position: 'absolute', top: 4, right: 3, minWidth: 19, height: 19, borderRadius: 10, paddingHorizontal: 4, backgroundColor: '#DC2626', borderWidth: 1.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  notificationBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   heroBannerWrap: { marginTop: 8, marginBottom: 4 },
   body: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 120 },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 22 },

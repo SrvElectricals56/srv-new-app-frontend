@@ -1,0 +1,845 @@
+{
+  "summary": {
+    "executedAt": "2026-06-18T11:00:29.120Z",
+    "environment": "Local development backend with live project database",
+    "total": 102,
+    "passed": 101,
+    "failed": 1,
+    "blocked": 0,
+    "catalog": {
+      "productsTotal": 274,
+      "productsActive": 273,
+      "activeZeroStock": 272,
+      "categories": 0,
+      "activeBanners": 4,
+      "qrTotal": 11710,
+      "qrScanned": 522
+    }
+  },
+  "findings": [
+    {
+      "module": "Catalog",
+      "name": "Active products are in stock",
+      "value": 272,
+      "severity": "HIGH"
+    }
+  ],
+  "tests": [
+    {
+      "id": "TC-001",
+      "module": "Platform",
+      "name": "Backend health endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 126
+    },
+    {
+      "id": "TC-002",
+      "module": "Platform",
+      "name": "OpenAPI specification available",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 34
+    },
+    {
+      "id": "TC-003",
+      "module": "Catalog",
+      "name": "Active product catalog",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 51
+    },
+    {
+      "id": "TC-004",
+      "module": "Catalog",
+      "name": "Product category catalog",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 17
+    },
+    {
+      "id": "TC-005",
+      "module": "Content",
+      "name": "Mobile banners",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 15
+    },
+    {
+      "id": "TC-006",
+      "module": "Settings",
+      "name": "Maintenance configuration",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-007",
+      "module": "Settings",
+      "name": "Application settings",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 15
+    },
+    {
+      "id": "TC-008",
+      "module": "Marketing",
+      "name": "Offers feed",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 9
+    },
+    {
+      "id": "TC-009",
+      "module": "Content",
+      "name": "Testimonials feed",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 11
+    },
+    {
+      "id": "TC-010",
+      "module": "Rewards",
+      "name": "Gift product catalog",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 9
+    },
+    {
+      "id": "TC-011",
+      "module": "Rewards",
+      "name": "Reward schemes",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 8
+    },
+    {
+      "id": "TC-012",
+      "module": "Content",
+      "name": "Festival theme endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 8
+    },
+    {
+      "id": "TC-013",
+      "module": "Authentication",
+      "name": "electrician profile authorization",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 33
+    },
+    {
+      "id": "TC-014",
+      "module": "Notifications",
+      "name": "electrician notification inbox",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 11
+    },
+    {
+      "id": "TC-015",
+      "module": "Support",
+      "name": "electrician support ticket history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 222
+    },
+    {
+      "id": "TC-016",
+      "module": "Orders",
+      "name": "electrician product order history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 46
+    },
+    {
+      "id": "TC-017",
+      "module": "Profile",
+      "name": "electrician profile QR",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 38
+    },
+    {
+      "id": "TC-018",
+      "module": "Wallet",
+      "name": "electrician wallet summary",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 40
+    },
+    {
+      "id": "TC-019",
+      "module": "QR & Rewards",
+      "name": "electrician scan history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 17
+    },
+    {
+      "id": "TC-020",
+      "module": "Rewards",
+      "name": "electrician redemption history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 8
+    },
+    {
+      "id": "TC-021",
+      "module": "Referral",
+      "name": "electrician referral details",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 8
+    },
+    {
+      "id": "TC-022",
+      "module": "Feedback",
+      "name": "electrician app rating endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 8
+    },
+    {
+      "id": "TC-023",
+      "module": "Media",
+      "name": "electrician plays feed",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 9
+    },
+    {
+      "id": "TC-024",
+      "module": "Cart",
+      "name": "electrician cart endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 11
+    },
+    {
+      "id": "TC-025",
+      "module": "Authentication",
+      "name": "dealer profile authorization",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 21
+    },
+    {
+      "id": "TC-026",
+      "module": "Notifications",
+      "name": "dealer notification inbox",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 11
+    },
+    {
+      "id": "TC-027",
+      "module": "Support",
+      "name": "dealer support ticket history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-028",
+      "module": "Orders",
+      "name": "dealer product order history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 13
+    },
+    {
+      "id": "TC-029",
+      "module": "Profile",
+      "name": "dealer profile QR",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 18
+    },
+    {
+      "id": "TC-030",
+      "module": "Wallet",
+      "name": "dealer wallet summary",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 43
+    },
+    {
+      "id": "TC-031",
+      "module": "QR & Rewards",
+      "name": "dealer scan history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 19
+    },
+    {
+      "id": "TC-032",
+      "module": "Rewards",
+      "name": "dealer redemption history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 11
+    },
+    {
+      "id": "TC-033",
+      "module": "Referral",
+      "name": "dealer referral details",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-034",
+      "module": "Feedback",
+      "name": "dealer app rating endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 9
+    },
+    {
+      "id": "TC-035",
+      "module": "Media",
+      "name": "dealer plays feed",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-036",
+      "module": "Cart",
+      "name": "dealer cart endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-037",
+      "module": "Authentication",
+      "name": "user profile authorization",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 23
+    },
+    {
+      "id": "TC-038",
+      "module": "Notifications",
+      "name": "user notification inbox",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 11
+    },
+    {
+      "id": "TC-039",
+      "module": "Support",
+      "name": "user support ticket history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 9
+    },
+    {
+      "id": "TC-040",
+      "module": "Orders",
+      "name": "user product order history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-041",
+      "module": "Profile",
+      "name": "user profile QR",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 19
+    },
+    {
+      "id": "TC-042",
+      "module": "Wallet",
+      "name": "user wallet summary",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 37
+    },
+    {
+      "id": "TC-043",
+      "module": "QR & Rewards",
+      "name": "user scan history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 15
+    },
+    {
+      "id": "TC-044",
+      "module": "Rewards",
+      "name": "user redemption history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 11
+    },
+    {
+      "id": "TC-045",
+      "module": "Referral",
+      "name": "user referral details",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 9
+    },
+    {
+      "id": "TC-046",
+      "module": "Feedback",
+      "name": "user app rating endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 8
+    },
+    {
+      "id": "TC-047",
+      "module": "Media",
+      "name": "user plays feed",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 9
+    },
+    {
+      "id": "TC-048",
+      "module": "Cart",
+      "name": "user cart endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 8
+    },
+    {
+      "id": "TC-049",
+      "module": "Authentication",
+      "name": "counterboy profile authorization",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 18
+    },
+    {
+      "id": "TC-050",
+      "module": "Notifications",
+      "name": "counterboy notification inbox",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 12
+    },
+    {
+      "id": "TC-051",
+      "module": "Support",
+      "name": "counterboy support ticket history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-052",
+      "module": "Orders",
+      "name": "counterboy product order history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-053",
+      "module": "Profile",
+      "name": "counterboy profile QR",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 21
+    },
+    {
+      "id": "TC-054",
+      "module": "Wallet",
+      "name": "counterboy wallet summary",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 36
+    },
+    {
+      "id": "TC-055",
+      "module": "QR & Rewards",
+      "name": "counterboy scan history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 17
+    },
+    {
+      "id": "TC-056",
+      "module": "Rewards",
+      "name": "counterboy redemption history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 8
+    },
+    {
+      "id": "TC-057",
+      "module": "Referral",
+      "name": "counterboy referral details",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-058",
+      "module": "Feedback",
+      "name": "counterboy app rating endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 7
+    },
+    {
+      "id": "TC-059",
+      "module": "Media",
+      "name": "counterboy plays feed",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-060",
+      "module": "Cart",
+      "name": "counterboy cart endpoint",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 9
+    },
+    {
+      "id": "TC-061",
+      "module": "Admin Authentication",
+      "name": "Admin profile authorization",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-062",
+      "module": "Support",
+      "name": "Create support query with three realistic-size photos",
+      "status": "PASS",
+      "details": "HTTP 201",
+      "durationMs": 145
+    },
+    {
+      "id": "TC-063",
+      "module": "Support",
+      "name": "Database preserves every uploaded support photo",
+      "status": "PASS",
+      "details": "Stored photo count: 3",
+      "durationMs": null
+    },
+    {
+      "id": "TC-064",
+      "module": "Support",
+      "name": "Admin support API returns all ticket photos",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 200
+    },
+    {
+      "id": "TC-065",
+      "module": "Admin API Regression",
+      "name": "Get current admin profile",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 12
+    },
+    {
+      "id": "TC-066",
+      "module": "Admin API Regression",
+      "name": "Get all distinct electrician states for filter dropdown",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 16
+    },
+    {
+      "id": "TC-067",
+      "module": "Admin API Regression",
+      "name": "Get all distinct electrician subCategories for filter dropdown",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 13
+    },
+    {
+      "id": "TC-068",
+      "module": "Admin API Regression",
+      "name": "Get electrician tier distribution counts",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 12
+    },
+    {
+      "id": "TC-069",
+      "module": "Admin API Regression",
+      "name": "Get all distinct dealer states for filter dropdown",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 13
+    },
+    {
+      "id": "TC-070",
+      "module": "Admin API Regression",
+      "name": "Get dealer stats (total, active, pending counts)",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 12
+    },
+    {
+      "id": "TC-071",
+      "module": "Admin API Regression",
+      "name": "Get QR code stats (total, active, used)",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 16
+    },
+    {
+      "id": "TC-072",
+      "module": "Admin API Regression",
+      "name": "Get scan statistics",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 87
+    },
+    {
+      "id": "TC-073",
+      "module": "Admin API Regression",
+      "name": "Get all notifications",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 16
+    },
+    {
+      "id": "TC-074",
+      "module": "Admin API Regression",
+      "name": "Get all banners",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 14
+    },
+    {
+      "id": "TC-075",
+      "module": "Admin API Regression",
+      "name": "Get referral statistics",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 43
+    },
+    {
+      "id": "TC-076",
+      "module": "Admin API Regression",
+      "name": "Get financial summary",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 53
+    },
+    {
+      "id": "TC-077",
+      "module": "Admin API Regression",
+      "name": "Get all financial transactions",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 53
+    },
+    {
+      "id": "TC-078",
+      "module": "Admin API Regression",
+      "name": "Get dealer bonus summary",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 28
+    },
+    {
+      "id": "TC-079",
+      "module": "Admin API Regression",
+      "name": "Get points transfer history",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 189
+    },
+    {
+      "id": "TC-080",
+      "module": "Admin API Regression",
+      "name": "Get dashboard analytics",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 27
+    },
+    {
+      "id": "TC-081",
+      "module": "Admin API Regression",
+      "name": "Get scan analytics",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 126
+    },
+    {
+      "id": "TC-082",
+      "module": "Admin API Regression",
+      "name": "Get user analytics",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 69
+    },
+    {
+      "id": "TC-083",
+      "module": "Admin API Regression",
+      "name": "Get revenue analytics",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 73
+    },
+    {
+      "id": "TC-084",
+      "module": "Admin API Regression",
+      "name": "Get all support tickets",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 1066
+    },
+    {
+      "id": "TC-085",
+      "module": "Admin API Regression",
+      "name": "Get all settings",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 16
+    },
+    {
+      "id": "TC-086",
+      "module": "Admin API Regression",
+      "name": "Get all product categories",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 14
+    },
+    {
+      "id": "TC-087",
+      "module": "Admin API Regression",
+      "name": "Get app user states",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 13
+    },
+    {
+      "id": "TC-088",
+      "module": "Admin API Regression",
+      "name": "Get app user stats",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 12
+    },
+    {
+      "id": "TC-089",
+      "module": "Admin API Regression",
+      "name": "Get counter boy states",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-090",
+      "module": "Admin API Regression",
+      "name": "Get counter boy stats",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 11
+    },
+    {
+      "id": "TC-091",
+      "module": "Admin API Regression",
+      "name": "Get play stats",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-092",
+      "module": "Admin API Regression",
+      "name": "Get all app icons",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 14
+    },
+    {
+      "id": "TC-093",
+      "module": "Admin API Regression",
+      "name": "Get currently active app icon",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 15
+    },
+    {
+      "id": "TC-094",
+      "module": "Admin API Regression",
+      "name": "Get product order stats",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "durationMs": 70
+    },
+    {
+      "id": "TC-095",
+      "module": "Catalog Data Integrity",
+      "name": "Active products available",
+      "status": "PASS",
+      "details": "Database count: 273",
+      "durationMs": null
+    },
+    {
+      "id": "TC-096",
+      "module": "Catalog Data Integrity",
+      "name": "Active products have names",
+      "status": "PASS",
+      "details": "Database count: 0",
+      "durationMs": null
+    },
+    {
+      "id": "TC-097",
+      "module": "Catalog Data Integrity",
+      "name": "Active products have unique SKU values",
+      "status": "PASS",
+      "details": "Database count: 0",
+      "durationMs": null
+    },
+    {
+      "id": "TC-098",
+      "module": "Catalog Data Integrity",
+      "name": "Active products have valid nonnegative prices",
+      "status": "PASS",
+      "details": "Database count: 0",
+      "durationMs": null
+    },
+    {
+      "id": "TC-099",
+      "module": "Catalog Data Integrity",
+      "name": "Active products are in stock",
+      "status": "FAIL",
+      "details": "Database count: 272",
+      "durationMs": null
+    },
+    {
+      "id": "TC-100",
+      "module": "Content Data Integrity",
+      "name": "Active banners have image references",
+      "status": "PASS",
+      "details": "Database count: 0",
+      "durationMs": null
+    },
+    {
+      "id": "TC-101",
+      "module": "QR & Rewards Data Integrity",
+      "name": "QR inventory exists",
+      "status": "PASS",
+      "details": "Database count: 11710",
+      "durationMs": null
+    },
+    {
+      "id": "TC-102",
+      "module": "Orders Data Integrity",
+      "name": "Product orders exist for workflow validation",
+      "status": "PASS",
+      "details": "Database count: 13",
+      "durationMs": null
+    }
+  ]
+}

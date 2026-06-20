@@ -417,11 +417,13 @@ export function HomeScreen({
   onOpenProductCategory,
   profilePhotoUri,
   hasUnreadNotif = false,
+  unreadNotificationCount = 0,
 }: {
   onNavigate: (screen: Screen) => void;
   onOpenProductCategory: (category: string) => void;
   profilePhotoUri?: string | null;
   hasUnreadNotif?: boolean;
+  unreadNotificationCount?: number;
 }) {
   const { darkMode, tx, language } = usePreferenceContext();
   const { user: authUser } = useAuth();
@@ -809,9 +811,9 @@ export function HomeScreen({
             >
               <View style={styles.bellIconWrap}>
                 <BellIcon color={darkMode ? '#FDBA74' : '#C2410C'} />
-                {hasUnreadNotif && (
-                  <View style={styles.redDot} />
-                )}
+                {hasUnreadNotif && unreadNotificationCount > 0 ? (
+                  <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</Text></View>
+                ) : null}
               </View>
             </TouchableOpacity>
           ) : null}
@@ -1053,6 +1055,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
+  notificationBadge: { position: 'absolute', top: -7, right: -9, minWidth: 19, height: 19, borderRadius: 10, paddingHorizontal: 4, backgroundColor: '#DC2626', borderWidth: 1.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  notificationBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   statLabel: { color: '#5C6F91', fontSize: 10, fontWeight: '700', marginBottom: 5 },
   statLabelDark: { color: '#BFDBFE' },
   statValue: { color: '#13294B', fontSize: 16, fontWeight: '900' },

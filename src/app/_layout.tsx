@@ -4,6 +4,16 @@ import { AuthProvider } from '../shared/context/AuthContext';
 import { AppDataProvider } from '../shared/context/AppDataContext';
 import { AppGate } from '../shared/components/AppGate';
 import { useFonts } from 'expo-font';
+import * as Notifications from 'expo-notifications';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function RootLayout() {
   // Load custom fonts globally so all screens have them ready

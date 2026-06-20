@@ -90,8 +90,9 @@ function roleNeedsAdminApproval(role: UserRole | null | undefined): role is User
   return role === 'dealer' || role === 'electrician' || role === 'user' || role === 'counterboy';
 }
 
-function isApprovedAccountStatus(status?: string | null) {
+function isApprovedAccountStatus(status?: string | null, role?: UserRole | null) {
   const normalized = String(status ?? '').trim().toLowerCase();
+  if (role === 'dealer' && normalized === 'pending') return true;
   return normalized === 'active' || normalized === 'approved';
 }
 
@@ -195,6 +196,7 @@ function AppContent() {
   );
   const [electricianRewardHistory, setElectricianRewardHistory] = useState<RewardHistoryItem[]>([]);
   const [hasUnreadNotif, setHasUnreadNotif] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [userCartItems, setUserCartItems] = useState<CartItem[]>([]);
   const [dealerCartItems, setDealerCartItems] = useState<CartItem[]>([]);
   const [counterboyCartItems, setCounterboyCartItems] = useState<CartItem[]>([]);
@@ -223,7 +225,7 @@ function AppContent() {
       ),
     [appSettings?.rolePageControls, isPreviewMode, previewState.rolePageControls]
   );
-  const pendingApprovalRole = !isPreviewMode && roleNeedsAdminApproval(authRole) && isAuthenticated && !isApprovedAccountStatus(user?.status)
+  const pendingApprovalRole = !isPreviewMode && roleNeedsAdminApproval(authRole) && isAuthenticated && !isApprovedAccountStatus(user?.status, authRole)
     ? authRole
     : null;
   const resolvedCurrentScreen = isPreviewMode || isRoleFeatureEnabled(rolePageControls, currentRole, currentScreen)
@@ -323,14 +325,15 @@ function AppContent() {
       try {
         const { notificationsApi: notifApi } = await import('@/shared/api');
         const res = await notifApi.getAll(authRole as string, user.id);
-        if (!res.data?.length) { setHasUnreadNotif(false); return; }
+        if (!res.data?.length) { setHasUnreadNotif(false); setUnreadNotifCount(0); return; }
         const notifScope = `${authRole ?? 'guest'}:${user.id}`;
         const [seenIds, clearedIds] = await Promise.all([
           storage.getSeenNotificationIds(notifScope),
           storage.getClearedNotificationIds(notifScope),
         ]);
-        const hasNew = res.data.some((n: any) => !seenIds.has(n.id) && !clearedIds.has(n.id));
-        setHasUnreadNotif(hasNew);
+        const unreadCount = res.data.filter((n: any) => !seenIds.has(n.id) && !clearedIds.has(n.id)).length;
+        setUnreadNotifCount(unreadCount);
+        setHasUnreadNotif(unreadCount > 0);
       } catch { /* silent */ }
     };
     void checkUnread();
@@ -635,6 +638,7 @@ function AppContent() {
 
   const handleNotificationsSeen = useCallback(() => {
     setHasUnreadNotif(false);
+    setUnreadNotifCount(0);
   }, []);
 
   const handlePasswordConfiguredChange = useCallback((role: UserRole, configured: boolean) => {
@@ -853,6 +857,7 @@ function AppContent() {
               onOpenProductCategory={handleOpenProductCategory}
               profilePhotoUri={profilePhotoByRole.dealer}
               hasUnreadNotif={hasUnreadNotif}
+              unreadNotificationCount={unreadNotifCount}
             />
           );
         case 'product':
@@ -984,6 +989,7 @@ function AppContent() {
               onOpenProductCategory={handleOpenProductCategory}
               profilePhotoUri={profilePhotoByRole.dealer}
               hasUnreadNotif={hasUnreadNotif}
+              unreadNotificationCount={unreadNotifCount}
             />
           );
       }
@@ -1011,6 +1017,7 @@ function AppContent() {
               totalPoints={electricianRewardPoints}
               totalScans={electricianRewardScans}
               hasUnreadNotif={hasUnreadNotif}
+              unreadNotificationCount={unreadNotifCount}
             />
           );
         case 'product':
@@ -1108,6 +1115,7 @@ function AppContent() {
               totalPoints={electricianRewardPoints}
               totalScans={electricianRewardScans}
               hasUnreadNotif={hasUnreadNotif}
+              unreadNotificationCount={unreadNotifCount}
             />
           );
       }
@@ -1129,6 +1137,7 @@ function AppContent() {
               onOpenProductCategory={handleOpenProductCategory}
               profilePhotoUri={profilePhotoByRole.counterboy}
               hasUnreadNotif={hasUnreadNotif}
+              unreadNotificationCount={unreadNotifCount}
             />
           );
         case 'product':
@@ -1234,6 +1243,7 @@ function AppContent() {
               onOpenProductCategory={handleOpenProductCategory}
               profilePhotoUri={profilePhotoByRole.counterboy}
               hasUnreadNotif={hasUnreadNotif}
+              unreadNotificationCount={unreadNotifCount}
             />
           );
       }
@@ -1256,6 +1266,7 @@ function AppContent() {
             totalPoints={electricianRewardPoints}
             totalScans={electricianRewardScans}
             hasUnreadNotif={hasUnreadNotif}
+            unreadNotificationCount={unreadNotifCount}
           />
         );
       case 'product':
@@ -1384,6 +1395,7 @@ function AppContent() {
             totalPoints={electricianRewardPoints}
             totalScans={electricianRewardScans}
             hasUnreadNotif={hasUnreadNotif}
+            unreadNotificationCount={unreadNotifCount}
           />
         );
     }
@@ -1425,6 +1437,7 @@ function AppContent() {
     renderGuestAuthLanding,
     guestAuthRole,
     hasUnreadNotif,
+    unreadNotifCount,
     userCartItems,
     dealerCartItems,
     electricianCartItems,

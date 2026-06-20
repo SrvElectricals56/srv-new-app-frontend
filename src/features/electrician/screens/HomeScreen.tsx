@@ -425,6 +425,7 @@ export function HomeScreen({
   totalPoints,
   totalScans,
   hasUnreadNotif = false,
+  unreadNotificationCount = 0,
 }: {
   onNavigate: (screen: Screen) => void;
   onOpenProductCategory: (category: string) => void;
@@ -432,6 +433,7 @@ export function HomeScreen({
   totalPoints: number;
   totalScans: number;
   hasUnreadNotif?: boolean;
+  unreadNotificationCount?: number;
 }) {
   const { darkMode, tx, language } = usePreferenceContext();
   const {
@@ -799,6 +801,9 @@ export function HomeScreen({
                   ]}
                 >
                   <BellIcon color={darkMode ? '#FDBA74' : '#C2410C'} />
+                  {hasUnreadNotif && unreadNotificationCount > 0 ? (
+                    <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</Text></View>
+                  ) : null}
                 </View>
               </TouchableOpacity>
             ) : null}
@@ -1046,6 +1051,8 @@ const styles = StyleSheet.create({
   notificationCoreDark: {
     backgroundColor: 'rgba(194,65,12,0.18)',
   },
+  notificationBadge: { position: 'absolute', top: -7, right: -9, minWidth: 19, height: 19, borderRadius: 10, paddingHorizontal: 4, backgroundColor: '#DC2626', borderWidth: 1.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  notificationBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   statRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
   statCardWrap: {
     flex: 1,

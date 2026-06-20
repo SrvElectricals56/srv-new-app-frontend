@@ -33,7 +33,11 @@ type Ticket = {
   status: string;
   replies?: { sender: string; senderName: string; message: string; timestamp: string }[];
   createdAt: string;
+  photoUrl?: string | null;
+  photoUrls?: string[];
 };
+
+const MAX_SUPPORT_PHOTOS = 5;
 
 export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
@@ -44,8 +48,8 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<'new' | 'tickets'>('new');
   const [subject, setSubject] = useState('');
   const [comment, setComment] = useState('');
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [pendingPhotos, setPendingPhotos] = useState<string[]>([]);
   const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
   const [supportMail, setSupportMail] = useState('info@srvelectricals.com');
   const [supportWhatsapp, setSupportWhatsapp] = useState('918837684004');
@@ -90,6 +94,10 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   }, [tab, loadTickets]);
 
   const pickPhoto = async () => {
+    if (photos.length >= MAX_SUPPORT_PHOTOS) {
+      setDialog({ visible: true, variant: 'info', title: tx('Photo limit reached'), message: tx('You can attach up to 5 photos.') });
+      return;
+    }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       setDialog({ visible: true, variant: 'info', title: tx('Permission required'), message: tx('Please allow gallery access.') }); return;
@@ -97,18 +105,20 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_SUPPORT_PHOTOS - photos.length,
     });
-    if (!res.canceled) setPendingPhoto(res.assets[0].uri);
+    if (!res.canceled) setPendingPhotos(res.assets.map(asset => asset.uri).slice(0, MAX_SUPPORT_PHOTOS - photos.length));
   };
 
   const confirmPhoto = () => {
-    if (!pendingPhoto) return;
-    setPhoto(pendingPhoto);
-    setPendingPhoto(null);
+    if (!pendingPhotos.length) return;
+    setPhotos(current => [...current, ...pendingPhotos].slice(0, MAX_SUPPORT_PHOTOS));
+    setPendingPhotos([]);
   };
 
   const cancelPhoto = () => {
-    setPendingPhoto(null);
+    setPendingPhotos([]);
   };
 
   const buildSupportMessage = () =>
@@ -128,15 +138,16 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     }
     setSubmitting(true);
     try {
-      const photoUrl = photo ? await toDataUri(photo) : undefined;
+      const photoUrls = photos.length ? await Promise.all(photos.map(toDataUri)) : undefined;
       await submitSupportTicket({
         subject: subject.trim(),
         comment: comment.trim(),
-        photoUrl,
+        photoUrl: photoUrls?.[0],
+        photoUrls,
       });
       setSubject('');
       setComment('');
-      setPhoto(null);
+      setPhotos([]);
       setDialog({ visible: true, variant: 'success', title: tx('Support Request'), message: tx('Your request has been submitted successfully.') });
       setTab('tickets');
     } catch {
@@ -156,8 +167,8 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     const canOpenApp = await Linking.canOpenURL(appUrl);
     if (canOpenApp) {
       await Linking.openURL(appUrl);
-      if (photo) {
-        setDialog({ visible: true, variant: 'info', title: tx('Photo ready'), message: tx('WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.') });
+      if (photos.length) {
+        setDialog({ visible: true, variant: 'info', title: tx('Photos ready'), message: tx('WhatsApp chat has opened on the SRV number. Please attach the selected photos manually inside WhatsApp.') });
       }
       return;
     }
@@ -166,8 +177,8 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       setDialog({ visible: true, variant: 'info', title: tx('WhatsApp unavailable'), message: tx('Please install or enable WhatsApp to send your request.') }); return;
     }
     await Linking.openURL(webUrl);
-    if (photo) {
-      setDialog({ visible: true, variant: 'info', title: tx('Photo ready'), message: tx('WhatsApp chat has opened on the SRV number. Please attach the selected photo manually inside WhatsApp.') });
+    if (photos.length) {
+      setDialog({ visible: true, variant: 'info', title: tx('Photos ready'), message: tx('WhatsApp chat has opened on the SRV number. Please attach the selected photos manually inside WhatsApp.') });
     }
   };
 
@@ -180,7 +191,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         recipients: [supportMail],
         subject: `SRV Support: ${subject.trim()}`,
         body: buildSupportMessage(),
-        attachments: photo ? [photo] : [],
+        attachments: photos,
       });
     } catch {
       const mailSubject = encodeURIComponent(`SRV Support: ${subject.trim()}`);
@@ -270,8 +281,12 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   };
 
   if (selectedTicket) {
+    const ticketPhotos = [...new Set([
+      ...(selectedTicket.photoUrls ?? []),
+      ...(selectedTicket.photoUrl ? [selectedTicket.photoUrl] : []),
+    ].filter(Boolean))] as string[];
     const messages = [
-      { type: 'user', message: selectedTicket.message, createdAt: selectedTicket.createdAt },
+      { type: 'user', message: selectedTicket.message, createdAt: selectedTicket.createdAt, photoUrls: ticketPhotos },
       ...(selectedTicket.replies || []).map(r => ({ type: r.sender, message: r.message, createdAt: r.timestamp, senderName: r.senderName })),
     ];
 
@@ -299,6 +314,13 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
                   borderColor: item.type === 'admin' ? '#DDD6FE' : theme.border,
                 }}>
                   <Text style={{ fontSize: 13, color: theme.textPrimary, lineHeight: 19 }}>{item.message}</Text>
+                  {'photoUrls' in item && item.photoUrls && item.photoUrls.length > 0 ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ticketPhotoStrip}>
+                      {item.photoUrls.map((photo, index) => (
+                        <Image key={`${photo}-${index}`} source={{ uri: photo }} style={styles.ticketPhoto} />
+                      ))}
+                    </ScrollView>
+                  ) : null}
                 </View>
                 <Text style={{ fontSize: 10, color: theme.textMuted, marginTop: 4, textAlign: item.type === 'admin' ? 'right' : 'left' }}>
                   {formatDate(item.createdAt as string)}
@@ -432,16 +454,30 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
               onChangeText={setComment}
               multiline
             />
-            <TouchableOpacity style={[styles.uploadBox, { backgroundColor: theme.soft, borderColor: theme.border }]} onPress={pickPhoto} activeOpacity={0.8}>
-              {photo ? (
-                <Image source={{ uri: photo }} style={styles.previewImage} />
-              ) : (
-                <View style={styles.uploadInner}>
-                  <AppIcon name="gallery" size={20} color={C.muted} />
-                  <Text style={styles.uploadText}>{tx('Upload Photo')}</Text>
+            <Text style={[styles.photoCount, { color: theme.textMuted }]}>{tx('Photos')} ({photos.length}/{MAX_SUPPORT_PHOTOS})</Text>
+            <Text style={[styles.photoHint, { color: theme.textMuted }]}>{tx('Tap + to select and attach multiple photos')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoStrip}>
+              {photos.map((photo, index) => (
+                <View key={`${photo}-${index}`} style={[styles.photoTile, { borderColor: theme.border }]}>
+                  <Image source={{ uri: photo }} style={styles.previewImage} />
+                  <TouchableOpacity onPress={() => setPhotos(current => current.filter((_, itemIndex) => itemIndex !== index))} style={styles.removePhotoButton} accessibilityLabel={tx('Remove photo')}>
+                    <Text style={styles.removePhotoText}>×</Text>
+                  </TouchableOpacity>
                 </View>
+              ))}
+              {photos.length < MAX_SUPPORT_PHOTOS && (
+                <TouchableOpacity
+                  style={[styles.addPhotoButton, { backgroundColor: theme.soft, borderColor: theme.border }]}
+                  onPress={pickPhoto}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={tx('Add multiple photos')}
+                >
+                  <Text style={[styles.addPhotoPlus, { color: accentColor }]}>+</Text>
+                  <Text style={[styles.addPhotoLabel, { color: theme.textMuted }]}>{photos.length ? tx('Add more') : tx('Upload Photos')}</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </ScrollView>
           </View>
           <TouchableOpacity
             style={[styles.primaryAction, { backgroundColor: accentColor }, submitting && { opacity: 0.7 }]}
@@ -555,11 +591,15 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         </Pressable>
       </Modal>
 
-      <Modal visible={!!pendingPhoto} animationType="fade" transparent onRequestClose={cancelPhoto}>
+      <Modal visible={pendingPhotos.length > 0} animationType="fade" transparent onRequestClose={cancelPhoto}>
         <View style={styles.dropdownOverlay}>
           <View style={[styles.dropdownSheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            {pendingPhoto ? <Image source={{ uri: pendingPhoto }} style={styles.confirmPreview} /> : null}
-            <Text style={[styles.dropdownTitle, { color: theme.textPrimary }]}>{tx('Use this photo?')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.confirmPreviewStrip}>
+              {pendingPhotos.map((photo, index) => (
+                <Image key={`${photo}-${index}`} source={{ uri: photo }} style={styles.confirmPreview} />
+              ))}
+            </ScrollView>
+            <Text style={[styles.dropdownTitle, { color: theme.textPrimary }]}>{tx('Add selected photos?')} ({pendingPhotos.length})</Text>
             <View style={styles.confirmActions}>
               <TouchableOpacity style={styles.confirmCancelBtn} onPress={cancelPhoto} activeOpacity={0.85}>
                 <Text style={styles.confirmCancelText}>{tx('Cancel')}</Text>
@@ -625,6 +665,15 @@ const styles = StyleSheet.create({
   },
   uploadText: { fontSize: 14, color: C.muted, fontWeight: '600' },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  photoCount: { fontSize: 12, fontWeight: '700', marginBottom: -4 },
+  photoHint: { fontSize: 11, lineHeight: 16, marginTop: -8 },
+  photoStrip: { gap: 10, paddingBottom: 2 },
+  photoTile: { width: 92, height: 92, borderRadius: 12, borderWidth: 1, overflow: 'hidden', position: 'relative' },
+  removePhotoButton: { position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(15,23,42,0.78)', alignItems: 'center', justifyContent: 'center' },
+  removePhotoText: { color: '#FFFFFF', fontSize: 18, lineHeight: 20, fontWeight: '700' },
+  addPhotoButton: { width: 92, height: 92, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', padding: 6 },
+  addPhotoPlus: { fontSize: 30, lineHeight: 32, fontWeight: '500' },
+  addPhotoLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
   dropdownOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15,17,32,0.45)',
@@ -642,12 +691,13 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: { fontSize: 14, fontWeight: '600', flex: 1, marginRight: 12 },
   confirmPreview: {
-    width: 220,
-    height: 220,
-    borderRadius: 20,
-    alignSelf: 'center',
-    marginBottom: 16,
+    width: 150,
+    height: 150,
+    borderRadius: 16,
   },
+  confirmPreviewStrip: { gap: 10, paddingBottom: 16 },
+  ticketPhotoStrip: { gap: 8, paddingTop: 10 },
+  ticketPhoto: { width: 118, height: 118, borderRadius: 12, resizeMode: 'cover' },
   confirmActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   confirmCancelBtn: {
     flex: 1,

@@ -1175,6 +1175,20 @@ export const playsApi = {
     api.post<PlayInteractions>(`/mobile/plays/${id}/comments`, { message }, true),
 };
 
+export type TopFiveMember = {
+  rank: number;
+  id: string;
+  name: string;
+  value: number;
+  valueLabel: string;
+  address: string;
+};
+
+export const leaderboardApi = {
+  getTopFive: (role: string) =>
+    api.get<TopFiveMember[]>('/mobile/leaderboard/top-five', { role }, true),
+};
+
 export type PlayVideo = {
   id: string;
   title: string;

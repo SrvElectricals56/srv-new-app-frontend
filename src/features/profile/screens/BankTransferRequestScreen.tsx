@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -120,9 +122,18 @@ export function BankTransferRequestPage({
   const quickAmounts = isDealer ? ['500', '1000', '2500'] : ['100', '500', '1000'];
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: theme.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
       <PageHeader title={pageContent.pageTitle || tx('Bank Transfer')} onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.heroRow}>
             <View style={[styles.heroIconWrap, { backgroundColor: theme.accentSoft }]}>
@@ -242,12 +253,12 @@ export function BankTransferRequestPage({
         message={dialog.message}
         onClose={closeDialog}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 16, paddingBottom: 32 },
+  content: { padding: 16, gap: 16, paddingBottom: 140 },
   heroCard: { borderRadius: 26, borderWidth: 1, padding: 18, gap: 14 },
   heroRow: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
   heroIconWrap: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },

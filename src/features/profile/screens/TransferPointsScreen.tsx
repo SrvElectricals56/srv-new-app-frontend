@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,7 +33,7 @@ export function TransferPointsPage({
 }) {
   const { t, tx, theme } = usePreferenceContext();
   const { user, refreshProfile } = useAuth();
-  const { refreshAll } = useAppData();
+  const { refreshAll, appSettings } = useAppData();
   const pageContent = useAppPageContent(currentRole, 'transfer_points');
   const [mobile, setMobile] = useState('');
   const [points, setPoints] = useState('');
@@ -63,6 +66,33 @@ export function TransferPointsPage({
     }
   };
 
+  const handleInviteRecipient = async () => {
+    const phone = mobile.trim();
+    if (phone.length !== 10) {
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid number'), message: tx('Please enter a valid 10-digit mobile number.') });
+      return;
+    }
+
+    const appLink = appSettings?.playStoreUrl || 'https://play.google.com/store/apps/details?id=com.srvelectricals';
+    const message = encodeURIComponent(
+      `SRV Electricals app par account banaiye aur points receive kijiye. App download link: ${appLink}`
+    );
+    const whatsappUrl = `whatsapp://send?phone=91${phone}&text=${message}`;
+    const fallbackUrl = `https://wa.me/91${phone}?text=${message}`;
+    try {
+      await Linking.openURL(whatsappUrl);
+    } catch {
+      Linking.openURL(fallbackUrl).catch(() => {
+        setDialog({
+          visible: true,
+          variant: 'info',
+          title: tx('Invite link'),
+          message: `${tx('Share this app link with receiver')}: ${appLink}`,
+        });
+      });
+    }
+  };
+
   const handleTransfer = async () => {
     const pts = Number(points);
     if (!foundUser) { setDialog({ visible: true, variant: 'info', title: tx('Search first'), message: tx('Please search for a user first.') }); return; }
@@ -82,9 +112,18 @@ export function TransferPointsPage({
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: theme.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
       <PageHeader title={pageContent.pageTitle || t('transferPoint')} onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <View
           style={[
             styles.posterCard,
@@ -131,9 +170,22 @@ export function TransferPointsPage({
             </View>
           )}
           {searchError ? (
-            <View style={[styles.resultBox, { backgroundColor: '#FFF1F2', borderColor: '#FECDD3' }]}>
-              <AppIcon name="warning" size={18} color="#BE123C" />
-              <Text style={[styles.resultText, { color: '#BE123C' }]}>{searchError}</Text>
+            <View style={[styles.inviteBox, { backgroundColor: '#FFF7ED', borderColor: '#FDBA74' }]}>
+              <View style={styles.resultBoxInner}>
+                <AppIcon name="warning" size={18} color="#C2410C" />
+                <Text style={[styles.resultText, { color: '#9A3412' }]}>{searchError}</Text>
+              </View>
+              <Text style={[styles.inviteHelpText, { color: theme.textSecondary }]}>
+                {tx('This number is not registered. Send app link so they can create account, then transfer points to this number.')}
+              </Text>
+              <TouchableOpacity
+                style={[styles.inviteBtn, { backgroundColor: theme.accent }]}
+                activeOpacity={0.85}
+                onPress={handleInviteRecipient}
+              >
+                <AppIcon name="whatsapp" size={18} color="#FFFFFF" />
+                <Text style={styles.inviteBtnText}>{tx('Send App Link')}</Text>
+              </TouchableOpacity>
             </View>
           ) : null}
         </View>
@@ -195,12 +247,12 @@ export function TransferPointsPage({
         ) : null}
       </ScrollView>
       <Dialog visible={dialog.visible} variant={dialog.variant} title={dialog.title} message={dialog.message} onClose={closeDialog} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { padding: 16, gap: 16, paddingBottom: 32 },
+  scrollContent: { padding: 16, gap: 16, paddingBottom: 140 },
   posterCard: { alignItems: 'center', justifyContent: 'center', borderRadius: 28, borderWidth: 1, paddingVertical: 18, overflow: 'hidden' },
   heroImage: { width: 310, height: 200, maxWidth: '100%' },
   balanceCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, padding: 16 },
@@ -212,7 +264,12 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, height: 52, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 14, fontWeight: '600' },
   searchBtn: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   resultBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12 },
+  resultBoxInner: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   resultText: { fontSize: 14, fontWeight: '700', flex: 1 },
+  inviteBox: { borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
+  inviteHelpText: { fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  inviteBtn: { minHeight: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  inviteBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
   transferBtn: { height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   transferBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   scannerCard: { borderRadius: 24, padding: 20, gap: 16, borderWidth: 1 },

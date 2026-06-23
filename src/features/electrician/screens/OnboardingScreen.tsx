@@ -772,6 +772,7 @@ export function OnboardingScreen({
   const [signupOtpCountdown, setSignupOtpCountdown] = useState(0);
   const [signupPass, setSignupPass] = useState('');
   const [signupConfirmPass, setSignupConfirmPass] = useState('');
+  const [signupPasswordSkipped, setSignupPasswordSkipped] = useState(false);
   const [signupTermsAgreed, setSignupTermsAgreed] = useState(false);
   const [signupStep, setSignupStep] = useState<SignupStep>('name');
   const [dealerVerified, setDealerVerified] = useState(false);
@@ -1055,9 +1056,21 @@ export function OnboardingScreen({
     return '';
   };
 
-  const signupPasswordReady =
-    (signupPass.length === 0 && signupConfirmPass.length === 0) ||
-    (isValidPassword(signupPass) && signupConfirmPass === signupPass);
+  const signupPasswordReady = signupPasswordSkipped ||
+    (signupPass.length > 0 && isValidPassword(signupPass) && signupConfirmPass === signupPass);
+
+  const togglePasswordSkip = () => {
+    setSignupPasswordSkipped((current) => {
+      const next = !current;
+      if (next) {
+        setSignupPass('');
+        setSignupConfirmPass('');
+        setError('signupPass');
+        setError('signupConfirmPass');
+      }
+      return next;
+    });
+  };
 
   const canContinue = useMemo(() => {
     if (mode === 'login') {
@@ -2553,6 +2566,7 @@ export function OnboardingScreen({
                                   label={tx('Password (Optional)')}
                                   value={signupPass}
                                   onChangeText={(value) => {
+                                    setSignupPasswordSkipped(false);
                                     setSignupPass(value);
                                     setError('signupPass', getPasswordError(value));
                                   }}
@@ -2586,6 +2600,10 @@ export function OnboardingScreen({
                                   actionContent={<EyeIcon open={showPassword} />}
                                   onActionPress={() => setShowPassword((current) => !current)}
                                 />
+                                <Pressable style={s.skipBtn} onPress={togglePasswordSkip}>
+                                  <Text style={s.skipBtnText}>{tx(signupPasswordSkipped ? 'Add Password Instead' : 'Skip for Now')}</Text>
+                                </Pressable>
+                                {signupPasswordSkipped ? <Info text={tx('Password skipped. Accept the terms below to continue.')} kind="success" /> : null}
                                 <Pressable
                                   style={[
                                     s.checkboxCard,
@@ -2606,6 +2624,7 @@ export function OnboardingScreen({
                                   </View>
                                 </Pressable>
                                 {errors.terms ? <Info text={errors.terms} kind="error" /> : null}
+                                {signupTermsAgreed && signupPasswordReady ? (
                                 <Button
                                   label={
                                     loading
@@ -2625,6 +2644,7 @@ export function OnboardingScreen({
                                   }}
                                   disabled={!canContinue || loading}
                                 />
+                                ) : null}
                               </>
                             ) : null}
                           </>
@@ -2744,7 +2764,7 @@ export function OnboardingScreen({
                                 maxLength={10}
                               />
                             ) : null}
-                            {signupStep === 'dealer' ? (
+                            {signupStep === 'dealer' && !dealerVerified ? (
                               <Button
                                 label={tx('Verify')}
                                 onPress={verifyDealer}
@@ -2814,6 +2834,7 @@ export function OnboardingScreen({
                                   label={tx('Password (Optional)')}
                                   value={signupPass}
                                   onChangeText={(value) => {
+                                    setSignupPasswordSkipped(false);
                                     setSignupPass(value);
                                     setError('signupPass', getPasswordError(value));
                                   }}
@@ -2847,6 +2868,10 @@ export function OnboardingScreen({
                                   actionContent={<EyeIcon open={showPassword} />}
                                   onActionPress={() => setShowPassword((current) => !current)}
                                 />
+                                <Pressable style={s.skipBtn} onPress={togglePasswordSkip}>
+                                  <Text style={s.skipBtnText}>{tx(signupPasswordSkipped ? 'Add Password Instead' : 'Skip for Now')}</Text>
+                                </Pressable>
+                                {signupPasswordSkipped ? <Info text={tx('Password skipped. Accept the terms below to continue.')} kind="success" /> : null}
                                 <Pressable
                                   style={[
                                     s.checkboxCard,
@@ -2867,6 +2892,7 @@ export function OnboardingScreen({
                                   </View>
                                 </Pressable>
                                 {errors.terms ? <Info text={errors.terms} kind="error" /> : null}
+                                {signupTermsAgreed && signupPasswordReady ? (
                                 <Button
                                   label={loading ? tx('Creating Account...') : tx('Create Account')}
                                   onPress={() => {
@@ -2884,6 +2910,7 @@ export function OnboardingScreen({
                                   colors={['#173E80', '#355C95']}
                                   shadowColor="#173E80"
                                 />
+                                ) : null}
                               </>
                             ) : null}
                           </>

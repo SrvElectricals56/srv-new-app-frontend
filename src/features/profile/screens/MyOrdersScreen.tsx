@@ -134,7 +134,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
         ) : (
           orders.map((order) => {
             const expanded = expandedOrderId === order.id;
-            const trackingSteps = order.type === 'product' ? getTrackingSteps(order) : [];
+            const trackingSteps = getTrackingSteps(order);
             const statusColors = getOrderStatusColors(order.status, order.paymentStatus);
             return (
             <TouchableOpacity
@@ -173,7 +173,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
                     ? `₹${order.total.toLocaleString('en-IN')}`
                     : `${order.points.toLocaleString('en-IN')} pts`}</Text>
               </View>
-              {expanded && order.type === 'product' && (
+              {expanded && (
                 <View style={[styles.trackingBox, { backgroundColor: theme.soft, borderColor: theme.border }]}>
                   <Text style={[styles.trackingTitle, { color: theme.textPrimary }]}>{tx('Shipping Details')}</Text>
                   {trackingSteps.map((step, index) => (

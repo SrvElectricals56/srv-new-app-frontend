@@ -47,7 +47,7 @@ export function ScanHistoryPage({ onBack }: { onBack: () => void }) {
           <View style={styles.totalDivider} />
           <View>
             <Text style={styles.totalLabel}>{tx('Points Earned')}</Text>
-            <Text style={[styles.totalValue, { color: '#FFD67A' }]}>
+            <Text style={[styles.totalValue, { color: '#22C55E' }]}>
               {loading ? '...' : totalPoints.toLocaleString('en-IN')}
             </Text>
           </View>
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 14, fontWeight: '800' },
   sub: { fontSize: 12, marginTop: 3 },
-  cta: { fontSize: 12, fontWeight: '800', color: C.primary },
+  cta: { fontSize: 12, fontWeight: '800', color: '#16A34A' },
   emptyCard: {
     borderRadius: 22,
     padding: 24,

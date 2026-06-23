@@ -11,10 +11,12 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { EmptyState, PageHeader } from '../components/ProfileShared';
 import { playsApi, type PlayVideo } from '@/shared/api/services';
+import { resolveImageUrl } from '@/shared/api/config';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { usePreferenceContext } from '@/shared/preferences';
 import type { UserRole } from '@/shared/types/navigation';
@@ -129,6 +131,7 @@ export function RolePlayVideosScreen({
 }) {
   const { tx, theme } = usePreferenceContext();
   const { appSettings } = useAppData();
+  const { width, height } = useWindowDimensions();
   const [loading, setLoading] = useState(true);
   const [videos, setVideos] = useState<PlayVideo[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<VideoCategoryKey>('all');
@@ -138,7 +141,12 @@ export function RolePlayVideosScreen({
     setLoading(true);
     try {
       const response = await playsApi.getAll();
-      const ordered = [...(response.data ?? [])].sort((a, b) => {
+      const normalized = (response.data ?? []).map(video => ({
+        ...video,
+        videoUrl: resolveImageUrl(video.videoUrl) ?? video.videoUrl,
+        thumbnailUrl: resolveImageUrl(video.thumbnailUrl) ?? video.thumbnailUrl,
+      }));
+      const ordered = normalized.sort((a, b) => {
         const orderGap = (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
         if (orderGap !== 0) return orderGap;
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -175,6 +183,8 @@ export function RolePlayVideosScreen({
     theme.accentSoft ?? '#FDECEC',
     theme.surface,
   ];
+  const reelWidth = Math.min(width - 32, 430);
+  const reelHeight = Math.min(Math.round(reelWidth * 16 / 9), Math.round(height * 0.72));
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.bg }]}>
@@ -262,10 +272,14 @@ export function RolePlayVideosScreen({
                   return (
                     <Pressable
                       key={video.id}
-                      style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                      style={[
+                        styles.card,
+                        styles.reelCard,
+                        { width: reelWidth, backgroundColor: theme.surface, borderColor: theme.border },
+                      ]}
                       onPress={() => openVideo(video)}
                     >
-                      <View style={[styles.thumbnailFrame, { backgroundColor: theme.soft }]}>
+                      <View style={[styles.thumbnailFrame, { height: reelHeight, backgroundColor: theme.soft }]}>
                         {thumbnail ? (
                           <Image source={{ uri: thumbnail }} style={styles.thumbnail} resizeMode="cover" />
                         ) : (
@@ -331,8 +345,8 @@ export function RolePlayVideosScreen({
                 <Text style={styles.modalOpenText}>{tx('Open Source')}</Text>
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-              <View style={styles.modalFrame}>
+            <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+              <View style={[styles.modalFrame, { width: reelWidth, height: reelHeight }]}>
                 {isYouTube(selectedVideo.videoUrl) && getYouTubeVideoId(selectedVideo.videoUrl) ? (
                   <YouTubePlayer videoId={getYouTubeVideoId(selectedVideo.videoUrl)!} />
                 ) : isDirectVideo(selectedVideo.videoUrl) ? (
@@ -447,15 +461,18 @@ const styles = StyleSheet.create({
   },
   videoList: {
     gap: 14,
+    alignItems: 'center',
   },
   card: {
     borderRadius: 24,
     borderWidth: 1,
     overflow: 'hidden',
   },
+  reelCard: {
+    maxWidth: 430,
+  },
   thumbnailFrame: {
     width: '100%',
-    aspectRatio: 16 / 9,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -554,11 +571,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  modalScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+    alignItems: 'center',
+  },
   modalFrame: {
-    width: '100%',
-    aspectRatio: 16 / 9,
     backgroundColor: '#020617',
     overflow: 'hidden',
+    alignSelf: 'center',
+    borderRadius: 28,
   },
   modalFallbackImage: {
     width: '100%',
@@ -577,6 +600,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalBody: {
+    width: '100%',
     padding: 18,
     gap: 8,
   },

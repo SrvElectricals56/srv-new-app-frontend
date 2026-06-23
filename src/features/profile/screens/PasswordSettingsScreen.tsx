@@ -396,9 +396,7 @@ export function PasswordSettingsPage({
       if (confirmSetPassword.trim().length === 0) {
         nextErrors.confirmSetPassword = tx('Please confirm your password to continue.');
       } else if (confirmSetPassword !== trimmedSetPassword) {
-        nextErrors.confirmSetPassword = tx(
-          'Passwords do not match. Please enter the same password again.'
-        );
+        nextErrors.confirmSetPassword = tx('Please enter both passwords same.');
       }
 
       setErrors(nextErrors);
@@ -465,9 +463,7 @@ export function PasswordSettingsPage({
     if (confirmNewPassword.trim().length === 0) {
       nextErrors.confirmNewPassword = tx('Please confirm your new password to continue.');
     } else if (confirmNewPassword !== trimmedNewPassword) {
-      nextErrors.confirmNewPassword = tx(
-        'Passwords do not match. Please enter the same password again.'
-      );
+      nextErrors.confirmNewPassword = tx('Please enter both passwords same.');
     }
 
     setErrors(nextErrors);

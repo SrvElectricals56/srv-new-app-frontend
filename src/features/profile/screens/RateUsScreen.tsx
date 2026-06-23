@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
@@ -84,12 +84,18 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: theme.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
       <PageHeader title={pageContent.pageTitle || tx('Rate Us')} onBack={onBack} />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {submitted ? (
           <View
@@ -257,12 +263,12 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
           </>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 40, gap: 16 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 140, gap: 16 },
   heroCard: {
     borderRadius: 30,
     padding: 22,

@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import {
   Animated,
@@ -25,6 +25,7 @@ import {
   type TestimonialItem,
 } from '@/shared/components/TestimonialShowcase';
 import { WebsitePromoSection } from '@/shared/components/WebsitePromoSection';
+import { TopFiveLeaderboard } from '@/shared/components/TopFiveLeaderboard';
 import { BannerCarousel, type BannerSlide as CarouselSlide } from '@/shared/components/BannerCarousel';
 import { createShadow } from '@/shared/theme/shadows';
 import { formatCountText, usePreferenceContext } from '@/shared/preferences';
@@ -682,7 +683,9 @@ export function HomeScreen({
         </View>
       ) : null,
       quick_actions: (
-        <View key="quick_actions" style={styles.quickGrid}>
+        <Fragment key="quick_actions">
+        <TopFiveLeaderboard role="dealer" darkMode={darkMode} />
+        <View style={styles.quickGrid}>
           {quickActions.map((item) => {
             const Icon = item.icon;
             return (
@@ -709,6 +712,7 @@ export function HomeScreen({
             );
           })}
         </View>
+        </Fragment>
       ),
       browse_categories: displayedCategories.length > 0 ? (
         <View key="browse_categories">

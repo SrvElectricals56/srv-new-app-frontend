@@ -132,6 +132,7 @@ export function NotificationScreen({
   const roleTheme = ROLE_THEME[role === 'electrician' ? 'electrician' : 'user'];
   const { user } = useAuth();
   const [notifItems, setNotifItems] = useState<NotifItem[]>([]);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
@@ -191,6 +192,8 @@ export function NotificationScreen({
     loadAndMarkSeen();
   }, [loadAndMarkSeen]);
 
+  const displayedNotifications = showAllNotifications ? notifItems : notifItems.slice(0, 5);
+
   return (
     <ScrollView
       style={[styles.screen, darkMode ? styles.screenDark : null]}
@@ -227,7 +230,7 @@ export function NotificationScreen({
           <TouchableOpacity
             style={styles.heroGhostBtn}
             activeOpacity={0.85}
-            onPress={() => onNavigate('profile')}
+            onPress={() => setShowAllNotifications(true)}
           >
             <Text style={styles.heroGhostText}>{pageContent.secondaryCtaLabel || tx('More')}</Text>
           </TouchableOpacity>
@@ -272,7 +275,7 @@ export function NotificationScreen({
         </View>
       )}
 
-      {notifItems.map((item, index) => {
+      {displayedNotifications.map((item, index) => {
         const Icon = item.icon;
         return (
           <LinearGradient

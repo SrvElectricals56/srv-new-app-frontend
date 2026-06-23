@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import {
   Image, Linking, ScrollView,
@@ -16,6 +16,7 @@ import {
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import { BannerCarousel } from '@/shared/components/BannerCarousel';
+import { TopFiveLeaderboard } from '@/shared/components/TopFiveLeaderboard';
 import {
   TESTIMONIAL_FALLBACK_COPY,
   getTestimonialTheme,
@@ -356,7 +357,9 @@ export function HomeScreen({
       hero_banner: null,
       home_banner: null,
       quick_actions: (
-        <View key="quick_actions" style={styles.quickGrid}>
+        <Fragment key="quick_actions">
+        <TopFiveLeaderboard role="counterboy" darkMode={darkMode} />
+        <View style={styles.quickGrid}>
           {quickActions.map((item) => {
             const Icon = item.icon;
             return (
@@ -375,6 +378,7 @@ export function HomeScreen({
             );
           })}
         </View>
+        </Fragment>
       ),
       browse_categories: (
         <View key="browse_categories">

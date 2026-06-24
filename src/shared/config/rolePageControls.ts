@@ -155,10 +155,16 @@ export function resolveRolePageControls(input?: unknown): RolePageControls {
 
   // Dealer Play Zone stays available even if older server-side settings omit or disable it.
   normalized.dealer.play = true;
+  normalized.dealer.cart = true;
+  normalized.dealer.checkout = true;
   normalized.electrician.play = true;
   normalized.electrician.cart = true;
   normalized.electrician.checkout = true;
+  normalized.user.cart = true;
+  normalized.user.checkout = true;
   normalized.counterboy.play = true;
+  normalized.counterboy.cart = true;
+  normalized.counterboy.checkout = true;
   // Counter boy Gift Store — always enabled; old server configs may not have this set
   normalized.counterboy.rewards = true;
   normalized.counterboy.scan = true;

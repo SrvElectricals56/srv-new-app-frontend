@@ -237,6 +237,30 @@ export function PasswordSettingsPage({
     setSuccessMessage('');
   }, [hasPasswordConfigured, storedPassword]);
 
+  useEffect(() => {
+    setErrors((current) => {
+      const next = { ...current };
+
+      if (mode === 'set') {
+        if (setPassword && confirmSetPassword && setPassword !== confirmSetPassword) {
+          next.confirmSetPassword = tx('Please enter both passwords same.');
+        } else if (next.confirmSetPassword === tx('Please enter both passwords same.')) {
+          next.confirmSetPassword = undefined;
+        }
+      }
+
+      if (mode === 'change') {
+        if (newPassword && confirmNewPassword && newPassword !== confirmNewPassword) {
+          next.confirmNewPassword = tx('Please enter both passwords same.');
+        } else if (next.confirmNewPassword === tx('Please enter both passwords same.')) {
+          next.confirmNewPassword = undefined;
+        }
+      }
+
+      return next;
+    });
+  }, [confirmNewPassword, confirmSetPassword, mode, newPassword, setPassword, tx]);
+
   // Sync hasPasswordConfigured from backend profile to avoid stale storage state
   useEffect(() => {
     if (user && typeof (user as any).hasPassword === 'boolean') {

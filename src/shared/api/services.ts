@@ -184,6 +184,7 @@ export const authApi = {
     address?: string;
     state?: string;
     city?: string;
+    district?: string;
     pincode?: string;
   }) => {
     if (data.role === 'dealer') {
@@ -207,7 +208,7 @@ export const authApi = {
         address: data.address,
         state: data.state,
         city: data.city,
-        district: data.city,
+        district: data.district ?? data.city,
         pincode: data.pincode,
       });
     }
@@ -220,7 +221,7 @@ export const authApi = {
         address: data.address,
         state: data.state,
         city: data.city,
-        district: data.city,
+        district: data.district ?? data.city,
         pincode: data.pincode,
       });
     }
@@ -1088,6 +1089,8 @@ export type UserOrder = {
   status: string;
   title: string;
   productName: string;
+  productImage?: string | null;
+  imageUrl?: string | null;
   quantity: number;
   price: number;
   total: number;

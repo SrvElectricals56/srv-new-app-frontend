@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { ordersApi, type UserOrder } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { formatISTDate } from '@/shared/utils/dateIST';
+import { resolveImageUrl } from '@/shared/api/config';
 
 function formatDate(value?: string | null) {
   if (!value) return 'Recent';
@@ -38,6 +39,10 @@ function getOrderStatusColors(status?: string | null, paymentStatus?: string | n
     return { background: '#DBEAFE', text: '#1D4ED8' };
   }
   return { background: '#DCFCE7', text: '#166534' };
+}
+
+function getOrderImage(order: UserOrder) {
+  return resolveImageUrl(order.productImage ?? order.imageUrl ?? (order as any).image ?? null);
 }
 
 function getTrackingSteps(order: UserOrder) {
@@ -136,6 +141,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             const expanded = expandedOrderId === order.id;
             const trackingSteps = getTrackingSteps(order);
             const statusColors = getOrderStatusColors(order.status, order.paymentStatus);
+            const orderImage = getOrderImage(order);
             return (
             <TouchableOpacity
               key={order.id}
@@ -147,8 +153,12 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
               ]}
             >
               <View style={styles.orderHead}>
-                <View style={[styles.orderIcon, { backgroundColor: order.type === 'product' ? '#DBEAFE' : C.purpleLight }]}>
-                  <AppIcon name={order.type === 'product' ? 'order' : 'redeem'} size={20} color={order.type === 'product' ? '#1D4ED8' : C.purple} />
+                <View style={[styles.orderImageWrap, { backgroundColor: order.type === 'product' ? '#DBEAFE' : C.purpleLight }]}>
+                  {orderImage ? (
+                    <Image source={{ uri: orderImage }} style={styles.orderImage} resizeMode="contain" />
+                  ) : (
+                    <AppIcon name={order.type === 'product' ? 'order' : 'redeem'} size={20} color={order.type === 'product' ? '#1D4ED8' : C.purple} />
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.orderTitle, { color: theme.textPrimary }]}>
@@ -223,14 +233,17 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 26, fontWeight: '900', marginTop: 6 },
   orderCard: { borderRadius: 24, borderWidth: 1, padding: 16, gap: 14 },
   orderHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  orderIcon: {
-    width: 46,
-    height: 46,
+  orderImageWrap: {
+    width: 58,
+    height: 58,
     borderRadius: 15,
     backgroundColor: C.purpleLight,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    padding: 5,
   },
+  orderImage: { width: '100%', height: '100%' },
   orderTitle: { fontSize: 15, fontWeight: '800' },
   orderType: { fontSize: 11, fontWeight: '700', marginTop: 2 },
   orderMeta: { fontSize: 12, marginTop: 3 },

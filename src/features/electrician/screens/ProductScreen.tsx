@@ -370,8 +370,8 @@ function buildUiCategories(products: UiProduct[], apiCats: ApiProductCategory[])
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 const ProductCard = memo(function ProductCard({
-  product, cardW, onOpen, darkMode, actionLabel,
-}: { product: UiProduct; cardW: number; onOpen: () => void; darkMode: boolean; actionLabel: string }) {
+  product, cardW, onOpen, onAction, darkMode, actionLabel,
+}: { product: UiProduct; cardW: number; onOpen: () => void; onAction?: () => void; darkMode: boolean; actionLabel: string }) {
   const cc = catColor(product.category);
 
   // Entry animation
@@ -466,7 +466,7 @@ const ProductCard = memo(function ProductCard({
               <Text style={[styles.productName, darkMode ? styles.productNameDark : null]} numberOfLines={2}>{product.name}</Text>
               <Text style={[styles.productSub,  darkMode ? styles.productSubDark  : null]} numberOfLines={2}>{product.sub}</Text>
             </View>
-            <TouchableOpacity onPress={onOpen} style={[styles.scanBtn, { backgroundColor: cc.scanBg }]} activeOpacity={0.8}>
+            <TouchableOpacity onPress={onAction ?? onOpen} style={[styles.scanBtn, { backgroundColor: cc.scanBg }]} activeOpacity={0.8}>
               <ScanIcon size={15} color={cc.scanText} />
               <Text style={[styles.scanBtnText, { color: cc.scanText }]}>{actionLabel}</Text>
             </TouchableOpacity>
@@ -739,6 +739,38 @@ export function ProductScreen({
     });
   }, [role, trackProductActivity]);
 
+  const handleCardAction = useCallback((product: UiProduct) => {
+    if (!(isDealer || isCustomer || isCounterboy)) {
+      handleOpenProduct(product);
+      return;
+    }
+
+    if (!requireAuth()) return;
+
+    if (!onBuyNow) {
+      handleOpenProduct(product);
+      return;
+    }
+
+    trackProductActivity({
+      eventType: 'product_buy_now',
+      eventLabel: `Tapped Buy Now for ${product.name}`,
+      screen: 'product',
+      productId: product.id,
+      productName: product.name,
+      productCategory: product.category,
+      quantity: 1,
+    });
+    onBuyNow({
+      id: product.id,
+      name: product.name,
+      desc: product.sub || product.description,
+      image: { uri: product.imageUrl },
+      price: product.price,
+      qty: 1,
+    });
+  }, [handleOpenProduct, isCounterboy, isCustomer, isDealer, onBuyNow, requireAuth, trackProductActivity]);
+
   useEffect(() => {
     if (!selectedProduct) return;
     return () => {
@@ -840,12 +872,28 @@ export function ProductScreen({
   // ── Render row ──────────────────────────────────────────────────────────────
   const renderRow = useCallback(({ item }: { item: ProductRow }) => (
     <View style={styles.row}>
-      <ProductCard product={item.left} cardW={cardW} onOpen={() => handleOpenProduct(item.left)} darkMode={darkMode} actionLabel={productActionLabel} />
+      <ProductCard
+        product={item.left}
+        cardW={cardW}
+        onOpen={() => handleOpenProduct(item.left)}
+        onAction={() => handleCardAction(item.left)}
+        darkMode={darkMode}
+        actionLabel={productActionLabel}
+      />
       {item.right
-        ? <ProductCard product={item.right} cardW={cardW} onOpen={() => handleOpenProduct(item.right!)} darkMode={darkMode} actionLabel={productActionLabel} />
+        ? (
+          <ProductCard
+            product={item.right}
+            cardW={cardW}
+            onOpen={() => handleOpenProduct(item.right!)}
+            onAction={() => handleCardAction(item.right!)}
+            darkMode={darkMode}
+            actionLabel={productActionLabel}
+          />
+        )
         : <View style={{ width: cardW }} />}
     </View>
-  ), [cardW, darkMode, handleOpenProduct, productActionLabel]);
+  ), [cardW, darkMode, handleCardAction, handleOpenProduct, productActionLabel]);
 
   const keyExtractor = useCallback((item: ProductRow) => item.key, []);
 

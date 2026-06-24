@@ -118,7 +118,7 @@ const dealerSignupMeta: Partial<
     stepLabel: 'Step 2 of 5',
     title: 'Location Details',
     description:
-      'Enter your district and 6-digit pincode manually.',
+      'Enter your state, district and 6-digit pincode manually.',
     buttonLabel: 'Continue to Identity',
   },
   identity: {
@@ -730,6 +730,7 @@ export function OnboardingScreen({
   const signupDealerRef = useRef<TextInput | null>(null);
   const signupPhoneRef = useRef<TextInput | null>(null);
   const signupOtpRef = useRef<TextInput | null>(null);
+  const signupStateRef = useRef<TextInput | null>(null);
   const signupCityRef = useRef<TextInput | null>(null);
   const signupPincodeRef = useRef<TextInput | null>(null);
   const signupGstNumberRef = useRef<TextInput | null>(null);
@@ -761,6 +762,7 @@ export function OnboardingScreen({
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupDealerPhone, setSignupDealerPhone] = useState('');
+  const [signupState, setSignupState] = useState('');
   const [signupCity, setSignupCity] = useState('');
   const [signupPincode, setSignupPincode] = useState('');
   const [signupGstNumber, setSignupGstNumber] = useState('');
@@ -927,6 +929,7 @@ export function OnboardingScreen({
       signupDealerRef,
       signupPhoneRef,
       signupOtpRef,
+      signupStateRef,
       signupCityRef,
       signupPincodeRef,
       signupGstNumberRef,
@@ -954,6 +957,7 @@ export function OnboardingScreen({
     setSignupName('');
     setSignupEmail('');
     setSignupDealerPhone('');
+    setSignupState('');
     setSignupCity('');
     setSignupPincode('');
     setSignupGstNumber('');
@@ -1100,6 +1104,7 @@ export function OnboardingScreen({
     if (role === 'dealer') {
       return (
         signupName.trim().length >= 3 &&
+        signupState.trim().length >= 2 &&
         signupCity.trim().length >= 2 &&
         signupPincode.trim().length === 6 &&
         signupPhone.length === 10 &&
@@ -1111,6 +1116,7 @@ export function OnboardingScreen({
     if (role === 'counterboy' || role === 'user') {
       return (
         signupName.trim().length >= 3 &&
+        signupState.trim().length >= 2 &&
         signupCity.trim().length >= 2 &&
         signupPincode.trim().length === 6 &&
         signupPhone.length === 10 &&
@@ -1122,6 +1128,7 @@ export function OnboardingScreen({
     return (
       signupName.trim().length >= 3 &&
       dealerVerified &&
+      signupState.trim().length >= 2 &&
       signupCity.trim().length >= 2 &&
       signupPincode.trim().length === 6 &&
       signupPhone.length === 10 &&
@@ -1140,6 +1147,7 @@ export function OnboardingScreen({
     loginStep,
     mode,
     role,
+    signupState,
     signupCity,
     signupName,
     signupOtpVerified,
@@ -1264,7 +1272,7 @@ export function OnboardingScreen({
           email: sanitizeEmailInput(signupEmail).trim() || undefined,
           town: signupCity.trim(),
           district: signupCity.trim(),
-          state: signupCity.trim(),
+          state: signupState.trim(),
           address: '',
           pincode: signupPincode.trim() || undefined,
           gstNumber: normalizeGstOrPanNumber(signupGstNumber) || undefined,
@@ -1281,7 +1289,7 @@ export function OnboardingScreen({
           email: sanitizeEmailInput(signupEmail).trim() || undefined,
           city: signupCity.trim() || undefined,
           district: signupCity.trim() || undefined,
-          state: signupCity.trim() || undefined,
+          state: signupState.trim() || undefined,
           address: undefined,
           pincode: signupPincode.trim() || undefined,
           password: signupPass.trim() || undefined,
@@ -1297,7 +1305,7 @@ export function OnboardingScreen({
           email: sanitizeEmailInput(signupEmail).trim() || undefined,
           city: signupCity.trim() || undefined,
           district: signupCity.trim() || undefined,
-          state: signupCity.trim() || undefined,
+          state: signupState.trim() || undefined,
           address: undefined,
           pincode: signupPincode.trim() || undefined,
           password: signupPass.trim() || undefined,
@@ -1312,7 +1320,7 @@ export function OnboardingScreen({
         email: sanitizeEmailInput(signupEmail).trim() || undefined,
         city: signupCity.trim(),
         district: signupCity.trim(),
-        state: signupCity.trim(),
+        state: signupState.trim(),
         address: undefined,
         pincode: signupPincode.trim() || undefined,
         dealerPhone: signupDealerPhone,
@@ -1533,9 +1541,11 @@ export function OnboardingScreen({
       }
 
       if (signupStep === 'location') {
+        if (signupState.trim().length < 2) return setError('signupState', 'Please enter state.');
         if (signupCity.trim().length < 2) return setError('signupCity', 'Please enter district.');
         if (signupPincode.trim().length !== 6)
           return setError('signupPincode', 'Please enter a valid 6-digit pincode.');
+        setError('signupState');
         setError('signupCity');
         setError('signupPincode');
         setSignupStep('identity');
@@ -1584,9 +1594,11 @@ export function OnboardingScreen({
       return;
     }
     if (signupStep === 'address') {
+      if (signupState.trim().length < 2) return setError('signupState', 'Please enter state.');
       if (signupCity.trim().length < 2) return setError('signupCity', 'Please enter district.');
       if (signupPincode.trim().length !== 6)
         return setError('signupPincode', 'Please enter a valid 6-digit pincode.');
+      setError('signupState');
       setError('signupCity');
       setError('signupPincode');
       setSignupStep(role === 'electrician' ? 'dealer' : 'password');
@@ -2404,6 +2416,18 @@ export function OnboardingScreen({
                             {signupStep === 'location' ? (
                               <>
                                 <Field
+                                  label={tx('State')}
+                                  value={signupState}
+                                  onChangeText={handleName((v) => { setSignupState(v); setError('signupState'); })}
+                                  placeholder={tx('State')}
+                                  error={errors.signupState}
+                                  onFocus={scrollToForm}
+                                  inputRef={signupStateRef}
+                                  returnKeyType="next"
+                                  blurOnSubmit={false}
+                                  onSubmitEditing={() => signupCityRef.current?.focus()}
+                                />
+                                <Field
                                   label={tx('District')}
                                   value={signupCity}
                                   onChangeText={handleName((v) => { setSignupCity(v); setError('signupCity'); })}
@@ -2706,6 +2730,18 @@ export function OnboardingScreen({
 
                             {signupStep === 'address' ? (
                               <>
+                                <Field
+                                  label={tx('State')}
+                                  value={signupState}
+                                  onChangeText={handleName((v) => { setSignupState(v); setError('signupState'); })}
+                                  placeholder={tx('State')}
+                                  error={errors.signupState}
+                                  onFocus={scrollToForm}
+                                  inputRef={signupStateRef}
+                                  returnKeyType="next"
+                                  blurOnSubmit={false}
+                                  onSubmitEditing={() => signupCityRef.current?.focus()}
+                                />
                                 <Field
                                   label={tx('District')}
                                   value={signupCity}

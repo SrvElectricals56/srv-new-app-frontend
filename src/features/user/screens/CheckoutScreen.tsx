@@ -20,6 +20,7 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { catalogApi } from '@/shared/api';
 
 type CheckoutRole = 'electrician' | 'dealer' | 'customer' | 'counterboy';
+type PaymentMethod = 'online' | 'cod';
 
 const ROLE_THEMES: Record<CheckoutRole, {
   primary: string; primaryDark: string; primarySoft: string;
@@ -123,6 +124,7 @@ export function CheckoutScreen({
   const theme = ROLE_THEMES[role] ?? ROLE_THEMES.customer;
 
   const [address, setAddress] = useState((user as any)?.address ?? '');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
   const [placing, setPlacing] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string; completeOnClose?: boolean }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => {
@@ -150,6 +152,22 @@ export function CheckoutScreen({
     }
     setPlacing(true);
     try {
+      if (paymentMethod === 'cod') {
+        await catalogApi.buyNow({
+          productId: item.id,
+          quantity: item.qty,
+          shippingAddress: address.trim(),
+        });
+        setDialog({
+          visible: true,
+          variant: 'success',
+          title: tx('Order Confirmed'),
+          message: tx('Your order has been placed successfully with Cash on Delivery. You can track it from My Orders.'),
+          completeOnClose: true,
+        });
+        return;
+      }
+
       if (Platform.OS === 'web') {
         throw new Error(tx('Online payment is available in the Android app.'));
       }
@@ -208,7 +226,7 @@ export function CheckoutScreen({
     } finally {
       setPlacing(false);
     }
-  }, [item, address, theme.primary, tx]);
+  }, [item, address, paymentMethod, theme.primary, tx]);
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
@@ -292,15 +310,27 @@ export function CheckoutScreen({
         <View style={[styles.sectionCard, { backgroundColor: card, borderColor: border }]}>
           <Text style={[styles.sectionTitle, { color: textPrimary }]}>{tx('Payment Method')}</Text>
           <View style={styles.paymentList}>
-            <TouchableOpacity activeOpacity={0.82}>
+            <TouchableOpacity activeOpacity={0.82} onPress={() => setPaymentMethod('online')}>
               <LinearGradient
-                colors={[theme.primarySoft, theme.primarySoft]}
-                style={[styles.paymentOption, { borderColor: theme.primary }]}
+                colors={[paymentMethod === 'online' ? theme.primarySoft : inputBg, paymentMethod === 'online' ? theme.primarySoft : inputBg]}
+                style={[styles.paymentOption, { borderColor: paymentMethod === 'online' ? theme.primary : border }]}
               >
-                <PaymentChoiceIcon color={theme.primary} selected />
+                <PaymentChoiceIcon color={theme.primary} selected={paymentMethod === 'online'} />
                 <View style={styles.paymentCopy}>
                   <Text style={[styles.paymentText, { color: textPrimary }]}>{tx('Pay Online with Razorpay')}</Text>
                   <Text style={[styles.paymentHint, { color: textMuted }]}>{tx('UPI, cards, netbanking and wallets')}</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.82} onPress={() => setPaymentMethod('cod')}>
+              <LinearGradient
+                colors={[paymentMethod === 'cod' ? theme.primarySoft : inputBg, paymentMethod === 'cod' ? theme.primarySoft : inputBg]}
+                style={[styles.paymentOption, { borderColor: paymentMethod === 'cod' ? theme.primary : border }]}
+              >
+                <PaymentChoiceIcon color={theme.primary} selected={paymentMethod === 'cod'} />
+                <View style={styles.paymentCopy}>
+                  <Text style={[styles.paymentText, { color: textPrimary }]}>{tx('Cash on Delivery')}</Text>
+                  <Text style={[styles.paymentHint, { color: textMuted }]}>{tx('Pay cash when your order is delivered')}</Text>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -333,7 +363,7 @@ export function CheckoutScreen({
             {placing ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.placeOrderText}>{tx('Pay Securely')}</Text>
+              <Text style={styles.placeOrderText}>{paymentMethod === 'cod' ? tx('Place COD Order') : tx('Pay Securely')}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>

@@ -154,9 +154,11 @@ export function UserAuthScreen({
   const sEmailRef = useRef<TextInput>(null);
   const sOtpRef   = useRef<TextInput>(null);
   const sPwdRef   = useRef<TextInput>(null);
+  const sStateRef  = useRef<TextInput>(null);
   const sCityRef    = useRef<TextInput>(null);
   const sPincodeRef = useRef<TextInput>(null);
 
+  const [sState, setSState]     = useState('');
   const [sCity, setSCity]       = useState('');
   const [sPincode, setSPincode] = useState('');
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
@@ -208,6 +210,9 @@ export function UserAuthScreen({
       setOtpSentSignup(false);
       setOtpSignupPhone('');
       setSOtp('');
+      setSState('');
+      setSCity('');
+      setSPincode('');
       setShowSP(false);
       setSignupStep('identity');
     }
@@ -372,6 +377,10 @@ export function UserAuthScreen({
     }
     const cleanPhone = normalizePhone(sPhone);
     if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
+    if (sState.trim().length < 2) {
+      setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your state') });
+      return;
+    }
     if (sCity.trim().length < 2) {
       setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your district') });
       return;
@@ -394,8 +403,9 @@ export function UserAuthScreen({
         password: sPwd.trim() || undefined,
         role,
         address: undefined,
-        state: sCity.trim(),
+        state: sState.trim(),
         city: sCity.trim() || undefined,
+        district: sCity.trim() || undefined,
         pincode: sPincode.trim() || undefined,
       });
       (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = registerData.user;
@@ -576,13 +586,29 @@ export function UserAuthScreen({
                 <Input label={`${tx('Email')} (${tx('optional')})`} value={sEmail} onChange={handleSignupEmail}
                   placeholder={tx('your@email.com')} icon={<MailIcon c={P1} />}
                   keyboard="email-address" ref={sEmailRef}
-                  onSubmit={() => sCityRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
+                  onSubmit={() => sStateRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
               </View>
             )}
             
             {/* Signup: company policy requires manual district and pincode only */}
             {isSignupDetailsStep && (
               <View style={{ gap: 8 }}>
+                <View style={[S.inputWrap]}>
+                  <Text style={[S.inputLabel, { color: darkMode ? '#94A3B8' : '#6B7280' }]}>{tx('State')}</Text>
+                  <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
+                    <TextInput
+                      ref={sStateRef}
+                      style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
+                      value={sState}
+                      onChangeText={(v) => setSState(v.replace(/[^A-Za-z ]/g, ''))}
+                      placeholder={tx('State')}
+                      placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
+                      autoCapitalize="words"
+                      onSubmitEditing={() => sCityRef.current?.focus()}
+                      returnKeyType="next"
+                    />
+                  </View>
+                </View>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <View style={[S.inputWrap, { flex: 1 }]}>
                     <Text style={[S.inputLabel, { color: darkMode ? '#94A3B8' : '#6B7280' }]}>{tx('District')}</Text>

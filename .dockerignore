@@ -1,0 +1,15 @@
+.git
+.agents
+.expo
+.tmp-export-check
+.vscode
+android
+dist
+node_modules
+reports
+temp_laconic
+test-artifacts
+uploads
+*.log
+*.png
+expo-env.d.ts

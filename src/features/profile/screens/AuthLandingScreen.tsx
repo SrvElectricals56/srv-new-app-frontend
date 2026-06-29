@@ -5,7 +5,7 @@ import Svg, { Path } from 'react-native-svg';
 import { OnboardingScreen } from '@/features/electrician/screens/OnboardingScreen';
 import { UserAuthScreen } from '@/features/user/screens/AuthScreen';
 import { AppIcon, C } from '../components/ProfileShared';
-import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
+import { SRV_LOGO } from '@/shared/assets';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import type { UserRole } from '@/shared/types/navigation';
@@ -114,7 +114,7 @@ export function AuthLandingScreen({
         <View style={[styles.heroOrbLarge, { backgroundColor: roleTheme.orb }]} />
         <View style={[styles.heroOrbSmall, { backgroundColor: roleTheme.orb }]} />
         <View style={styles.logoWrap}>
-          <Image source={{ uri: SRV_LOGO_URI }} style={styles.logoImg} resizeMode="contain" />
+          <Image source={SRV_LOGO} style={styles.logoImg} resizeMode="contain" />
         </View>
         <View style={styles.heroTextBlock}>
           <Text style={styles.heroTag}>SRV ELECTRICALS</Text>

@@ -73,7 +73,7 @@ export function TransferPointsPage({
       return;
     }
 
-    const appLink = appSettings?.playStoreUrl || 'https://play.google.com/store/apps/details?id=com.srvelectricals';
+    const appLink = appSettings?.playStoreUrl || 'https://play.google.com/store/apps/details?id=com.srvelectricals.app';
     const message = encodeURIComponent(
       `SRV Electricals app par account banaiye aur points receive kijiye. App download link: ${appLink}`
     );

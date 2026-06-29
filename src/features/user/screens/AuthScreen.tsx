@@ -1,5 +1,5 @@
 // Customer Auth Screen â€” Role-aware account design
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated, Easing, Image, KeyboardAvoidingView, Platform,
    Pressable, ScrollView, StyleSheet, Text, TextInput, View,
@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
-import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
+import { SRV_LOGO } from '@/shared/assets';
 import { authApi } from '@/shared/api';
 import { isValidOptionalEmail, sanitizeEmailInput } from '@/shared/utils/validation';
 import { Dialog } from '@/shared/components/Dialog';
@@ -30,7 +30,6 @@ const LockIcon  = ({ c = '#6A2F12', s = 20 }) => <Svg width={s} height={s} viewB
 const EyeIcon   = ({ c = '#9CA3AF', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M2.5 12s3.3-5 9.5-5 9.5 5 9.5 5-3.3 5-9.5 5-9.5-5-9.5-5z" stroke={c} strokeWidth={1.8}/><Circle cx="12" cy="12" r="3" stroke={c} strokeWidth={1.8}/></Svg>;
 const EyeOffIcon= ({ c = '#9CA3AF', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M3 3l18 18" stroke={c} strokeWidth={1.8} strokeLinecap="round"/><Path d="M10.6 5.2c.5-.1.9-.2 1.4-.2 6.2 0 9.5 5 9.5 5a15.5 15.5 0 01-3.4 3.6M6.3 6.3A15.7 15.7 0 002.5 12s3.3 5 9.5 5c1 0 1.9-.1 2.7-.4" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
 const SwitchRoleIcon = ({ c = '#fff', s = 16 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M7 16H3m0 0l3-3m-3 3l3 3" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><Path d="M17 8h4m0 0l-3-3m3 3l-3 3" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><Path d="M3 8h10M11 16h10" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2"/></Svg>;
-const LocationIcon = ({ c = '#6A2F12', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke={c} strokeWidth={1.8}/><Circle cx="12" cy="9" r="2.5" stroke={c} strokeWidth={1.8}/></Svg>;
 const ArrowLeft = ({ c = '#6A2F12', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M19 12H5M11 18l-6-6 6-6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 const ArrowRight  = ({ c = '#fff', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M5 12h14M13 6l6 6-6 6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 
@@ -431,7 +430,7 @@ export function UserAuthScreen({
           <Orbs color={theme.orb} />
           <Animated.View style={[S.heroContent, { transform: [{ translateY: slideY }], opacity: fadeO }]}>
             <View style={S.logoWrap}>
-              <Image source={{ uri: SRV_LOGO_URI }} style={S.logoImg} resizeMode="contain" />
+              <Image source={SRV_LOGO} style={S.logoImg} resizeMode="contain" />
             </View>
             <Text style={S.heroTag}>SRV ELECTRICALS</Text>
             <Text style={S.heroTitle}>{tx('Welcome Back')}</Text>
@@ -505,7 +504,7 @@ export function UserAuthScreen({
       {/* Compact header */}
       <LinearGradient colors={[P1, P2]} style={[S.formHeader, { paddingTop: insets.top }]}>
         <View style={S.formHeaderLogoWrap}>
-          <Image source={{ uri: SRV_LOGO_URI }} style={S.formHeaderLogo} resizeMode="contain" />
+          <Image source={SRV_LOGO} style={S.formHeaderLogo} resizeMode="contain" />
         </View>
         <Text style={S.formHeaderTitle}>{isLogin ? tx('Login') : tx('Create Account')}</Text>
         <Text style={S.formHeaderSub}>{isLogin ? tx('Welcome back to SRV Electricals') : tx('Join SRV Electricals today')}</Text>

@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import Svg, { Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
-import { SRV_LOGO_URI } from '@/shared/data/logoBase64';
+import { SRV_LOGO } from '@/shared/assets';
 import { usePreferenceContext } from '@/shared/preferences';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { authApi, dealerApi } from '@/shared/api';
@@ -1723,7 +1723,7 @@ export function OnboardingScreen({
                   <View style={[s.brandRow, s.brandRowCentered]}>
                     <View style={[s.logoWrap, isCompactPhone ? s.logoWrapCompact : null]}>
                       <Image
-                        source={{ uri: SRV_LOGO_URI }}
+                        source={SRV_LOGO}
                         style={s.logo}
                         resizeMode="contain"
                       />

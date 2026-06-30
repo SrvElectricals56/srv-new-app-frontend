@@ -182,6 +182,7 @@ function ScanButton({
   return (
     <View style={[scanStyles.wrapper, compact && scanStyles.wrapperCompact]}>
       <Animated.View
+        pointerEvents="none"
         style={[
           scanStyles.ring,
           compact && scanStyles.ringCompact,
@@ -195,6 +196,7 @@ function ScanButton({
         ]}
       />
       <Animated.View
+        pointerEvents="none"
         style={[
           scanStyles.ring,
           compact && scanStyles.ringCompact,
@@ -210,6 +212,7 @@ function ScanButton({
 
       <Pressable
         onPress={handlePress}
+        hitSlop={12}
         testID="electrician-bottom-nav-scan"
         accessible
         accessibilityRole="button"
@@ -230,17 +233,17 @@ function ScanButton({
         >
           <ScanQRIcon />
         </Animated.View>
+        <Text
+          pointerEvents="none"
+          style={[
+            scanStyles.label,
+            isActive && scanStyles.labelActive,
+            compact && scanStyles.labelCompact,
+          ]}
+        >
+          {tx('SCAN')}
+        </Text>
       </Pressable>
-
-      <Text
-        style={[
-          scanStyles.label,
-          isActive && scanStyles.labelActive,
-          compact && scanStyles.labelCompact,
-        ]}
-      >
-        {tx('SCAN')}
-      </Text>
     </View>
   );
 }
@@ -266,6 +269,7 @@ const scanStyles = StyleSheet.create({
     borderRadius: 14,
   },
   pressArea: {
+    alignItems: 'center',
     marginTop: -20,
     marginBottom: 5,
     zIndex: 1,

@@ -45,14 +45,16 @@ const Colors = {
 
 type PendingRewardItem = Omit<RewardHistoryItem, 'id' | 'time'>;
 
-type ScanErrorType = 'already_scanned' | 'invalid' | null;
+type ScanErrorType = 'already_scanned' | 'invalid' | 'request_failed' | null;
 
 type ScanResolveResult =
   | { reward: PendingRewardItem; errorType: null }
-  | { reward: null; errorType: ScanErrorType };
+  | { reward: null; errorType: Exclude<ScanErrorType, null>; errorMessage: string };
 
 const resolveRewardFromCode = async (value?: string, mode: ScanMode = 'single'): Promise<ScanResolveResult> => {
-  if (!value) return { reward: null, errorType: 'invalid' };
+  if (!value) {
+    return { reward: null, errorType: 'invalid', errorMessage: 'No QR code was detected.' };
+  }
   const scannedText = value.trim();
   try {
     const result = await scanApi.submit(scannedText, mode);
@@ -72,9 +74,35 @@ const resolveRewardFromCode = async (value?: string, mode: ScanMode = 'single'):
       msg.includes('already redeemed') ||
       msg.includes('already scanned')
     ) {
-      return { reward: null, errorType: 'already_scanned' };
+      return {
+        reward: null,
+        errorType: 'already_scanned',
+        errorMessage: 'This QR code has already been scanned and redeemed.',
+      };
     }
-    return { reward: null, errorType: 'invalid' };
+    const normalizedMessage = msg.toLowerCase();
+    const isInvalidQr =
+      normalizedMessage.includes('not found') ||
+      normalizedMessage.includes('not valid') ||
+      normalizedMessage.includes('invalid') ||
+      normalizedMessage.includes('does not belong') ||
+      normalizedMessage.includes('qr code is required');
+
+    if (isInvalidQr) {
+      return {
+        reward: null,
+        errorType: 'invalid',
+        errorMessage: msg || 'This QR code is not registered with SRV products.',
+      };
+    }
+
+    const errorMessage = normalizedMessage.includes('session_expired')
+      ? 'Your session expired. Please sign in again and retry.'
+      : normalizedMessage.includes('network error') || normalizedMessage.includes('timed out')
+        ? 'Unable to contact the SRV server. Check your internet connection and retry.'
+        : msg || 'The QR code could not be verified. Please retry.';
+
+    return { reward: null, errorType: 'request_failed', errorMessage };
   }
 };
 
@@ -251,6 +279,8 @@ export function ScanScreen({
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const [scanErrorType, setScanErrorType] = useState<ScanErrorType>(null);
+  const [scanFailureMessage, setScanFailureMessage] = useState('');
+  const hasScanFailure = scanErrorType === 'invalid' || scanErrorType === 'request_failed';
   const frameSize = Math.min(width - 80, 280);
 
   const laserY = useRef(new Animated.Value(0)).current;
@@ -526,6 +556,7 @@ export function ScanScreen({
     setDetectedLabel('SRV MCB 32A detected');
     setEarnedPoints(0);
     setScanErrorType(null);
+    setScanFailureMessage('');
     if (scanMode === 'single') {
       setBatchItems([]);
     }
@@ -549,10 +580,15 @@ export function ScanScreen({
     if (!result.reward) {
       const errType = result.errorType ?? 'invalid';
       setScanErrorType(errType);
+      setScanFailureMessage(result.errorMessage);
       setScanned(true);
       setEarnedPoints(0);
       setDetectedLabel(
-        errType === 'already_scanned' ? 'Already Scanned' : 'Invalid QR Code'
+        errType === 'already_scanned'
+          ? 'Already Scanned'
+          : errType === 'invalid'
+            ? 'Invalid QR Code'
+            : 'Scan Failed'
       );
 
       if (scanMode === 'multi') {
@@ -560,6 +596,7 @@ export function ScanScreen({
           scanLockedRef.current = false;
           setScanned(false);
           setScanErrorType(null);
+          setScanFailureMessage('');
           setDetectedLabel('Scan next product');
         }, 2000);
       } else {
@@ -888,7 +925,7 @@ export function ScanScreen({
           const scanColor =
             scanned && scanErrorType === 'already_scanned'
               ? Colors.warning          // yellow
-              : scanned && scanErrorType === 'invalid'
+              : scanned && hasScanFailure
                 ? '#EF4444'             // red
                 : scanMode === 'single'
                   ? Colors.primary      // blue
@@ -903,7 +940,7 @@ export function ScanScreen({
                     scanMode === 'multi' ? styles.successOverlayMulti : null,
                     scanErrorType === 'already_scanned'
                       ? styles.successOverlayWarning
-                      : scanErrorType === 'invalid'
+                      : hasScanFailure
                         ? styles.successOverlayError
                         : null,
                     { transform: [{ scale: successScale }], opacity: successOpacity },
@@ -913,11 +950,11 @@ export function ScanScreen({
                     <View style={[
                       styles.multiSuccessBadge,
                       scanErrorType === 'already_scanned' ? styles.multiSuccessBadgeWarning
-                        : scanErrorType === 'invalid' ? styles.multiSuccessBadgeError : null,
+                        : hasScanFailure ? styles.multiSuccessBadgeError : null,
                     ]}>
                       {scanErrorType === 'already_scanned' ? (
                         <Text style={styles.multiSuccessIcon}>⚠️</Text>
-                      ) : scanErrorType === 'invalid' ? (
+                      ) : hasScanFailure ? (
                         <Text style={styles.multiSuccessIcon}>✕</Text>
                       ) : (
                         <CheckBadgeIcon size={20} color="#FFFFFF" />
@@ -929,7 +966,7 @@ export function ScanScreen({
                       <View style={styles.successBadge}>
                         {scanErrorType === 'already_scanned' ? (
                           <Text style={{ fontSize: 48 }}>⚠️</Text>
-                        ) : scanErrorType === 'invalid' ? (
+                        ) : hasScanFailure ? (
                           <Text style={{ fontSize: 48 }}>❌</Text>
                         ) : (
                           <CheckBadgeIcon size={48} color={Colors.success} />
@@ -938,12 +975,12 @@ export function ScanScreen({
                       <Text style={[
                         styles.verifiedText,
                         scanErrorType === 'already_scanned' ? { color: Colors.warning }
-                          : scanErrorType === 'invalid' ? { color: '#EF4444' } : null,
+                          : hasScanFailure ? { color: '#EF4444' } : null,
                       ]}>
                         {scanErrorType === 'already_scanned'
                           ? 'Already Scanned'
-                          : scanErrorType === 'invalid'
-                            ? 'Invalid QR'
+                          : hasScanFailure
+                            ? scanErrorType === 'invalid' ? 'Invalid QR' : 'Scan Failed'
                             : tx('Verified')}
                       </Text>
                     </>
@@ -990,11 +1027,11 @@ export function ScanScreen({
                       {tx('Already Scanned')}
                     </Text>
                   </View>
-                ) : scanErrorType === 'invalid' ? (
+                ) : hasScanFailure ? (
                   <View style={[styles.statusPill, styles.statusPillError]}>
                     <Text style={styles.statusPillIcon}>✕</Text>
                     <Text style={[styles.statusSuccessText, { color: '#991B1B' }]}>
-                      {tx('Invalid QR Code')}
+                      {tx(scanErrorType === 'invalid' ? 'Invalid QR Code' : 'Scan Failed')}
                     </Text>
                   </View>
                 ) : (
@@ -1016,7 +1053,7 @@ export function ScanScreen({
               styles.successBox,
               isDark ? styles.successBoxDark : null,
               scanErrorType === 'already_scanned' ? styles.successBoxWarning : null,
-              scanErrorType === 'invalid' ? styles.successBoxError : null,
+              hasScanFailure ? styles.successBoxError : null,
               { transform: [{ scale: successScale }], opacity: successOpacity },
             ]}
           >
@@ -1024,12 +1061,12 @@ export function ScanScreen({
               <Text style={[
                 styles.successTitle,
                 scanErrorType === 'already_scanned' ? { color: '#92400E' }
-                  : scanErrorType === 'invalid' ? { color: '#991B1B' } : null,
+                  : hasScanFailure ? { color: '#991B1B' } : null,
               ]}>
                 {scanErrorType === 'already_scanned'
                   ? '⚠️  Already Scanned'
-                  : scanErrorType === 'invalid'
-                    ? '❌  Invalid QR Code'
+                  : hasScanFailure
+                    ? scanErrorType === 'invalid' ? '❌  Invalid QR Code' : '⚠️  Scan Failed'
                     : detectedLabel}
               </Text>
               {!scanErrorType && earnedPoints > 0 && (
@@ -1042,12 +1079,12 @@ export function ScanScreen({
               styles.successSub,
               isDark ? styles.successSubDark : null,
               scanErrorType === 'already_scanned' ? { color: '#92400E' }
-                : scanErrorType === 'invalid' ? { color: '#991B1B' } : null,
+                : hasScanFailure ? { color: '#991B1B' } : null,
             ]}>
               {scanErrorType === 'already_scanned'
                 ? tx('This QR code has already been scanned and redeemed.')
-                : scanErrorType === 'invalid'
-                  ? tx('This QR is not registered with SRV products.')
+                : hasScanFailure
+                  ? tx(scanFailureMessage || 'The QR code could not be verified. Please retry.')
                   : earnedPoints > 0
                     ? tx('Points credited to your wallet!')
                     : tx('Points for this QR were already claimed.')}

@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Keyboard,
@@ -220,6 +220,7 @@ export function ProfileScreen({
   const [draftTaxHolder, setDraftTaxHolder] = useState(getTaxHolderValue(buildProfileFromAuth));
   const [isSaving, setIsSaving] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const lastProfileResetKeyRef = useRef(profileResetKey);
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   // Sync profile when auth user changes (e.g. after login or background refresh)
@@ -243,9 +244,10 @@ export function ProfileScreen({
   }, [initialSubPage, onInitialSubPageConsumed]);
 
   useEffect(() => {
-    if (profileResetKey && profileResetKey > 0) {
+    if (lastProfileResetKeyRef.current !== profileResetKey) {
       setSubPage(null);
     }
+    lastProfileResetKeyRef.current = profileResetKey;
   }, [profileResetKey]);
 
   const preferenceValue = usePreferenceValue({

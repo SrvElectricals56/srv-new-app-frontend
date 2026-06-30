@@ -28,6 +28,7 @@ import {
 } from '@/shared/api/services';
 import type { Screen } from '@/shared/types/navigation';
 import { formatISTDateTimeFull } from '@/shared/utils/dateIST';
+import { resolveImageUrl } from '@/shared/api/config';
 
 type VideoCategoryKey = 'all' | 'guides' | 'reels' | 'tips';
 
@@ -640,7 +641,12 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
   const fetchVideos = useCallback(async () => {
     try {
       const res = await playsApi.getAll();
-      const ordered = [...(res.data ?? [])].sort((a, b) => {
+      const normalized = (res.data ?? []).map((video) => ({
+        ...video,
+        videoUrl: resolveImageUrl(video.videoUrl) ?? video.videoUrl,
+        thumbnailUrl: resolveImageUrl(video.thumbnailUrl) ?? video.thumbnailUrl,
+      }));
+      const ordered = normalized.sort((a, b) => {
         const orderGap = (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
         if (orderGap !== 0) return orderGap;
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();

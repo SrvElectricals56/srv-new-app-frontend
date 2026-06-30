@@ -3,23 +3,44 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { AppIcon, C, IconName, PageHeader } from '../components/ProfileShared';
 import { type AppLanguage, usePreferenceContext } from '@/shared/preferences';
 import { useAuth } from '@/shared/context/AuthContext';
+import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
 
 export function AppSettingsPage({ onBack }: { onBack: () => void }) {
   const { language, setLanguage, darkMode, setDarkMode, t, theme } = usePreferenceContext();
   const { role } = useAuth();
+  const { profile, updatePreferences } = useAppData();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'app_settings');
-  const [notifEnabled, setNotifEnabled] = useState(true);
+  const [notifEnabled, setNotifEnabled] = useState(profile?.pushEnabled !== false);
+  const [savingNotifications, setSavingNotifications] = useState(false);
 
-  const Toggle = ({ val, onToggle }: { val: boolean; onToggle: () => void }) => (
+  React.useEffect(() => {
+    setNotifEnabled(profile?.pushEnabled !== false);
+  }, [profile?.pushEnabled]);
+
+  const Toggle = ({ val, onToggle, disabled }: { val: boolean; onToggle: () => void; disabled?: boolean }) => (
     <TouchableOpacity
-      style={[styles.toggle, val && styles.toggleOn]}
+      style={[styles.toggle, val && styles.toggleOn, disabled && styles.toggleDisabled]}
       onPress={onToggle}
+      disabled={disabled}
       activeOpacity={0.8}
     >
       <View style={[styles.thumb, val && styles.thumbOn]} />
     </TouchableOpacity>
   );
+
+  const toggleNotifications = async () => {
+    const nextValue = !notifEnabled;
+    setNotifEnabled(nextValue);
+    setSavingNotifications(true);
+    try {
+      await updatePreferences({ pushEnabled: nextValue });
+    } catch {
+      setNotifEnabled(!nextValue);
+    } finally {
+      setSavingNotifications(false);
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -32,7 +53,8 @@ export function AppSettingsPage({ onBack }: { onBack: () => void }) {
               label: t('pushNotifications'),
               sub: t('receiveAlerts'),
               val: notifEnabled,
-              toggle: () => setNotifEnabled((v) => !v),
+              toggle: toggleNotifications,
+              disabled: savingNotifications,
               icon: 'notification' as IconName,
             },
             {
@@ -66,7 +88,7 @@ export function AppSettingsPage({ onBack }: { onBack: () => void }) {
                 <Text style={[styles.rowLabel, { color: theme.textPrimary }]}>{item.label}</Text>
                 <Text style={[styles.rowSub, { color: theme.textMuted }]}>{item.sub}</Text>
               </View>
-              <Toggle val={item.val} onToggle={item.toggle} />
+              <Toggle val={item.val} onToggle={item.toggle} disabled={(item as any).disabled} />
             </View>
           ))}
         </View>
@@ -122,6 +144,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   toggleOn: { backgroundColor: C.primary },
+  toggleDisabled: { opacity: 0.55 },
   thumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' },
   thumbOn: { alignSelf: 'flex-end' },
 });

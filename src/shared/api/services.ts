@@ -560,7 +560,7 @@ export const walletApi = {
   saveBankAccount: (data: BankAccountPayload) =>
     api.post<{ message: string }>('/mobile/wallet/bank-account', data, true),
 
-  redeemReward: (data: { schemeId: string; note?: string }) =>
+  redeemReward: (data: { schemeId: string; note?: string; giftImage?: string }) =>
     api.post<{ message: string }>('/mobile/wallet/redeem', data, true),
 
   requestBankTransfer: (data: { amount: number }) =>
@@ -1079,6 +1079,9 @@ export type RedemptionRecord = {
   upiId?: string;
   bankAccount?: string;
   transactionId?: string;
+  giftName?: string | null;
+  giftImage?: string | null;
+  giftProductId?: string | null;
   requestedAt: string;
   processedAt?: string;
 };

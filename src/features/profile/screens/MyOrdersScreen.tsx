@@ -4,6 +4,7 @@ import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { ordersApi, type UserOrder } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
+import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { formatISTDate } from '@/shared/utils/dateIST';
 import { resolveImageUrl } from '@/shared/api/config';
@@ -41,8 +42,26 @@ function getOrderStatusColors(status?: string | null, paymentStatus?: string | n
   return { background: '#DCFCE7', text: '#166534' };
 }
 
-function getOrderImage(order: UserOrder) {
-  return resolveImageUrl(order.productImage ?? order.imageUrl ?? (order as any).image ?? null);
+function normalizeName(value?: string | null) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function getOrderImage(order: UserOrder, giftImageByName: Map<string, string | null>) {
+  const directImage = resolveImageUrl(
+    order.productImage ??
+    order.imageUrl ??
+    (order as any).giftImage ??
+    (order as any).image ??
+    null,
+  );
+  if (directImage) return directImage;
+  if (order.type !== 'gift') return null;
+
+  return (
+    giftImageByName.get(normalizeName(order.productName)) ??
+    giftImageByName.get(normalizeName(order.title)) ??
+    null
+  );
 }
 
 function getTrackingSteps(order: UserOrder) {
@@ -60,6 +79,7 @@ function getTrackingSteps(order: UserOrder) {
 export function MyOrdersPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
   const { role } = useAuth();
+  const { giftProducts } = useAppData();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'my_orders');
   const [orders, setOrders] = useState<UserOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +109,14 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
 
     return delivered[0] ?? null;
   }, [orders]);
+
+  const giftImageByName = useMemo(() => {
+    const map = new Map<string, string | null>();
+    giftProducts.forEach((gift) => {
+      map.set(normalizeName(gift.name), resolveImageUrl(gift.imageUrl ?? (gift as any).image ?? null));
+    });
+    return map;
+  }, [giftProducts]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -141,7 +169,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             const expanded = expandedOrderId === order.id;
             const trackingSteps = getTrackingSteps(order);
             const statusColors = getOrderStatusColors(order.status, order.paymentStatus);
-            const orderImage = getOrderImage(order);
+            const orderImage = getOrderImage(order, giftImageByName);
             return (
             <TouchableOpacity
               key={order.id}

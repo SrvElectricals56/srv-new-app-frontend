@@ -476,6 +476,12 @@ function AppContent() {
     setCurrentScreen('product');
   }, [currentScreen, showRouteLoader, trackActivity]);
 
+  const handleOpenScanHistory = useCallback(() => {
+    showRouteLoader();
+    setProfileInitialSubPage('Scan History');
+    setCurrentScreen('profile');
+  }, [showRouteLoader]);
+
   const handleAddToCart = useCallback((item: CartItem) => {
     setUserCartItems((prev) => {
       const existing = prev.find((i) => i.id === item.id);
@@ -910,6 +916,7 @@ function AppContent() {
             <ElectricianWalletScreen
               role="dealer"
               onNavigate={handleNavigate}
+              onOpenScanHistory={handleOpenScanHistory}
               totalPoints={Math.round(electricianRewardPoints * 0.05)}
               totalScans={electricianRewardScans}
               historyItems={electricianRewardHistory}
@@ -1082,6 +1089,7 @@ function AppContent() {
             <UserWalletScreen
               role="user"
               onNavigate={handleNavigate}
+              onOpenScanHistory={handleOpenScanHistory}
               totalPoints={electricianRewardPoints}
               totalScans={electricianRewardScans}
               historyItems={electricianRewardHistory}
@@ -1172,6 +1180,7 @@ function AppContent() {
             <ElectricianWalletScreen
               role="counterboy"
               onNavigate={handleNavigate}
+              onOpenScanHistory={handleOpenScanHistory}
               totalPoints={electricianRewardPoints}
               totalScans={electricianRewardScans}
               historyItems={electricianRewardHistory}
@@ -1347,6 +1356,7 @@ function AppContent() {
           <ElectricianWalletScreen
             role="electrician"
             onNavigate={handleNavigate}
+            onOpenScanHistory={handleOpenScanHistory}
             totalPoints={electricianRewardPoints}
             totalScans={electricianRewardScans}
             historyItems={electricianRewardHistory}
@@ -1425,6 +1435,7 @@ function AppContent() {
     selectedProductCategory,
     handleElectricianRewardCommit,
     handleNavigate,
+    handleOpenScanHistory,
     handleOpenProductCategory,
     handlePasswordConfiguredChange,
     handleSignOut,

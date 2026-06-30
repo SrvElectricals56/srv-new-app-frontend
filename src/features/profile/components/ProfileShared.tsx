@@ -55,6 +55,7 @@ export type SubPage =
   | 'Play Zone'
   | 'My Redemption'
   | 'Dealer Bonus'
+  | 'Bank Transfer'
   | 'Transfer Points'
   | 'My Orders'
   | 'Bank Details'

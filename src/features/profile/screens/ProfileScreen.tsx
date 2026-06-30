@@ -31,6 +31,7 @@ import {
 } from '@/shared/preferences';
 import { AppSettingsPage } from './AppSettingsScreen';
 import { BankDetailsPage } from './BankDetailsScreen';
+import { BankTransferRequestPage } from './BankTransferRequestScreen';
 import { ContactSupportPage } from './ContactSupportScreen';
 import { MyOrdersPage } from './MyOrdersScreen';
 import { RedemptionPage } from './MyRedemptionScreen';
@@ -646,7 +647,7 @@ export function ProfileScreen({
       <RedemptionPage
         onBack={() => setSubPage(null)}
         onNavigate={onNavigate}
-        onOpenBankTransfer={() => onNavigate('bank_details')}
+        onOpenBankTransfer={() => setSubPage('Bank Transfer')}
         onOpenTransferPoints={() =>
           setSubPage(currentRole === 'dealer' ? 'Dealer Bonus' : 'Transfer Points')
         }
@@ -656,6 +657,12 @@ export function ProfileScreen({
     'Dealer Bonus': <PartnerCommissionPage onBack={() => setSubPage(null)} />,
     'Transfer Points': (
       <TransferPointsPage onBack={() => setSubPage(null)} onNavigate={onNavigate} currentRole={currentRole} />
+    ),
+    'Bank Transfer': (
+      <BankTransferRequestPage
+        onBack={() => setSubPage('My Redemption')}
+        onManageBankDetails={() => setSubPage('Bank Details')}
+      />
     ),
     'My Orders': <MyOrdersPage onBack={() => setSubPage(null)} />,
     'Bank Details': <BankDetailsPage onBack={() => setSubPage(null)} />,

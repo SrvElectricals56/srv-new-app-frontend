@@ -4,8 +4,10 @@ import { AppIcon, C, PageHeader, Screen } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import type { UserRole } from '@/shared/types/navigation';
 import { redemptionsApi } from '@/shared/api';
+import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { formatISTDate } from '@/shared/utils/dateIST';
+import { resolveImageUrl } from '@/shared/api/config';
 
 const noDataImage = require('../assets/nodata.png');
 const buySchemeImage = require('../assets/giftstore.png');
@@ -14,6 +16,10 @@ const transferPointImage = require('../assets/transferpoint.png');
 
 type RedemptionTab = 'Buy Schemes' | 'Bank Transfer' | 'Transfer Point' | 'Dealer Bonus';
 type FilterRange = 'This Month' | 'Last 30 Days' | 'All';
+
+function normalizeName(value?: string | null) {
+  return String(value ?? '').trim().toLowerCase();
+}
 
 export function RedemptionPage({
   onBack,
@@ -29,6 +35,7 @@ export function RedemptionPage({
   currentRole: UserRole;
 }) {
   const { t, tx, theme } = usePreferenceContext();
+  const { giftProducts } = useAppData();
   const pageContent = useAppPageContent(currentRole, 'my_redemption');
   const [activeTab, setActiveTab] = useState<RedemptionTab>('Buy Schemes');
   const [activeFilter, setActiveFilter] = useState<FilterRange>('This Month');
@@ -37,6 +44,7 @@ export function RedemptionPage({
     {
       type: RedemptionTab;
       title: string;
+      imageUrl?: string | null;
       points: string;
       date: string;
       rawDate: string;
@@ -50,6 +58,14 @@ export function RedemptionPage({
       : ['Buy Schemes', 'Bank Transfer', 'Transfer Point'];
   const filters: FilterRange[] = ['This Month', 'Last 30 Days', 'All'];
 
+  const giftImageByName = useMemo(() => {
+    const map = new Map<string, string | null>();
+    giftProducts.forEach((gift) => {
+      map.set(normalizeName(gift.name), resolveImageUrl(gift.imageUrl ?? (gift as any).image ?? null));
+    });
+    return map;
+  }, [giftProducts]);
+
   useEffect(() => {
     redemptionsApi.getHistory(1, 50).then((res) => {
       const data = res.data ?? [];
@@ -61,9 +77,12 @@ export function RedemptionPage({
         else if (t.includes('point')) tabType = 'Transfer Point';
 
         const isCredit = r.status === 'approved' || r.status === 'completed';
+        const title = r.giftName ?? r.title ?? r.type ?? 'Redemption';
+        const directImage = resolveImageUrl(r.giftImage ?? r.imageUrl ?? r.productImage ?? null);
         return {
           type: tabType,
-          title: r.type ?? 'Redemption',
+          title,
+          imageUrl: directImage ?? (tabType === 'Buy Schemes' ? giftImageByName.get(normalizeName(title)) ?? null : null),
           points: isCredit ? `+${r.points}` : `-${r.points}`,
           rawDate: r.requestedAt ?? '',
           date: formatISTDate(r.requestedAt),
@@ -72,7 +91,7 @@ export function RedemptionPage({
       });
       setRedemptions(mapped);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [giftImageByName]);
 
   const filteredItems = useMemo(() => {
     const now = new Date();
@@ -227,37 +246,41 @@ export function RedemptionPage({
               ]}
             >
               <View style={styles.historyHead}>
-                <View
-                  style={[
-                    styles.historyIcon,
-                    {
-                      backgroundColor:
+                {item.imageUrl ? (
+                  <Image source={{ uri: item.imageUrl }} style={styles.historyImage} resizeMode="cover" />
+                ) : (
+                  <View
+                    style={[
+                      styles.historyIcon,
+                      {
+                        backgroundColor:
+                          item.type === 'Bank Transfer'
+                            ? C.goldLight
+                            : item.type === 'Transfer Point' || item.type === 'Dealer Bonus'
+                              ? C.blueLight
+                              : C.tealLight,
+                      },
+                    ]}
+                  >
+                    <AppIcon
+                      name={
                         item.type === 'Bank Transfer'
-                          ? C.goldLight
+                          ? 'bank'
                           : item.type === 'Transfer Point' || item.type === 'Dealer Bonus'
-                            ? C.blueLight
-                            : C.tealLight,
-                    },
-                  ]}
-                >
-                  <AppIcon
-                    name={
-                      item.type === 'Bank Transfer'
-                        ? 'bank'
-                        : item.type === 'Transfer Point' || item.type === 'Dealer Bonus'
-                          ? 'transfer'
-                          : 'gift'
-                    }
-                    size={18}
-                    color={
-                      item.type === 'Bank Transfer'
-                        ? C.gold
-                        : item.type === 'Transfer Point' || item.type === 'Dealer Bonus'
-                          ? C.blue
-                          : C.teal
-                    }
-                  />
-                </View>
+                            ? 'transfer'
+                            : 'gift'
+                      }
+                      size={18}
+                      color={
+                        item.type === 'Bank Transfer'
+                          ? C.gold
+                          : item.type === 'Transfer Point' || item.type === 'Dealer Bonus'
+                            ? C.blue
+                            : C.teal
+                      }
+                    />
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.historyTitle, { color: theme.textPrimary }]}>
                     {tx(item.title)}
@@ -324,6 +347,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  historyImage: { width: 42, height: 42, borderRadius: 14, backgroundColor: C.tealLight },
   historyTitle: { fontSize: 14, fontWeight: '800' },
   historyDate: { fontSize: 12, marginTop: 3 },
   pointsText: { fontSize: 14, fontWeight: '900', color: C.primary },

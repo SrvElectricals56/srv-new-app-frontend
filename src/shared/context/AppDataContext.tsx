@@ -119,7 +119,7 @@ type AppDataContextType = {
   removeProfilePhoto: () => Promise<void>;
   updatePreferences: (data: { language?: string; darkMode?: boolean; pushEnabled?: boolean }) => Promise<void>;
   saveBankAccount: (data: any) => Promise<void>;
-  redeemReward: (data: { schemeId: string; note?: string }) => Promise<void>;
+  redeemReward: (data: { schemeId: string; note?: string; giftImage?: string }) => Promise<void>;
   transferPoints: (data: { receiverPhone: string; points: number }) => Promise<void>;
   requestDealerBonusWithdrawal: (data: { amount: number }) => Promise<void>;
   submitSupportTicket: (data: { subject: string; comment: string; photoUrl?: string; photoUrls?: string[] }) => Promise<void>;
@@ -434,6 +434,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id || Platform.OS === 'web' || !Device.isDevice) return;
+    if (profile?.pushEnabled === false) return;
     let active = true;
     const register = async () => {
       try {
@@ -467,7 +468,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       active = false;
       received.remove();
     };
-  }, [isAuthenticated, loadPrivateData, user?.id]);
+  }, [isAuthenticated, loadPrivateData, profile?.pushEnabled, user?.id]);
 
   // Poll app settings every 30 seconds so maintenance mode / force update
   // reflects quickly without requiring the user to restart the app.
@@ -550,7 +551,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     void refreshAll();
   }, [refreshAll]);
 
-  const redeemReward = useCallback(async (data: { schemeId: string; note?: string }) => {
+  const redeemReward = useCallback(async (data: { schemeId: string; note?: string; giftImage?: string }) => {
     await walletApi.redeemReward(data);
     void refreshAll();
   }, [refreshAll]);

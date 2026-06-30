@@ -18,6 +18,7 @@ export function resolveImageUrl(value?: string | null): string | null {
   let s = value.trim();
   if (!s) return null;
   s = s.replace(/\\/g, '/');
+  if (/^data:image\//i.test(s)) return s;
   if (/^https?:\/\//i.test(s)) return s;
   if (s.startsWith('//')) return `https:${s}`;
   const origin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');

@@ -16,6 +16,7 @@ import { formatISTDateTime } from '@/shared/utils/dateIST';
 type WalletScreenProps = {
   role?: UserRole;
   onNavigate?: (screen: Screen) => void;
+  onOpenScanHistory?: () => void;
   totalPoints?: number;
   totalScans?: number;
   historyItems?: RewardHistoryItem[];
@@ -240,6 +241,7 @@ const ROLE_THEME: Record<string, {
 export function WalletScreen({
   role = 'electrician',
   onNavigate,
+  onOpenScanHistory,
   totalPoints: propTotalPoints = 0,
   totalScans: propTotalScans = 0,
   historyItems = [],
@@ -313,6 +315,11 @@ export function WalletScreen({
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
     }
+  };
+
+  const openTransactionHistory = () => {
+    setCurrentPage(1);
+    walletScrollRef.current?.scrollTo({ y: 520, animated: true });
   };
   const dealerActions = [
     {
@@ -450,20 +457,29 @@ export function WalletScreen({
         </Text>
 
         <View style={styles.heroStats}>
-          <View style={styles.heroStatCard}>
+          <Pressable
+            style={styles.heroStatCard}
+            onPress={() => {
+              if (isDealer) {
+                onNavigate?.('electricians');
+              } else {
+                onOpenScanHistory?.();
+              }
+            }}
+          >
             <Text style={styles.heroStatLabel}>
               {tx(isDealer ? 'Active Electricians' : 'Total Scans')}
             </Text>
             <Text style={styles.heroStatValue}>{apiLoading ? '...' : String(totalScans)}</Text>
-          </View>
-          <View style={styles.heroStatCard}>
+          </Pressable>
+          <Pressable style={styles.heroStatCard} onPress={openTransactionHistory}>
             <Text style={styles.heroStatLabel}>
               {tx(isDealer ? 'Bonus Withdrawals' : 'Transactions')}
             </Text>
             <Text style={styles.heroStatValue}>
               {apiLoading ? '...' : String(allMappedItems.length)}
             </Text>
-          </View>
+          </Pressable>
         </View>
       </LinearGradient>
 

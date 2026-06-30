@@ -552,7 +552,7 @@ export function UserAuthScreen({
                 <Text style={[S.stepTitle, { color: tp }]}>{tx('Verify your phone number')}</Text>
                 <Text style={[S.stepSub, { color: tm }]}>{tx('Enter the OTP and verify before continuing to the remaining details.')}</Text>
                 <Input label={tx('Enter OTP')} value={sOtp} onChange={setSOtp}
-                  placeholder={tx('6-digit OTP')} icon={<LockIcon c={P1} />}
+                  placeholder={tx('4-digit OTP')} icon={<LockIcon c={P1} />}
                   keyboard="number-pad" ref={sOtpRef}
                   onSubmit={verifySignup} darkMode={darkMode} accentColor={P1} />
                 <Pressable onPress={verifySignup} disabled={loading || !sOtp.trim()}

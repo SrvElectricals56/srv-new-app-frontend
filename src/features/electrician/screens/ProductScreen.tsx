@@ -370,8 +370,8 @@ function buildUiCategories(products: UiProduct[], apiCats: ApiProductCategory[])
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 const ProductCard = memo(function ProductCard({
-  product, cardW, onOpen, onAction, darkMode, actionLabel,
-}: { product: UiProduct; cardW: number; onOpen: () => void; onAction?: () => void; darkMode: boolean; actionLabel: string }) {
+  product, cardW, onOpen, onAction, onAdd, darkMode, actionLabel,
+}: { product: UiProduct; cardW: number; onOpen: () => void; onAction?: () => void; onAdd?: () => void; darkMode: boolean; actionLabel: string }) {
   const cc = catColor(product.category);
 
   // Entry animation
@@ -466,10 +466,16 @@ const ProductCard = memo(function ProductCard({
               <Text style={[styles.productName, darkMode ? styles.productNameDark : null]} numberOfLines={2}>{product.name}</Text>
               <Text style={[styles.productSub,  darkMode ? styles.productSubDark  : null]} numberOfLines={2}>{product.sub}</Text>
             </View>
-            <TouchableOpacity onPress={onAction ?? onOpen} style={[styles.scanBtn, { backgroundColor: cc.scanBg }]} activeOpacity={0.8}>
-              <ScanIcon size={15} color={cc.scanText} />
-              <Text style={[styles.scanBtnText, { color: cc.scanText }]}>{actionLabel}</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {onAdd && (
+                <TouchableOpacity onPress={onAdd} style={[styles.scanBtn, { flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: cc.scanText }]} activeOpacity={0.8}>
+                  <Text style={[styles.scanBtnText, { color: cc.scanText }]}>{'Add to Cart'}</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={onAction ?? onOpen} style={[styles.scanBtn, { flex: 1, backgroundColor: cc.scanBg }]} activeOpacity={0.8}>
+                <Text style={[styles.scanBtnText, { color: cc.scanText }]}>{actionLabel}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Animated.View>
       </Animated.View>
@@ -712,7 +718,7 @@ export function ProductScreen({
   const isDealer = role === 'dealer';
   const isCustomer = role === 'customer';
   const isCounterboy = role === 'counterboy';
-  const productActionLabel = pageContent.primaryCtaLabel || ((isDealer || isCustomer || isCounterboy) ? tx('Buy Now') : tx('Scan to Earn'));
+  const productActionLabel = pageContent.primaryCtaLabel || tx('Buy Now');
   const bannerActionLabel = pageContent.secondaryCtaLabel || ((isDealer || isCustomer || isCounterboy) ? tx('Buy Now') : tx('Scan & Earn').replace(' ', '\n'));
   const requireAuth = useCallback(() => {
     if (isAuthenticated) return true;
@@ -740,11 +746,6 @@ export function ProductScreen({
   }, [role, trackProductActivity]);
 
   const handleCardAction = useCallback((product: UiProduct) => {
-    if (!(isDealer || isCustomer || isCounterboy)) {
-      handleOpenProduct(product);
-      return;
-    }
-
     if (!requireAuth()) return;
 
     if (!onBuyNow) {
@@ -769,7 +770,29 @@ export function ProductScreen({
       price: product.price,
       qty: 1,
     });
-  }, [handleOpenProduct, isCounterboy, isCustomer, isDealer, onBuyNow, requireAuth, trackProductActivity]);
+  }, [handleOpenProduct, onBuyNow, requireAuth, trackProductActivity]);
+
+  const handleCardAdd = useCallback(async (product: UiProduct) => {
+    if (!requireAuth()) return;
+    try {
+      await catalogApi.addToCart({ productId: product.id, quantity: 1 });
+      onAddToCart?.({
+        id: product.id,
+        name: product.name,
+        desc: product.sub || product.description,
+        image: { uri: product.imageUrl },
+        price: product.price,
+        qty: 1,
+      });
+      trackProductActivity({
+        eventType: 'product_add_to_cart', eventLabel: `Added ${product.name} to cart`, screen: 'product',
+        productId: product.id, productName: product.name, productCategory: product.category, quantity: 1,
+      });
+      setDialog({ visible: true, variant: 'success', title: tx('Added to cart'), message: tx('Product added to your cart.') });
+    } catch (error: any) {
+      setDialog({ visible: true, variant: 'error', title: tx('Cart update failed'), message: error?.message || tx('Please try again.') });
+    }
+  }, [onAddToCart, requireAuth, trackProductActivity, tx]);
 
   useEffect(() => {
     if (!selectedProduct) return;
@@ -877,6 +900,7 @@ export function ProductScreen({
         cardW={cardW}
         onOpen={() => handleOpenProduct(item.left)}
         onAction={() => handleCardAction(item.left)}
+        onAdd={onAddToCart ? () => handleCardAdd(item.left) : undefined}
         darkMode={darkMode}
         actionLabel={productActionLabel}
       />
@@ -887,13 +911,14 @@ export function ProductScreen({
             cardW={cardW}
             onOpen={() => handleOpenProduct(item.right!)}
             onAction={() => handleCardAction(item.right!)}
+            onAdd={onAddToCart ? () => handleCardAdd(item.right!) : undefined}
             darkMode={darkMode}
             actionLabel={productActionLabel}
           />
         )
         : <View style={{ width: cardW }} />}
     </View>
-  ), [cardW, darkMode, handleCardAction, handleOpenProduct, productActionLabel]);
+  ), [cardW, darkMode, handleCardAction, handleCardAdd, handleOpenProduct, onAddToCart, productActionLabel]);
 
   const keyExtractor = useCallback((item: ProductRow) => item.key, []);
 

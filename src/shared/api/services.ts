@@ -987,6 +987,12 @@ export type AppSettings = {
   testimonialsEnabled: boolean;
   playEnabled: boolean;
   dealerCanAddElectrician: boolean;
+  minimumOrderAmounts?: {
+    electrician: number;
+    dealer: number;
+    user: number;
+    counterboy: number;
+  };
   upiOnlyMode?: boolean;
   playStoreUrl?: string;
   appStoreUrl?: string;

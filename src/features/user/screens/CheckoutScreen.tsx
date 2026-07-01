@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
 import { useAuth } from '@/shared/context/AuthContext';
 import { catalogApi } from '@/shared/api';
+import { useAppData } from '@/shared/context/AppDataContext';
 
 type CheckoutRole = 'electrician' | 'dealer' | 'customer' | 'counterboy';
 type PaymentMethod = 'online' | 'cod';
@@ -119,6 +120,7 @@ export function CheckoutScreen({
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const { user } = useAuth();
+  const { appSettings } = useAppData();
   const insets = useSafeAreaInsets();
 
   const theme = ROLE_THEMES[role] ?? ROLE_THEMES.customer;
@@ -144,8 +146,19 @@ export function CheckoutScreen({
   const gradient = darkMode ? theme.gradientDark : theme.gradient;
 
   const totalPrice = item.price * item.qty;
+  const settingsRole = role === 'customer' ? 'user' : role;
+  const minimumOrderAmount = Number(appSettings?.minimumOrderAmounts?.[settingsRole] ?? 5000);
 
   const handlePlaceOrder = useCallback(async () => {
+    if (totalPrice < minimumOrderAmount) {
+      setDialog({
+        visible: true,
+        variant: 'info',
+        title: tx('Minimum order amount'),
+        message: tx(`Please increase quantity. The minimum order amount is ₹${minimumOrderAmount.toLocaleString('en-IN')}.`),
+      });
+      return;
+    }
     if (!address.trim()) {
       setDialog({ visible: true, variant: 'info', title: tx('Address required'), message: tx('Please enter your shipping address.') });
       return;
@@ -226,7 +239,7 @@ export function CheckoutScreen({
     } finally {
       setPlacing(false);
     }
-  }, [item, address, paymentMethod, theme.primary, tx]);
+  }, [item, address, paymentMethod, theme.primary, tx, totalPrice, minimumOrderAmount]);
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>

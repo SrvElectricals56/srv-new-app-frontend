@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
 import { useAppPageContent } from '@/shared/hooks';
 import { createShadow } from '@/shared/theme/shadows';
+import { useAppData } from '@/shared/context/AppDataContext';
 
 type CartRole = 'electrician' | 'dealer' | 'customer' | 'counterboy';
 
@@ -222,6 +223,7 @@ export function CartScreen({
   const { darkMode, tx } = usePreferenceContext();
   const insets = useSafeAreaInsets();
   const pageContent = useAppPageContent(role === 'customer' ? 'user' : role, 'cart');
+  const { appSettings } = useAppData();
 
   const theme = ROLE_THEMES[role] ?? ROLE_THEMES.customer;
 
@@ -249,6 +251,9 @@ export function CartScreen({
   }, [cartItems]);
 
   const { totalItems, totalPrice, totalUnits } = cartSummary;
+  const settingsRole = role === 'customer' ? 'user' : role;
+  const minimumOrderAmount = Number(appSettings?.minimumOrderAmounts?.[settingsRole] ?? 5000);
+  const meetsMinimum = totalPrice >= minimumOrderAmount;
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
@@ -339,7 +344,13 @@ export function CartScreen({
               </Text>
             </View>
 
-            <Pressable style={styles.enquireShell} android_ripple={{ color: 'rgba(255,255,255,0.18)' }} onPress={onCheckout}>
+            {!meetsMinimum && (
+              <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600', marginBottom: 10 }}>
+                {tx(`Add ₹${(minimumOrderAmount - totalPrice).toLocaleString('en-IN')} more to reach the minimum order amount.`)}
+              </Text>
+            )}
+
+            <Pressable disabled={!meetsMinimum} style={[styles.enquireShell, !meetsMinimum && { opacity: 0.5 }]} android_ripple={{ color: 'rgba(255,255,255,0.18)' }} onPress={onCheckout}>
               <LinearGradient colors={[theme.primary, theme.primaryDark]} style={styles.enquireBtn}>
                 <Text style={styles.enquireBtnText}>{tx('Proceed to Checkout')}</Text>
               </LinearGradient>

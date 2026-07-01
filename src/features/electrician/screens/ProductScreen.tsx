@@ -487,23 +487,29 @@ type ProductRow = { key: string; left: UiProduct; right: UiProduct | null };
 
 function ProductDetailView({
   product,
+  relatedProducts,
   role,
   darkMode,
   isCustomer,
   onBack,
   onAddToCart,
   onBuyNow,
+  onOpenRelated,
+  onAddRelated,
   actionBusy,
   qty,
   onQtyChange,
 }: {
   product: UiProduct;
+  relatedProducts: UiProduct[];
   role: 'electrician' | 'dealer' | 'customer' | 'counterboy';
   darkMode: boolean;
   isCustomer: boolean;
   onBack: () => void;
   onAddToCart: () => void;
   onBuyNow: () => void;
+  onOpenRelated: (product: UiProduct) => void;
+  onAddRelated: (product: UiProduct) => void;
   actionBusy: 'cart' | 'buy' | null;
   qty: number;
   onQtyChange: (qty: number) => void;
@@ -572,6 +578,42 @@ function ProductDetailView({
             {product.description || product.sub || tx('SRV product details will appear here once updated from SRV Team.')}
           </Text>
         </View>
+
+        {relatedProducts.length > 0 ? (
+          <View style={[styles.relatedCard, { backgroundColor: card, borderColor: border }]}>
+            <View style={styles.relatedHeader}>
+              <View>
+                <Text style={[styles.relatedTitle, { color: text }]}>{tx('Related Products')}</Text>
+                <Text style={[styles.relatedSub, { color: muted }]}>{tx('Similar products from this category')}</Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedList}>
+              {relatedProducts.map((item) => {
+                const relatedC = catColor(item.category);
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => onOpenRelated(item)}
+                    style={[styles.relatedItem, { backgroundColor: darkMode ? '#111827' : '#F8FAFC', borderColor: border }]}
+                  >
+                    <LinearGradient colors={relatedC.cardGradient} style={styles.relatedImageWrap}>
+                      <Image source={{ uri: item.imageUrl }} style={styles.relatedImage} contentFit="contain" transition={160} />
+                    </LinearGradient>
+                    <Text style={[styles.relatedName, { color: text }]} numberOfLines={2}>{item.name}</Text>
+                    <Text style={[styles.relatedPrice, { color: relatedC.scanText }]}>₹{item.price.toLocaleString('en-IN')}</Text>
+                    <TouchableOpacity
+                      onPress={() => onAddRelated(item)}
+                      style={[styles.relatedAddBtn, { borderColor: relatedC.scanText }]}
+                      activeOpacity={0.82}
+                    >
+                      <Text style={[styles.relatedAddText, { color: relatedC.scanText }]}>{tx('Add')}</Text>
+                    </TouchableOpacity>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
       </ScrollView>
 
       <View style={[styles.detailFooter, { backgroundColor: card, borderColor: border }]}>
@@ -714,6 +756,12 @@ export function ProductScreen({
 
   const currentCat = categoryItems.find(c => c.id === category) ?? allCategoryItem;
   const cc = category === 'all' ? DEFAULT_CAT_COLOR : catColor(category);
+  const relatedProducts = useMemo(() => {
+    if (!selectedProduct) return [];
+    const sameCategory = products.filter((product) => product.id !== selectedProduct.id && product.category === selectedProduct.category);
+    const fallback = products.filter((product) => product.id !== selectedProduct.id);
+    return (sameCategory.length ? sameCategory : fallback).slice(0, 12);
+  }, [products, selectedProduct]);
 
   const isDealer = role === 'dealer';
   const isCustomer = role === 'customer';
@@ -1195,12 +1243,15 @@ export function ProductScreen({
       <>
         <ProductDetailView
           product={selectedProduct}
+          relatedProducts={relatedProducts}
           role={role}
           darkMode={darkMode}
           isCustomer={isCustomer}
           onBack={() => { setSelectedProduct(null); setDetailQty(1); }}
           onAddToCart={handleAddSelectedToCart}
           onBuyNow={handleBuySelectedNow}
+          onOpenRelated={handleOpenProduct}
+          onAddRelated={handleCardAdd}
           actionBusy={actionBusy}
           qty={detailQty}
           onQtyChange={setDetailQty}
@@ -1475,6 +1526,47 @@ const styles = StyleSheet.create({
   detailMetaValue: { fontSize: 13, fontWeight: '800' },
   detailSectionTitle: { fontSize: 15, fontWeight: '900', marginTop: 18, marginBottom: 8 },
   detailDescription: { fontSize: 14, lineHeight: 21, fontWeight: '500' },
+  relatedCard: {
+    marginTop: 14,
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16,
+  },
+  relatedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  relatedTitle: { fontSize: 16, fontWeight: '900' },
+  relatedSub: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  relatedList: { gap: 12, paddingRight: 4 },
+  relatedItem: {
+    width: 142,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 10,
+  },
+  relatedImageWrap: {
+    height: 104,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 9,
+  },
+  relatedImage: { width: '86%', height: '86%' },
+  relatedName: { fontSize: 12, fontWeight: '800', minHeight: 34, lineHeight: 17 },
+  relatedPrice: { fontSize: 13, fontWeight: '900', marginTop: 6 },
+  relatedAddBtn: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  relatedAddText: { fontSize: 12, fontWeight: '900' },
   detailFooter: {
     position: 'absolute',
     left: 0,

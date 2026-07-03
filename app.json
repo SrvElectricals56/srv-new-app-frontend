@@ -3,7 +3,7 @@
     "name": "SRV Electricals",
     "slug": "srv-electricals",
     "scheme": "srv-electricals",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "plugins": [
       "expo-router",
       [
@@ -37,7 +37,8 @@
       "backgroundColor": "#F5F0E8"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.srvelectricals.app"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
@@ -53,7 +54,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#F5F0E8"
       },
-      "package": "com.harshvsinha.srvelectricals"
+      "package": "com.srvelectricals.app"
     },
     "web": {
       "bundler": "metro"
@@ -61,9 +62,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "f03c697f-bc36-427b-86e1-44df78b25d4d"
+        "projectId": "3accb457-f3fd-46d2-aaad-da153822265f"
       }
     },
-    "owner": "harshvardhan21"
+    "owner": "srv_harsh"
   }
 }

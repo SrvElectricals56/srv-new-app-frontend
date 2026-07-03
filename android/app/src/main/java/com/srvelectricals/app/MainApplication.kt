@@ -1,4 +1,4 @@
-package com.harshvsinha.srvelectricals
+package com.srvelectricals.app
 
 import android.app.Application
 import android.content.res.Configuration

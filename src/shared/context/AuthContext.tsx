@@ -199,14 +199,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [refreshProfile]);
 
+  const currentUserId = state.user?.id;
+  const currentUserStatus = state.user?.status;
+  const currentUserKycStatus = state.user?.kycStatus;
+
   // Poll dealer accounts in every status so an admin changing an active dealer to
   // inactive is reflected immediately as well as pending/inactive accounts unlocking.
   useEffect(() => {
-    if (!state.isAuthenticated || !state.user) {
+    if (!state.isAuthenticated || !currentUserId) {
       return;
     }
 
-    if (state.role !== 'dealer' && isApprovedAccountStatus(state.user.status, state.role)) {
+    if (
+      state.role !== 'dealer' &&
+      isApprovedAccountStatus(currentUserStatus, state.role)
+    ) {
       return;
     }
 
@@ -225,16 +232,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [refreshProfile, state.isAuthenticated, state.role, state.user?.id, state.user?.status]);
+  }, [
+    currentUserId,
+    currentUserStatus,
+    refreshProfile,
+    state.isAuthenticated,
+    state.role,
+  ]);
 
   // While KYC is pending, poll so admin rejection/approval reflects immediately.
   useEffect(() => {
-    if (!state.isAuthenticated || !state.user) {
+    if (!state.isAuthenticated || !currentUserId) {
       return;
     }
 
-    const kycStatus = state.user.kycStatus;
-    if (kycStatus !== 'pending') {
+    if (currentUserKycStatus !== 'pending') {
       return;
     }
 
@@ -253,7 +265,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [refreshProfile, state.isAuthenticated, state.user]);
+  }, [
+    refreshProfile,
+    state.isAuthenticated,
+    currentUserId,
+    currentUserKycStatus,
+  ]);
 
   const updateUser = useCallback((data: Partial<UserProfile>) => {
     setState((s) => {

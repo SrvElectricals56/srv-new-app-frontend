@@ -16,7 +16,7 @@ import { ForceUpdateScreen } from './ForceUpdateScreen';
 import { isAppPreviewSearch } from '../preview/appPreviewStore';
 
 // ── Current app version — keep in sync with app.json ─────────────────────────
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '2.0.0';
 
 // Storage key: stores the minAppVersion the user last acknowledged/updated to
 const STORAGE_KEY = 'srv_force_update_dismissed_version';

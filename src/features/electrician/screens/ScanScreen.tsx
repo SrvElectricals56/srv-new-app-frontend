@@ -46,7 +46,7 @@ const Colors = {
 
 type PendingRewardItem = Omit<RewardHistoryItem, 'id' | 'time'>;
 
-type ScanErrorType = 'already_scanned' | 'invalid' | null;
+type ScanErrorType = 'already_scanned' | 'invalid' | 'request_failed' | null;
 
 type ScanResolveResult =
   | { reward: PendingRewardItem; errorType: null; duplicate: null }
@@ -580,7 +580,11 @@ export function ScanScreen({
       setScanned(true);
       setEarnedPoints(0);
       setDetectedLabel(
-        errType === 'already_scanned' ? 'Already Scanned' : 'Invalid QR Code'
+        errType === 'already_scanned'
+          ? 'Already Scanned'
+          : errType === 'invalid'
+            ? 'Invalid QR Code'
+            : 'Scan Failed'
       );
 
       if (scanMode === 'multi') {
@@ -925,7 +929,7 @@ export function ScanScreen({
           const scanColor =
             scanned && scanErrorType === 'already_scanned'
               ? Colors.warning          // yellow
-              : scanned && scanErrorType === 'invalid'
+              : scanned && hasScanFailure
                 ? '#EF4444'             // red
                 : scanMode === 'single'
                   ? Colors.primary      // blue
@@ -940,7 +944,7 @@ export function ScanScreen({
                     scanMode === 'multi' ? styles.successOverlayMulti : null,
                     scanErrorType === 'already_scanned'
                       ? styles.successOverlayWarning
-                      : scanErrorType === 'invalid'
+                      : hasScanFailure
                         ? styles.successOverlayError
                         : null,
                     { transform: [{ scale: successScale }], opacity: successOpacity },
@@ -950,11 +954,11 @@ export function ScanScreen({
                     <View style={[
                       styles.multiSuccessBadge,
                       scanErrorType === 'already_scanned' ? styles.multiSuccessBadgeWarning
-                        : scanErrorType === 'invalid' ? styles.multiSuccessBadgeError : null,
+                        : hasScanFailure ? styles.multiSuccessBadgeError : null,
                     ]}>
                       {scanErrorType === 'already_scanned' ? (
                         <Text style={styles.multiSuccessIcon}>⚠️</Text>
-                      ) : scanErrorType === 'invalid' ? (
+                      ) : hasScanFailure ? (
                         <Text style={styles.multiSuccessIcon}>✕</Text>
                       ) : (
                         <CheckBadgeIcon size={20} color="#FFFFFF" />
@@ -966,7 +970,7 @@ export function ScanScreen({
                       <View style={styles.successBadge}>
                         {scanErrorType === 'already_scanned' ? (
                           <Text style={{ fontSize: 48 }}>⚠️</Text>
-                        ) : scanErrorType === 'invalid' ? (
+                        ) : hasScanFailure ? (
                           <Text style={{ fontSize: 48 }}>❌</Text>
                         ) : (
                           <CheckBadgeIcon size={48} color={Colors.success} />
@@ -975,12 +979,12 @@ export function ScanScreen({
                       <Text style={[
                         styles.verifiedText,
                         scanErrorType === 'already_scanned' ? { color: Colors.warning }
-                          : scanErrorType === 'invalid' ? { color: '#EF4444' } : null,
+                          : hasScanFailure ? { color: '#EF4444' } : null,
                       ]}>
                         {scanErrorType === 'already_scanned'
                           ? 'Already Scanned'
-                          : scanErrorType === 'invalid'
-                            ? 'Invalid QR'
+                          : hasScanFailure
+                            ? scanErrorType === 'invalid' ? 'Invalid QR' : 'Scan Failed'
                             : tx('Verified')}
                       </Text>
                     </>
@@ -1027,11 +1031,11 @@ export function ScanScreen({
                       {tx('Already Scanned')}
                     </Text>
                   </View>
-                ) : scanErrorType === 'invalid' ? (
+                ) : hasScanFailure ? (
                   <View style={[styles.statusPill, styles.statusPillError]}>
                     <Text style={styles.statusPillIcon}>✕</Text>
                     <Text style={[styles.statusSuccessText, { color: '#991B1B' }]}>
-                      {tx('Invalid QR Code')}
+                      {tx(scanErrorType === 'invalid' ? 'Invalid QR Code' : 'Scan Failed')}
                     </Text>
                   </View>
                 ) : (
@@ -1053,7 +1057,7 @@ export function ScanScreen({
               styles.successBox,
               isDark ? styles.successBoxDark : null,
               scanErrorType === 'already_scanned' ? styles.successBoxWarning : null,
-              scanErrorType === 'invalid' ? styles.successBoxError : null,
+              hasScanFailure ? styles.successBoxError : null,
               { transform: [{ scale: successScale }], opacity: successOpacity },
             ]}
           >
@@ -1061,12 +1065,12 @@ export function ScanScreen({
               <Text style={[
                 styles.successTitle,
                 scanErrorType === 'already_scanned' ? { color: '#92400E' }
-                  : scanErrorType === 'invalid' ? { color: '#991B1B' } : null,
+                  : hasScanFailure ? { color: '#991B1B' } : null,
               ]}>
                 {scanErrorType === 'already_scanned'
                   ? '⚠️  Already Scanned'
-                  : scanErrorType === 'invalid'
-                    ? '❌  Invalid QR Code'
+                  : hasScanFailure
+                    ? scanErrorType === 'invalid' ? '❌  Invalid QR Code' : '⚠️  Scan Failed'
                     : detectedLabel}
               </Text>
               {!scanErrorType && earnedPoints > 0 && (
@@ -1079,7 +1083,7 @@ export function ScanScreen({
               styles.successSub,
               isDark ? styles.successSubDark : null,
               scanErrorType === 'already_scanned' ? { color: '#92400E' }
-                : scanErrorType === 'invalid' ? { color: '#991B1B' } : null,
+                : hasScanFailure ? { color: '#991B1B' } : null,
             ]}>
               {scanErrorType === 'already_scanned'
                 ? tx('This QR code is already redeemed. First scanner details are shown below.')

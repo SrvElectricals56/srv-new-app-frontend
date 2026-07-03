@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
 import { useAuth } from '@/shared/context/AuthContext';
 import { catalogApi } from '@/shared/api';
+import { useAppData } from '@/shared/context/AppDataContext';
 
 type CheckoutRole = 'electrician' | 'dealer' | 'customer' | 'counterboy';
 type PaymentMethod = 'online' | 'cod' | 'points';
@@ -151,6 +152,15 @@ export function CheckoutScreen({
   const canPayWithPoints = availablePoints >= totalPrice;
 
   const handlePlaceOrder = useCallback(async () => {
+    if (totalPrice < minimumOrderAmount) {
+      setDialog({
+        visible: true,
+        variant: 'info',
+        title: tx('Minimum order amount'),
+        message: tx(`Please increase quantity. The minimum order amount is ₹${minimumOrderAmount.toLocaleString('en-IN')}.`),
+      });
+      return;
+    }
     if (!address.trim()) {
       setDialog({ visible: true, variant: 'info', title: tx('Address required'), message: tx('Please enter your shipping address.') });
       return;

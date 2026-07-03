@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import { getNativeNotifications } from '@/shared/notifications/nativeNotifications';
 import {
   bannersApi,
   catalogApi,
@@ -436,8 +436,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated || !user?.id || Platform.OS === 'web' || !Device.isDevice) return;
     if (profile?.pushEnabled === false) return;
     let active = true;
+    let received: { remove: () => void } | null = null;
+
     const register = async () => {
       try {
+        const Notifications = await getNativeNotifications();
+        if (!Notifications || !active) return;
+
         if (Platform.OS === 'android') {
           await Notifications.setNotificationChannelAsync('default', {
             name: 'SRV Notifications',
@@ -455,18 +460,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         }
         const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
         if (active && token) await notificationsApi.registerPushToken(token, Platform.OS);
+        received = Notifications.addNotificationReceivedListener(() => {
+          clearCache('/mobile/notifications');
+          void loadPrivateData();
+        });
       } catch (error) {
         logDataWarning('Push token registration failed.', error);
       }
     };
     void register();
-    const received = Notifications.addNotificationReceivedListener(() => {
-      clearCache('/mobile/notifications');
-      void loadPrivateData();
-    });
     return () => {
       active = false;
-      received.remove();
+      received?.remove();
     };
   }, [isAuthenticated, loadPrivateData, profile?.pushEnabled, user?.id]);
 

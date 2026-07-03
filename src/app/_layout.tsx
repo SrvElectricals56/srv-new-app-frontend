@@ -1,21 +1,17 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { AuthProvider } from '../shared/context/AuthContext';
 import { AppDataProvider } from '../shared/context/AppDataContext';
 import { AppGate } from '../shared/components/AppGate';
 import { useFonts } from 'expo-font';
-import * as Notifications from 'expo-notifications';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+import { configureNotificationHandler } from '@/shared/notifications/nativeNotifications';
 
 export default function RootLayout() {
+  useEffect(() => {
+    void configureNotificationHandler();
+  }, []);
+
   // Load custom fonts globally so all screens have them ready
   useFonts({
     LaconicBold: require('../../assets/fonts/Laconic_Bold.otf'),

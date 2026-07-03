@@ -518,12 +518,15 @@ type ProductRow = { key: string; left: UiProduct; right: UiProduct | null };
 
 function ProductDetailView({
   product,
+  relatedProducts,
   role,
   darkMode,
   isCustomer,
   onBack,
   onAddToCart,
   onBuyNow,
+  onOpenRelated,
+  onAddRelated,
   actionBusy,
   qty,
   onQtyChange,
@@ -531,12 +534,15 @@ function ProductDetailView({
   onOpenRelated,
 }: {
   product: UiProduct;
+  relatedProducts: UiProduct[];
   role: 'electrician' | 'dealer' | 'customer' | 'counterboy';
   darkMode: boolean;
   isCustomer: boolean;
   onBack: () => void;
   onAddToCart: () => void;
   onBuyNow: () => void;
+  onOpenRelated: (product: UiProduct) => void;
+  onAddRelated: (product: UiProduct) => void;
   actionBusy: 'cart' | 'buy' | null;
   qty: number;
   onQtyChange: (qty: number) => void;
@@ -817,6 +823,12 @@ export function ProductScreen({
 
   const currentCat = categoryItems.find(c => c.id === category) ?? allCategoryItem;
   const cc = category === 'all' ? DEFAULT_CAT_COLOR : catColor(category);
+  const relatedProducts = useMemo(() => {
+    if (!selectedProduct) return [];
+    const sameCategory = products.filter((product) => product.id !== selectedProduct.id && product.category === selectedProduct.category);
+    const fallback = products.filter((product) => product.id !== selectedProduct.id);
+    return (sameCategory.length ? sameCategory : fallback).slice(0, 12);
+  }, [products, selectedProduct]);
 
   const isDealer = role === 'dealer';
   const isCustomer = role === 'customer';
@@ -856,11 +868,6 @@ export function ProductScreen({
   }, [role, trackProductActivity]);
 
   const handleCardAction = useCallback((product: UiProduct) => {
-    if (!(isDealer || isCustomer || isCounterboy)) {
-      handleOpenProduct(product);
-      return;
-    }
-
     if (!requireAuth()) return;
 
     if (!onBuyNow) {
@@ -885,7 +892,29 @@ export function ProductScreen({
       price: product.price,
       qty: 1,
     });
-  }, [handleOpenProduct, isCounterboy, isCustomer, isDealer, onBuyNow, requireAuth, trackProductActivity]);
+  }, [handleOpenProduct, onBuyNow, requireAuth, trackProductActivity]);
+
+  const handleCardAdd = useCallback(async (product: UiProduct) => {
+    if (!requireAuth()) return;
+    try {
+      await catalogApi.addToCart({ productId: product.id, quantity: 1 });
+      onAddToCart?.({
+        id: product.id,
+        name: product.name,
+        desc: product.sub || product.description,
+        image: { uri: product.imageUrl },
+        price: product.price,
+        qty: 1,
+      });
+      trackProductActivity({
+        eventType: 'product_add_to_cart', eventLabel: `Added ${product.name} to cart`, screen: 'product',
+        productId: product.id, productName: product.name, productCategory: product.category, quantity: 1,
+      });
+      setDialog({ visible: true, variant: 'success', title: tx('Added to cart'), message: tx('Product added to your cart.') });
+    } catch (error: any) {
+      setDialog({ visible: true, variant: 'error', title: tx('Cart update failed'), message: error?.message || tx('Please try again.') });
+    }
+  }, [onAddToCart, requireAuth, trackProductActivity, tx]);
 
   useEffect(() => {
     if (!selectedProduct) return;
@@ -1345,12 +1374,15 @@ export function ProductScreen({
       <>
         <ProductDetailView
           product={selectedProduct}
+          relatedProducts={relatedProducts}
           role={role}
           darkMode={darkMode}
           isCustomer={isCustomer}
           onBack={() => { setSelectedProduct(null); setDetailQty(1); }}
           onAddToCart={handleAddSelectedToCart}
           onBuyNow={handleBuySelectedNow}
+          onOpenRelated={handleOpenProduct}
+          onAddRelated={handleCardAdd}
           actionBusy={actionBusy}
           qty={detailQty}
           onQtyChange={setDetailQty}

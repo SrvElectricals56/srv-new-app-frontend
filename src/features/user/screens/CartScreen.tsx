@@ -229,6 +229,7 @@ export function CartScreen({
   role?: CartRole;
 }) {
   const { darkMode, tx } = usePreferenceContext();
+  const { appSettings } = useAppData();
   const insets = useSafeAreaInsets();
   const pageContent = useAppPageContent(role === 'customer' ? 'user' : role, 'cart');
   const [selectedItem, setSelectedItem] = useState<CartItem | null>(null);
@@ -260,6 +261,9 @@ export function CartScreen({
   }, [cartItems]);
 
   const { totalItems, totalPrice, totalUnits } = cartSummary;
+  const minimumRole = role === 'customer' ? 'user' : role;
+  const minimumOrderAmount = Number(appSettings?.minimumOrderAmounts?.[minimumRole] ?? 0);
+  const meetsMinimum = totalPrice >= minimumOrderAmount;
   const filteredCartItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return cartItems;

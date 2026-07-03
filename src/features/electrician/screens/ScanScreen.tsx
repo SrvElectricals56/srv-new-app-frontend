@@ -276,6 +276,7 @@ export function ScanScreen({
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const [scanErrorType, setScanErrorType] = useState<ScanErrorType>(null);
+  const hasScanFailure = scanErrorType === 'invalid' || scanErrorType === 'request_failed';
   const [duplicateScan, setDuplicateScan] = useState<DuplicateScanDetails | null>(null);
   const frameSize = Math.min(width - 80, 280);
 

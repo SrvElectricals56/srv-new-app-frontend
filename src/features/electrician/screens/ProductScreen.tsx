@@ -530,8 +530,6 @@ function ProductDetailView({
   actionBusy,
   qty,
   onQtyChange,
-  relatedProducts,
-  onOpenRelated,
 }: {
   product: UiProduct;
   relatedProducts: UiProduct[];
@@ -546,8 +544,6 @@ function ProductDetailView({
   actionBusy: 'cart' | 'buy' | null;
   qty: number;
   onQtyChange: (qty: number) => void;
-  relatedProducts: UiProduct[];
-  onOpenRelated: (product: UiProduct) => void;
 }) {
   const { tx } = usePreferenceContext();
   const cc = catColor(product.category);
@@ -823,12 +819,6 @@ export function ProductScreen({
 
   const currentCat = categoryItems.find(c => c.id === category) ?? allCategoryItem;
   const cc = category === 'all' ? DEFAULT_CAT_COLOR : catColor(category);
-  const relatedProducts = useMemo(() => {
-    if (!selectedProduct) return [];
-    const sameCategory = products.filter((product) => product.id !== selectedProduct.id && product.category === selectedProduct.category);
-    const fallback = products.filter((product) => product.id !== selectedProduct.id);
-    return (sameCategory.length ? sameCategory : fallback).slice(0, 12);
-  }, [products, selectedProduct]);
 
   const isDealer = role === 'dealer';
   const isCustomer = role === 'customer';
@@ -1386,11 +1376,6 @@ export function ProductScreen({
           actionBusy={actionBusy}
           qty={detailQty}
           onQtyChange={setDetailQty}
-          relatedProducts={relatedProducts}
-          onOpenRelated={(product) => {
-            setDetailQty(1);
-            handleOpenProduct(product);
-          }}
         />
         {dialogEl}
       </>

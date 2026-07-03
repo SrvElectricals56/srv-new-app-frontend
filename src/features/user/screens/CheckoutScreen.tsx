@@ -120,6 +120,7 @@ export function CheckoutScreen({
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const { user, updateUser } = useAuth();
+  const { appSettings } = useAppData();
   const insets = useSafeAreaInsets();
 
   const theme = ROLE_THEMES[role] ?? ROLE_THEMES.customer;
@@ -145,6 +146,8 @@ export function CheckoutScreen({
   const gradient = darkMode ? theme.gradientDark : theme.gradient;
 
   const totalPrice = item.price * item.qty;
+  const minimumRole = role === 'customer' ? 'user' : role;
+  const minimumOrderAmount = Number(appSettings?.minimumOrderAmounts?.[minimumRole] ?? 0);
   const availablePoints = Math.max(
     0,
     Number((user as any)?.walletBalance ?? (user as any)?.totalPoints ?? 0)

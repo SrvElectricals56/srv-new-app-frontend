@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -114,6 +114,8 @@ type ApiTxItem = {
   time: string;
   points: string;
   accent: string;
+  type: 'wallet' | 'scan' | 'redemption' | 'transfer';
+  rawDate?: string;
 };
 
 function resolveDisplayedPoints(...values: (number | null | undefined)[]) {
@@ -247,7 +249,7 @@ export function WalletScreen({
   historyItems = [],
 }: WalletScreenProps) {
   const { darkMode, tx } = usePreferenceContext();
-  const { dealerBonus, appSettings } = useAppData();
+  const { dealerBonus, appSettings, scanHistory, redemptions } = useAppData();
   const isDealer = role === 'dealer';
   const t = ROLE_THEME[role] ?? ROLE_THEME.electrician;
   const contentRole = role === 'user' ? 'user' : role;
@@ -256,6 +258,9 @@ export function WalletScreen({
   const walletScrollRef = useRef<ScrollView>(null);
   useRegisterScrollToTop('wallet', walletScrollRef);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activitySearch, setActivitySearch] = useState('');
+  const [activityDate, setActivityDate] = useState('');
+  const [activityType, setActivityType] = useState<'all' | ApiTxItem['type']>('all');
   const itemsPerPage = 5;
 
   // Real API wallet data
@@ -281,6 +286,8 @@ export function WalletScreen({
           time: tx.createdAt ? formatISTDateTime(tx.createdAt) : '',
           points: tx.type === 'credit' ? `+${tx.amount}` : `-${tx.amount}`,
           accent: tx.type === 'credit' ? '#1F9C5D' : '#B44A3A',
+          type: tx.source === 'scan' ? 'scan' : tx.source === 'redemption' ? 'redemption' : tx.source === 'transfer' ? 'transfer' : 'wallet',
+          rawDate: tx.createdAt,
         }));
         setApiTxItems(mapped);
       }
@@ -291,19 +298,71 @@ export function WalletScreen({
   const totalPoints = isDealer ? dealerBonusValue : (apiBalance !== null ? apiBalance : propTotalPoints);
   const totalScans = apiTotalScans ?? propTotalScans;
 
-  const allMappedItems: ApiTxItem[] = apiTxItems ?? (isDealer
-    ? []
-    : historyItems.map((item) => ({
-        id: item.id,
-        title: item.mode === 'multi' ? `${item.label} batch credited` : `${item.label} scanned`,
-        time: item.time,
-        points: `+${item.points}`,
-        accent: '#1F9C5D',
-      })));
+  const allMappedItems: ApiTxItem[] = useMemo(() => {
+    const walletItems: ApiTxItem[] = apiTxItems ?? (isDealer
+      ? []
+      : historyItems.map((item) => ({
+          id: item.id,
+          title: item.mode === 'multi' ? `${item.label} batch credited` : `${item.label} scanned`,
+          time: item.time,
+          points: `+${item.points}`,
+          accent: '#1F9C5D',
+          type: 'scan' as const,
+          rawDate: undefined,
+        })));
 
-  const totalPages = Math.ceil(allMappedItems.length / itemsPerPage);
+    const existingIds = new Set(walletItems.map((item) => item.id));
+    const scanItems: ApiTxItem[] = (scanHistory?.data ?? [])
+      .filter((scan: any) => !existingIds.has(scan.id))
+      .map((scan: any) => ({
+        id: scan.id,
+        title: `${scan.productName ?? 'Product'} scanned${scan.qrCode ? ` (${scan.qrCode})` : ''}`,
+        time: scan.scannedAt ? formatISTDateTime(scan.scannedAt) : '',
+        points: `+${Number(scan.points ?? 0)}`,
+        accent: '#1F9C5D',
+        type: 'scan',
+        rawDate: scan.scannedAt,
+      }));
+
+    const redemptionItems: ApiTxItem[] = (redemptions ?? [])
+      .filter((redemption: any) => !existingIds.has(redemption.id))
+      .map((redemption: any) => ({
+        id: redemption.id,
+        title: `${redemption.giftName ?? redemption.type ?? 'Redemption'} - ${redemption.status ?? 'pending'}`,
+        time: redemption.requestedAt ? formatISTDateTime(redemption.requestedAt) : '',
+        points: `-${Number(redemption.points ?? redemption.amount ?? 0)}`,
+        accent: '#B44A3A',
+        type: 'redemption',
+        rawDate: redemption.requestedAt,
+      }));
+
+    return [...walletItems, ...scanItems, ...redemptionItems].sort((a, b) => {
+      const aTime = a.rawDate ? new Date(a.rawDate).getTime() : 0;
+      const bTime = b.rawDate ? new Date(b.rawDate).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [apiTxItems, historyItems, isDealer, redemptions, scanHistory?.data]);
+
+  const filteredItems = useMemo(() => {
+    const search = activitySearch.trim().toLowerCase();
+    const date = activityDate.trim();
+    return allMappedItems.filter((item) => {
+      const haystack = `${item.title} ${item.time} ${item.points} ${item.type}`.toLowerCase();
+      const itemDate = item.rawDate ? new Date(item.rawDate).toISOString().slice(0, 10) : '';
+      const matchesSearch = !search || haystack.includes(search);
+      const matchesDate = !date || itemDate.includes(date) || item.time.includes(date);
+      const matchesType = activityType === 'all' || item.type === activityType;
+      return matchesSearch && matchesDate && matchesType;
+    });
+  }, [activityDate, activitySearch, activityType, allMappedItems]);
+
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedItems = allMappedItems.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedItems = filteredItems.slice(startIndex, startIndex + itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activityDate, activitySearch, activityType]);
 
   const goToPrevPage = () => {
     if (currentPage > 1) {
@@ -360,7 +419,7 @@ export function WalletScreen({
     {
       id: 'point',
       label: 'Transfer Point',
-      detail: 'Send to dealer',
+      detail: 'Send to electrician',
       icon: SparkIcon,
       tint: '#FFE0DA',
       target: 'transfer_points' as Screen,
@@ -537,6 +596,42 @@ export function WalletScreen({
           </View>
         </View>
 
+        <View style={[styles.filterPanel, { backgroundColor: darkMode ? '#182133' : t.timelineCardBg, borderColor: darkMode ? '#243043' : t.timelineCardBorder }]}>
+          <View style={styles.filterRow}>
+            <TextInput
+              style={[styles.filterInput, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderColor: darkMode ? '#243043' : t.cardBorder, color: darkMode ? '#F8FAFC' : '#221C1A' }]}
+              placeholder={tx('Search transactions, scans, redemptions')}
+              placeholderTextColor={darkMode ? '#94A3B8' : '#887B74'}
+              value={activitySearch}
+              onChangeText={setActivitySearch}
+            />
+          </View>
+          <TextInput
+            style={[styles.filterInput, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderColor: darkMode ? '#243043' : t.cardBorder, color: darkMode ? '#F8FAFC' : '#221C1A' }]}
+            placeholder={tx('Filter date: YYYY-MM-DD')}
+            placeholderTextColor={darkMode ? '#94A3B8' : '#887B74'}
+            value={activityDate}
+            onChangeText={setActivityDate}
+          />
+          <View style={styles.filterChips}>
+            {(['all', 'wallet', 'scan', 'redemption', 'transfer'] as const).map((item) => {
+              const active = activityType === item;
+              return (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.filterChip, { backgroundColor: active ? t.paginationBtnBg : darkMode ? '#111827' : '#FFFFFF', borderColor: active ? t.paginationBtnBg : darkMode ? '#243043' : t.cardBorder }]}
+                  activeOpacity={0.82}
+                  onPress={() => setActivityType(item)}
+                >
+                  <Text style={[styles.filterChipText, { color: active ? '#FFFFFF' : darkMode ? '#F8FAFC' : '#221C1A' }]}>
+                    {tx(item === 'all' ? 'All' : item === 'scan' ? 'Scans' : item === 'redemption' ? 'Redemptions' : item === 'transfer' ? 'Transfers' : 'Wallet')}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         <View style={styles.timeline}>
           {paginatedItems.map((item) => (
             <View key={item.id} style={styles.timelineItem}>
@@ -590,7 +685,7 @@ export function WalletScreen({
           </View>
         )}
 
-        {!allMappedItems.length && !apiLoading ? (
+        {!filteredItems.length && !apiLoading ? (
           <View style={[styles.emptyState, { backgroundColor: darkMode ? '#182133' : t.emptyStateBg, borderColor: darkMode ? '#243043' : t.emptyStateBorder }]}>
             <View style={[styles.emptyIconWrap, { backgroundColor: darkMode ? '#1E293B' : t.emptyIconBg }]}>
               <HistoryGlyph />
@@ -743,6 +838,31 @@ const styles = StyleSheet.create({
   actionTileTextDark: { color: '#F8FAFC' },
   actionTileSubDark: { color: '#94A3B8' },
   timeline: { marginTop: 18, gap: 14 },
+  filterPanel: {
+    marginTop: 18,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 12,
+    gap: 10,
+  },
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  filterInput: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  filterChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterChipText: { fontSize: 12, fontWeight: '800' },
   timelineItem: { flexDirection: 'row', gap: 12 },
   timelineTrack: { width: 18, alignItems: 'center' },
   timelineDot: { marginTop: 12, width: 10, height: 10, borderRadius: 999 },

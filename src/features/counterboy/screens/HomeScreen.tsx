@@ -505,6 +505,7 @@ export function HomeScreen({
             role="counterboy"
             photoUri={profilePhotoUri}
             apiPhotoUri={authUser?.profileImage ?? null}
+            onOpenProfileEdit={() => onNavigate('profile')}
           />
         ) : null}
 

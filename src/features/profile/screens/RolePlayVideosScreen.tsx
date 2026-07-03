@@ -140,7 +140,7 @@ export function RolePlayVideosScreen({
   const fetchVideos = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await playsApi.getAll();
+      const response = await playsApi.getAll(currentRole);
       const normalized = (response.data ?? []).map(video => ({
         ...video,
         videoUrl: resolveImageUrl(video.videoUrl) ?? video.videoUrl,
@@ -157,7 +157,7 @@ export function RolePlayVideosScreen({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentRole]);
 
   useEffect(() => {
     void fetchVideos();

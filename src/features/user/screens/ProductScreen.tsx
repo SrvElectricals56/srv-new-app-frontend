@@ -591,6 +591,15 @@ export function ProductScreen({
     return [...result].sort((a, b) => a.name.localeCompare(b.name));
   }, [catalogProducts, category, search, isSearching]);
 
+  const relatedProducts = useMemo(() => {
+    if (!selectedProduct) return [];
+    const sameCategory = catalogProducts.filter(
+      (product) => product.id !== selectedProduct.id && product.category === selectedProduct.category,
+    );
+    const fallback = catalogProducts.filter((product) => product.id !== selectedProduct.id);
+    return (sameCategory.length ? sameCategory : fallback).slice(0, 10);
+  }, [catalogProducts, selectedProduct]);
+
   const currentCat = catalogCategories.find((c) => c.id === category) ?? catalogCategories[0] ?? { id: 'fanbox', label: 'Products', count: 0 };
   const currentCatIndex = catalogCategories.findIndex((c) => c.id === currentCat.id);
   const catColor = getCatColor(currentCat.id, currentCatIndex);
@@ -813,6 +822,42 @@ export function ProductScreen({
                       {localizeCatalogText(selectedProduct.sub, language)}
                     </Text>
                   </View>
+                  {relatedProducts.length > 0 ? (
+                    <View style={styles.relatedSection}>
+                      <View style={styles.relatedHeaderRow}>
+                        <View>
+                          <Text style={[styles.relatedTitle, darkMode ? styles.detailSectionTitleDark : null]}>
+                            {tx('Related Products')}
+                          </Text>
+                          <Text style={[styles.relatedSub, darkMode ? styles.detailMetaDark : null]}>
+                            {tx('You may also like')}
+                          </Text>
+                        </View>
+                      </View>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.relatedList}
+                      >
+                        {relatedProducts.map((product) => (
+                          <TouchableOpacity
+                            key={product.id}
+                            style={[styles.relatedCard, darkMode ? styles.relatedCardDark : null]}
+                            activeOpacity={0.86}
+                            onPress={() => setSelectedProduct(product)}
+                          >
+                            <View style={styles.relatedImageWrap}>
+                              <Image source={{ uri: product.img }} style={styles.relatedImage} resizeMode="contain" />
+                            </View>
+                            <Text style={[styles.relatedName, darkMode ? styles.productNameDark : null]} numberOfLines={2}>
+                              {localizeCatalogText(product.name, language)}
+                            </Text>
+                            <Text style={styles.relatedPoints}>+{product.points} pts</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  ) : null}
                 </ScrollView>
               </>
             ) : null}
@@ -922,4 +967,39 @@ const styles = StyleSheet.create({
   detailSectionTitleDark: { color: '#F8FAFC' },
   detailBodyText: { fontSize: 15, lineHeight: 26, color: '#374151', letterSpacing: 0.15 },
   detailBodyTextDark: { color: '#CBD5E1' },
+  relatedSection: {
+    paddingTop: 18,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  relatedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  relatedTitle: { fontSize: 18, fontWeight: '900', color: '#1F2937' },
+  relatedSub: { fontSize: 12, fontWeight: '700', color: '#6B7280', marginTop: 3 },
+  relatedList: { gap: 12, paddingRight: 12 },
+  relatedCard: {
+    width: 128,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    padding: 10,
+  },
+  relatedCardDark: { backgroundColor: '#182133', borderColor: '#243043' },
+  relatedImageWrap: {
+    height: 96,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  relatedImage: { width: '100%', height: '100%' },
+  relatedName: { fontSize: 12, lineHeight: 16, fontWeight: '800', color: Colors.textDark, minHeight: 32 },
+  relatedPoints: { marginTop: 6, fontSize: 11, fontWeight: '900', color: Colors.primary },
 });

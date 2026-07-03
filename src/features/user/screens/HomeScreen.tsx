@@ -870,6 +870,7 @@ export function HomeScreen({
           role="user"
           photoUri={profilePhotoUri}
           apiPhotoUri={authUser?.profileImage ?? null}
+          onOpenProfileEdit={() => onNavigate('profile')}
         />
 
         <View style={styles.statRow}>

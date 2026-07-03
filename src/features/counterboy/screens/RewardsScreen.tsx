@@ -182,7 +182,7 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
           setRedeemingId(gift.id);
           await redeemReward({ schemeId: gift.id, note: gift.name, giftImage: gift.imageUrl ?? undefined });
           setDialog({
-            visible: true, variant: 'success', icon: '🎁', title: tx('Redemption Requested!'),
+            visible: true, variant: 'success', icon: '🎁', title: tx('Gift Order Requested'),
             message: `${tx('Your request for')} "${gift.name}" ${tx('has been submitted. SRV team will process it shortly.')}`,
           });
         } catch (err: any) {

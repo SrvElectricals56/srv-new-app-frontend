@@ -20,7 +20,7 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { catalogApi } from '@/shared/api';
 
 type CheckoutRole = 'electrician' | 'dealer' | 'customer' | 'counterboy';
-type PaymentMethod = 'online' | 'cod';
+type PaymentMethod = 'online' | 'cod' | 'points';
 
 const ROLE_THEMES: Record<CheckoutRole, {
   primary: string; primaryDark: string; primarySoft: string;
@@ -118,7 +118,7 @@ export function CheckoutScreen({
   onUpdateQty?: (id: string, qty: number) => void;
 }) {
   const { darkMode, tx } = usePreferenceContext();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const insets = useSafeAreaInsets();
 
   const theme = ROLE_THEMES[role] ?? ROLE_THEMES.customer;
@@ -144,6 +144,11 @@ export function CheckoutScreen({
   const gradient = darkMode ? theme.gradientDark : theme.gradient;
 
   const totalPrice = item.price * item.qty;
+  const availablePoints = Math.max(
+    0,
+    Number((user as any)?.walletBalance ?? (user as any)?.totalPoints ?? 0)
+  );
+  const canPayWithPoints = availablePoints >= totalPrice;
 
   const handlePlaceOrder = useCallback(async () => {
     if (!address.trim()) {
@@ -152,6 +157,36 @@ export function CheckoutScreen({
     }
     setPlacing(true);
     try {
+      if (paymentMethod === 'points') {
+        if (!canPayWithPoints) {
+          setDialog({
+            visible: true,
+            variant: 'info',
+            title: tx('Insufficient points'),
+            message: `${tx('You have')} ${availablePoints.toLocaleString('en-IN')} ${tx('points')}, ${tx('but this order needs')} ${totalPrice.toLocaleString('en-IN')} ${tx('points')}.`,
+          });
+          return;
+        }
+
+        const result = await catalogApi.buyNowWithPoints({
+          productId: item.id,
+          quantity: item.qty,
+          shippingAddress: address.trim(),
+        });
+        updateUser({
+          walletBalance: result.walletBalance,
+          ...(role === 'dealer' ? {} : { totalPoints: result.walletBalance }),
+        } as any);
+        setDialog({
+          visible: true,
+          variant: 'success',
+          title: tx('Order Confirmed'),
+          message: `${tx('Your order has been placed using points.')} ${Number(result.pointsUsed ?? totalPrice).toLocaleString('en-IN')} ${tx('points deducted.')}`,
+          completeOnClose: true,
+        });
+        return;
+      }
+
       if (paymentMethod === 'cod') {
         await catalogApi.buyNow({
           productId: item.id,
@@ -226,7 +261,7 @@ export function CheckoutScreen({
     } finally {
       setPlacing(false);
     }
-  }, [item, address, paymentMethod, theme.primary, tx]);
+  }, [item, address, paymentMethod, theme.primary, tx, canPayWithPoints, availablePoints, totalPrice, role, updateUser]);
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
@@ -334,6 +369,32 @@ export function CheckoutScreen({
                 </View>
               </LinearGradient>
             </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={() => canPayWithPoints && setPaymentMethod('points')}
+              disabled={!canPayWithPoints}
+            >
+              <LinearGradient
+                colors={[paymentMethod === 'points' ? theme.primarySoft : inputBg, paymentMethod === 'points' ? theme.primarySoft : inputBg]}
+                style={[
+                  styles.paymentOption,
+                  {
+                    borderColor: paymentMethod === 'points' ? theme.primary : border,
+                    opacity: canPayWithPoints ? 1 : 0.58,
+                  },
+                ]}
+              >
+                <PaymentChoiceIcon color={theme.primary} selected={paymentMethod === 'points'} />
+                <View style={styles.paymentCopy}>
+                  <Text style={[styles.paymentText, { color: textPrimary }]}>{tx('Pay with Points')}</Text>
+                  <Text style={[styles.paymentHint, { color: textMuted }]}>
+                    {tx('Available')}: {availablePoints.toLocaleString('en-IN')} {tx('points')}
+                    {' · '}
+                    {canPayWithPoints ? tx('Enough for this order') : tx('Not enough points')}
+                  </Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -363,7 +424,13 @@ export function CheckoutScreen({
             {placing ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.placeOrderText}>{paymentMethod === 'cod' ? tx('Place COD Order') : tx('Pay Securely')}</Text>
+              <Text style={styles.placeOrderText}>
+                {paymentMethod === 'cod'
+                  ? tx('Place COD Order')
+                  : paymentMethod === 'points'
+                    ? tx('Pay with Points')
+                    : tx('Pay Securely')}
+              </Text>
             )}
           </LinearGradient>
         </TouchableOpacity>

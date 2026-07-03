@@ -354,9 +354,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
           <Text style={styles.heroEyebrow}>{pageContent.pageTitle || tx('Dealer Network')}</Text>
           <Text style={styles.heroTitle}>{pageContent.heroTitle || tx('Connected electricians')}</Text>
           <Text style={styles.heroSub}>
-            {pageContent.heroSubtitle || tx(
-              'Dealers can review every connected electrician here and add new electricians to their network from the same page.'
-            )}
+            {tx('Review connected electricians and monitor their network activity from one place.')}
           </Text>
           {appSettings?.dealerCanAddElectrician !== false && (
             <TouchableOpacity

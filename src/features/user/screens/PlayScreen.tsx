@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { usePreferenceContext } from '@/shared/preferences';
 import { useAppData } from '@/shared/context/AppDataContext';
+import { useAuth } from '@/shared/context/AuthContext';
 import {
   playsApi,
   type PlayComment,
@@ -624,6 +625,7 @@ const csStyles = StyleSheet.create({
 export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const { darkMode, tx } = usePreferenceContext();
   const { appSettings } = useAppData();
+  const { isAuthenticated, role } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [videos, setVideos] = useState<PlayVideo[]>([]);
@@ -639,7 +641,7 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
 
   const fetchVideos = useCallback(async () => {
     try {
-      const res = await playsApi.getAll();
+      const res = await playsApi.getAll(role ?? 'user');
       const ordered = [...(res.data ?? [])].sort((a, b) => {
         const orderGap = (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
         if (orderGap !== 0) return orderGap;
@@ -651,7 +653,7 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [role]);
 
   useEffect(() => {
     fetchVideos();
@@ -665,6 +667,14 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
   const activeInteractions = selectedVideo ? interactionsMap[selectedVideo.id] ?? { ...EMPTY_INTERACTIONS, playId: selectedVideo.id } : EMPTY_INTERACTIONS;
 
   const loadInteractions = useCallback(async (videoId: string) => {
+    if (!isAuthenticated) {
+      setInteractionsSupported(false);
+      setInteractionsMap((current) => ({
+        ...current,
+        [videoId]: current[videoId] ?? { ...EMPTY_INTERACTIONS, playId: videoId },
+      }));
+      return;
+    }
     setInteractionsLoading(true);
     try {
       const response = await playsApi.getInteractions(videoId);
@@ -679,7 +689,7 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
     } finally {
       setInteractionsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const openVideo = useCallback((video: PlayVideo) => {
     const nextVideo = { ...video, viewCount: video.viewCount + 1 };
@@ -688,12 +698,14 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
     );
     setSelectedVideo(nextVideo);
     setCommentDraft('');
-    playsApi.recordView(video.id).catch(() => {});
+    if (isAuthenticated) {
+      playsApi.recordView(video.id).catch(() => {});
+    }
     loadInteractions(video.id);
-  }, [loadInteractions]);
+  }, [isAuthenticated, loadInteractions]);
 
   const handleToggleLike = useCallback(async () => {
-    if (!selectedVideo || !interactionsSupported) return;
+    if (!isAuthenticated || !selectedVideo || !interactionsSupported) return;
     setLiking(true);
     try {
       const updated = await playsApi.toggleLike(selectedVideo.id);
@@ -703,10 +715,10 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
     } finally {
       setLiking(false);
     }
-  }, [interactionsSupported, selectedVideo]);
+  }, [interactionsSupported, isAuthenticated, selectedVideo]);
 
   const handleSubmitComment = useCallback(async () => {
-    if (!selectedVideo || !commentDraft.trim() || !interactionsSupported) return;
+    if (!isAuthenticated || !selectedVideo || !commentDraft.trim() || !interactionsSupported) return;
     setSubmittingComment(true);
     try {
       const updated = await playsApi.addComment(selectedVideo.id, commentDraft.trim());
@@ -717,7 +729,7 @@ export function PlayScreen({ onNavigate }: { onNavigate: (screen: Screen) => voi
     } finally {
       setSubmittingComment(false);
     }
-  }, [commentDraft, interactionsSupported, selectedVideo]);
+  }, [commentDraft, interactionsSupported, isAuthenticated, selectedVideo]);
 
   if (loading) {
     return (
@@ -1049,7 +1061,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 100,
-    gap: 16,
+    gap: 18,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -1062,10 +1074,13 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
     elevation: 5,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 430,
   },
   videoFrame: {
     width: '100%',
-    aspectRatio: 16 / 9,
+    aspectRatio: 9 / 16,
     backgroundColor: '#0F172A',
     position: 'relative',
     overflow: 'hidden',
@@ -1284,7 +1299,7 @@ const styles = StyleSheet.create({
   },
   overlayHero: {
     position: 'relative',
-    minHeight: 420,
+    minHeight: 620,
     justifyContent: 'space-between',
     backgroundColor: '#020617',
   },
@@ -1348,7 +1363,8 @@ const styles = StyleSheet.create({
   },
   overlayVideoFrame: {
     width: '100%',
-    minHeight: 420,
+    aspectRatio: 9 / 16,
+    minHeight: 620,
     overflow: 'hidden',
     backgroundColor: '#000000',
   },

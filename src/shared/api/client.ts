@@ -70,6 +70,14 @@ type RequestOptions = {
   params?: Record<string, string | number | undefined>;
 };
 
+function createApiError(status: number, payload: unknown, fallback: string) {
+  const message = (payload as any)?.message || fallback;
+  const error = new Error(Array.isArray(message) ? message.join(', ') : String(message));
+  (error as any).status = status;
+  (error as any).data = payload;
+  return error;
+}
+
 function buildUrl(path: string, params?: Record<string, string | number | undefined>) {
   let url = `${API_BASE_URL}${path}`;
   if (params) {
@@ -180,7 +188,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
             sessionEvents.emitExpired();
             throw new Error('SESSION_EXPIRED');
           }
-          throw new Error((err as any).message || `Request failed: ${retryRes.status}`);
+          throw createApiError(retryRes.status, err, `Request failed: ${retryRes.status}`);
         }
         return retryRes.json() as Promise<T>;
       } catch (refreshError) {
@@ -194,7 +202,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       logApiWarning(`API ${method} ${path} failed (${response.status}).`, err);
-      throw new Error((err as any).message || `Request failed: ${response.status}`);
+      throw createApiError(response.status, err, `Request failed: ${response.status}`);
     }
 
     const data = await response.json();

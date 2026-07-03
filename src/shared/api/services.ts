@@ -426,6 +426,13 @@ export const catalogApi = {
   buyNow: (data: { productId: string; quantity?: number; shippingAddress?: string }) =>
     api.post<{ message: string; order: ProductOrder }>('/mobile/product-orders', data, true),
 
+  buyNowWithPoints: (data: { productId: string; quantity?: number; shippingAddress: string }) =>
+    api.post<{ message: string; order: ProductOrder; walletBalance: number; pointsUsed: number }>(
+      '/mobile/product-orders/points',
+      data,
+      true
+    ),
+
   createRazorpayOrder: (data: { productId: string; quantity?: number; shippingAddress: string }) =>
     api.post<RazorpayOrderResponse>('/mobile/payments/razorpay/order', data, true),
 
@@ -1013,6 +1020,19 @@ export type ScanResult = {
   pointsEarned: number;
 };
 
+export type DuplicateScanDetails = {
+  name?: string | null;
+  userName?: string | null;
+  phone?: string | null;
+  userPhone?: string | null;
+  role?: string | null;
+  dealerName?: string | null;
+  dealerPhone?: string | null;
+  productName?: string | null;
+  scannedAt?: string | Date | null;
+  firstScannedAt?: string | Date | null;
+};
+
 export type WalletData = {
   balance: number;
   totalPoints: number;
@@ -1165,8 +1185,8 @@ export type RewardScheme = {
 // PLAYS
 // ─────────────────────────────────────────────────────────────────────────────
 export const playsApi = {
-  getAll: () =>
-    api.get<{ data: PlayVideo[] }>('/mobile/plays', undefined, true),
+  getAll: (role: 'dealer' | 'electrician' | 'user' | 'counterboy' = 'user') =>
+    api.get<{ data: PlayVideo[] }>('/mobile/plays', { role }, false),
 
   recordView: (id: string) =>
     api.post<{ message: string }>(`/mobile/plays/${id}/view`, {}, true),

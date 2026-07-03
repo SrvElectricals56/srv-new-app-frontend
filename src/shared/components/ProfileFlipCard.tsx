@@ -43,6 +43,7 @@ interface Props {
   role?: 'dealer' | 'electrician' | 'counterboy' | 'user';
   photoUri?: string | null;
   apiPhotoUri?: string | null;
+  onOpenProfileEdit?: () => void;
 }
 
 function DownloadIcon({ color = '#FFFFFF', size = 16 }: { color?: string; size?: number }) {
@@ -151,7 +152,7 @@ function DetailPill({
   );
 }
 
-export default function ProfileFlipCard({ profile, role = 'electrician', photoUri, apiPhotoUri }: Props) {
+export default function ProfileFlipCard({ profile, role = 'electrician', photoUri, apiPhotoUri, onOpenProfileEdit }: Props) {
   const { darkMode, tx, t } = usePreferenceContext();
   const pageContent = useAppPageContent(role, 'profile');
   // Use local photo first, then API photo from backend (set by admin)
@@ -218,15 +219,6 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
   );
 
   useEffect(() => {
-    const showBack = setTimeout(() => animateTo(true), 8000);
-    const showFront = setTimeout(() => animateTo(false), 13000);
-    return () => {
-      clearTimeout(showBack);
-      clearTimeout(showFront);
-    };
-  }, [animateTo]);
-
-  useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(hintPulse, withWebSafeNativeDriver({ toValue: 1.06, duration: 900 })),
@@ -240,9 +232,6 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
   const onToggle = () => {
     const next = !flipped;
     animateTo(next);
-    if (next) {
-      setTimeout(() => animateTo(false), 4500);
-    }
   };
 
   const fallbackText = tx('Not available');
@@ -288,7 +277,10 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
       : role === 'counterboy'
       ? tx('Counter Boy Account')
       : t('electricianPartner'));
-  const flipHintText = pageContent.flipHintText || tx('Tap card to view QR & details');
+  const flipHintText =
+    (flipped
+      ? tx('Tap to return to profile card')
+      : tx('Tap to view your details'));
   const codeLabelText = pageContent.codeLabel || codeLabel;
   const locationLabelText = pageContent.locationLabel || tx('Location');
   const detailHeadingText =
@@ -674,6 +666,13 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
         >
           <DownloadIcon size={15} />
         </TouchableOpacity>
+        {onOpenProfileEdit ? (
+          <TouchableOpacity
+            style={styles.profileEditTapArea}
+            activeOpacity={0.85}
+            onPress={onOpenProfileEdit}
+          />
+        ) : null}
       </View>
       <Dialog visible={dialog.visible} variant={dialog.variant} title={dialog.title} message={dialog.message} onClose={closeDialog} />
     </View>
@@ -755,6 +754,18 @@ const styles = StyleSheet.create({
   downloadMiniBtnDark: {
     backgroundColor: 'rgba(15,23,42,0.78)',
     borderColor: 'rgba(148,163,184,0.28)',
+  },
+  profileEditTapArea: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 76,
+    height: 88,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 4,
+    zIndex: 4,
   },
   backGlowOne: {
     position: 'absolute',

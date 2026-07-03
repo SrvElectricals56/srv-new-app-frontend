@@ -1,6 +1,6 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { BackHandler, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav as DealerBottomNav } from '@/features/dealer/screens/BottomNav';
 import { CallElectricianScreen as DealerCallElectricianScreen } from '@/features/dealer/screens/CallElectricianScreen';
@@ -359,6 +359,9 @@ function AppContent() {
   const [profileResetKey, setProfileResetKey] = useState(0);
   const screenStartRef = useRef({ screen: currentScreen, startedAt: Date.now() });
   const routeScreenRef = useRef(currentScreen);
+  const screenHistoryRef = useRef<Screen[]>([]);
+  const lastScreenRef = useRef(currentScreen);
+  const isHardwareBackRef = useRef(false);
 
   const trackActivity = useCallback((data: Parameters<typeof activityApi.track>[0]) => {
     void activityApi.track(data).catch(() => {});
@@ -414,6 +417,37 @@ function AppContent() {
       durationMs: Math.max(0, Date.now() - current.startedAt),
     });
   }, [trackActivity]);
+
+  useEffect(() => {
+    if (lastScreenRef.current === currentScreen) return;
+    if (!isHardwareBackRef.current) {
+      screenHistoryRef.current.push(lastScreenRef.current);
+    }
+    isHardwareBackRef.current = false;
+    lastScreenRef.current = currentScreen;
+  }, [currentScreen]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      const previous = screenHistoryRef.current.pop();
+      if (previous) {
+        isHardwareBackRef.current = true;
+        if (currentScreen === 'checkout') setCheckoutItem(null);
+        showRouteLoader();
+        setCurrentScreen(previous);
+        return true;
+      }
+      if (currentScreen !== 'home') {
+        isHardwareBackRef.current = true;
+        if (currentScreen === 'checkout') setCheckoutItem(null);
+        showRouteLoader();
+        setCurrentScreen('home');
+        return true;
+      }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [currentScreen, showRouteLoader]);
 
   const handleNavigate = useCallback(
     (screen: Screen) => {
@@ -723,6 +757,12 @@ function AppContent() {
     [handleAuthenticatedRoleStart]
   );
 
+  const handleLoginRequired = useCallback(() => {
+    if (isPreviewMode || isAuthenticated) return;
+    setGuestAuthRole(currentRole);
+    setShowOnboarding(false);
+  }, [currentRole, isAuthenticated, isPreviewMode]);
+
   const handleUseAnotherApprovalNumber = useCallback(() => {
     void (async () => {
       const pendingRole = pendingApprovalRole;
@@ -867,7 +907,7 @@ function AppContent() {
             />
           );
         case 'product':
-          return <DealerProductScreen onNavigate={handleNavigate} onAddToCart={handleDealerAddToCart} onBuyNow={handleBuyNow} initialCategory={selectedProductCategory} />;
+          return <DealerProductScreen onNavigate={handleNavigate} onAddToCart={handleDealerAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} initialCategory={selectedProductCategory} />;
         case 'cart':
           return (
             <UserCartScreen
@@ -876,6 +916,7 @@ function AppContent() {
               onRemove={handleDealerRemoveFromCart}
               onNavigate={handleNavigate}
               onCheckout={handleDealerCartCheckout}
+              onCheckoutItem={handleBuyNow}
               role="dealer"
             />
           );
@@ -1028,13 +1069,13 @@ function AppContent() {
             />
           );
         case 'product':
-          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} initialCategory={selectedProductCategory} />;
+          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} initialCategory={selectedProductCategory} />;
         case 'play':
           return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="user" />;
         case 'notification':
           return <UserNotificationScreen onNavigate={handleNavigate} role="user" onNotificationsSeen={handleNotificationsSeen} />;
         case 'categories':
-          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} />;
+          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} />;
         case 'checkout':
           return checkoutItem ? (
             <CheckoutScreen
@@ -1052,6 +1093,7 @@ function AppContent() {
               onRemove={handleRemoveFromCart}
               onNavigate={handleNavigate}
               onCheckout={handleCartCheckout}
+              onCheckoutItem={handleBuyNow}
             />
           );
         case 'rewards':
@@ -1149,7 +1191,7 @@ function AppContent() {
             />
           );
         case 'product':
-          return <CounterBoyProductScreen onNavigate={handleNavigate} onAddToCart={handleCounterboyAddToCart} onBuyNow={handleBuyNow} initialCategory={selectedProductCategory} />;
+          return <CounterBoyProductScreen onNavigate={handleNavigate} onAddToCart={handleCounterboyAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} initialCategory={selectedProductCategory} />;
         case 'cart':
           return (
             <UserCartScreen
@@ -1158,6 +1200,7 @@ function AppContent() {
               onRemove={handleCounterboyRemoveFromCart}
               onNavigate={handleNavigate}
               onCheckout={handleCounterboyCartCheckout}
+              onCheckoutItem={handleBuyNow}
               role="counterboy"
             />
           );
@@ -1284,6 +1327,7 @@ function AppContent() {
             onNavigate={handleNavigate}
             onAddToCart={handleElectricianAddToCart}
             onBuyNow={handleBuyNow}
+            onLoginRequired={handleLoginRequired}
             initialCategory={selectedProductCategory}
           />
         );
@@ -1297,6 +1341,7 @@ function AppContent() {
             onRemove={handleElectricianRemoveFromCart}
             onNavigate={handleNavigate}
             onCheckout={handleElectricianCartCheckout}
+            onCheckoutItem={handleBuyNow}
             role="electrician"
           />
         );

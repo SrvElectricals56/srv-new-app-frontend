@@ -832,6 +832,7 @@ export function HomeScreen({
           role="electrician"
           photoUri={profilePhotoUri}
           apiPhotoUri={authUser?.profileImage ?? null}
+          onOpenProfileEdit={() => onNavigate('profile')}
         />
 
         <View style={styles.statRow}>

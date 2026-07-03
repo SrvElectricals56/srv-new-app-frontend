@@ -837,7 +837,7 @@ export function HomeScreen({
           dealer_name: authUser?.name ?? '',
           dealer_town: authUser?.town ?? '',
           dealer_phone: authUser?.phone ?? '',
-        }} role="dealer" photoUri={profilePhotoUri} apiPhotoUri={authUser?.profileImage ?? null} />
+        }} role="dealer" photoUri={profilePhotoUri} apiPhotoUri={authUser?.profileImage ?? null} onOpenProfileEdit={() => onNavigate('profile')} />
 
         <View style={styles.statRow}>
           {showCallElectrician ? (

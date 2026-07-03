@@ -6,6 +6,7 @@ import {
   Animated,
   Easing,
   Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -18,7 +19,7 @@ import {
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { usePreferenceContext } from '@/shared/preferences';
-import { scanApi } from '@/shared/api';
+import { scanApi, type DuplicateScanDetails } from '@/shared/api';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import type { RewardHistoryItem, ScanMode } from '@/shared/types/rewards';
 import type { Screen } from '@/shared/types/navigation';
@@ -48,11 +49,31 @@ type PendingRewardItem = Omit<RewardHistoryItem, 'id' | 'time'>;
 type ScanErrorType = 'already_scanned' | 'invalid' | null;
 
 type ScanResolveResult =
-  | { reward: PendingRewardItem; errorType: null }
-  | { reward: null; errorType: ScanErrorType };
+  | { reward: PendingRewardItem; errorType: null; duplicate: null }
+  | { reward: null; errorType: ScanErrorType; duplicate: DuplicateScanDetails | null };
+
+const normalizeDuplicateScan = (payload: any): DuplicateScanDetails | null => {
+  const source =
+    payload?.firstScan ??
+    payload?.response?.firstScan ??
+    payload?.data?.firstScan ??
+    payload?.scanner ??
+    payload?.scan ??
+    payload;
+  if (!source || typeof source !== 'object') return null;
+  return {
+    name: source.name ?? source.userName ?? source.scannerName ?? source.redeemerName ?? null,
+    phone: source.phone ?? source.userPhone ?? source.scannerPhone ?? source.redeemerPhone ?? null,
+    role: source.role ?? source.userRole ?? null,
+    dealerName: source.dealerName ?? source.associatedDealerName ?? source.dealer?.name ?? null,
+    dealerPhone: source.dealerPhone ?? source.associatedDealerPhone ?? source.dealer?.phone ?? null,
+    productName: source.productName ?? source.product?.name ?? null,
+    scannedAt: source.scannedAt ?? source.firstScannedAt ?? source.lastScannedAt ?? source.createdAt ?? null,
+  };
+};
 
 const resolveRewardFromCode = async (value?: string, mode: ScanMode = 'single'): Promise<ScanResolveResult> => {
-  if (!value) return { reward: null, errorType: 'invalid' };
+  if (!value) return { reward: null, errorType: 'invalid', duplicate: null };
   const scannedText = value.trim();
   try {
     const result = await scanApi.submit(scannedText, mode);
@@ -64,17 +85,21 @@ const resolveRewardFromCode = async (value?: string, mode: ScanMode = 'single'):
         mode,
       },
       errorType: null,
+      duplicate: null,
     };
   } catch (err: any) {
+    const payload = err?.data ?? {};
     const msg: string = err?.message ?? '';
     if (
+      payload?.code === 'QR_ALREADY_REDEEMED' ||
+      err?.status === 409 ||
       msg.includes('already been scanned') ||
       msg.includes('already redeemed') ||
       msg.includes('already scanned')
     ) {
-      return { reward: null, errorType: 'already_scanned' };
+      return { reward: null, errorType: 'already_scanned', duplicate: normalizeDuplicateScan(payload) };
     }
-    return { reward: null, errorType: 'invalid' };
+    return { reward: null, errorType: 'invalid', duplicate: null };
   }
 };
 
@@ -251,6 +276,7 @@ export function ScanScreen({
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const [scanErrorType, setScanErrorType] = useState<ScanErrorType>(null);
+  const [duplicateScan, setDuplicateScan] = useState<DuplicateScanDetails | null>(null);
   const frameSize = Math.min(width - 80, 280);
 
   const laserY = useRef(new Animated.Value(0)).current;
@@ -526,6 +552,7 @@ export function ScanScreen({
     setDetectedLabel('SRV MCB 32A detected');
     setEarnedPoints(0);
     setScanErrorType(null);
+    setDuplicateScan(null);
     if (scanMode === 'single') {
       setBatchItems([]);
     }
@@ -549,6 +576,7 @@ export function ScanScreen({
     if (!result.reward) {
       const errType = result.errorType ?? 'invalid';
       setScanErrorType(errType);
+      setDuplicateScan(result.duplicate);
       setScanned(true);
       setEarnedPoints(0);
       setDetectedLabel(
@@ -560,6 +588,7 @@ export function ScanScreen({
           scanLockedRef.current = false;
           setScanned(false);
           setScanErrorType(null);
+          setDuplicateScan(null);
           setDetectedLabel('Scan next product');
         }, 2000);
       } else {
@@ -569,6 +598,7 @@ export function ScanScreen({
     }
 
     setScanErrorType(null);
+    setDuplicateScan(null);
 
     if (scanMode === 'single') {
       setScanning(false);
@@ -586,6 +616,7 @@ export function ScanScreen({
       scanLockedRef.current = false;
       setScanned(false);
       setScanErrorType(null);
+      setDuplicateScan(null);
       setDetectedLabel('Scan next product');
     }, 1200);
   };
@@ -644,6 +675,7 @@ export function ScanScreen({
     animationTriggeredRef.current = false;
     setScanned(false);
     setScanErrorType(null);
+    setDuplicateScan(null);
     setPreviewImage(null);
     if (cameraGranted === true || (await requestCameraAccess())) {
       setScanning(true);
@@ -679,6 +711,11 @@ export function ScanScreen({
   );
 
   const isDark = darkMode;
+  const callPhoneNumber = (phone?: string | null) => {
+    const digits = String(phone ?? '').replace(/\D/g, '');
+    if (!digits) return;
+    void Linking.openURL(`tel:${digits.length === 10 ? `+91${digits}` : digits}`);
+  };
 
   return (
     <View style={[styles.root, isDark ? styles.rootDark : null]}>
@@ -1045,13 +1082,62 @@ export function ScanScreen({
                 : scanErrorType === 'invalid' ? { color: '#991B1B' } : null,
             ]}>
               {scanErrorType === 'already_scanned'
-                ? tx('This QR code has already been scanned and redeemed.')
+                ? tx('This QR code is already redeemed. First scanner details are shown below.')
                 : scanErrorType === 'invalid'
                   ? tx('This QR is not registered with SRV products.')
                   : earnedPoints > 0
                     ? tx('Points credited to your wallet!')
                     : tx('Points for this QR were already claimed.')}
             </Text>
+            {scanErrorType === 'already_scanned' ? (
+              <View style={[styles.duplicateCard, isDark ? styles.duplicateCardDark : null]}>
+                <Text style={[styles.duplicateTitle, isDark ? styles.duplicateTitleDark : null]}>
+                  {tx('First scanner details')}
+                </Text>
+                <View style={styles.duplicateRow}>
+                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Name')}</Text>
+                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                    {duplicateScan?.name || tx('Not available')}
+                  </Text>
+                </View>
+                <View style={styles.duplicateRow}>
+                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Phone')}</Text>
+                  {duplicateScan?.phone ? (
+                    <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.phone)} activeOpacity={0.8}>
+                      <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
+                        +91 {duplicateScan.phone}  {tx('Call')}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
+                  )}
+                </View>
+                <View style={styles.duplicateRow}>
+                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Name')}</Text>
+                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                    {duplicateScan?.dealerName || tx('Not available')}
+                  </Text>
+                </View>
+                <View style={styles.duplicateRow}>
+                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Phone')}</Text>
+                  {duplicateScan?.dealerPhone ? (
+                    <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.dealerPhone)} activeOpacity={0.8}>
+                      <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
+                        +91 {duplicateScan.dealerPhone}  {tx('Call')}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
+                  )}
+                </View>
+                <View style={styles.duplicateRow}>
+                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Date & Time')}</Text>
+                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                    {duplicateScan?.scannedAt ? new Date(duplicateScan.scannedAt).toLocaleString() : tx('Not available')}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
           </Animated.View>
         )}
 
@@ -1555,6 +1641,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     borderColor: '#FCA5A5',
   },
+  duplicateCard: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.28)',
+    gap: 8,
+  },
+  duplicateCardDark: {
+    backgroundColor: 'rgba(120,53,15,0.38)',
+    borderColor: 'rgba(252,211,77,0.24)',
+  },
+  duplicateTitle: { fontSize: 13, fontWeight: '900', color: '#92400E', marginBottom: 2 },
+  duplicateTitleDark: { color: '#FDE68A' },
+  duplicateRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  duplicateLabel: { flex: 0.82, fontSize: 12, fontWeight: '800', color: '#92400E' },
+  duplicateLabelDark: { color: '#FDE68A' },
+  duplicateValue: { flex: 1.18, textAlign: 'right', fontSize: 12, fontWeight: '800', color: '#78350F' },
+  duplicateValueDark: { color: '#FEF3C7' },
+  duplicateCallValue: { color: Colors.primary, textDecorationLine: 'underline' },
 
   // Status pill for already-scanned / invalid
   statusPill: {

@@ -1,5 +1,5 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { memo, useMemo } from 'react';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { memo, useMemo, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -149,7 +149,7 @@ function EmptyCartIcon({ primarySoft, primaryDark }: { primarySoft: string; prim
 }
 
 const CartItemRow = memo(function CartItemRow({
-  item, theme, darkMode, cardBg, cardSoft, border, textPrimary, textMuted, onUpdateQty, onRemove,
+  item, theme, darkMode, cardBg, cardSoft, border, textPrimary, textMuted, onUpdateQty, onRemove, onOpenDetails,
 }: {
   item: CartItem;
   theme: (typeof ROLE_THEMES)[CartRole];
@@ -158,9 +158,14 @@ const CartItemRow = memo(function CartItemRow({
   textPrimary: string; textMuted: string;
   onUpdateQty: (id: string, qty: number) => void;
   onRemove: (id: string) => void;
+  onOpenDetails: () => void;
 }) {
   return (
-    <View style={[styles.itemCard, { backgroundColor: cardBg, borderColor: border }]}>
+    <Pressable
+      style={[styles.itemCard, { backgroundColor: cardBg, borderColor: border }]}
+      onPress={onOpenDetails}
+      android_ripple={{ color: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.05)' }}
+    >
       <View style={[styles.itemImageWrap, { backgroundColor: cardSoft }]}>
         <Image source={item.image} style={styles.itemImage} resizeMode="contain" />
       </View>
@@ -168,6 +173,7 @@ const CartItemRow = memo(function CartItemRow({
         <View style={styles.itemTextWrap}>
           <Text style={[styles.itemName, { color: textPrimary }]} numberOfLines={2}>{item.name}</Text>
           <Text style={[styles.itemDesc, { color: textMuted }]} numberOfLines={2}>{item.desc}</Text>
+          <Text style={[styles.viewDetailsHint, { color: theme.primary }]}>{'View details'}</Text>
         </View>
         <View style={styles.itemBottomRow}>
           <View style={[styles.qtyPill, { backgroundColor: darkMode ? '#223049' : theme.primarySoft }]}>
@@ -200,7 +206,7 @@ const CartItemRow = memo(function CartItemRow({
         <Text style={[styles.itemPriceLabel, { color: textMuted }]}>₹{item.price.toLocaleString('en-IN')}</Text>
         <Text style={[styles.itemTotal, { color: theme.primary }]}>₹{(item.price * item.qty).toLocaleString('en-IN')}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 });
 
@@ -210,6 +216,7 @@ export function CartScreen({
   onRemove,
   onNavigate,
   onCheckout,
+  onCheckoutItem,
   role = 'customer',
 }: {
   cartItems: CartItem[];
@@ -217,11 +224,14 @@ export function CartScreen({
   onRemove: (id: string) => void;
   onNavigate: (screen: any) => void;
   onCheckout?: () => void;
+  onCheckoutItem?: (item: CartItem) => void;
   role?: CartRole;
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const insets = useSafeAreaInsets();
   const pageContent = useAppPageContent(role === 'customer' ? 'user' : role, 'cart');
+  const [selectedItem, setSelectedItem] = useState<CartItem | null>(null);
+  const [search, setSearch] = useState('');
 
   const theme = ROLE_THEMES[role] ?? ROLE_THEMES.customer;
 
@@ -249,6 +259,14 @@ export function CartScreen({
   }, [cartItems]);
 
   const { totalItems, totalPrice, totalUnits } = cartSummary;
+  const filteredCartItems = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return cartItems;
+    return cartItems.filter((item) =>
+      item.name.toLowerCase().includes(q) ||
+      item.desc.toLowerCase().includes(q)
+    );
+  }, [cartItems, search]);
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
@@ -305,7 +323,28 @@ export function CartScreen({
           </View>
         ) : (
           <View style={styles.listWrap}>
-            {cartItems.map((item) => (
+            <View style={[styles.cartSearchWrap, { backgroundColor: cardBg, borderColor }]}>
+              <Text style={styles.cartSearchIcon}>⌕</Text>
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder={tx('Search products in cart')}
+                placeholderTextColor={textMuted}
+                style={[styles.cartSearchInput, { color: textPrimary }]}
+              />
+              {search ? (
+                <Pressable onPress={() => setSearch('')}>
+                  <Text style={[styles.cartSearchClear, { color: textMuted }]}>×</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            {filteredCartItems.length === 0 ? (
+              <View style={[styles.cartSearchEmpty, { backgroundColor: cardBg, borderColor }]}>
+                <Text style={[styles.cartSearchEmptyTitle, { color: textPrimary }]}>{tx('No matching products')}</Text>
+                <Text style={[styles.cartSearchEmptyText, { color: textMuted }]}>{tx('Try another product name or clear search.')}</Text>
+              </View>
+            ) : null}
+            {filteredCartItems.map((item) => (
               <CartItemRow
                 key={item.id}
                 item={item}
@@ -318,6 +357,7 @@ export function CartScreen({
                 textMuted={textMuted}
                 onUpdateQty={onUpdateQty}
                 onRemove={onRemove}
+                onOpenDetails={() => setSelectedItem(item)}
               />
             ))}
           </View>
@@ -347,6 +387,48 @@ export function CartScreen({
           </View>
         </View>
       ) : null}
+
+      <Modal visible={Boolean(selectedItem)} transparent animationType="fade" onRequestClose={() => setSelectedItem(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setSelectedItem(null)} />
+          {selectedItem ? (
+            <View style={[styles.detailModalCard, { backgroundColor: cardBg, borderColor }]}>
+              <View style={[styles.detailModalImageWrap, { backgroundColor: cardSoft }]}>
+                <Image source={selectedItem.image} style={styles.detailModalImage} resizeMode="contain" />
+              </View>
+              <Text style={[styles.detailModalTitle, { color: textPrimary }]}>{selectedItem.name}</Text>
+              <Text style={[styles.detailModalDesc, { color: textMuted }]}>{selectedItem.desc}</Text>
+              <View style={styles.detailModalMetaRow}>
+                <Text style={[styles.detailModalMeta, { color: textMuted }]}>{tx('Qty')} {selectedItem.qty}</Text>
+                <Text style={[styles.detailModalTotal, { color: theme.primary }]}>
+                  ₹{(selectedItem.price * selectedItem.qty).toLocaleString('en-IN')}
+                </Text>
+              </View>
+              <View style={styles.detailModalActions}>
+                <Pressable
+                  style={[styles.detailModalSecondary, { borderColor }]}
+                  onPress={() => setSelectedItem(null)}
+                >
+                  <Text style={[styles.detailModalSecondaryText, { color: textPrimary }]}>{tx('Close')}</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.detailModalBuyShell}
+                  onPress={() => {
+                    const item = selectedItem;
+                    setSelectedItem(null);
+                    if (onCheckoutItem) onCheckoutItem(item);
+                    else onCheckout?.();
+                  }}
+                >
+                  <LinearGradient colors={[theme.primary, theme.primaryDark]} style={styles.detailModalBuy}>
+                    <Text style={styles.detailModalBuyText}>{tx('Buy This Product')}</Text>
+                  </LinearGradient>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -429,6 +511,26 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     gap: 12,
   },
+  cartSearchWrap: {
+    height: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  cartSearchIcon: { fontSize: 17, color: '#94A3B8' },
+  cartSearchInput: { flex: 1, fontSize: 14, fontWeight: '700' },
+  cartSearchClear: { fontSize: 18, fontWeight: '900' },
+  cartSearchEmpty: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    alignItems: 'center',
+  },
+  cartSearchEmptyTitle: { fontSize: 15, fontWeight: '900' },
+  cartSearchEmptyText: { fontSize: 12, marginTop: 4, textAlign: 'center' },
   itemCard: {
     flexDirection: 'row',
     borderRadius: 24,
@@ -450,6 +552,7 @@ const styles = StyleSheet.create({
   itemTextWrap: { paddingTop: 2 },
   itemName: { fontSize: 16, fontWeight: '800', lineHeight: 21, marginBottom: 4 },
   itemDesc: { fontSize: 12, lineHeight: 18 },
+  viewDetailsHint: { marginTop: 6, fontSize: 11, fontWeight: '900' },
   itemBottomRow: {
     marginTop: 10,
     flexDirection: 'row',
@@ -523,4 +626,50 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   enquireBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15,23,42,0.45)',
+  },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject },
+  detailModalCard: {
+    margin: 14,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 18,
+    ...createShadow({ color: '#0F172A', offsetY: 10, blur: 22, opacity: 0.16, elevation: 10 }),
+  },
+  detailModalImageWrap: {
+    width: '100%',
+    height: 180,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    marginBottom: 14,
+  },
+  detailModalImage: { width: '100%', height: '100%' },
+  detailModalTitle: { fontSize: 20, fontWeight: '900', lineHeight: 25 },
+  detailModalDesc: { marginTop: 8, fontSize: 13, lineHeight: 20 },
+  detailModalMetaRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  detailModalMeta: { fontSize: 13, fontWeight: '800' },
+  detailModalTotal: { fontSize: 20, fontWeight: '900' },
+  detailModalActions: { flexDirection: 'row', gap: 10, marginTop: 18 },
+  detailModalSecondary: {
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailModalSecondaryText: { fontSize: 14, fontWeight: '900' },
+  detailModalBuyShell: { flex: 1, borderRadius: 16, overflow: 'hidden' },
+  detailModalBuy: { height: 52, alignItems: 'center', justifyContent: 'center' },
+  detailModalBuyText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
 });

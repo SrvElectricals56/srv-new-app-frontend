@@ -5,12 +5,14 @@ export function ProductScreen({
   onNavigate,
   onAddToCart,
   onBuyNow,
+  onLoginRequired,
   initialCategory,
 }: {
   onNavigate: (screen: Screen) => void;
   onAddToCart?: (item: any) => void;
   onBuyNow?: (item: any) => void;
+  onLoginRequired?: () => void;
   initialCategory?: string;
 }) {
-  return <ElectricianProductScreen onNavigate={onNavigate} onAddToCart={onAddToCart} onBuyNow={onBuyNow} initialCategory={initialCategory} role="dealer" />;
+  return <ElectricianProductScreen onNavigate={onNavigate} onAddToCart={onAddToCart} onBuyNow={onBuyNow} onLoginRequired={onLoginRequired} initialCategory={initialCategory} role="dealer" />;
 }

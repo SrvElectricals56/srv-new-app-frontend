@@ -4,6 +4,7 @@
     "slug": "srv-electricals",
     "scheme": "srv-electricals",
     "version": "2.0.0",
+    "newArchEnabled": false,
     "plugins": [
       "expo-router",
       [

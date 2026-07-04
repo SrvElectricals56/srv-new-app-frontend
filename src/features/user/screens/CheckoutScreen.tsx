@@ -274,7 +274,7 @@ export function CheckoutScreen({
     } finally {
       setPlacing(false);
     }
-  }, [item, address, paymentMethod, theme.primary, tx, canPayWithPoints, availablePoints, totalPrice, role, updateUser]);
+  }, [item, address, paymentMethod, theme.primary, tx, canPayWithPoints, availablePoints, totalPrice, minimumOrderAmount, role, updateUser]);
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>

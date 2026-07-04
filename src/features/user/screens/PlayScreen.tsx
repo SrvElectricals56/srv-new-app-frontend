@@ -29,7 +29,6 @@ import {
 } from '@/shared/api/services';
 import type { Screen } from '@/shared/types/navigation';
 import { formatISTDateTimeFull } from '@/shared/utils/dateIST';
-import { resolveImageUrl } from '@/shared/api/config';
 
 type VideoCategoryKey = 'all' | 'guides' | 'reels' | 'tips';
 

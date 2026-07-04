@@ -1489,6 +1489,7 @@ function AppContent() {
     handleCartCheckout,
     handleOrderPlaced,
     handleAuthenticatedRoleStart,
+    handleLoginRequired,
     renderGuestFeatureGate,
     renderGuestAuthLanding,
     guestAuthRole,

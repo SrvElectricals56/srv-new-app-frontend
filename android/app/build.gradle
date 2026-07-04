@@ -3,6 +3,8 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def appVariant = System.getenv("APP_VARIANT") ?: "production"
+def isStagingBuild = appVariant == "staging"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -89,11 +91,12 @@ android {
 
     namespace 'com.srvelectricals.app'
     defaultConfig {
-        applicationId 'com.srvelectricals.app'
+        applicationId isStagingBuild ? 'com.srvelectricals.app.staging' : 'com.srvelectricals.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        versionCode 11
         versionName "2.0.0"
+        resValue "string", "app_name", isStagingBuild ? "SRV Electricals Staging" : "SRV Electricals"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

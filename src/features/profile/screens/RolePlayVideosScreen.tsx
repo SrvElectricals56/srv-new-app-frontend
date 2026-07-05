@@ -350,7 +350,7 @@ export function RolePlayVideosScreen({
     }
   };
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ item?: PlayVideo }> }) => {
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: { item?: PlayVideo }[] }) => {
     const next = viewableItems[0]?.item;
     if (next?.id) setActiveVideoId(next.id);
   }).current;

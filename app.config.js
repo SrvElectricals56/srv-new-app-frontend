@@ -10,7 +10,7 @@ module.exports = ({ config }) => {
       bundleIdentifier: isStaging
         ? 'com.srvelectricals.app.staging'
         : config.ios.bundleIdentifier,
-      buildNumber: '11',
+      buildNumber: '12',
       supportsTablet: false,
       infoPlist: {
         ...config.ios.infoPlist,

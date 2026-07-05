@@ -160,6 +160,11 @@ export function resolveRolePageControls(input?: unknown): RolePageControls {
   normalized.electrician.play = true;
   normalized.electrician.cart = true;
   normalized.electrician.checkout = true;
+  // Products is a core customer navigation destination. Older settings rows
+  // may explicitly contain categories=false, which removed the raised Products
+  // tab on iOS even though catalog and checkout remained enabled.
+  normalized.user.categories = true;
+  normalized.user.product = true;
   normalized.user.cart = true;
   normalized.user.checkout = true;
   normalized.counterboy.play = true;

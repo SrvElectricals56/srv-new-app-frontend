@@ -42,7 +42,7 @@
       "bundleIdentifier": "com.srvelectricals.app"
     },
     "android": {
-      "versionCode": 11,
+      "versionCode": 12,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "ACCESS_COARSE_LOCATION",

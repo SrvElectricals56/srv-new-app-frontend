@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 type ExpoNotifications = typeof import('expo-notifications');

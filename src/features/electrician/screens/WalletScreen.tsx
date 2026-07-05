@@ -381,7 +381,7 @@ export function WalletScreen({
     const firstDay = new Date(year, month, 1);
     const startOffset = firstDay.getDay();
     const totalDays = new Date(year, month + 1, 0).getDate();
-    const cells: Array<{ key: string; date?: Date; label: string }> = [];
+    const cells: { key: string; date?: Date; label: string }[] = [];
 
     for (let i = 0; i < startOffset; i += 1) {
       cells.push({ key: `blank-${i}`, label: '' });

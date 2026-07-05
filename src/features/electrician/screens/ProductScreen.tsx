@@ -1330,7 +1330,7 @@ export function ProductScreen({
         </View>
       )}
     </View>
-  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, cc, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, pageContent.pageTitle, pageContent.searchPlaceholder, searchSuggestions, handleOpenProduct]);
+  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, cc, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, pageContent.pageTitle, pageContent.searchPlaceholder, searchSuggestions, handleOpenProduct, cartCount]);
 
   const ListFooter = useMemo(() => (
     <View>

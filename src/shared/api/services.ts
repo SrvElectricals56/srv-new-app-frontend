@@ -1203,6 +1203,9 @@ export const playsApi = {
   toggleLike: (id: string) =>
     api.post<PlayInteractions>(`/mobile/plays/${id}/like`, {}, true),
 
+  recordShare: (id: string) =>
+    api.post<PlayInteractions>(`/mobile/plays/${id}/share`, {}, true),
+
   addComment: (id: string, message: string) =>
     api.post<PlayInteractions>(`/mobile/plays/${id}/comments`, { message }, true),
 };
@@ -1232,6 +1235,9 @@ export type PlayVideo = {
   isActive: boolean;
   targetRoles?: string[];
   viewCount: number;
+  likeCount?: number;
+  commentCount?: number;
+  shareCount?: number;
   createdAt: string;
 };
 
@@ -1255,6 +1261,7 @@ export type PlayComment = {
 export type PlayInteractions = {
   playId: string;
   likeCount: number;
+  shareCount: number;
   likedByMe: boolean;
   comments: PlayComment[];
 };

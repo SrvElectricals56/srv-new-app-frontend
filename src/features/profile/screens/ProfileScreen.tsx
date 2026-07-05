@@ -920,7 +920,14 @@ export function ProfileScreen({
                   <View style={[styles.statIcon, { backgroundColor: item.bg }]}>
                     <AppIcon name={item.icon} size={18} color={item.color} />
                   </View>
-                  <Text style={[styles.statVal, { color: item.color }]}>{item.val}</Text>
+                  <Text
+                    style={[styles.statVal, { color: item.color }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.58}
+                  >
+                    {item.val}
+                  </Text>
                   <Text style={[styles.statLbl, { color: theme.textMuted }]}>{tx(item.label)}</Text>
                 </TouchableOpacity>
               ))}
@@ -1670,7 +1677,7 @@ const styles = StyleSheet.create({
   dealerProgressTrack: { alignItems: 'center', gap: 6 },
   progressFill: { height: '100%', borderRadius: 3 },
   statsRow: { flexDirection: 'row', gap: 10 },
-  statBox: { flex: 1, borderRadius: 20, padding: 14, alignItems: 'center', gap: 6, borderWidth: 1 },
+  statBox: { flex: 1, minWidth: 0, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 14, alignItems: 'center', gap: 6, borderWidth: 1, overflow: 'hidden' },
   statIcon: {
     width: 38,
     height: 38,
@@ -1678,8 +1685,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statVal: { fontSize: 18, fontWeight: '900' },
-  statLbl: { fontSize: 11, fontWeight: '600' },
+  statVal: { width: '100%', textAlign: 'center', fontSize: 18, lineHeight: 22, fontWeight: '900' },
+  statLbl: { width: '100%', textAlign: 'center', fontSize: 11, fontWeight: '600' },
   sectionCard: { borderRadius: 24, padding: 20, borderWidth: 1 },
   cardHead: {
     flexDirection: 'row',

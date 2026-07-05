@@ -34,7 +34,6 @@ import {
   type TestimonialItem,
 } from '@/shared/components/TestimonialShowcase';
 import { WebsitePromoSection } from '@/shared/components/WebsitePromoSection';
-import { TopFiveLeaderboard } from '@/shared/components/TopFiveLeaderboard';
 import { BannerCarousel, type BannerSlide as CarouselSlide } from '@/shared/components/BannerCarousel';
 import { getElectricianTier, type ElectricianTierName } from './ElectricianTierScreen';
 import { useAppPageContent, useAppPageSections, useCatalogDownload } from '@/shared/hooks';
@@ -716,7 +715,6 @@ export function HomeScreen({
       ) : null,
       quick_actions: (
         <Fragment key="quick_actions">
-        <TopFiveLeaderboard role="user" darkMode={darkMode} />
         <View style={styles.quickGrid}>
           {quickActions.map((item) => {
             const Icon = item.icon;

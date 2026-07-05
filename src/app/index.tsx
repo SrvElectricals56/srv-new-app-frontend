@@ -1,6 +1,6 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, StyleSheet, View } from 'react-native';
+import { Animated, BackHandler, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav as DealerBottomNav } from '@/features/dealer/screens/BottomNav';
 import { CallElectricianScreen as DealerCallElectricianScreen } from '@/features/dealer/screens/CallElectricianScreen';
@@ -197,10 +197,18 @@ function AppContent() {
   const [electricianRewardHistory, setElectricianRewardHistory] = useState<RewardHistoryItem[]>([]);
   const [hasUnreadNotif, setHasUnreadNotif] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [notificationBanner, setNotificationBanner] = useState<{ id: string; title: string; message?: string } | null>(null);
+  const notificationBannerY = useRef(new Animated.Value(-96)).current;
+  const notificationBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastBannerNotificationIdRef = useRef<string | null>(null);
   const [userCartItems, setUserCartItems] = useState<CartItem[]>([]);
   const [dealerCartItems, setDealerCartItems] = useState<CartItem[]>([]);
   const [counterboyCartItems, setCounterboyCartItems] = useState<CartItem[]>([]);
   const [electricianCartItems, setElectricianCartItems] = useState<CartItem[]>([]);
+  const userCartCount = useMemo(() => userCartItems.reduce((total, item) => total + item.qty, 0), [userCartItems]);
+  const dealerCartCount = useMemo(() => dealerCartItems.reduce((total, item) => total + item.qty, 0), [dealerCartItems]);
+  const counterboyCartCount = useMemo(() => counterboyCartItems.reduce((total, item) => total + item.qty, 0), [counterboyCartItems]);
+  const electricianCartCount = useMemo(() => electricianCartItems.reduce((total, item) => total + item.qty, 0), [electricianCartItems]);
   const [checkoutItem, setCheckoutItem] = useState<CheckoutItem | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const routeLoadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -321,6 +329,30 @@ function AppContent() {
   useEffect(() => {
     if (isPreviewMode) return;
     if (!isAuthenticated || !user) return;
+    const showNotificationBanner = (notification: any) => {
+      if (!notification?.id || lastBannerNotificationIdRef.current === notification.id) return;
+      lastBannerNotificationIdRef.current = notification.id;
+      if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
+      setNotificationBanner({
+        id: notification.id,
+        title: notification.title || 'New notification',
+        message: notification.message || notification.body || '',
+      });
+      Animated.timing(notificationBannerY, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      notificationBannerTimerRef.current = setTimeout(() => {
+        Animated.timing(notificationBannerY, {
+          toValue: -96,
+          duration: 220,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }).start(() => setNotificationBanner(null));
+      }, 4200);
+    };
     const checkUnread = async () => {
       try {
         const { notificationsApi: notifApi } = await import('@/shared/api');
@@ -331,15 +363,21 @@ function AppContent() {
           storage.getSeenNotificationIds(notifScope),
           storage.getClearedNotificationIds(notifScope),
         ]);
-        const unreadCount = res.data.filter((n: any) => !seenIds.has(n.id) && !clearedIds.has(n.id)).length;
+        const unreadItems = res.data.filter((n: any) => !seenIds.has(n.id) && !clearedIds.has(n.id));
+        const unreadCount = unreadItems.length;
         setUnreadNotifCount(unreadCount);
         setHasUnreadNotif(unreadCount > 0);
+        const newestUnread = unreadItems[0];
+        if (newestUnread && currentScreen !== 'notification') showNotificationBanner(newestUnread);
       } catch { /* silent */ }
     };
     void checkUnread();
     const interval = setInterval(checkUnread, 30000);
-    return () => clearInterval(interval);
-  }, [authRole, isAuthenticated, isPreviewMode, user]);
+    return () => {
+      clearInterval(interval);
+      if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
+    };
+  }, [authRole, currentScreen, isAuthenticated, isPreviewMode, notificationBannerY, user]);
 
   const preferenceValue = usePreferenceValue({
     language,
@@ -907,7 +945,7 @@ function AppContent() {
             />
           );
         case 'product':
-          return <DealerProductScreen onNavigate={handleNavigate} onAddToCart={handleDealerAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} initialCategory={selectedProductCategory} />;
+          return <DealerProductScreen onNavigate={handleNavigate} onAddToCart={handleDealerAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} initialCategory={selectedProductCategory} cartCount={dealerCartCount} />;
         case 'cart':
           return (
             <UserCartScreen
@@ -1069,13 +1107,13 @@ function AppContent() {
             />
           );
         case 'product':
-          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} initialCategory={selectedProductCategory} />;
+          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} initialCategory={selectedProductCategory} cartCount={userCartCount} />;
         case 'play':
           return <RolePlayVideosScreen onBack={() => setCurrentScreen('home')} currentRole="user" />;
         case 'notification':
           return <UserNotificationScreen onNavigate={handleNavigate} role="user" onNotificationsSeen={handleNotificationsSeen} />;
         case 'categories':
-          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} />;
+          return <UserCategoriesScreen onNavigate={handleNavigate} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} cartCount={userCartCount} />;
         case 'checkout':
           return checkoutItem ? (
             <CheckoutScreen
@@ -1191,7 +1229,7 @@ function AppContent() {
             />
           );
         case 'product':
-          return <CounterBoyProductScreen onNavigate={handleNavigate} onAddToCart={handleCounterboyAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} initialCategory={selectedProductCategory} />;
+          return <CounterBoyProductScreen onNavigate={handleNavigate} onAddToCart={handleCounterboyAddToCart} onBuyNow={handleBuyNow} onLoginRequired={handleLoginRequired} initialCategory={selectedProductCategory} cartCount={counterboyCartCount} />;
         case 'cart':
           return (
             <UserCartScreen
@@ -1329,6 +1367,7 @@ function AppContent() {
             onBuyNow={handleBuyNow}
             onLoginRequired={handleLoginRequired}
             initialCategory={selectedProductCategory}
+            cartCount={electricianCartCount}
           />
         );
       case 'play':
@@ -1393,7 +1432,7 @@ function AppContent() {
             initialSubPage={profileInitialSubPage}
             onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
             profileResetKey={profileResetKey}
-            cartCount={electricianCartItems.length}
+            cartCount={electricianCartCount}
           />
         );
       case 'wallet':
@@ -1568,6 +1607,25 @@ function AppContent() {
           )
         ) : null}
         <SrvLogoLoader visible={routeLoading} label="Opening SRV page..." />
+        {notificationBanner ? (
+          <Animated.View style={[styles.notificationBannerWrap, { transform: [{ translateY: notificationBannerY }] }]}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[styles.notificationBanner, { backgroundColor: appTheme.surface ?? '#FFFFFF' }]}
+              onPress={() => {
+                if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
+                setNotificationBanner(null);
+                handleNavigate('notification');
+              }}
+            >
+              <View style={styles.notificationDot} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.notificationTitle, { color: appTheme.textPrimary }]} numberOfLines={1}>{notificationBanner.title}</Text>
+                {notificationBanner.message ? <Text style={styles.notificationMessage} numberOfLines={1}>{notificationBanner.message}</Text> : null}
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        ) : null}
       </View>
     </PreferenceContext.Provider>
   );
@@ -1584,4 +1642,34 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  notificationBannerWrap: {
+    position: 'absolute',
+    top: 12,
+    left: 14,
+    right: 14,
+    zIndex: 2000,
+    elevation: 20,
+  },
+  notificationBanner: {
+    minHeight: 58,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  notificationDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#E8453C',
+  },
+  notificationTitle: { fontSize: 14, fontWeight: '900' },
+  notificationMessage: { fontSize: 12, color: '#64748B', marginTop: 2 },
 });

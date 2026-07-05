@@ -707,6 +707,7 @@ export function ProductScreen({
   showBottomBanner = true,
   role = 'electrician',
   onLoginRequired,
+  cartCount = 0,
 }: {
   onNavigate: (screen: Screen) => void;
   onAddToCart?: (item: any) => void;
@@ -715,6 +716,7 @@ export function ProductScreen({
   showBottomBanner?: boolean;
   role?: 'electrician' | 'dealer' | 'customer' | 'counterboy';
   onLoginRequired?: () => void;
+  cartCount?: number;
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const { products: apiProducts, categories: apiCategories, catalogLoading, refreshAll } = useAppData();
@@ -824,7 +826,6 @@ export function ProductScreen({
   const isCustomer = role === 'customer';
   const isCounterboy = role === 'counterboy';
   const productActionLabel = tx('Buy Now');
-  const bannerActionLabel = pageContent.secondaryCtaLabel || tx('Buy Now');
   const requireAuth = useCallback(() => {
     if (isAuthenticated) return true;
     setDialog({
@@ -1070,7 +1071,28 @@ export function ProductScreen({
   const ListHeader = useMemo(() => (
     <View style={{ gap: 14, paddingBottom: 4 }}>
       {/* Title */}
-      <Text style={[styles.pageTitle, darkMode ? styles.pageTitleDark : null, isCounterboy && { color: '#5C3D2E' }, isCounterboy && darkMode && { color: '#F5EDE4' }]}>{pageContent.pageTitle || tx('All Products')}</Text>
+      <View style={styles.pageTitleRow}>
+        <Text style={[styles.pageTitle, darkMode ? styles.pageTitleDark : null, isCounterboy && { color: '#5C3D2E' }, isCounterboy && darkMode && { color: '#F5EDE4' }]}>{pageContent.pageTitle || tx('All Products')}</Text>
+        <TouchableOpacity
+          onPress={() => onNavigate('cart')}
+          style={[
+            styles.headerCartBtn,
+            darkMode ? styles.headerCartBtnDark : null,
+            isCounterboy && { borderColor: '#E0D0C0', backgroundColor: '#F9F4ED' },
+            isCounterboy && darkMode && { borderColor: '#2D1C14', backgroundColor: '#1A0F0A' },
+          ]}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel={tx('Open cart')}
+        >
+          <CartIcon size={21} color={isCounterboy ? '#8B3C2A' : darkMode ? '#F8FAFC' : C.primary} />
+          {cartCount > 0 ? (
+            <View style={styles.headerCartBadge}>
+              <Text style={styles.headerCartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
+      </View>
 
       {/* Search bar */}
       <View style={[styles.searchWrap, darkMode ? styles.searchWrapDark : null, isCounterboy && { backgroundColor: '#F9F4ED', borderColor: '#E0D0C0' }, isCounterboy && darkMode && { backgroundColor: '#1A0F0A', borderColor: '#2D1C14' }]}>
@@ -1303,15 +1325,12 @@ export function ProductScreen({
             </View>
           </View>
           {!isDealer && !isCustomer && !isCounterboy ? (
-            <TouchableOpacity onPress={() => onNavigate('scan')} style={[styles.catScanBtn, { backgroundColor: cc.scanBg }]}>
-              <ScanIcon size={20} color={cc.scanText} />
-              <Text style={[styles.catScanText, { color: cc.scanText }]}>{bannerActionLabel}</Text>
-            </TouchableOpacity>
+            <View style={styles.catActionPlaceholder} />
           ) : null}
         </View>
       )}
     </View>
-  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, cc, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, bannerActionLabel, pageContent.pageTitle, pageContent.searchPlaceholder, searchSuggestions, handleOpenProduct]);
+  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, cc, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, pageContent.pageTitle, pageContent.searchPlaceholder, searchSuggestions, handleOpenProduct]);
 
   const ListFooter = useMemo(() => (
     <View>
@@ -1420,8 +1439,49 @@ const styles = StyleSheet.create({
   screenDark: { backgroundColor: '#08111F' },
   content: { padding: 14, gap: 14, paddingBottom: 120 },
 
+  pageTitleRow: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 52,
+    position: 'relative',
+  },
   pageTitle: { fontSize: 22, fontWeight: '800', color: '#1C1E2E', textAlign: 'center' },
   pageTitleDark: { color: '#F8FAFC' },
+  headerCartBtn: {
+    position: 'absolute',
+    right: 0,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EEEEF3',
+    shadowColor: '#1A3C8F',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  headerCartBtnDark: { backgroundColor: '#111827', borderColor: '#243043' },
+  headerCartBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8453C',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  headerCartBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900', lineHeight: 12 },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -1499,6 +1559,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   catScanText: { color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center' },
+  catActionPlaceholder: { width: 64, flexShrink: 0 },
 
   searchResultBanner: {
     backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14,

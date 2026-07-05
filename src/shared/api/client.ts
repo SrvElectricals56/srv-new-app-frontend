@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, API_BASE_URLS } from './config';
 import { storage } from './storage';
 import { sessionEvents } from './sessionEvents';
 
@@ -78,8 +78,8 @@ function createApiError(status: number, payload: unknown, fallback: string) {
   return error;
 }
 
-function buildUrl(path: string, params?: Record<string, string | number | undefined>) {
-  let url = `${API_BASE_URL}${path}`;
+function buildUrl(path: string, params?: Record<string, string | number | undefined>, baseUrl = API_BASE_URL) {
+  let url = `${baseUrl}${path}`;
   if (params) {
     const query = Object.entries(params)
       .filter(([, v]) => v !== undefined && v !== null)
@@ -88,6 +88,28 @@ function buildUrl(path: string, params?: Record<string, string | number | undefi
     if (query) url += `?${query}`;
   }
   return url;
+}
+
+async function fetchFromApiBases(
+  path: string,
+  params: Record<string, string | number | undefined> | undefined,
+  options: RequestInit,
+): Promise<Response> {
+  let lastError: unknown = null;
+  for (let index = 0; index < API_BASE_URLS.length; index += 1) {
+    const candidateUrl = buildUrl(path, params, API_BASE_URLS[index]);
+    if (index === 0) {
+      debugLog(`API ${options.method ?? 'GET'} ${candidateUrl}`);
+    } else {
+      debugLog(`API ${options.method ?? 'GET'} retrying ${candidateUrl}`);
+    }
+    try {
+      return await fetchWithTimeout(candidateUrl, options);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Network error. Make sure backend is running and IP is correct.');
 }
 
 let refreshPromise: Promise<string> | null = null;
@@ -101,7 +123,7 @@ export async function refreshAccessToken(): Promise<string> {
       throw new Error('SESSION_EXPIRED');
     }
 
-    const refreshRes = await fetchWithTimeout(`${API_BASE_URL}/mobile/auth/refresh`, {
+    const refreshRes = await fetchFromApiBases('/mobile/auth/refresh', undefined, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
@@ -158,11 +180,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
-  const url = buildUrl(path, params);
-  debugLog(`API ${method} ${url}`);
-
   try {
-    const response = await fetchWithTimeout(url, {
+    const response = await fetchFromApiBases(path, params, {
       method,
       headers,
       ...(body ? { body: JSON.stringify(body) } : {}),
@@ -175,7 +194,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
         const accessToken = await refreshAccessToken();
         headers.Authorization = `Bearer ${accessToken}`;
         debugLog('Token refreshed successfully');
-        const retryRes = await fetchWithTimeout(url, {
+        const retryRes = await fetchFromApiBases(path, params, {
           method,
           headers,
           ...(body ? { body: JSON.stringify(body) } : {}),

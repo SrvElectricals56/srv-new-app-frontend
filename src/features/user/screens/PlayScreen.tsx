@@ -506,6 +506,7 @@ function EmptyState({
 const EMPTY_INTERACTIONS: PlayInteractions = {
   playId: '',
   likeCount: 0,
+  shareCount: 0,
   likedByMe: false,
   comments: [],
 };

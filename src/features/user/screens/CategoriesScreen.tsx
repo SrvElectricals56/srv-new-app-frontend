@@ -7,12 +7,14 @@ export function CategoriesScreen({
   onBuyNow,
   onLoginRequired,
   initialCategory = 'all',
+  cartCount = 0,
 }: {
   onNavigate: (screen: Screen) => void;
   onAddToCart?: (item: any) => void;
   onBuyNow?: (item: any) => void;
   onLoginRequired?: () => void;
   initialCategory?: string;
+  cartCount?: number;
 }) {
   return (
     <ElectricianProductScreen
@@ -21,6 +23,7 @@ export function CategoriesScreen({
       onBuyNow={onBuyNow}
       onLoginRequired={onLoginRequired}
       initialCategory={initialCategory}
+      cartCount={cartCount}
       showBottomBanner={true}
       role="customer"
     />

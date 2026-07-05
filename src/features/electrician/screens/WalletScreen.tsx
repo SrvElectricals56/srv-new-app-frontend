@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
@@ -60,6 +60,16 @@ function HistoryGlyph() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </Svg>
+  );
+}
+
+function CalendarGlyph({ color = '#7A4A22', size = 20 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x="4" y="5" width="16" height="15" rx="3" stroke={color} strokeWidth={2} />
+      <Path d="M8 3v4M16 3v4M4 10h16" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" stroke={color} strokeWidth={2.4} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -258,8 +268,12 @@ export function WalletScreen({
   const walletScrollRef = useRef<ScrollView>(null);
   useRegisterScrollToTop('wallet', walletScrollRef);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activitySearch, setActivitySearch] = useState('');
   const [activityDate, setActivityDate] = useState('');
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [activityType, setActivityType] = useState<'all' | ApiTxItem['type']>('all');
   const itemsPerPage = 5;
 
@@ -344,17 +358,14 @@ export function WalletScreen({
   }, [apiTxItems, historyItems, isDealer, redemptions, scanHistory?.data]);
 
   const filteredItems = useMemo(() => {
-    const search = activitySearch.trim().toLowerCase();
     const date = activityDate.trim();
     return allMappedItems.filter((item) => {
-      const haystack = `${item.title} ${item.time} ${item.points} ${item.type}`.toLowerCase();
       const itemDate = item.rawDate ? new Date(item.rawDate).toISOString().slice(0, 10) : '';
-      const matchesSearch = !search || haystack.includes(search);
-      const matchesDate = !date || itemDate.includes(date) || item.time.includes(date);
+      const matchesDate = !date || itemDate === date;
       const matchesType = activityType === 'all' || item.type === activityType;
-      return matchesSearch && matchesDate && matchesType;
+      return matchesDate && matchesType;
     });
-  }, [activityDate, activitySearch, activityType, allMappedItems]);
+  }, [activityDate, activityType, allMappedItems]);
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -362,7 +373,40 @@ export function WalletScreen({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activityDate, activitySearch, activityType]);
+  }, [activityDate, activityType]);
+
+  const calendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startOffset = firstDay.getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const cells: Array<{ key: string; date?: Date; label: string }> = [];
+
+    for (let i = 0; i < startOffset; i += 1) {
+      cells.push({ key: `blank-${i}`, label: '' });
+    }
+
+    for (let day = 1; day <= totalDays; day += 1) {
+      const date = new Date(year, month, day);
+      cells.push({ key: date.toISOString(), date, label: String(day) });
+    }
+
+    return cells;
+  }, [calendarMonth]);
+
+  const selectedDateLabel = activityDate
+    ? new Date(`${activityDate}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : tx('All Dates');
+
+  const changeCalendarMonth = (direction: number) => {
+    setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+  };
+
+  const selectCalendarDate = (date: Date) => {
+    setActivityDate(date.toISOString().slice(0, 10));
+    setCalendarVisible(false);
+  };
 
   const goToPrevPage = () => {
     if (currentPage > 1) {
@@ -598,21 +642,27 @@ export function WalletScreen({
 
         <View style={[styles.filterPanel, { backgroundColor: darkMode ? '#182133' : t.timelineCardBg, borderColor: darkMode ? '#243043' : t.timelineCardBorder }]}>
           <View style={styles.filterRow}>
-            <TextInput
-              style={[styles.filterInput, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderColor: darkMode ? '#243043' : t.cardBorder, color: darkMode ? '#F8FAFC' : '#221C1A' }]}
-              placeholder={tx('Search transactions, scans, redemptions')}
-              placeholderTextColor={darkMode ? '#94A3B8' : '#887B74'}
-              value={activitySearch}
-              onChangeText={setActivitySearch}
-            />
+            <TouchableOpacity
+              style={[styles.datePickerButton, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderColor: darkMode ? '#243043' : t.cardBorder }]}
+              activeOpacity={0.84}
+              onPress={() => setCalendarVisible(true)}
+            >
+              <CalendarGlyph color={darkMode ? '#F8FAFC' : '#7A4A22'} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.datePickerLabel, { color: darkMode ? '#94A3B8' : '#887B74' }]}>{tx('Filter Date')}</Text>
+                <Text style={[styles.datePickerValue, { color: darkMode ? '#F8FAFC' : '#221C1A' }]}>{selectedDateLabel}</Text>
+              </View>
+            </TouchableOpacity>
+            {activityDate ? (
+              <TouchableOpacity
+                style={[styles.clearDateButton, { borderColor: darkMode ? '#243043' : t.cardBorder }]}
+                activeOpacity={0.8}
+                onPress={() => setActivityDate('')}
+              >
+                <Text style={[styles.clearDateText, { color: darkMode ? '#F8FAFC' : '#7A4A22' }]}>{tx('Clear')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
-          <TextInput
-            style={[styles.filterInput, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderColor: darkMode ? '#243043' : t.cardBorder, color: darkMode ? '#F8FAFC' : '#221C1A' }]}
-            placeholder={tx('Filter date: YYYY-MM-DD')}
-            placeholderTextColor={darkMode ? '#94A3B8' : '#887B74'}
-            value={activityDate}
-            onChangeText={setActivityDate}
-          />
           <View style={styles.filterChips}>
             {(['all', 'wallet', 'scan', 'redemption', 'transfer'] as const).map((item) => {
               const active = activityType === item;
@@ -631,6 +681,47 @@ export function WalletScreen({
             })}
           </View>
         </View>
+
+        <Modal visible={calendarVisible} transparent animationType="fade" onRequestClose={() => setCalendarVisible(false)}>
+          <Pressable style={styles.calendarBackdrop} onPress={() => setCalendarVisible(false)} />
+          <View style={[styles.calendarModal, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderColor: darkMode ? '#243043' : t.cardBorder }]}>
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity onPress={() => changeCalendarMonth(-1)} style={styles.calendarNavBtn}>
+                <Text style={[styles.calendarNavText, { color: darkMode ? '#F8FAFC' : '#221C1A' }]}>‹</Text>
+              </TouchableOpacity>
+              <Text style={[styles.calendarTitle, { color: darkMode ? '#F8FAFC' : '#221C1A' }]}>
+                {calendarMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+              </Text>
+              <TouchableOpacity onPress={() => changeCalendarMonth(1)} style={styles.calendarNavBtn}>
+                <Text style={[styles.calendarNavText, { color: darkMode ? '#F8FAFC' : '#221C1A' }]}>›</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.weekRow}>
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                <Text key={`${day}-${index}`} style={[styles.weekLabel, { color: darkMode ? '#94A3B8' : '#887B74' }]}>{day}</Text>
+              ))}
+            </View>
+            <View style={styles.calendarGrid}>
+              {calendarDays.map((cell) => {
+                const value = cell.date?.toISOString().slice(0, 10);
+                const selected = Boolean(value && value === activityDate);
+                return (
+                  <TouchableOpacity
+                    key={cell.key}
+                    disabled={!cell.date}
+                    onPress={() => cell.date && selectCalendarDate(cell.date)}
+                    style={[styles.calendarDay, selected && { backgroundColor: t.paginationBtnBg }]}
+                    activeOpacity={0.82}
+                  >
+                    <Text style={[styles.calendarDayText, { color: selected ? '#FFFFFF' : darkMode ? '#F8FAFC' : '#221C1A' }]}>
+                      {cell.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </Modal>
 
         <View style={styles.timeline}>
           {paginatedItems.map((item) => (
@@ -846,15 +937,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  filterInput: {
-    flex: 1,
-    minHeight: 46,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  datePickerButton: { flex: 1, minHeight: 54, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  datePickerLabel: { fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  datePickerValue: { fontSize: 13, fontWeight: '900', marginTop: 2 },
+  clearDateButton: { minHeight: 54, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  clearDateText: { fontSize: 12, fontWeight: '900' },
   filterChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filterChip: {
     borderRadius: 999,
@@ -939,4 +1026,15 @@ const styles = StyleSheet.create({
   paginationTextDark: {
     color: '#F8FAFC',
   },
+  calendarBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
+  calendarModal: { position: 'absolute', left: 18, right: 18, top: '24%', borderRadius: 22, borderWidth: 1, padding: 16 },
+  calendarHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  calendarTitle: { fontSize: 17, fontWeight: '900' },
+  calendarNavBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  calendarNavText: { fontSize: 30, lineHeight: 32, fontWeight: '700' },
+  weekRow: { flexDirection: 'row', marginBottom: 8 },
+  weekLabel: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '900' },
+  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calendarDay: { width: `${100 / 7}%`, aspectRatio: 1.05, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
+  calendarDayText: { fontSize: 13, fontWeight: '800' },
 });

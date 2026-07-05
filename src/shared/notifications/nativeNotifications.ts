@@ -6,7 +6,7 @@ type ExpoNotifications = typeof import('expo-notifications');
 let notificationsPromise: Promise<ExpoNotifications | null> | null = null;
 
 export function canUseNativeNotifications() {
-  return Platform.OS !== 'web' && (Constants as any).appOwnership !== 'expo';
+  return Platform.OS !== 'web';
 }
 
 export async function getNativeNotifications() {

@@ -256,6 +256,22 @@ function ScanIcon({ size = 16, color = '#E87820' }: { size?: number; color?: str
   );
 }
 
+function CartIcon({ size = 20, color = '#FFFFFF' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4 5h2l1.5 10.2a2 2 0 0 0 2 1.8h7.8a2 2 0 0 0 2-1.6L20.5 9H7"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx="10" cy="20" r="1.4" fill={color} />
+      <Circle cx="17" cy="20" r="1.4" fill={color} />
+    </Svg>
+  );
+}
+
 function FilterIcon({ size = 18, color = '#1C1E2E' }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -538,11 +554,13 @@ export function ProductScreen({
   initialCategory = 'fanbox',
   showBottomBanner = true,
   showScanButton = true,
+  cartCount = 0,
 }: {
   onNavigate: (screen: Screen) => void;
   initialCategory?: string;
   showBottomBanner?: boolean;
   showScanButton?: boolean;
+  cartCount?: number;
 }) {
   const { darkMode, tx, language } = usePreferenceContext();
   const { products: apiProducts, categories: apiCategories, catalogLoading } = useAppData();
@@ -574,22 +592,55 @@ export function ProductScreen({
   const GAP = 12;
   const cardW = Math.floor((width - PADDING * 2 - GAP) / 2);
 
-  const isSearching = search.trim().length > 0;
+  const searchQuery = search.trim().toLowerCase();
+  const isSearching = searchQuery.length > 0;
+  const matchingCategoryIds = useMemo(() => {
+    if (!searchQuery) return new Set<string>();
+    const ids = new Set<string>();
+
+    catalogCategories.forEach((cat) => {
+      if (
+        cat.id.toLowerCase().includes(searchQuery) ||
+        localizeCatalogText(cat.label, language).toLowerCase().includes(searchQuery)
+      ) {
+        ids.add(cat.id);
+      }
+    });
+
+    catalogProducts.forEach((product) => {
+      if (
+        product.name.toLowerCase().includes(searchQuery) ||
+        product.sub.toLowerCase().includes(searchQuery) ||
+        product.category.toLowerCase().includes(searchQuery)
+      ) {
+        ids.add(product.category);
+      }
+    });
+
+    return ids;
+  }, [catalogCategories, catalogProducts, language, searchQuery]);
 
   const filtered = useMemo(() => {
     let result: typeof catalogProducts;
     if (isSearching) {
       result = catalogProducts.filter(
         (p) =>
-          p.name.toLowerCase().includes(search.toLowerCase()) ||
-          p.sub.toLowerCase().includes(search.toLowerCase())
+          p.name.toLowerCase().includes(searchQuery) ||
+          p.sub.toLowerCase().includes(searchQuery) ||
+          p.category.toLowerCase().includes(searchQuery) ||
+          matchingCategoryIds.has(p.category)
       );
     } else {
       result = catalogProducts.filter((p) => p.category === category);
     }
     // Sort alphabetically A-Z by name
     return [...result].sort((a, b) => a.name.localeCompare(b.name));
-  }, [catalogProducts, category, search, isSearching]);
+  }, [catalogProducts, category, searchQuery, isSearching, matchingCategoryIds]);
+
+  const visibleCategories = useMemo(() => {
+    if (!isSearching) return catalogCategories;
+    return catalogCategories.filter((cat) => matchingCategoryIds.has(cat.id));
+  }, [catalogCategories, isSearching, matchingCategoryIds]);
 
   const relatedProducts = useMemo(() => {
     if (!selectedProduct) return [];
@@ -626,7 +677,22 @@ export function ProductScreen({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.pageTitle, darkMode ? styles.pageTitleDark : null]}>{pageContent.pageTitle || tx('All Products')}</Text>
+      <View style={styles.pageTitleRow}>
+        <Text style={[styles.pageTitle, darkMode ? styles.pageTitleDark : null]}>{pageContent.pageTitle || tx('All Products')}</Text>
+        <TouchableOpacity
+          onPress={() => onNavigate('cart')}
+          style={[styles.headerCartBtn, darkMode ? styles.headerCartBtnDark : null]}
+          activeOpacity={0.84}
+          accessibilityLabel={tx('Open cart')}
+        >
+          <CartIcon size={21} color={darkMode ? '#F8FAFC' : Colors.primary} />
+          {cartCount > 0 ? (
+            <View style={styles.headerCartBadge}>
+              <Text style={styles.headerCartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
+      </View>
 
       {/* Search */}
       <View style={[styles.searchWrap, darkMode ? styles.searchWrapDark : null]}>
@@ -666,7 +732,7 @@ export function ProductScreen({
             </TouchableOpacity>
           </View>
           <View style={styles.filterGrid}>
-            {catalogCategories.map((cat, catIndex) => {
+            {visibleCategories.map((cat, catIndex) => {
               const active = !isSearching && cat.id === category;
               const cc = getCatColor(cat.id, catIndex);
               return (
@@ -688,6 +754,13 @@ export function ProductScreen({
                 </TouchableOpacity>
               );
             })}
+            {visibleCategories.length === 0 ? (
+              <View style={[styles.noCategoryMatch, darkMode ? styles.noCategoryMatchDark : null]}>
+                <Text style={[styles.noCategoryMatchText, darkMode ? styles.filterPanelSubDark : null]}>
+                  {tx('No matching categories found')}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
       ) : null}
@@ -740,10 +813,7 @@ export function ProductScreen({
               <Text style={styles.catBannerSub}>{filtered.length} {tx('products')} {tx('available')}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => onNavigate('scan')} style={styles.catScanBtn}>
-            <ScanIcon size={20} color="#fff" />
-            <Text style={styles.catScanText}>{tx('Scan & Earn').replace(' ', '\n')}</Text>
-          </TouchableOpacity>
+          <View style={styles.catActionPlaceholder} />
         </LinearGradient>
       )}
 
@@ -872,8 +942,13 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   screenDark: { backgroundColor: '#08111F' },
   content: { padding: 14, gap: 14, paddingBottom: 120 },
+  pageTitleRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', position: 'relative' },
   pageTitle: { fontSize: 22, fontWeight: '800', color: Colors.textDark, textAlign: 'center' },
   pageTitleDark: { color: '#F8FAFC' },
+  headerCartBtn: { position: 'absolute', right: 0, width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: Colors.border },
+  headerCartBtnDark: { backgroundColor: '#182133', borderColor: '#243043' },
+  headerCartBadge: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, borderWidth: 1.5, borderColor: '#FFFFFF' },
+  headerCartBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900', lineHeight: 12 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.surface, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 14, height: 50 },
   searchWrapDark: { backgroundColor: '#111827', borderColor: '#243043' },
   searchInput: { flex: 1, fontSize: 15, color: Colors.textDark },
@@ -898,6 +973,9 @@ const styles = StyleSheet.create({
   filterCardMetaActive: { color: 'rgba(255,255,255,0.86)' },
   filterCardTitleDark: { color: '#F8FAFC' },
   filterCardMetaDark: { color: '#94A3B8' },
+  noCategoryMatch: { width: '100%', borderRadius: 16, padding: 14, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  noCategoryMatchDark: { backgroundColor: '#182133', borderColor: '#243043' },
+  noCategoryMatchText: { fontSize: 12, fontWeight: '700', color: Colors.textMuted },
   tabList: { gap: 10, paddingVertical: 2 },
   categoryTab: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 22, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
   categoryTabDark: { backgroundColor: '#111827', borderColor: '#243043' },
@@ -911,6 +989,7 @@ const styles = StyleSheet.create({
   catBannerSub: { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
   catScanBtn: { backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', gap: 4 },
   catScanText: { color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center' },
+  catActionPlaceholder: { width: 64, flexShrink: 0 },
   searchResultBanner: { backgroundColor: Colors.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
   searchResultText: { fontSize: 15, fontWeight: '700', color: Colors.textDark },
   searchResultSub: { fontSize: 12, color: Colors.textMuted, marginTop: 4 },

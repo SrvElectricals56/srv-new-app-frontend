@@ -16,7 +16,6 @@ import {
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import { BannerCarousel } from '@/shared/components/BannerCarousel';
-import { TopFiveLeaderboard } from '@/shared/components/TopFiveLeaderboard';
 import {
   TESTIMONIAL_FALLBACK_COPY,
   getTestimonialTheme,
@@ -358,7 +357,6 @@ export function HomeScreen({
       home_banner: null,
       quick_actions: (
         <Fragment key="quick_actions">
-        <TopFiveLeaderboard role="counterboy" darkMode={darkMode} />
         <View style={styles.quickGrid}>
           {quickActions.map((item) => {
             const Icon = item.icon;

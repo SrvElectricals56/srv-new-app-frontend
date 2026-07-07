@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -430,8 +431,19 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
         return;
       }
 
-      const destination = `${LegacyFileSystem.documentDirectory ?? LegacyFileSystem.cacheDirectory}${fileName}`;
+      const destination = `${LegacyFileSystem.cacheDirectory ?? LegacyFileSystem.documentDirectory}${fileName}`;
       await LegacyFileSystem.copyAsync({ from: uri, to: destination });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(destination, {
+          UTI: 'com.adobe.pdf',
+          mimeType: 'application/pdf',
+          dialogTitle: tx('Save profile card PDF'),
+        });
+        setDialog({ visible: true, variant: 'success', title: tx('PDF saved'), message: tx('Profile card PDF saved to your selected device folder.') });
+        return;
+      }
+
       setDialog({ visible: true, variant: 'success', title: tx('PDF saved'), message: `${tx('Saved in local files:')}\n${destination}` });
     } catch {
       setDialog({ visible: true, variant: 'error', title: tx('Download failed'), message: tx('Unable to create the profile card PDF right now.') });

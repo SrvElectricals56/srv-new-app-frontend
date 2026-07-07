@@ -14,9 +14,9 @@ import {
   resolveRolePageControls,
 } from '@/shared/config/rolePageControls';
 
-// Customer theme colors matching Customer_Slide
 const BROWN_PRIMARY = '#6A2F12';
 const BROWN_SECONDARY = '#8D4A1E';
+
 type NavControlConfig = {
   id: Screen;
   label: string;
@@ -111,23 +111,13 @@ function ProfileIcon({ color, size = 24 }: { color: string; size?: number }) {
 }
 
 function CategoriesIcon({ size = 32, compact = false }: { size?: number; compact?: boolean }) {
-  const s = compact ? size * 0.80 : size * 0.84;
+  const scaledSize = compact ? size * 0.86 : size * 0.9;
   return (
-    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
-      {/* Top-left cell — filled accent */}
-      <Rect x="3" y="3" width="8" height="8" rx="2.2"
-        fill="rgba(255,255,255,0.92)" />
-      {/* Top-right cell — outlined */}
-      <Rect x="13" y="3" width="8" height="8" rx="2.2"
-        fill="rgba(255,255,255,0.35)"
-        stroke="rgba(255,255,255,0.8)" strokeWidth={1.4} />
-      {/* Bottom-left cell — outlined */}
-      <Rect x="3" y="13" width="8" height="8" rx="2.2"
-        fill="rgba(255,255,255,0.35)"
-        stroke="rgba(255,255,255,0.8)" strokeWidth={1.4} />
-      {/* Bottom-right cell — filled accent */}
-      <Rect x="13" y="13" width="8" height="8" rx="2.2"
-        fill="rgba(255,255,255,0.92)" />
+    <Svg width={scaledSize} height={scaledSize} viewBox="0 0 24 24" fill="none">
+      <Rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="#FFFFFF" />
+      <Rect x="13.5" y="3.5" width="7" height="7" rx="2" stroke="#FFFFFF" strokeWidth={1.8} />
+      <Rect x="3.5" y="13.5" width="7" height="7" rx="2" stroke="#FFFFFF" strokeWidth={1.8} />
+      <Rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="#FFFFFF" />
     </Svg>
   );
 }
@@ -148,9 +138,9 @@ function CategoriesButton({
   const ring2Opacity = useRef(new Animated.Value(0.3)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
 
-  const btnSize = compact ? 48 : 60;
-  const ringSize = compact ? 48 : 60;
-  const ringTop = compact ? -16 : -22;
+  const btnSize = compact ? 50 : 60;
+  const ringSize = compact ? 50 : 60;
+  const ringTop = compact ? -15 : -22;
 
   useEffect(() => {
     const makeRingAnim = (scale: Animated.Value, opacity: Animated.Value, delay: number) =>
@@ -221,7 +211,7 @@ function CategoriesButton({
 }
 
 const catStyles = StyleSheet.create({
-  wrapper: { alignItems: 'center', width: 72 },
+  wrapper: { alignItems: 'center', width: 76 },
   wrapperCompact: { width: 60 },
   ring: {
     position: 'absolute',
@@ -249,7 +239,7 @@ const catStyles = StyleSheet.create({
     borderRadius: 14,
     ...createShadow({ color: BROWN_PRIMARY, offsetY: 5, blur: 8, opacity: 0.5, elevation: 12 }),
   },
-  label: { fontSize: 10, fontWeight: '800', color: '#9E9189', letterSpacing: 0.5, marginTop: 1 },
+  label: { fontSize: 10, fontWeight: '800', color: '#9E9189', letterSpacing: 0.4, marginTop: 1 },
   labelActive: { color: BROWN_PRIMARY },
   labelCompact: { fontSize: 8 },
 });
@@ -424,4 +414,3 @@ const styles = StyleSheet.create({
   labelCompact: { fontSize: 8, marginTop: 1 },
   labelActive: { color: BROWN_PRIMARY, fontWeight: '800' },
 });
-

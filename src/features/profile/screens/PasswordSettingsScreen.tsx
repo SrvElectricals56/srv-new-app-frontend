@@ -18,7 +18,7 @@ import { createShadow } from '@/shared/theme/shadows';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 
-type PasswordMode = 'set' | 'change';
+type PasswordMode = 'set' | 'change' | 'reset';
 
 type PasswordSettingsPageProps = {
   hasPasswordConfigured: boolean;
@@ -34,6 +34,9 @@ type PasswordErrors = {
   currentPassword?: string;
   newPassword?: string;
   confirmNewPassword?: string;
+  resetOtp?: string;
+  resetPassword?: string;
+  confirmResetPassword?: string;
 };
 
 type PasswordFieldProps = {
@@ -50,6 +53,8 @@ type PasswordFieldProps = {
   onSubmitEditing?: () => void;
   onFieldLayout?: (y: number) => void;
   onFocusField?: () => void;
+  showToggle?: boolean;
+  maxLength?: number;
 };
 
 function PasswordField({
@@ -66,6 +71,8 @@ function PasswordField({
   onSubmitEditing,
   onFieldLayout,
   onFocusField,
+  showToggle = true,
+  maxLength,
 }: PasswordFieldProps) {
   return (
     <View
@@ -94,17 +101,20 @@ function PasswordField({
           importantForAutofill="no"
           keyboardType="default"
           returnKeyType={returnKeyType}
+          maxLength={maxLength}
           blurOnSubmit={false}
           onSubmitEditing={onSubmitEditing}
           style={[styles.input, { color: theme.textPrimary }]}
         />
-        <TouchableOpacity onPress={onToggle} style={styles.eyeBtn} activeOpacity={0.8}>
-          <AppIcon
-            name={secureTextEntry ? 'eye' : 'eyeOff'}
-            size={18}
-            color={theme.textSecondary}
-          />
-        </TouchableOpacity>
+        {showToggle ? (
+          <TouchableOpacity onPress={onToggle} style={styles.eyeBtn} activeOpacity={0.8}>
+            <AppIcon
+              name={secureTextEntry ? 'eye' : 'eyeOff'}
+              size={18}
+              color={theme.textSecondary}
+            />
+          </TouchableOpacity>
+        ) : null}
       </View>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
@@ -117,10 +127,7 @@ type StrengthRule = {
 };
 
 const strengthRules: StrengthRule[] = [
-  { label: 'At least 8 characters', test: (p) => p.length >= 8 },
-  { label: 'Contains uppercase letter (A-Z)', test: (p) => /[A-Z]/.test(p) },
-  { label: 'Contains lowercase letter (a-z)', test: (p) => /[a-z]/.test(p) },
-  { label: 'Contains a number (0-9)', test: (p) => /\d/.test(p) },
+  { label: 'Exactly 8 characters', test: (p) => p.length === 8 },
   {
     label: 'Contains special character (!@#$%)',
     test: (p) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p),
@@ -128,11 +135,16 @@ const strengthRules: StrengthRule[] = [
   { label: 'No spaces allowed', test: (p) => !/\s/.test(p) },
 ];
 
+const PASSWORD_MAX_LENGTH = 8;
+const PASSWORD_RULE_MESSAGE = 'Password must be exactly 8 characters long and include one special character.';
+const isStrongPassword = (value: string) => /^(?=.*[^A-Za-z0-9])\S{8}$/.test(value);
+const cleanPasswordInput = (value: string) => value.replace(/\s/g, '').slice(0, PASSWORD_MAX_LENGTH);
+
 function getStrengthLevel(password: string): { level: number; color: string } {
   if (!password) return { level: 0, color: C.muted };
   const passed = strengthRules.filter((r) => r.test(password)).length;
-  if (passed <= 2) return { level: passed, color: '#EF4444' };
-  if (passed <= 4) return { level: passed, color: '#F59E0B' };
+  if (passed <= 1) return { level: passed, color: '#EF4444' };
+  if (passed <= 2) return { level: passed, color: '#F59E0B' };
   return { level: passed, color: '#22C55E' };
 }
 
@@ -145,7 +157,7 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
   return (
     <View style={styles.strengthContainer}>
       <View style={styles.strengthBar}>
-        {[1, 2, 3, 4, 5, 6].map((i) => (
+        {[1, 2, 3].map((i) => (
           <View
             key={i}
             style={[styles.strengthSegment, { backgroundColor: i <= level ? color : theme.border }]}
@@ -180,15 +192,22 @@ export function PasswordSettingsPage({
   onPasswordConfiguredChange,
   onPasswordChange,
 }: PasswordSettingsPageProps) {
-  const { tx, theme } = usePreferenceContext();
+  const { tx, theme, darkMode } = usePreferenceContext();
   const { role, user, login, refreshProfile } = useAuth();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'password');
+  const glassSurface = darkMode ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.72)';
+  const glassBorder = darkMode ? 'rgba(148,163,184,0.22)' : 'rgba(255,255,255,0.72)';
   const [mode, setMode] = useState<PasswordMode>(hasPasswordConfigured ? 'change' : 'set');
   const [setPassword, setSetPassword] = useState('');
   const [confirmSetPassword, setConfirmSetPassword] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [confirmResetPassword, setConfirmResetPassword] = useState('');
+  const [resetOtpSent, setResetOtpSent] = useState(false);
+  const [resetOtpVerified, setResetOtpVerified] = useState(false);
   const [showSetPassword, setShowSetPassword] = useState(false);
   const [showConfirmSetPassword, setShowConfirmSetPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -206,6 +225,9 @@ export function PasswordSettingsPage({
   const currentPasswordRef = useRef<TextInput | null>(null);
   const newPasswordRef = useRef<TextInput | null>(null);
   const confirmNewPasswordRef = useRef<TextInput | null>(null);
+  const resetOtpRef = useRef<TextInput | null>(null);
+  const resetPasswordRef = useRef<TextInput | null>(null);
+  const confirmResetPasswordRef = useRef<TextInput | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSetDisabled = hasPasswordConfigured && mode === 'set';
@@ -214,17 +236,23 @@ export function PasswordSettingsPage({
   const canSaveSet =
     mode === 'set' &&
     !hasPasswordConfigured &&
-    setPassword.length >= 8 &&
-    confirmSetPassword.length >= 8 &&
+    isStrongPassword(setPassword) &&
+    confirmSetPassword.length === PASSWORD_MAX_LENGTH &&
     setPassword === confirmSetPassword;
   const canSaveChange =
     mode === 'change' &&
     hasPasswordConfigured &&
     currentPassword.length > 0 &&
-    newPassword.length >= 8 &&
-    confirmNewPassword.length >= 8 &&
+    isStrongPassword(newPassword) &&
+    confirmNewPassword.length === PASSWORD_MAX_LENGTH &&
     newPassword === confirmNewPassword;
-  const isSaveDisabled = isSaving || (mode === 'set' ? !canSaveSet : !canSaveChange);
+  const canSaveReset =
+    mode === 'reset' &&
+    resetOtp.length >= 4 &&
+    resetOtpVerified &&
+    isStrongPassword(resetPassword) &&
+    confirmResetPassword === resetPassword;
+  const isSaveDisabled = isSaving || (mode === 'set' ? !canSaveSet : mode === 'change' ? !canSaveChange : !canSaveReset);
 
   useEffect(() => {
     setMode(hasPasswordConfigured ? 'change' : 'set');
@@ -233,6 +261,11 @@ export function PasswordSettingsPage({
     setCurrentPassword('');
     setNewPassword('');
     setConfirmNewPassword('');
+    setResetOtp('');
+    setResetPassword('');
+    setConfirmResetPassword('');
+    setResetOtpSent(false);
+    setResetOtpVerified(false);
     setErrors({});
     setSuccessMessage('');
   }, [hasPasswordConfigured, storedPassword]);
@@ -257,9 +290,17 @@ export function PasswordSettingsPage({
         }
       }
 
+      if (mode === 'reset') {
+        if (resetPassword && confirmResetPassword && resetPassword !== confirmResetPassword) {
+          next.confirmResetPassword = tx('Please enter both passwords same.');
+        } else if (next.confirmResetPassword === tx('Please enter both passwords same.')) {
+          next.confirmResetPassword = undefined;
+        }
+      }
+
       return next;
     });
-  }, [confirmNewPassword, confirmSetPassword, mode, newPassword, setPassword, tx]);
+  }, [confirmNewPassword, confirmResetPassword, confirmSetPassword, mode, newPassword, resetPassword, setPassword, tx]);
 
   // Sync hasPasswordConfigured from backend profile to avoid stale storage state
   useEffect(() => {
@@ -329,6 +370,84 @@ export function PasswordSettingsPage({
     setMode(nextMode);
     setErrors({});
     setSuccessMessage('');
+    if (nextMode === 'reset') {
+      setResetOtp('');
+      setResetPassword('');
+      setConfirmResetPassword('');
+      setResetOtpSent(false);
+      setResetOtpVerified(false);
+    }
+  };
+
+  const sendResetOtp = async () => {
+    if (!user?.phone || !role) {
+      setDialog({ visible: true, variant: 'error', title: '', message: tx('Phone number is not available for this account.') });
+      return;
+    }
+
+    Keyboard.dismiss();
+    setIsSaving(true);
+    setSuccessMessage('');
+    setResetOtpVerified(false);
+    setResetPassword('');
+    setConfirmResetPassword('');
+    setErrors((current) => ({
+      ...current,
+      resetOtp: undefined,
+      resetPassword: undefined,
+      confirmResetPassword: undefined,
+    }));
+    try {
+      const res = await authApi.sendPasswordResetOtp(user.phone, role);
+      setResetOtpSent(true);
+      setResetOtp('');
+      setDialog({
+        visible: true,
+        variant: 'success',
+        title: tx('OTP Sent'),
+        message: res.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${res.devOtp}` : tx('Please check your phone for the OTP'),
+      });
+      setTimeout(() => resetOtpRef.current?.focus(), 250);
+    } catch (error: any) {
+      setDialog({ visible: true, variant: 'error', title: '', message: error?.message || tx('Could not send OTP. Please try again.') });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const verifyResetOtp = async () => {
+    if (!user?.phone || !role) {
+      setDialog({ visible: true, variant: 'error', title: '', message: tx('Phone number is not available for this account.') });
+      return;
+    }
+
+    Keyboard.dismiss();
+    if (!resetOtpSent) {
+      setErrors((current) => ({ ...current, resetOtp: tx('Please request OTP first.') }));
+      return;
+    }
+    if (resetOtp.trim().length < 4) {
+      setErrors((current) => ({ ...current, resetOtp: tx('Enter the OTP to continue.') }));
+      return;
+    }
+
+    setIsSaving(true);
+    setSuccessMessage('');
+    setErrors((current) => ({ ...current, resetOtp: undefined }));
+    try {
+      await authApi.verifyPasswordResetOtp(user.phone, role, resetOtp.trim());
+      setResetOtpVerified(true);
+      setSuccessMessage(tx('OTP verified successfully. Create your new password now.'));
+      setTimeout(() => resetPasswordRef.current?.focus(), 250);
+    } catch (error: any) {
+      setResetOtpVerified(false);
+      setErrors((current) => ({
+        ...current,
+        resetOtp: error?.message || tx('Invalid OTP. Please try again.'),
+      }));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const scheduleBackNavigation = () => {
@@ -413,8 +532,10 @@ export function PasswordSettingsPage({
         return;
       }
 
-      if (trimmedSetPassword.length < 8) {
-        nextErrors.setPassword = tx('Please enter a password with at least 8 characters.');
+      if (trimmedSetPassword.length !== PASSWORD_MAX_LENGTH) {
+        nextErrors.setPassword = tx(PASSWORD_RULE_MESSAGE);
+      } else if (!isStrongPassword(trimmedSetPassword)) {
+        nextErrors.setPassword = tx(PASSWORD_RULE_MESSAGE);
       }
 
       if (confirmSetPassword.trim().length === 0) {
@@ -457,13 +578,65 @@ export function PasswordSettingsPage({
           lowerMessage.includes('minimum') ||
           lowerMessage.includes('too short')
         ) {
-          setErrors({
-            setPassword: tx('Please enter a password with at least 8 characters.'),
-          });
+          setErrors({ setPassword: tx(PASSWORD_RULE_MESSAGE) });
           return;
         }
 
         setDialog({ visible: true, variant: 'error', title: '', message: message || tx('Please try again.') });
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    if (mode === 'reset') {
+      if (!user?.phone || !role) {
+        setDialog({ visible: true, variant: 'error', title: '', message: tx('Phone number is not available for this account.') });
+        return;
+      }
+      if (!resetOtpSent) {
+        nextErrors.resetOtp = tx('Please request OTP first.');
+      } else if (resetOtp.trim().length < 4) {
+        nextErrors.resetOtp = tx('Enter the OTP to continue.');
+      } else if (!resetOtpVerified) {
+        nextErrors.resetOtp = tx('Please verify OTP before updating password.');
+      }
+      if (!isStrongPassword(resetPassword.trim())) {
+        nextErrors.resetPassword = tx(PASSWORD_RULE_MESSAGE);
+      }
+      if (confirmResetPassword.trim().length === 0) {
+        nextErrors.confirmResetPassword = tx('Please confirm your new password to continue.');
+      } else if (confirmResetPassword !== resetPassword.trim()) {
+        nextErrors.confirmResetPassword = tx('Please enter both passwords same.');
+      }
+      setErrors(nextErrors);
+      if (Object.keys(nextErrors).length > 0) {
+        setSuccessMessage('');
+        if (nextErrors.resetPassword) {
+          setDialog({ visible: true, variant: 'info', title: tx('Password Required'), message: tx(PASSWORD_RULE_MESSAGE) });
+        }
+        return;
+      }
+
+      setIsSaving(true);
+      setSuccessMessage('');
+      try {
+        await authApi.resetPasswordWithOtp(user.phone, role, resetOtp.trim(), resetPassword.trim());
+        const result = await authApi.loginWithPassword(user.phone, role, resetPassword.trim());
+        login(result.user, role);
+        await storage.setPasswordConfigured(role, true);
+        await refreshProfile();
+        onPasswordChange(resetPassword.trim());
+        onPasswordConfiguredChange(true);
+        setErrors({});
+        setSuccessMessage(tx('Password updated successfully.'));
+        setResetOtp('');
+        setResetPassword('');
+        setConfirmResetPassword('');
+        setResetOtpSent(false);
+        scheduleBackNavigation();
+      } catch (error: any) {
+        setDialog({ visible: true, variant: 'error', title: '', message: error?.message || tx('Please try again.') });
       } finally {
         setIsSaving(false);
       }
@@ -476,8 +649,8 @@ export function PasswordSettingsPage({
       nextErrors.currentPassword = tx('Please enter your current password.');
     }
 
-    if (trimmedNewPassword.length < 8) {
-      nextErrors.newPassword = tx('Please enter a password with at least 8 characters.');
+    if (!isStrongPassword(trimmedNewPassword)) {
+      nextErrors.newPassword = tx(PASSWORD_RULE_MESSAGE);
     } else if (trimmedNewPassword === trimmedCurrentPassword) {
       nextErrors.newPassword = tx(
         'Please choose a new password that is different from the current password.'
@@ -542,11 +715,9 @@ export function PasswordSettingsPage({
         lowerMessage.includes('minimum') ||
         lowerMessage.includes('too short')
       ) {
-        setErrors({
-          newPassword: tx('Please enter a password with at least 8 characters.'),
-        });
-        return;
-      }
+          setErrors({ newPassword: tx(PASSWORD_RULE_MESSAGE) });
+          return;
+        }
 
       setDialog({ visible: true, variant: 'error', title: '', message: message || tx('Please try again.') });
     } finally {
@@ -555,7 +726,7 @@ export function PasswordSettingsPage({
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+    <View style={[styles.root, { backgroundColor: theme.bg }]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -571,7 +742,7 @@ export function PasswordSettingsPage({
           contentContainerStyle={[styles.scrollContent, { paddingBottom: keyboardHeight + 32 }]}
         >
           <View
-            style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            style={[styles.heroCard, { backgroundColor: glassSurface, borderColor: glassBorder }]}
           >
             <View style={styles.heroIconWrap}>
               <AppIcon name="lock" size={22} color={C.blue} />
@@ -583,6 +754,12 @@ export function PasswordSettingsPage({
               <Text style={[styles.heroSub, { color: theme.textMuted }]}>
                 {tx('Set a password if you skipped it earlier, or change it anytime from here.')}
               </Text>
+              <View style={[styles.passwordStatusPill, { backgroundColor: hasPasswordConfigured ? C.successLight : C.primaryLight }]}>
+                <AppIcon name={hasPasswordConfigured ? 'check' : 'lock'} size={13} color={hasPasswordConfigured ? C.success : C.primary} />
+                <Text style={[styles.passwordStatusText, { color: hasPasswordConfigured ? C.success : C.primary }]}>
+                  {tx(hasPasswordConfigured ? 'Password active' : 'Password not set')}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -591,7 +768,7 @@ export function PasswordSettingsPage({
               style={[
                 styles.optionCard,
                 {
-                  backgroundColor: theme.surface,
+                  backgroundColor: glassSurface,
                   borderColor: mode === 'set' ? C.blue : theme.border,
                 },
                 mode === 'set' ? styles.optionCardActive : null,
@@ -614,7 +791,7 @@ export function PasswordSettingsPage({
               style={[
                 styles.optionCard,
                 {
-                  backgroundColor: theme.surface,
+                  backgroundColor: glassSurface,
                   borderColor: mode === 'change' ? C.primary : theme.border,
                 },
                 mode === 'change' ? styles.optionCardActive : null,
@@ -632,13 +809,36 @@ export function PasswordSettingsPage({
                 {tx('Update your current password whenever needed.')}
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.optionCard,
+                {
+                  backgroundColor: glassSurface,
+                  borderColor: mode === 'reset' ? C.primary : theme.border,
+                },
+                mode === 'reset' ? styles.optionCardActive : null,
+              ]}
+              onPress={() => selectMode('reset')}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.optionIconWrap, { backgroundColor: C.primaryLight }]}>
+                <AppIcon name="lock" size={18} color={C.primary} />
+              </View>
+              <Text style={[styles.optionTitle, { color: theme.textPrimary }]}>
+                {tx('Forgot Password')}
+              </Text>
+              <Text style={[styles.optionSub, { color: theme.textMuted }]}>
+                {tx('Reset with OTP if you forgot the current password.')}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <View
-            style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            style={[styles.card, { backgroundColor: glassSurface, borderColor: glassBorder }]}
           >
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-              {mode === 'set' ? tx('Set Password') : tx('Change Password')}
+              {mode === 'set' ? tx('Set Password') : mode === 'reset' ? tx('Forgot Password') : tx('Change Password')}
             </Text>
             <Text style={[styles.sectionSub, { color: theme.textMuted }]}>
               {mode === 'set'
@@ -646,7 +846,9 @@ export function PasswordSettingsPage({
                   ? tx(
                       'A password is already active for this account. Use Change Password to update it.'
                     )
-                  : tx('Use at least 8 characters so your account stays secure.')
+                  : tx('Use exactly 8 characters with at least one special character.')
+                : mode === 'reset'
+                  ? tx('Verify OTP sent to your phone, then create a new password.')
                 : hasPasswordConfigured
                   ? tx('Enter your current password and then create a new one.')
                   : tx(
@@ -661,13 +863,14 @@ export function PasswordSettingsPage({
                   label={tx('Password')}
                   value={setPassword}
                   onChangeText={(value) => {
-                    setSetPassword(value.replace(/\s/g, ''));
+                    setSetPassword(cleanPasswordInput(value));
                     clearFieldError('setPassword');
                   }}
                   secureTextEntry={!showSetPassword}
+                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowSetPassword((current) => !current)}
                   error={errors.setPassword}
-                  placeholder={tx('Enter at least 8 characters')}
+                  placeholder={tx('Enter exactly 8 characters')}
                   inputRef={setPasswordRef}
                   returnKeyType="next"
                   onSubmitEditing={() => confirmSetPasswordRef.current?.focus()}
@@ -680,19 +883,121 @@ export function PasswordSettingsPage({
                   label={tx('Confirm Password')}
                   value={confirmSetPassword}
                   onChangeText={(value) => {
-                    setConfirmSetPassword(value.replace(/\s/g, ''));
+                    setConfirmSetPassword(cleanPasswordInput(value));
                     clearFieldError('confirmSetPassword');
                   }}
                   secureTextEntry={!showConfirmSetPassword}
+                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowConfirmSetPassword((current) => !current)}
                   error={errors.confirmSetPassword}
-                  placeholder={tx('Re-enter the same password')}
+                  placeholder={tx('Re-enter exactly 8 characters')}
                   inputRef={confirmSetPasswordRef}
                   returnKeyType="done"
                   onSubmitEditing={handleSave}
                   onFieldLayout={(y) => saveFieldOffset('confirmSetPassword', y)}
                   onFocusField={() => focusField('confirmSetPassword')}
                 />
+              </>
+            ) : mode === 'reset' ? (
+              <>
+                <PasswordField
+                  theme={theme}
+                  label={tx('OTP')}
+                  value={resetOtp}
+                  onChangeText={(value) => {
+                    setResetOtp(value.replace(/\D/g, '').slice(0, 6));
+                    setResetOtpVerified(false);
+                    clearFieldError('resetOtp');
+                  }}
+                  secureTextEntry={false}
+                  maxLength={6}
+                  onToggle={() => {}}
+                  showToggle={false}
+                  error={errors.resetOtp}
+                  placeholder={tx('Enter OTP')}
+                  inputRef={resetOtpRef}
+                  returnKeyType="next"
+                  onSubmitEditing={verifyResetOtp}
+                  onFieldLayout={(y) => saveFieldOffset('resetOtp', y)}
+                  onFocusField={() => focusField('resetOtp')}
+                />
+                <View style={styles.otpActionRow}>
+                  <TouchableOpacity
+                    style={[styles.secondaryBtn, styles.otpActionBtn, { borderColor: theme.border }]}
+                    onPress={sendResetOtp}
+                    disabled={isSaving}
+                    activeOpacity={0.82}
+                  >
+                    <Text style={[styles.secondaryBtnText, { color: theme.accent }]}>
+                      {tx(resetOtpSent ? 'Resend OTP' : 'Send OTP')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.secondaryBtn,
+                      styles.otpActionBtn,
+                      resetOtpVerified ? styles.verifyBtnSuccess : null,
+                      { borderColor: resetOtpVerified ? C.success : theme.border },
+                    ]}
+                    onPress={verifyResetOtp}
+                    disabled={isSaving || resetOtpVerified || !resetOtpSent || resetOtp.length < 4}
+                    activeOpacity={0.82}
+                  >
+                    <Text style={[styles.secondaryBtnText, { color: resetOtpVerified ? C.success : theme.accent }]}>
+                      {tx(resetOtpVerified ? 'OTP Verified' : 'Verify OTP')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {resetOtpVerified ? (
+                  <>
+                    <PasswordField
+                      theme={theme}
+                      label={tx('New Password')}
+                      value={resetPassword}
+                      onChangeText={(value) => {
+                        setResetPassword(cleanPasswordInput(value));
+                        clearFieldError('resetPassword');
+                      }}
+                      secureTextEntry={!showNewPassword}
+                      maxLength={PASSWORD_MAX_LENGTH}
+                      onToggle={() => setShowNewPassword((current) => !current)}
+                      error={errors.resetPassword}
+                      placeholder={tx('Enter exactly 8 characters')}
+                      inputRef={resetPasswordRef}
+                      returnKeyType="next"
+                      onSubmitEditing={() => confirmResetPasswordRef.current?.focus()}
+                      onFieldLayout={(y) => saveFieldOffset('resetPassword', y)}
+                      onFocusField={() => focusField('resetPassword')}
+                    />
+                    <PasswordStrengthIndicator password={resetPassword} />
+                    <PasswordField
+                      theme={theme}
+                      label={tx('Confirm New Password')}
+                      value={confirmResetPassword}
+                      onChangeText={(value) => {
+                        setConfirmResetPassword(cleanPasswordInput(value));
+                        clearFieldError('confirmResetPassword');
+                      }}
+                      secureTextEntry={!showConfirmNewPassword}
+                      maxLength={PASSWORD_MAX_LENGTH}
+                      onToggle={() => setShowConfirmNewPassword((current) => !current)}
+                      error={errors.confirmResetPassword}
+                      placeholder={tx('Re-enter exactly 8 characters')}
+                      inputRef={confirmResetPasswordRef}
+                      returnKeyType="done"
+                      onSubmitEditing={handleSave}
+                      onFieldLayout={(y) => saveFieldOffset('confirmResetPassword', y)}
+                      onFocusField={() => focusField('confirmResetPassword')}
+                    />
+                  </>
+                ) : (
+                  <View style={styles.lockedResetHint}>
+                    <AppIcon name="lock" size={14} color={theme.textMuted} />
+                    <Text style={[styles.lockedResetHintText, { color: theme.textMuted }]}>
+                      {tx('Verify OTP to unlock new password fields.')}
+                    </Text>
+                  </View>
+                )}
               </>
             ) : (
               <>
@@ -701,13 +1006,14 @@ export function PasswordSettingsPage({
                   label={tx('Current Password')}
                   value={currentPassword}
                   onChangeText={(value) => {
-                    setCurrentPassword(value.replace(/\s/g, ''));
+                    setCurrentPassword(cleanPasswordInput(value));
                     clearFieldError('currentPassword');
                   }}
                   secureTextEntry={!showCurrentPassword}
+                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowCurrentPassword((current) => !current)}
                   error={errors.currentPassword}
-                  placeholder={tx('Enter current password')}
+                  placeholder={tx('Enter current 8 character password')}
                   inputRef={currentPasswordRef}
                   returnKeyType="next"
                   onSubmitEditing={() => newPasswordRef.current?.focus()}
@@ -720,13 +1026,14 @@ export function PasswordSettingsPage({
                   label={tx('New Password')}
                   value={newPassword}
                   onChangeText={(value) => {
-                    setNewPassword(value.replace(/\s/g, ''));
+                    setNewPassword(cleanPasswordInput(value));
                     clearFieldError('newPassword');
                   }}
                   secureTextEntry={!showNewPassword}
+                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowNewPassword((current) => !current)}
                   error={errors.newPassword}
-                  placeholder={tx('Enter a new password')}
+                  placeholder={tx('Enter exactly 8 characters')}
                   inputRef={newPasswordRef}
                   returnKeyType="next"
                   onSubmitEditing={() => confirmNewPasswordRef.current?.focus()}
@@ -739,13 +1046,14 @@ export function PasswordSettingsPage({
                   label={tx('Confirm New Password')}
                   value={confirmNewPassword}
                   onChangeText={(value) => {
-                    setConfirmNewPassword(value.replace(/\s/g, ''));
+                    setConfirmNewPassword(cleanPasswordInput(value));
                     clearFieldError('confirmNewPassword');
                   }}
                   secureTextEntry={!showConfirmNewPassword}
+                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowConfirmNewPassword((current) => !current)}
                   error={errors.confirmNewPassword}
-                  placeholder={tx('Re-enter the same password')}
+                  placeholder={tx('Re-enter exactly 8 characters')}
                   inputRef={confirmNewPasswordRef}
                   returnKeyType="done"
                   onSubmitEditing={handleSave}
@@ -779,6 +1087,8 @@ export function PasswordSettingsPage({
                   ? tx('Saving...')
                   : mode === 'set'
                     ? tx('Save Password')
+                    : mode === 'reset'
+                      ? tx('Reset Password')
                     : tx('Update Password')}
               </Text>
             </TouchableOpacity>
@@ -800,29 +1110,50 @@ export function PasswordSettingsPage({
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   scrollContent: { padding: 16, gap: 14, paddingBottom: 32 },
   heroCard: {
     flexDirection: 'row',
     gap: 14,
-    borderRadius: 24,
+    borderRadius: 28,
     borderWidth: 1,
-    padding: 18,
+    padding: 20,
     alignItems: 'center',
+    overflow: 'hidden',
+    ...createShadow({ color: '#0F172A', offsetY: 18, blur: 30, opacity: 0.12, elevation: 6 }),
   },
   heroIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 58,
+    height: 58,
+    borderRadius: 20,
     backgroundColor: C.blueLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroTitle: { fontSize: 17, fontWeight: '800' },
+  heroTitle: { fontSize: 18, fontWeight: '900' },
   heroSub: { fontSize: 13, lineHeight: 19, marginTop: 3 },
-  optionsRow: { flexDirection: 'row', gap: 12 },
-  optionCard: { flex: 1, borderRadius: 22, borderWidth: 1.5, padding: 16 },
+  passwordStatusPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 10,
+  },
+  passwordStatusText: { fontSize: 11.5, fontWeight: '900' },
+  optionsRow: { gap: 10 },
+  optionCard: {
+    borderRadius: 22,
+    borderWidth: 1.5,
+    padding: 15,
+    minHeight: 104,
+    overflow: 'hidden',
+  },
   optionCardActive: {
-    ...createShadow({ color: '#0F1120', offsetY: 8, blur: 18, opacity: 0.05, elevation: 2 }),
+    transform: [{ translateY: -2 }],
+    ...createShadow({ color: '#0F1120', offsetY: 16, blur: 26, opacity: 0.13, elevation: 5 }),
   },
   optionIconWrap: {
     width: 42,
@@ -832,10 +1163,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
-  optionTitle: { fontSize: 14, fontWeight: '800' },
+  optionTitle: { fontSize: 14, fontWeight: '900' },
   optionSub: { fontSize: 12, lineHeight: 18, marginTop: 4 },
-  card: { borderRadius: 24, borderWidth: 1, padding: 18 },
-  sectionTitle: { fontSize: 16, fontWeight: '800' },
+  card: {
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 20,
+    overflow: 'hidden',
+    ...createShadow({ color: '#0F172A', offsetY: 18, blur: 32, opacity: 0.1, elevation: 6 }),
+  },
+  sectionTitle: { fontSize: 17, fontWeight: '900' },
   sectionSub: { fontSize: 12, lineHeight: 18, marginTop: 4, marginBottom: 18 },
   field: { marginBottom: 16 },
   fieldLabel: {
@@ -881,6 +1218,29 @@ const styles = StyleSheet.create({
   },
   primaryBtnDisabled: { opacity: 0.55 },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  secondaryBtn: {
+    minHeight: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  secondaryBtnText: { fontSize: 14, fontWeight: '900' },
+  otpActionRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  otpActionBtn: { flex: 1, marginBottom: 0 },
+  verifyBtnSuccess: { backgroundColor: 'rgba(34,197,94,0.12)' },
+  lockedResetHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(148,163,184,0.12)',
+    marginBottom: 16,
+  },
+  lockedResetHintText: { flex: 1, fontSize: 12.5, fontWeight: '700', lineHeight: 18 },
   strengthContainer: { marginBottom: 16, paddingHorizontal: 4 },
   strengthBar: { flexDirection: 'row', gap: 4, marginBottom: 12 },
   strengthSegment: { flex: 1, height: 4, borderRadius: 2 },

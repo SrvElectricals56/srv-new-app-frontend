@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import {
-  Image, Linking, ScrollView,
+  Image, Linking, RefreshControl, ScrollView,
   StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -198,14 +198,23 @@ export function HomeScreen({
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const { user: authUser } = useAuth();
-  const { banners: ctxBanners, testimonials: ctxTestimonials, appSettings, categories: ctxCategories } = useAppData();
+  const { banners: ctxBanners, testimonials: ctxTestimonials, appSettings, categories: ctxCategories, refreshAll } = useAppData();
   const pageContent = useAppPageContent('counterboy', 'home');
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const homeScrollRef = useRef<ScrollView>(null);
   useRegisterScrollToTop('home', homeScrollRef);
   const [apiBannerSlides, setApiBannerSlides] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [supportWhatsapp, setSupportWhatsapp] = useState('918837684004');
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAll();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const heroImageHeight = Math.round((width - 28) * 0.56);
   const showTestimonials = appSettings?.testimonialsEnabled !== false;
   const rolePageControls = useMemo(
@@ -455,8 +464,9 @@ export function HomeScreen({
       ref={homeScrollRef}
       style={[styles.screen, darkMode ? styles.screenDark : null]}
       showsVerticalScrollIndicator={false}
-      bounces={false}
+      bounces
       overScrollMode="never"
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={cb.primary} />}
     >
       {/* Hero */}
       <LinearGradient

@@ -179,6 +179,7 @@ export const detailRows: ProfileDetailRow[] = [
   { label: 'City', key: 'city' },
   { label: 'District', key: 'district' },
   { label: 'Pincode', key: 'pincode' },
+  { label: 'Aadhaar Number', key: 'aadharNumber', emptyText: 'Not provided' },
   { label: 'GST Holder Name', key: 'gstHolderName' },
   { label: 'GST Number', key: 'gstNumber' },
   { label: 'PAN Holder Name', key: 'panHolderName', emptyText: 'Not provided' },
@@ -194,6 +195,7 @@ export const electricianDetailRows: ProfileDetailRow[] = [
   { label: 'City', key: 'city' },
   { label: 'District', key: 'district' },
   { label: 'Pincode', key: 'pincode' },
+  { label: 'Aadhaar Number', key: 'aadharNumber', emptyText: 'Not provided' },
   { label: 'Electrician Code', key: 'electricianCode' },
 ];
 
@@ -206,6 +208,7 @@ export const counterboyDetailRows: ProfileDetailRow[] = [
   { label: 'City', key: 'city' },
   { label: 'District', key: 'district' },
   { label: 'Pincode', key: 'pincode' },
+  { label: 'Aadhaar Number', key: 'aadharNumber', emptyText: 'Not provided' },
   { label: 'Counter Boy ID', key: 'counterboyCode' },
 ];
 
@@ -270,6 +273,7 @@ export const userDetailRows: ProfileDetailRow[] = [
   { label: 'City', key: 'city' },
   { label: 'District', key: 'district' },
   { label: 'Pincode', key: 'pincode' },
+  { label: 'Aadhaar Number', key: 'aadharNumber', emptyText: 'Not provided' },
   { label: 'Customer ID', key: 'userCode' },
 ];
 

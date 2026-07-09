@@ -43,7 +43,9 @@ export function TransferPointsPage({
   const [searchError, setSearchError] = useState('');
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
-  const canTransferPoints = currentRole === 'electrician';
+  const targetRole = currentRole === 'counterboy' ? 'counterboy' : 'electrician';
+  const targetRoleLabel = currentRole === 'counterboy' ? tx('Counter Boy') : tx('Electrician');
+  const canTransferPoints = currentRole === 'electrician' || currentRole === 'counterboy';
 
   const availablePoints = Math.max(
     Number(user?.totalPoints ?? 0),
@@ -52,7 +54,7 @@ export function TransferPointsPage({
 
   const handleSearch = async () => {
     if (!canTransferPoints) {
-      setDialog({ visible: true, variant: 'info', title: tx('Not allowed'), message: tx('Only electricians can transfer points.') });
+      setDialog({ visible: true, variant: 'info', title: tx('Not allowed'), message: tx('Only electricians and counter boys can transfer points.') });
       return;
     }
     if (mobile.trim().length !== 10) {
@@ -63,8 +65,8 @@ export function TransferPointsPage({
     setSearchError('');
     try {
       const res = await walletApi.lookupTransferRecipient(mobile.trim());
-      if (res.role !== 'electrician') {
-        setSearchError(tx('Points can only be transferred to another electrician.'));
+      if (res.role !== targetRole) {
+        setSearchError(tx(`Points can only be transferred to another ${targetRoleLabel}.`));
         return;
       }
       setFoundUser(res);
@@ -104,9 +106,9 @@ export function TransferPointsPage({
 
   const handleTransfer = async () => {
     const pts = Number(points);
-    if (!canTransferPoints) { setDialog({ visible: true, variant: 'info', title: tx('Not allowed'), message: tx('Only electricians can transfer points.') }); return; }
+    if (!canTransferPoints) { setDialog({ visible: true, variant: 'info', title: tx('Not allowed'), message: tx('Only electricians and counter boys can transfer points.') }); return; }
     if (!foundUser) { setDialog({ visible: true, variant: 'info', title: tx('Search first'), message: tx('Please search for a user first.') }); return; }
-    if (foundUser.role !== 'electrician') { setDialog({ visible: true, variant: 'info', title: tx('Invalid receiver'), message: tx('Points can only be transferred to another electrician.') }); return; }
+    if (foundUser.role !== targetRole) { setDialog({ visible: true, variant: 'info', title: tx('Invalid receiver'), message: tx(`Points can only be transferred to another ${targetRoleLabel}.`) }); return; }
     if (!pts || pts <= 0) { setDialog({ visible: true, variant: 'info', title: tx('Invalid amount'), message: tx('Enter valid points to transfer.') }); return; }
     if (pts > availablePoints) { setDialog({ visible: true, variant: 'info', title: tx('Insufficient points'), message: tx('You do not have enough points.') }); return; }
 
@@ -156,14 +158,14 @@ export function TransferPointsPage({
 
         {/* Search user */}
         <View style={[styles.searchCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>{pageContent.inputLabel || tx('Electrician Mobile Number')}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>{pageContent.inputLabel || tx(`${targetRoleLabel} Mobile Number`)}</Text>
           <Text style={[styles.ruleText, { color: theme.textSecondary }]}>
-            {tx('Points transfer is available only from electrician to electrician.')}
+            {tx(`Points transfer is available only from ${targetRoleLabel} to ${targetRoleLabel}.`)}
           </Text>
           <View style={styles.searchRow}>
             <TextInput
               style={[styles.searchInput, { backgroundColor: theme.bg, borderColor: theme.border, color: theme.textPrimary }]}
-              placeholder={pageContent.searchPlaceholder || tx('Enter electrician 10-digit mobile number')}
+              placeholder={pageContent.searchPlaceholder || tx(`Enter ${targetRoleLabel} 10-digit mobile number`)}
               placeholderTextColor={theme.textMuted}
               value={mobile}
               onChangeText={(v) => { setMobile(v.replace(/\D/g, '').slice(0, 10)); setFoundUser(null); setSearchError(''); }}

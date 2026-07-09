@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
@@ -126,6 +126,13 @@ type ApiTxItem = {
   accent: string;
   type: 'wallet' | 'scan' | 'redemption' | 'transfer';
   rawDate?: string;
+};
+
+const toLocalDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 function resolveDisplayedPoints(...values: (number | null | undefined)[]) {
@@ -259,7 +266,7 @@ export function WalletScreen({
   historyItems = [],
 }: WalletScreenProps) {
   const { darkMode, tx } = usePreferenceContext();
-  const { dealerBonus, appSettings, scanHistory, redemptions } = useAppData();
+  const { dealerBonus, appSettings, scanHistory, redemptions, refreshAll } = useAppData();
   const isDealer = role === 'dealer';
   const t = ROLE_THEME[role] ?? ROLE_THEME.electrician;
   const contentRole = role === 'user' ? 'user' : role;
@@ -282,6 +289,7 @@ export function WalletScreen({
   const [apiTotalScans, setApiTotalScans] = useState<number | null>(null);
   const [apiTxItems, setApiTxItems] = useState<ApiTxItem[] | null>(null);
   const [apiLoading, setApiLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     walletApi.get(1, 50).then((res) => {
@@ -296,7 +304,9 @@ export function WalletScreen({
       if (res.transactions?.data?.length) {
         const mapped: ApiTxItem[] = res.transactions.data.map((tx: any) => ({
           id: tx.id,
-          title: tx.description ?? (tx.source === 'scan' ? 'Product scanned' : tx.source === 'redemption' ? 'Redemption processed' : tx.source === 'bonus' ? 'Bonus credited' : tx.source === 'transfer' ? 'Points transferred' : 'Transaction'),
+          title: tx.linkedRedemption
+            ? `${tx.linkedRedemption.giftName ?? tx.linkedRedemption.type ?? 'Redemption'} - ${tx.linkedRedemption.status ?? 'pending'}`
+            : tx.description ?? (tx.source === 'scan' ? 'Product scanned' : tx.source === 'redemption' ? 'Redemption processed' : tx.source === 'bonus' ? 'Bonus credited' : tx.source === 'transfer' ? 'Points transferred' : 'Transaction'),
           time: tx.createdAt ? formatISTDateTime(tx.createdAt) : '',
           points: tx.type === 'credit' ? `+${tx.amount}` : `-${tx.amount}`,
           accent: tx.type === 'credit' ? '#1F9C5D' : '#B44A3A',
@@ -307,6 +317,36 @@ export function WalletScreen({
       }
     }).catch(() => {}).finally(() => setApiLoading(false));
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAll();
+      const res = await walletApi.get(1, 50);
+      setApiBalance(
+        resolveDisplayedPoints(
+          res.totalPoints,
+          res.balance,
+          (res as { wallet_balance?: number | null }).wallet_balance,
+        ),
+      );
+      setApiTotalScans(res.totalScans ?? null);
+      const mapped: ApiTxItem[] = (res.transactions?.data ?? []).map((tx: any) => ({
+        id: tx.id,
+        title: tx.linkedRedemption
+          ? `${tx.linkedRedemption.giftName ?? tx.linkedRedemption.type ?? 'Redemption'} - ${tx.linkedRedemption.status ?? 'pending'}`
+          : tx.description ?? (tx.source === 'scan' ? 'Product scanned' : tx.source === 'redemption' ? 'Redemption processed' : tx.source === 'bonus' ? 'Bonus credited' : tx.source === 'transfer' ? 'Points transferred' : 'Transaction'),
+        time: tx.createdAt ? formatISTDateTime(tx.createdAt) : '',
+        points: tx.type === 'credit' ? `+${tx.amount}` : `-${tx.amount}`,
+        accent: tx.type === 'credit' ? '#1F9C5D' : '#B44A3A',
+        type: tx.source === 'scan' ? 'scan' : tx.source === 'redemption' ? 'redemption' : tx.source === 'transfer' ? 'transfer' : 'wallet',
+        rawDate: tx.createdAt,
+      }));
+      setApiTxItems(mapped);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const dealerBonusValue = isDealer ? Number(dealerBonus?.availableBonus ?? 0) : 0;
   const totalPoints = isDealer ? dealerBonusValue : (apiBalance !== null ? apiBalance : propTotalPoints);
@@ -360,7 +400,7 @@ export function WalletScreen({
   const filteredItems = useMemo(() => {
     const date = activityDate.trim();
     return allMappedItems.filter((item) => {
-      const itemDate = item.rawDate ? new Date(item.rawDate).toISOString().slice(0, 10) : '';
+      const itemDate = item.rawDate ? toLocalDateKey(new Date(item.rawDate)) : '';
       const matchesDate = !date || itemDate === date;
       const matchesType = activityType === 'all' || item.type === activityType;
       return matchesDate && matchesType;
@@ -376,12 +416,14 @@ export function WalletScreen({
   }, [activityDate, activityType]);
 
   const calendarDays = useMemo(() => {
+    const today = new Date();
+    const todayKey = toLocalDateKey(today);
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
     const firstDay = new Date(year, month, 1);
     const startOffset = firstDay.getDay();
     const totalDays = new Date(year, month + 1, 0).getDate();
-    const cells: { key: string; date?: Date; label: string }[] = [];
+    const cells: { key: string; date?: Date; label: string; disabled?: boolean }[] = [];
 
     for (let i = 0; i < startOffset; i += 1) {
       cells.push({ key: `blank-${i}`, label: '' });
@@ -389,7 +431,9 @@ export function WalletScreen({
 
     for (let day = 1; day <= totalDays; day += 1) {
       const date = new Date(year, month, day);
-      cells.push({ key: date.toISOString(), date, label: String(day) });
+      const dateKey = toLocalDateKey(date);
+      const isFuture = dateKey > todayKey;
+      cells.push({ key: dateKey, date, label: String(day), disabled: isFuture });
     }
 
     return cells;
@@ -399,12 +443,16 @@ export function WalletScreen({
     ? new Date(`${activityDate}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
     : tx('All Dates');
 
+  const currentMonthKey = toLocalDateKey(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const calendarMonthKey = toLocalDateKey(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1));
+  const canGoNextMonth = calendarMonthKey < currentMonthKey;
+
   const changeCalendarMonth = (direction: number) => {
     setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
   };
 
   const selectCalendarDate = (date: Date) => {
-    setActivityDate(date.toISOString().slice(0, 10));
+    setActivityDate(toLocalDateKey(date));
     setCalendarVisible(false);
   };
 
@@ -479,6 +527,14 @@ export function WalletScreen({
       tint: '#DDEAFE',
       target: 'bank_details' as Screen,
     },
+    {
+      id: 'point',
+      label: 'Transfer Point',
+      detail: 'Send to counter boy',
+      icon: SparkIcon,
+      tint: '#FFE0DA',
+      target: 'transfer_points' as Screen,
+    },
   ];
 
   const userActions = [
@@ -522,6 +578,9 @@ export function WalletScreen({
     ? 'Counter boy wallet for transfers, payouts, and complete reward activity.'
     : 'Premium rewards dashboard for redemptions, transfers, and loyalty growth.';
   const quickActionTitle = isDealer ? 'Manage dealer payouts' : role === 'counterboy' ? 'Manage counter rewards' : 'Move your wallet faster';
+  const filterTypes = (role === 'user' || role === 'counterboy')
+    ? (['all', 'wallet', 'redemption', 'transfer'] as const)
+    : (['all', 'wallet', 'scan', 'redemption', 'transfer'] as const);
 
   return (
     <ScrollView
@@ -529,6 +588,7 @@ export function WalletScreen({
       style={[styles.screen, { backgroundColor: darkMode ? '#08111F' : t.screenBg }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.paginationBtnBg} />}
     >
       <LinearGradient
         colors={t.heroGradient}
@@ -560,21 +620,23 @@ export function WalletScreen({
         </Text>
 
         <View style={styles.heroStats}>
-          <Pressable
-            style={styles.heroStatCard}
-            onPress={() => {
-              if (isDealer) {
-                onNavigate?.('electricians');
-              } else {
-                onOpenScanHistory?.();
-              }
-            }}
-          >
-            <Text style={styles.heroStatLabel}>
-              {tx(isDealer ? 'Active Electricians' : 'Total Scans')}
-            </Text>
-            <Text style={styles.heroStatValue}>{apiLoading ? '...' : String(totalScans)}</Text>
-          </Pressable>
+          {role === 'user' || role === 'counterboy' ? null : (
+            <Pressable
+              style={styles.heroStatCard}
+              onPress={() => {
+                if (isDealer) {
+                  onNavigate?.('electricians');
+                } else {
+                  onOpenScanHistory?.();
+                }
+              }}
+            >
+              <Text style={styles.heroStatLabel}>
+                {tx(isDealer ? 'Active Electricians' : 'Total Scans')}
+              </Text>
+              <Text style={styles.heroStatValue}>{apiLoading ? '...' : String(totalScans)}</Text>
+            </Pressable>
+          )}
           <Pressable style={styles.heroStatCard} onPress={openTransactionHistory}>
             <Text style={styles.heroStatLabel}>
               {tx(isDealer ? 'Bonus Withdrawals' : 'Transactions')}
@@ -664,7 +726,7 @@ export function WalletScreen({
             ) : null}
           </View>
           <View style={styles.filterChips}>
-            {(['all', 'wallet', 'scan', 'redemption', 'transfer'] as const).map((item) => {
+            {filterTypes.map((item) => {
               const active = activityType === item;
               return (
                 <TouchableOpacity
@@ -692,7 +754,7 @@ export function WalletScreen({
               <Text style={[styles.calendarTitle, { color: darkMode ? '#F8FAFC' : '#221C1A' }]}>
                 {calendarMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
               </Text>
-              <TouchableOpacity onPress={() => changeCalendarMonth(1)} style={styles.calendarNavBtn}>
+              <TouchableOpacity disabled={!canGoNextMonth} onPress={() => changeCalendarMonth(1)} style={[styles.calendarNavBtn, !canGoNextMonth && { opacity: 0.35 }]}>
                 <Text style={[styles.calendarNavText, { color: darkMode ? '#F8FAFC' : '#221C1A' }]}>›</Text>
               </TouchableOpacity>
             </View>
@@ -703,17 +765,18 @@ export function WalletScreen({
             </View>
             <View style={styles.calendarGrid}>
               {calendarDays.map((cell) => {
-                const value = cell.date?.toISOString().slice(0, 10);
+                const value = cell.date ? toLocalDateKey(cell.date) : undefined;
                 const selected = Boolean(value && value === activityDate);
+                const disabled = Boolean(cell.disabled);
                 return (
                   <TouchableOpacity
                     key={cell.key}
-                    disabled={!cell.date}
-                    onPress={() => cell.date && selectCalendarDate(cell.date)}
-                    style={[styles.calendarDay, selected && { backgroundColor: t.paginationBtnBg }]}
+                    disabled={!cell.date || disabled}
+                    onPress={() => cell.date && !disabled && selectCalendarDate(cell.date)}
+                    style={[styles.calendarDay, disabled && styles.calendarDayDisabled, selected && { backgroundColor: t.paginationBtnBg }]}
                     activeOpacity={0.82}
                   >
-                    <Text style={[styles.calendarDayText, { color: selected ? '#FFFFFF' : darkMode ? '#F8FAFC' : '#221C1A' }]}>
+                    <Text style={[styles.calendarDayText, { color: selected ? '#FFFFFF' : disabled ? (darkMode ? '#64748B' : '#A8B0BA') : darkMode ? '#F8FAFC' : '#221C1A' }]}>
                       {cell.label}
                     </Text>
                   </TouchableOpacity>
@@ -1036,5 +1099,6 @@ const styles = StyleSheet.create({
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '900' },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   calendarDay: { width: `${100 / 7}%`, aspectRatio: 1.05, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
+  calendarDayDisabled: { backgroundColor: 'rgba(148, 163, 184, 0.14)' },
   calendarDayText: { fontSize: 13, fontWeight: '800' },
 });

@@ -6,6 +6,7 @@ import { createShadow } from '@/shared/theme/shadows';
 import { ratingApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { Dialog } from '@/shared/components/Dialog';
 
 export function RateUsPage({ onBack }: { onBack: () => void }) {
   const { tx, theme, language } = usePreferenceContext();
@@ -15,6 +16,7 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
   const [review, setReview] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'error' | 'info' | 'success'; title: string; message?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   // Load existing rating on mount
   useEffect(() => {
     ratingApi.get().then((res) => {
@@ -75,9 +77,13 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
     try {
       await ratingApi.submit(rating, review.trim() || undefined);
       setSubmitted(true);
-    } catch {
-      // silently fail — still show thank you
-      setSubmitted(true);
+    } catch (error: any) {
+      setDialog({
+        visible: true,
+        variant: 'error',
+        title: tx('Rating not saved'),
+        message: error?.message || tx('Please try again.'),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -111,7 +117,7 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
               {tx('Thank you for your rating!')}
             </Text>
             <Text style={[styles.rateThankYouSub, { color: theme.textMuted }]}>
-              {tx('Your feedback helps us improve.')}
+              {tx('Your feedback helps us improve. You can update it anytime.')}
             </Text>
             <View style={styles.rateThankYouTags}>
               <View style={[styles.rateThankYouTag, { backgroundColor: theme.surface }]}>
@@ -127,6 +133,19 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
                 </View>
               ) : null}
             </View>
+            {review.trim() ? (
+              <View style={[styles.savedReviewBox, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                <Text style={[styles.savedReviewLabel, { color: theme.textMuted }]}>{tx('Your review')}</Text>
+                <Text style={[styles.savedReviewText, { color: theme.textPrimary }]}>{review.trim()}</Text>
+              </View>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.editRatingBtn, { backgroundColor: theme.accent }]}
+              onPress={() => setSubmitted(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.editRatingText}>{tx('Edit Rating')}</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <>
@@ -263,6 +282,13 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
           </>
         )}
       </ScrollView>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        onClose={() => setDialog((current) => ({ ...current, visible: false }))}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -383,4 +409,22 @@ const styles = StyleSheet.create({
   },
   rateThankYouTag: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
   rateThankYouTagText: { fontSize: 12, fontWeight: '700' },
+  savedReviewBox: {
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 18,
+  },
+  savedReviewLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', marginBottom: 6 },
+  savedReviewText: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  editRatingBtn: {
+    alignSelf: 'stretch',
+    height: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  editRatingText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
 });

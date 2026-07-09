@@ -203,6 +203,11 @@ export function NotificationScreen({
           </TouchableOpacity>
           <TouchableOpacity style={styles.heroGhostBtn} activeOpacity={0.85} onPress={() => setShowAllNotifications(true)}>
             <Text style={styles.heroGhostText}>{pageContent.secondaryCtaLabel || tx('More')}</Text>
+            {!showAllNotifications && notifItems.length > 0 ? (
+              <View style={styles.moreCountBadge}>
+                <Text style={styles.moreCountText}>{notifItems.length > 99 ? '99+' : notifItems.length}</Text>
+              </View>
+            ) : null}
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -306,8 +311,23 @@ const styles = StyleSheet.create({
   heroActions: { flexDirection: 'row', gap: 10, marginTop: 18 },
   heroActionBtn: { backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
   heroActionText: { color: CB_DARK, fontWeight: '800', fontSize: 12.5 },
-  heroGhostBtn: { backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
+  heroGhostBtn: { position: 'relative', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
   heroGhostText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12.5 },
+  moreCountBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreCountText: { color: '#FFFFFF', fontSize: 9.5, fontWeight: '900' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { color: cb.text, fontSize: 20, fontWeight: '900' },

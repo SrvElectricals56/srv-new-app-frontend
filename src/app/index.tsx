@@ -1,6 +1,6 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, BackHandler, Easing, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav as DealerBottomNav } from '@/features/dealer/screens/BottomNav';
 import { CallElectricianScreen as DealerCallElectricianScreen } from '@/features/dealer/screens/CallElectricianScreen';
@@ -199,6 +199,7 @@ function AppContent() {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [notificationBanner, setNotificationBanner] = useState<{ id: string; title: string; message?: string } | null>(null);
   const notificationBannerY = useRef(new Animated.Value(-96)).current;
+  const notificationBannerX = useRef(new Animated.Value(0)).current;
   const notificationBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastBannerNotificationIdRef = useRef<string | null>(null);
   const [userCartItems, setUserCartItems] = useState<CartItem[]>([]);
@@ -325,6 +326,69 @@ function AppContent() {
     }
   }, [user, authRole]);
 
+  const hideNotificationBanner = useCallback(
+    (direction: 'up' | 'side' = 'up') => {
+      if (notificationBannerTimerRef.current) {
+        clearTimeout(notificationBannerTimerRef.current);
+        notificationBannerTimerRef.current = null;
+      }
+      Animated.parallel([
+        Animated.timing(notificationBannerY, {
+          toValue: direction === 'up' ? -96 : 0,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(notificationBannerX, {
+          toValue: direction === 'side' ? 420 : 0,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        notificationBannerX.setValue(0);
+        notificationBannerY.setValue(-96);
+        setNotificationBanner(null);
+      });
+    },
+    [notificationBannerX, notificationBannerY]
+  );
+
+  const notificationBannerPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dx) > 14 || gesture.dy < -8,
+        onPanResponderMove: (_, gesture) => {
+          notificationBannerX.setValue(gesture.dx);
+          if (gesture.dy < 0) {
+            notificationBannerY.setValue(gesture.dy);
+          }
+        },
+        onPanResponderRelease: (_, gesture) => {
+          if (Math.abs(gesture.dx) > 80) {
+            hideNotificationBanner('side');
+            return;
+          }
+          if (gesture.dy < -28) {
+            hideNotificationBanner('up');
+            return;
+          }
+          Animated.parallel([
+            Animated.spring(notificationBannerX, {
+              toValue: 0,
+              useNativeDriver: true,
+            }),
+            Animated.spring(notificationBannerY, {
+              toValue: 0,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        },
+      }),
+    [hideNotificationBanner, notificationBannerX, notificationBannerY]
+  );
+
   // Fetch unread notification count — poll every 30s when authenticated
   useEffect(() => {
     if (isPreviewMode) return;
@@ -338,6 +402,7 @@ function AppContent() {
         title: notification.title || 'New notification',
         message: notification.message || notification.body || '',
       });
+      notificationBannerX.setValue(0);
       Animated.timing(notificationBannerY, {
         toValue: 0,
         duration: 260,
@@ -345,12 +410,7 @@ function AppContent() {
         useNativeDriver: true,
       }).start();
       notificationBannerTimerRef.current = setTimeout(() => {
-        Animated.timing(notificationBannerY, {
-          toValue: -96,
-          duration: 220,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }).start(() => setNotificationBanner(null));
+        hideNotificationBanner('up');
       }, 4200);
     };
     const checkUnread = async () => {
@@ -377,7 +437,7 @@ function AppContent() {
       clearInterval(interval);
       if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
     };
-  }, [authRole, currentScreen, isAuthenticated, isPreviewMode, notificationBannerY, user]);
+  }, [authRole, currentScreen, hideNotificationBanner, isAuthenticated, isPreviewMode, notificationBannerX, notificationBannerY, user]);
 
   const preferenceValue = usePreferenceValue({
     language,
@@ -1612,13 +1672,18 @@ function AppContent() {
         ) : null}
         <SrvLogoLoader visible={routeLoading} label="Opening SRV page..." />
         {notificationBanner ? (
-          <Animated.View style={[styles.notificationBannerWrap, { transform: [{ translateY: notificationBannerY }] }]}>
+          <Animated.View
+            {...notificationBannerPanResponder.panHandlers}
+            style={[
+              styles.notificationBannerWrap,
+              { transform: [{ translateX: notificationBannerX }, { translateY: notificationBannerY }] },
+            ]}
+          >
             <TouchableOpacity
               activeOpacity={0.9}
               style={[styles.notificationBanner, { backgroundColor: appTheme.surface ?? '#FFFFFF' }]}
               onPress={() => {
-                if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
-                setNotificationBanner(null);
+                hideNotificationBanner('up');
                 handleNavigate('notification');
               }}
             >
@@ -1648,7 +1713,7 @@ const styles = StyleSheet.create({
   },
   notificationBannerWrap: {
     position: 'absolute',
-    top: 12,
+    top: 72,
     left: 14,
     right: 14,
     zIndex: 2000,

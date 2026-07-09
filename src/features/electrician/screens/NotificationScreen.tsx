@@ -233,6 +233,11 @@ export function NotificationScreen({
             onPress={() => setShowAllNotifications(true)}
           >
             <Text style={styles.heroGhostText}>{pageContent.secondaryCtaLabel || tx('More')}</Text>
+            {!showAllNotifications && notifItems.length > 0 ? (
+              <View style={styles.moreCountBadge}>
+                <Text style={styles.moreCountText}>{notifItems.length > 99 ? '99+' : notifItems.length}</Text>
+              </View>
+            ) : null}
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -383,6 +388,7 @@ const styles = StyleSheet.create({
   },
   heroActionText: { color: '#10254A', fontWeight: '800', fontSize: 12.5 },
   heroGhostBtn: {
+    position: 'relative',
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
@@ -391,6 +397,21 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   heroGhostText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12.5 },
+  moreCountBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreCountText: { color: '#FFFFFF', fontSize: 9.5, fontWeight: '900' },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -182,6 +182,7 @@ export function ProfileScreen({
         gstNumber: '',
         panHolderName: '',
         panNumber: '',
+        aadharNumber: '',
         dealerCode: '',
         electricianCode: '',
         counterboyCode: '',
@@ -201,6 +202,7 @@ export function ProfileScreen({
       gstNumber: authUser.gstNumber ?? '',
       panHolderName: '',
       panNumber: '',
+      aadharNumber: authUser.aadharNumber ?? '',
       dealerCode: currentRole === 'dealer' ? authUser.dealerCode ?? '' : '',
       electricianCode: authUser.electricianCode ?? '',
       counterboyCode: authUser.counterboyCode ?? '',
@@ -515,53 +517,72 @@ export function ProfileScreen({
             panHolderName: '',
           };
 
-    // Save locally first (instant UI update)
-    setProfile(nextProfile);
-    onProfilePhotoChange(draftPhotoUri);
-    setPendingDraftImage(null);
-    setShowEdit(false);
-
-    // Save to backend
-    setIsSaving(true);
     const photoChanged = draftPhotoUri !== activeProfilePhoto;
-    const apiData = currentRole === 'dealer'
-      ? {
-          name: nextProfile.name,
-          email: nextProfile.email,
-          town: nextProfile.city,
-          district: nextProfile.district,
-          state: nextProfile.state,
-          address: nextProfile.address,
-          pincode: nextProfile.pincode,
-          gstNumber: nextProfile.gstNumber,
-        }
-      : {
-          name: nextProfile.name,
-          email: nextProfile.email,
-          city: nextProfile.city,
-          state: nextProfile.state,
-          district: nextProfile.district,
-          address: nextProfile.address,
-          pincode: nextProfile.pincode,
-        };
+    const profileChanged = JSON.stringify(nextProfile) !== JSON.stringify(profile);
 
-    void authApi.updateProfile(apiData)
-      .then(async (updatedUser) => {
-        // Update auth context immediately so UI reflects changes
-        updateUser(updatedUser);
-        await storage.setUserProfile(updatedUser);
-        if (photoChanged) {
-          await syncRemoteProfilePhoto(draftPhotoUri);
-        } else {
+    if (!profileChanged && !photoChanged) {
+      setPendingDraftImage(null);
+      setShowEdit(false);
+      return;
+    }
+
+    const commitProfileUpdate = () => {
+      // Save locally first (instant UI update)
+      setProfile(nextProfile);
+      onProfilePhotoChange(draftPhotoUri);
+      setPendingDraftImage(null);
+      setShowEdit(false);
+
+      // Save to backend
+      setIsSaving(true);
+      const apiData = currentRole === 'dealer'
+        ? {
+            name: nextProfile.name,
+            email: nextProfile.email,
+            town: nextProfile.city,
+            district: nextProfile.district,
+            state: nextProfile.state,
+            address: nextProfile.address,
+            pincode: nextProfile.pincode,
+            gstNumber: nextProfile.gstNumber,
+          }
+        : {
+            name: nextProfile.name,
+            email: nextProfile.email,
+            city: nextProfile.city,
+            state: nextProfile.state,
+            district: nextProfile.district,
+            address: nextProfile.address,
+            pincode: nextProfile.pincode,
+          };
+
+      void authApi.updateProfile(apiData)
+        .then(async (updatedUser) => {
+          // Update auth context immediately so UI reflects changes
+          updateUser(updatedUser);
+          await storage.setUserProfile(updatedUser);
+          if (photoChanged) {
+            await syncRemoteProfilePhoto(draftPhotoUri);
+          } else {
+            await refreshProfile();
+          }
+        })
+        .catch(async () => {
+          setDialog({ visible: true, variant: 'error', title: tx('Unable to save changes'), message: tx('Please try again.') });
+          // Revert local state back to what's in auth context
           await refreshProfile();
-        }
-      })
-      .catch(async () => {
-        setDialog({ visible: true, variant: 'error', title: tx('Unable to save changes'), message: tx('Please try again.') });
-        // Revert local state back to what's in auth context
-        await refreshProfile();
-      })
-      .finally(() => setIsSaving(false));
+        })
+        .finally(() => setIsSaving(false));
+    };
+
+    setDialog({
+      visible: true,
+      variant: 'confirm',
+      title: tx('Save profile changes?'),
+      message: tx('Are you sure you want to update your profile details?'),
+      confirmLabel: tx('Save'),
+      onConfirm: commitProfileUpdate,
+    });
   };
 
   const pickDraftPhoto = async (source: 'camera' | 'gallery') => {

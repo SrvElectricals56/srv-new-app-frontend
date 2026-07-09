@@ -278,6 +278,33 @@ export const authApi = {
     return res;
   },
 
+  sendPasswordResetOtp: (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy') =>
+    api.post<{ success: boolean; message: string; devOtp?: string }>(
+      '/mobile/auth/password-reset/send-otp',
+      { phone: normalizePhone(phone), role }
+    ),
+
+  verifyPasswordResetOtp: (
+    phone: string,
+    role: 'electrician' | 'dealer' | 'user' | 'counterboy',
+    otp: string
+  ) =>
+    api.post<{ success: boolean; message: string }>(
+      '/mobile/auth/password-reset/verify-otp',
+      { phone: normalizePhone(phone), role, otp }
+    ),
+
+  resetPasswordWithOtp: (
+    phone: string,
+    role: 'electrician' | 'dealer' | 'user' | 'counterboy',
+    otp: string,
+    newPassword: string
+  ) =>
+    api.post<{ success: boolean; message: string }>(
+      '/mobile/auth/password-reset/confirm',
+      { phone: normalizePhone(phone), role, otp, newPassword }
+    ),
+
   registerDealer: async (data: {
     name: string;
     phone: string;
@@ -806,6 +833,7 @@ export type UserProfile = {
   bankName?: string | null;
   accountHolderName?: string | null;
   // KYC documents
+  aadharNumber?: string | null;
   aadharFrontImage?: string | null;
   panDocument?: string | null;
   gstDocument?: string | null;

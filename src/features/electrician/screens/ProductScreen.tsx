@@ -444,7 +444,7 @@ const ProductCard = memo(function ProductCard({
           darkMode ? styles.cardDark : null,
           {
             width: cardW,
-            height: cardW * 2.1,
+            minHeight: cardW * 2.18,
             transform: [
               { scale: pressScale },
               { perspective: 800 },
@@ -1649,10 +1649,11 @@ const styles = StyleSheet.create({
   cardActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   scanBtn: {
     flex: 1,
+    minHeight: 36,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, borderRadius: 11, paddingVertical: 8,
+    gap: 5, borderRadius: 11, paddingVertical: 8, paddingHorizontal: 6,
   },
-  scanBtnText: { fontSize: 11.5, fontWeight: '700' },
+  scanBtnText: { fontSize: 11.5, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   quickCartBtn: {
     width: 36,
     height: 36,

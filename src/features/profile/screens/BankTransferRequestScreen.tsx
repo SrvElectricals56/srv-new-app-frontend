@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -35,6 +36,8 @@ export function BankTransferRequestPage({
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const [freshBalance, setFreshBalance] = useState<number | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollRef = useRef<ScrollView | null>(null);
 
   useEffect(() => {
     if (currentRole !== 'dealer') {
@@ -48,6 +51,26 @@ export function BankTransferRequestPage({
       }).catch(() => {});
     }
   }, [currentRole]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const focusAmountInput = () => {
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, Platform.OS === 'ios' ? 120 : 260);
+  };
 
   const isDealer = currentRole === 'dealer';
   const availableBalance = useMemo(() => {
@@ -129,10 +152,13 @@ export function BankTransferRequestPage({
     >
       <PageHeader title={pageContent.pageTitle || tx('Bank Transfer')} onBack={onBack} />
       <ScrollView
-        contentContainerStyle={styles.content}
+        ref={scrollRef}
+        contentContainerStyle={[styles.content, { paddingBottom: keyboardHeight + 140 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        contentInset={{ bottom: keyboardHeight }}
+        scrollIndicatorInsets={{ bottom: keyboardHeight }}
       >
         <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.heroRow}>
@@ -213,6 +239,7 @@ export function BankTransferRequestPage({
             placeholder={isDealer ? tx('Enter amount in rupees') : tx('Enter points amount')}
             placeholderTextColor={theme.textMuted}
             keyboardType="number-pad"
+            onFocus={focusAmountInput}
             style={[styles.input, { backgroundColor: theme.bg, borderColor: theme.border, color: theme.textPrimary }]}
           />
           <View style={styles.quickRow}>

@@ -7,6 +7,7 @@ import {
   Image,
   Linking,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -434,6 +435,7 @@ export function HomeScreen({
     banners: ctxBanners,
     testimonials: ctxTestimonials,
     appSettings,
+    refreshAll,
   } = useAppData();
   const { openCatalog } = useCatalogDownload();
   const pageContent = useAppPageContent('dealer', 'home');
@@ -441,7 +443,16 @@ export function HomeScreen({
   const insets = useSafeAreaInsets();
   const statPulse = useRef(new Animated.Value(1)).current;
   const homeScrollRef = useRef<ScrollView>(null);
+  const [refreshing, setRefreshing] = useState(false);
   useRegisterScrollToTop('home', homeScrollRef);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAll();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const connectedCount = authUser?.electricianCount ?? 0;
   const tier = useMemo(() => getTier(connectedCount), [connectedCount]);
   const cardW = (width - 28 - 12) / 2;
@@ -791,8 +802,9 @@ export function HomeScreen({
       ref={homeScrollRef}
       style={[styles.screen, darkMode ? styles.screenDark : null]}
       showsVerticalScrollIndicator={false}
-      bounces={false}
+      bounces
       overScrollMode="never"
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#1D4ED8" />}
     >
       <LinearGradient
         colors={darkMode ? ['#0B1220', '#101A2F', '#18263E'] : ['#EAF3FF', '#DCE8FF', '#C7DAFF']}

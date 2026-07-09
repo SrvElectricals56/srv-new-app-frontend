@@ -7,6 +7,7 @@ import {
   Image,
   Linking,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -467,6 +468,7 @@ export function HomeScreen({
     banners: ctxBanners,
     testimonials: ctxTestimonials,
     appSettings,
+    refreshAll,
   } = useAppData();
   const { user: authUser } = useAuth();
   const { openCatalog } = useCatalogDownload();
@@ -476,6 +478,15 @@ export function HomeScreen({
   const homeScrollRef = useRef<ScrollView>(null);
   useRegisterScrollToTop('home', homeScrollRef);
   const [apiBannerSlides, setApiBannerSlides] = useState<CarouselSlide[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAll();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const statsPulse = useRef(new Animated.Value(1)).current;
   const cardW = (width - 28 - 12) / 2;
   const heroImageHeight = Math.round((width - 28) * 0.56);
@@ -805,8 +816,9 @@ export function HomeScreen({
       ref={homeScrollRef}
       style={[styles.container, darkMode ? styles.containerDark : null]}
       showsVerticalScrollIndicator={false}
-      bounces={false}
+      bounces
       overScrollMode="never"
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CUSTOMER_THEME.primary} />}
     >
       <LinearGradient
         colors={darkMode ? CUSTOMER_THEME.heroDark : CUSTOMER_THEME.heroLight}

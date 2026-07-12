@@ -17,6 +17,12 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const notifScope = `${role ?? 'guest'}:${user?.id ?? 'guest'}`;
+  const [selectedNotification, setSelectedNotification] = useState<{
+    id: string;
+    title: string;
+    body: string;
+    time: string;
+  } | null>(null);
   const [notifData, setNotifData] = useState<
     { id: string; title: string; body: string; time: string }[]
   >([]);
@@ -69,6 +75,43 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  if (selectedNotification) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <PageHeader title={tx('Notification Details')} onBack={() => setSelectedNotification(null)} />
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={[styles.detailCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.detailIconWrap}>
+              <AppIcon name="notification" size={24} color={C.gold} />
+            </View>
+            <Text style={[styles.detailTitle, { color: theme.textPrimary }]}>
+              {selectedNotification.title}
+            </Text>
+            <Text style={[styles.detailTime, { color: theme.textMuted }]}>
+              {selectedNotification.time}
+            </Text>
+            <Text style={[styles.detailBody, { color: theme.textMuted }]}>
+              {selectedNotification.body}
+            </Text>
+            <TouchableOpacity
+              style={[styles.doneBtn, { backgroundColor: theme.accent }]}
+              activeOpacity={0.86}
+              onPress={async () => {
+                if (!readIds.includes(selectedNotification.id)) {
+                  setReadIds((current) => [...current, selectedNotification.id]);
+                  await storage.markNotificationsAsSeen([selectedNotification.id], notifScope);
+                }
+                setSelectedNotification(null);
+              }}
+            >
+              <Text style={styles.doneBtnText}>{tx('Done')}</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <PageHeader title={pageContent.pageTitle || t('notification')} onBack={onBack} />
@@ -101,12 +144,7 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
                 { backgroundColor: theme.surface, borderColor: theme.border },
                 readIds.includes(n.id) && { opacity: 0.65 },
               ]}
-              onPress={async () => {
-                if (readIds.includes(n.id)) return;
-                const nextReadIds = [...readIds, n.id];
-                setReadIds(nextReadIds);
-                await storage.markNotificationsAsSeen([n.id], notifScope);
-              }}
+              onPress={() => setSelectedNotification(n)}
               activeOpacity={0.8}
             >
               <View style={styles.iconWrap}>
@@ -117,7 +155,6 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
                   <Text style={[styles.title, { color: theme.textPrimary }]}>{n.title}</Text>
                   {!readIds.includes(n.id) && <View style={styles.unreadDot} />}
                 </View>
-                <Text style={[styles.sub, { color: theme.textMuted }]}>{n.body}</Text>
               </View>
               <View style={styles.metaColumn}>
                 <Text style={[styles.meta, { color: theme.textMuted }]}>{n.time}</Text>
@@ -175,6 +212,31 @@ const styles = StyleSheet.create({
   metaColumn: { alignItems: 'flex-end', gap: 6 },
   clearBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
   clearBtnText: { fontSize: 11, fontWeight: '800' },
+  detailCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    gap: 10,
+  },
+  detailIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: C.goldLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  detailTitle: { fontSize: 19, fontWeight: '900', lineHeight: 25 },
+  detailTime: { fontSize: 12, fontWeight: '700' },
+  detailBody: { fontSize: 14, lineHeight: 22 },
+  doneBtn: {
+    marginTop: 10,
+    borderRadius: 999,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  doneBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   emptyCard: {
     borderRadius: 22,
     padding: 24,

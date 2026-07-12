@@ -3,8 +3,10 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  KeyboardAvoidingView,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MailComposer from 'expo-mail-composer';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { settingsApi, supportApi } from '@/shared/api';
@@ -31,13 +34,26 @@ type Ticket = {
   subject: string;
   message: string;
   status: string;
-  replies?: { sender: string; senderName: string; message: string; timestamp: string }[];
+  replies?: { id?: string; sender: string; senderName: string; message: string; timestamp: string }[];
   createdAt: string;
   photoUrl?: string | null;
   photoUrls?: string[];
 };
 
 const MAX_SUPPORT_PHOTOS = 5;
+const TICKET_DETAIL_NAV_CLEARANCE = 8;
+const KEYBOARD_OFFSET = Platform.OS === 'ios' ? 88 : 0;
+
+function SendIcon({ color = '#FFFFFF', size = 20 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4.8 19.2L20.2 12 4.8 4.8l2 6.2 7.1 1-7.1 1-2 6.2z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
 
 export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
@@ -217,8 +233,15 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     if (!selectedTicket || !replyText.trim() || isTicketClosed) return;
     setSendingReply(true);
     try {
-      await supportApi.replyToTicket(selectedTicket.id, replyText.trim());
-      const newReply = { sender: 'user', senderName: 'You', message: replyText.trim(), timestamp: new Date().toISOString() };
+      const response = await supportApi.replyToTicket(selectedTicket.id, replyText.trim());
+      const apiReply = response.reply;
+      const newReply = {
+        id: apiReply?.id ?? `reply_${Date.now()}`,
+        sender: 'user',
+        senderName: 'You',
+        message: apiReply?.message ?? replyText.trim(),
+        timestamp: String(apiReply?.timestamp ?? new Date().toISOString()),
+      };
       const updatedTicket = {
         ...selectedTicket,
         replies: [...(selectedTicket.replies || []), newReply],
@@ -231,6 +254,31 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Could not send reply. Please try again.') });
     } finally {
       setSendingReply(false);
+    }
+  };
+
+  const handleDeleteReply = async (replyId: string) => {
+    if (!selectedTicket) return;
+    const updatedTicket = {
+      ...selectedTicket,
+      replies: (selectedTicket.replies || []).filter((reply) => {
+        const replyKey = String(reply.id ?? reply.timestamp ?? '');
+        const timestampKey = String(reply.timestamp ?? '');
+        return replyKey !== replyId && timestampKey !== replyId;
+      }),
+    };
+    if ((updatedTicket.replies || []).length === (selectedTicket.replies || []).length) {
+      setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Could not delete message. Please try again.') });
+      return;
+    }
+
+    setSelectedTicket(updatedTicket);
+    setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
+
+    try {
+      await supportApi.deleteTicketReply(selectedTicket.id, replyId);
+    } catch {
+      // Keep the app clean for the user even when an older local reply has no backend reply id.
     }
   };
 
@@ -285,35 +333,92 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       ...(selectedTicket.photoUrls ?? []),
       ...(selectedTicket.photoUrl ? [selectedTicket.photoUrl] : []),
     ].filter(Boolean))] as string[];
-    const messages = [
-      { type: 'user', message: selectedTicket.message, createdAt: selectedTicket.createdAt, photoUrls: ticketPhotos },
-      ...(selectedTicket.replies || []).map(r => ({ type: r.sender, message: r.message, createdAt: r.timestamp, senderName: r.senderName })),
+    const messages: {
+      id: string;
+      type: string;
+      message: string;
+      createdAt: string;
+      senderName?: string;
+      photoUrls?: string[];
+      canDelete?: boolean;
+    }[] = [
+      { id: 'initial', type: 'user', message: selectedTicket.message, createdAt: selectedTicket.createdAt, photoUrls: ticketPhotos, canDelete: false },
+      ...(selectedTicket.replies || []).map(r => ({
+        id: String(r.id ?? r.timestamp),
+        type: r.sender,
+        message: r.message,
+        createdAt: String(r.timestamp),
+        senderName: r.senderName,
+        canDelete: r.sender === 'user',
+      })),
     ];
 
     return (
-      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: theme.bg }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={KEYBOARD_OFFSET}
+      >
         <PageHeader title={selectedTicket.subject} onBack={() => setSelectedTicket(null)} />
         <FlatList
           data={messages}
           keyExtractor={(_, i) => String(i)}
-          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 80 }}
-          renderItem={({ item }) => (
-            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-end', justifyContent: item.type === 'admin' ? 'flex-end' : 'flex-start' }}>
-              {item.type !== 'admin' && (
-                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: accentColor, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>
-                    {(item as any).senderName && (item as any).senderName !== 'You' ? (item as any).senderName.charAt(0) : 'U'}
+          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 118 }}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={(
+            <LinearGradient
+              colors={['#FFFFFF', '#F4F8FF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.ticketDetailHero, { borderColor: theme.border }]}
+            >
+              <View style={styles.ticketDetailHeroTop}>
+                <View style={[styles.ticketHeroIcon, { backgroundColor: `${accentColor}18` }]}>
+                  <AppIcon name="support" size={22} color={accentColor} />
+                </View>
+                <View style={[styles.statusPill, { backgroundColor: `${getStatusColor(selectedTicket.status)}20` }]}>
+                  <Text style={[styles.statusPillText, { color: getStatusColor(selectedTicket.status) }]}>
+                    {getStatusLabel(selectedTicket.status)}
                   </Text>
                 </View>
+              </View>
+              <Text style={[styles.ticketDetailTitle, { color: theme.textPrimary }]} numberOfLines={2}>
+                {selectedTicket.subject}
+              </Text>
+              <Text style={[styles.ticketDetailMeta, { color: theme.textMuted }]}>
+                {tx('Created')} {formatDate(selectedTicket.createdAt)}
+              </Text>
+            </LinearGradient>
+          )}
+          renderItem={({ item }) => (
+            <View style={[styles.chatRow, item.type === 'user' ? styles.chatRowUser : styles.chatRowSupport]}>
+              {item.type !== 'user' && (
+                <View style={[styles.chatAvatar, { backgroundColor: '#7C3AED' }]}>
+                  <Text style={styles.chatAvatarText}>S</Text>
+                </View>
               )}
-              <View style={{ maxWidth: '75%' }}>
-                <View style={{
-                  padding: 12, borderRadius: 16,
-                  backgroundColor: item.type === 'admin' ? '#EDE9FE' : theme.surface,
-                  borderWidth: 1,
-                  borderColor: item.type === 'admin' ? '#DDD6FE' : theme.border,
-                }}>
-                  <Text style={{ fontSize: 13, color: theme.textPrimary, lineHeight: 19 }}>{item.message}</Text>
+              <View style={[styles.chatBubbleWrap, item.type === 'user' ? styles.chatBubbleWrapUser : null]}>
+                <Pressable
+                  style={[
+                    styles.chatBubble,
+                    item.type === 'user'
+                      ? [styles.chatBubbleUser, { backgroundColor: `${accentColor}18`, borderColor: `${accentColor}32` }]
+                      : [styles.chatBubbleSupport, { backgroundColor: theme.surface, borderColor: theme.border }],
+                  ]}
+                  delayLongPress={500}
+                  onLongPress={() => {
+                    if (!item.canDelete) return;
+                    setDialog({
+                      visible: true,
+                      variant: 'destructive',
+                      title: tx('Delete message'),
+                      message: tx('Do you want to delete this message?'),
+                      confirmLabel: tx('Delete'),
+                      onConfirm: () => void handleDeleteReply(item.id),
+                    });
+                  }}
+                >
+                  <Text style={[styles.chatMessageText, { color: theme.textPrimary }]}>{item.message}</Text>
                   {'photoUrls' in item && item.photoUrls && item.photoUrls.length > 0 ? (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ticketPhotoStrip}>
                       {item.photoUrls.map((photo, index) => (
@@ -321,14 +426,14 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
                       ))}
                     </ScrollView>
                   ) : null}
-                </View>
-                <Text style={{ fontSize: 10, color: theme.textMuted, marginTop: 4, textAlign: item.type === 'admin' ? 'right' : 'left' }}>
+                </Pressable>
+                <Text style={[styles.chatTime, { color: theme.textMuted }, item.type === 'user' ? styles.chatTimeUser : null]}>
                   {formatDate(item.createdAt as string)}
                 </Text>
               </View>
-              {item.type === 'admin' && (
-                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>A</Text>
+              {item.type === 'user' && (
+                <View style={[styles.chatAvatar, { backgroundColor: accentColor }]}>
+                  <Text style={styles.chatAvatarText}>U</Text>
                 </View>
               )}
             </View>
@@ -336,13 +441,10 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         />
 
         {/* Chat Input + Close Button */}
-        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: theme.surface, borderTopWidth: 1, borderTopColor: theme.border, padding: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={[styles.ticketComposer, { bottom: TICKET_DETAIL_NAV_CLEARANCE }]}>
+          <View style={styles.composerRow}>
             <TextInput
-              style={{
-                flex: 1, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: theme.border,
-                backgroundColor: theme.soft, color: theme.textPrimary, paddingHorizontal: 14, fontSize: 13,
-              }}
+              style={[styles.messageInput, { borderColor: theme.border, backgroundColor: theme.soft, color: theme.textPrimary }]}
               placeholder={isTicketClosed ? tx('This ticket is closed') : tx('Type a message...')}
               placeholderTextColor={theme.textMuted}
               value={replyText}
@@ -351,10 +453,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
               multiline
             />
             <TouchableOpacity
-              style={{
-                width: 44, height: 44, borderRadius: 12, backgroundColor: isTicketClosed || !replyText.trim() ? theme.border : accentColor,
-                alignItems: 'center', justifyContent: 'center',
-              }}
+              style={[styles.sendButton, { backgroundColor: isTicketClosed || !replyText.trim() ? theme.border : accentColor }]}
               onPress={() => void handleSendReply()}
               disabled={isTicketClosed || !replyText.trim() || sendingReply}
               activeOpacity={0.8}
@@ -362,13 +461,13 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
               {sendingReply ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <AppIcon name="mail" size={18} color={isTicketClosed || !replyText.trim() ? theme.textMuted : '#fff'} />
+                <SendIcon color={isTicketClosed || !replyText.trim() ? theme.textMuted : '#fff'} />
               )}
             </TouchableOpacity>
           </View>
           {!isTicketClosed && (
             <TouchableOpacity
-              style={{ alignSelf: 'center', marginTop: 8 }}
+              style={[styles.closeTicketBtn, closing ? { opacity: 0.7 } : null]}
               onPress={() => {
                 setDialog({
                   visible: true, variant: 'destructive', title: tx('Close Ticket'), message: tx('Are you sure you want to close this ticket?'),
@@ -379,7 +478,8 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
               disabled={closing}
               activeOpacity={0.7}
             >
-              <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '600' }}>
+              <AppIcon name="trash" size={14} color="#EF4444" />
+              <Text style={styles.closeTicketText}>
                 {closing ? tx('Closing...') : tx('Close Ticket')}
               </Text>
             </TouchableOpacity>
@@ -390,12 +490,25 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
             </Text>
           )}
         </View>
-      </View>
+        <Dialog
+          visible={dialog.visible}
+          variant={dialog.variant}
+          title={dialog.title}
+          message={dialog.message}
+          confirmLabel={dialog.confirmLabel}
+          onConfirm={dialog.onConfirm}
+          onClose={closeDialog}
+        />
+      </KeyboardAvoidingView>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: theme.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={KEYBOARD_OFFSET}
+    >
       <PageHeader title={pageContent.pageTitle || t('needHelp')} onBack={onBack} />
 
       {/* Tab Switcher */}
@@ -419,7 +532,11 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       </View>
 
       {tab === 'new' ? (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.headerRow}>
               <View style={styles.iconWrap}>
@@ -518,7 +635,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
           </View>
         </ScrollView>
       ) : (
-        <View style={{ flex: 1, padding: 16 }}>
+        <View style={styles.ticketListWrap}>
           {loadingTickets ? (
             <ActivityIndicator size="large" color={accentColor} style={{ marginTop: 40 }} />
           ) : tickets.length === 0 ? (
@@ -535,32 +652,60 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
             <FlatList
               data={tickets}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={{ gap: 10 }}
+              contentContainerStyle={styles.ticketListContent}
+              keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={(
+                <View style={[styles.ticketListHeader, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <View style={[styles.ticketListHeaderIcon, { backgroundColor: `${accentColor}18` }]}>
+                    <AppIcon name="message" size={20} color={accentColor} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.ticketListHeaderTitle, { color: theme.textPrimary }]}>
+                      {tx('Support activity')}
+                    </Text>
+                    <Text style={[styles.ticketListHeaderSub, { color: theme.textMuted }]}>
+                      {tx('Tap any ticket to view replies or close it.')}
+                    </Text>
+                  </View>
+                </View>
+              )}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.ticketCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
                   onPress={() => setSelectedTicket(item)}
-                  activeOpacity={0.85}
+                  activeOpacity={0.78}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${tx('Open ticket')} ${item.subject}`}
                 >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textPrimary, flex: 1 }} numberOfLines={1}>
-                      {item.subject}
-                    </Text>
-                    <View style={{ backgroundColor: getStatusColor(item.status) + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: getStatusColor(item.status) }}>
+                  <View style={[styles.ticketAccent, { backgroundColor: getStatusColor(item.status) }]} />
+                  <View style={styles.ticketCardTop}>
+                    <View style={[styles.ticketIconWrap, { backgroundColor: `${getStatusColor(item.status)}16` }]}>
+                      <AppIcon name="message" size={18} color={getStatusColor(item.status)} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.ticketTitle, { color: theme.textPrimary }]} numberOfLines={1}>
+                        {item.subject}
+                      </Text>
+                      <Text style={[styles.ticketDate, { color: theme.textMuted }]}>
+                        {formatDate(item.createdAt)}
+                      </Text>
+                    </View>
+                    <View style={[styles.statusPill, { backgroundColor: `${getStatusColor(item.status)}20` }]}>
+                      <Text style={[styles.statusPillText, { color: getStatusColor(item.status) }]}>
                         {getStatusLabel(item.status)}
                       </Text>
                     </View>
                   </View>
-                  <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }} numberOfLines={2}>
+                  <Text style={[styles.ticketMessage, { color: theme.textMuted }]} numberOfLines={2}>
                     {item.message}
                   </Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                    <Text style={{ fontSize: 10, color: theme.textMuted }}>
-                      {formatDate(item.createdAt)}
-                    </Text>
+                  <View style={styles.ticketFooter}>
+                    <View style={styles.ticketFooterLeft}>
+                      <Text style={[styles.ticketOpenText, { color: accentColor }]}>{tx('View details')}</Text>
+                      <AppIcon name="chevronRight" size={14} color={accentColor} />
+                    </View>
                     {item.replies && item.replies.length > 0 && (
-                      <Text style={{ fontSize: 10, color: '#7C3AED' }}>
+                      <Text style={styles.ticketReplyText}>
                         {item.replies.length} {tx('replies')}
                       </Text>
                     )}
@@ -620,12 +765,12 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         onConfirm={dialog.onConfirm}
         onClose={closeDialog}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { padding: 16, gap: 14, paddingBottom: 32 },
+  scrollContent: { padding: 16, gap: 14, paddingBottom: 170 },
   card: { borderRadius: 28, padding: 20, borderWidth: 1, gap: 14 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 6 },
   iconWrap: {
@@ -754,9 +899,175 @@ const styles = StyleSheet.create({
   actionCopy: { flex: 1 },
   actionTitle: { color: '#152238', fontSize: 15, fontWeight: '800' },
   actionSub: { color: '#6B7A93', fontSize: 11.5, marginTop: 3, lineHeight: 16 },
-  ticketCard: {
-    borderRadius: 16,
+  ticketListWrap: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
+  ticketListContent: { gap: 12, paddingBottom: 150 },
+  ticketListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 22,
     padding: 16,
     borderWidth: 1,
+    marginBottom: 2,
   },
+  ticketListHeaderIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketListHeaderTitle: { fontSize: 17, fontWeight: '900' },
+  ticketListHeaderSub: { fontSize: 12, lineHeight: 17, marginTop: 3 },
+  ticketCard: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    gap: 12,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  ticketAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 5,
+  },
+  ticketCardTop: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingLeft: 2 },
+  ticketIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketTitle: { fontSize: 15, fontWeight: '900', lineHeight: 20 },
+  ticketDate: { fontSize: 10.5, fontWeight: '700', marginTop: 2 },
+  statusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  statusPillText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  ticketMessage: { fontSize: 12.5, lineHeight: 18, paddingLeft: 2 },
+  ticketFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 2 },
+  ticketFooterLeft: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  ticketOpenText: { fontSize: 12, fontWeight: '900' },
+  ticketReplyText: { fontSize: 11, color: '#7C3AED', fontWeight: '800' },
+  ticketDetailHero: {
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 4,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  ticketDetailHeroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  ticketHeroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketDetailTitle: { fontSize: 20, fontWeight: '900', lineHeight: 26 },
+  ticketDetailMeta: { fontSize: 12, fontWeight: '700', marginTop: 6 },
+  chatRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    width: '100%',
+  },
+  chatRowUser: { justifyContent: 'flex-end' },
+  chatRowSupport: { justifyContent: 'flex-start' },
+  chatAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatAvatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 11 },
+  chatBubbleWrap: { maxWidth: '78%' },
+  chatBubbleWrapUser: { alignItems: 'flex-end' },
+  chatBubble: {
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderWidth: 1,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 1,
+  },
+  chatBubbleUser: {
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 5,
+  },
+  chatBubbleSupport: {
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    borderBottomLeftRadius: 5,
+    borderBottomRightRadius: 18,
+  },
+  chatMessageText: { fontSize: 13.5, lineHeight: 20, fontWeight: '500' },
+  chatTime: { fontSize: 10, marginTop: 4, fontWeight: '700' },
+  chatTimeUser: { textAlign: 'right' },
+  ticketComposer: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  messageInput: {
+    flex: 1,
+    minHeight: 46,
+    maxHeight: 96,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+    fontSize: 14,
+    lineHeight: 19,
+    textAlignVertical: 'center',
+  },
+  sendButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  closeTicketBtn: {
+    alignSelf: 'flex-end',
+    marginTop: 5,
+    minHeight: 24,
+    borderRadius: 999,
+    paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  closeTicketText: { fontSize: 11.5, color: '#EF4444', fontWeight: '800' },
 });

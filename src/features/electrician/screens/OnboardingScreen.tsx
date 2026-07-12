@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Easing,
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -45,6 +47,13 @@ type SignupStep =
   | 'phone'
   | 'otp'
   | 'password';
+
+const PASSWORD_RULE_MESSAGE = 'Password must be exactly 8 characters long and include one special character.';
+const isValidPassword = (value: string) => /^(?=.*[^A-Za-z0-9])\S{8}$/.test(value);
+const cleanPasswordInput = (value: string) => value.replace(/\s/g, '').slice(0, 8);
+const showPasswordRuleAlert = () => {
+  Alert.alert('Password Required', PASSWORD_RULE_MESSAGE);
+};
 type LoginMethod = 'otp' | 'password' | null;
 
 const C = {
@@ -91,16 +100,16 @@ const languageOptions = [
   {
     value: 'Hindi',
     title: 'Hindi',
-    nativeTitle: 'à¤¹à¤¿à¤‚à¤¦à¥€',
-    mark: 'à¤…',
-    description: 'à¤‘à¤¨à¤¬à¥‹à¤°à¥à¤¡à¤¿à¤‚à¤— à¤”à¤° à¤°à¤¿à¤µà¥‰à¤°à¥à¤¡à¥à¤¸ à¤•à¥‡ à¤²à¤¿à¤à¥¤',
+    nativeTitle: '\u0939\u093f\u0902\u0926\u0940',
+    mark: '\u0905',
+    description: 'Hindi onboarding and rewards.',
   },
   {
     value: 'Punjabi',
     title: 'Punjabi',
-    nativeTitle: 'à¨ªà©°à¨œà¨¾à¨¬à©€',
-    mark: 'à¨…',
-    description: 'à¨†à¨¨à¨¬à©‹à¨°à¨¡à¨¿à©°à¨— à¨…à¨¤à©‡ à¨°à¨¿à¨µà¨¾à¨°à¨¡ à¨²à¨ˆà¥¤',
+    nativeTitle: '\u0a2a\u0a70\u0a1c\u0a3e\u0a2c\u0a40',
+    mark: '\u0a05',
+    description: 'Punjabi onboarding and rewards.',
   },
 ] as const;
 
@@ -495,6 +504,8 @@ function Field({
 }) {
   const { tx, darkMode } = usePreferenceContext();
   const hasAction = Boolean(actionLabel || actionContent);
+  const isVerifyAction = Boolean(actionLabel) && !actionContent && (actionLabel === 'Verify' || actionLabel === tx('Verify') || actionTestID?.includes('phone-verify'));
+  const hasInlineAction = hasAction && !isVerifyAction;
   const isWideAction = actionLabel === 'Current Address';
   const isHintMessage = Boolean(error?.startsWith('Dev OTP:'));
   return (
@@ -506,13 +517,13 @@ function Field({
             <Text style={[s.prefix, darkMode ? { color: '#94A3B8' } : null]}>{prefix}</Text>
           </View>
         ) : null}
-        <View style={[s.inputWrap, hasAction ? s.inputWrapWithAction : null]}>
+        <View style={[s.inputWrap, hasInlineAction ? s.inputWrapWithAction : null]}>
           <TextInput
             ref={inputRef}
             testID={inputTestID}
             style={[
               s.input,
-              hasAction ? s.inputWithAction : null,
+              hasInlineAction ? s.inputWithAction : null,
               isWideAction ? s.inputWithWideAction : null,
               darkMode ? { color: '#F1F5F9' } : null,
             ]}
@@ -533,7 +544,7 @@ function Field({
             maxLength={maxLength}
           />
         </View>
-        {actionLabel || actionContent ? (
+        {hasInlineAction ? (
           <Pressable
             onPress={onActionPress}
             disabled={actionDisabled}
@@ -553,6 +564,18 @@ function Field({
           </Pressable>
         ) : null}
       </View>
+      {isVerifyAction ? (
+        <Pressable
+          onPress={onActionPress}
+          disabled={actionDisabled}
+          testID={actionTestID}
+          style={[s.verifyActionBelow, actionDisabled ? s.verifyActionBelowDisabled : null]}
+        >
+          <Text style={[s.verifyActionBelowText, actionDisabled ? s.fieldActionTextDisabled : null]}>
+            {actionLabel ? tx(actionLabel) : ''}
+          </Text>
+        </Pressable>
+      ) : null}
       {error ? <Info text={error} kind={isHintMessage ? 'hint' : 'error'} /> : null}
     </View>
   );
@@ -748,9 +771,20 @@ export function OnboardingScreen({
   const [authSelectionOpen, setAuthSelectionOpen] = useState(resolvedInitialPhase === 'auth');
   const [electricianLoginMethod, setElectricianLoginMethod] = useState<LoginMethod>(null);
   const [dealerLoginMethod, setDealerLoginMethod] = useState<LoginMethod>(null);
+  const activeLoginMethod = role === 'electrician' ? electricianLoginMethod : dealerLoginMethod;
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotVisible, setForgotVisible] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'phone' | 'otp' | 'password'>('phone');
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotOtpVerified, setForgotOtpVerified] = useState(false);
+  const [forgotPassword, setForgotPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [forgotDevOtp, setForgotDevOtp] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const [loginPhone, setLoginPhone] = useState('');
   const [loginOtp, setLoginOtp] = useState('');
@@ -1039,24 +1073,9 @@ export function OnboardingScreen({
     dismissKeyboard();
     setSignupStep(previousStep);
   };
-  const isValidPassword = (pass: string) => {
-    if (pass.length === 0) return true;
-    if (pass.length < 8) return false;
-    if (!/[A-Z]/.test(pass)) return false;
-    if (!/[0-9]/.test(pass)) return false;
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pass)) return false;
-    if (/\s/.test(pass)) return false;
-    return true;
-  };
-
   const getPasswordError = (pass: string) => {
     if (pass.length === 0) return '';
-    if (pass.length < 8) return 'Password must be at least 8 characters.';
-    if (!/[A-Z]/.test(pass)) return 'Password must contain at least one capital letter.';
-    if (!/[0-9]/.test(pass)) return 'Password must contain at least one number.';
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pass))
-      return 'Password must contain at least one special character.';
-    if (/\s/.test(pass)) return 'Password must not contain spaces.';
+    if (!isValidPassword(pass)) return PASSWORD_RULE_MESSAGE;
     return '';
   };
 
@@ -1078,28 +1097,11 @@ export function OnboardingScreen({
 
   const canContinue = useMemo(() => {
     if (mode === 'login') {
-      if (role === 'electrician') {
-        if (electricianLoginMethod === 'otp')
-          return loginPhone.length === 10 && loginOtp.length === 4 && loginOtpVerified;
-        if (electricianLoginMethod === 'password')
-          return loginPhone.length === 10 && loginStep === 'password' && loginPass.length >= 8;
-        return false;
-      }
-      if (role === 'dealer') {
-        if (dealerLoginMethod === 'otp')
-          return loginPhone.length === 10 && loginOtp.length === 4 && loginOtpVerified;
-        if (dealerLoginMethod === 'password')
-          return loginPhone.length === 10 && loginStep === 'password' && loginPass.length >= 8;
-        return false;
-      }
-      if (role === 'counterboy') {
-        if (dealerLoginMethod === 'otp')
-          return loginPhone.length === 10 && loginOtp.length === 4 && loginOtpVerified;
-        if (dealerLoginMethod === 'password')
-          return loginPhone.length === 10 && loginStep === 'password' && loginPass.length >= 8;
-        return false;
-      }
-      return loginPhone.length === 10 && loginOtp.length === 4 && loginPass.length >= 8;
+      if (activeLoginMethod === 'otp')
+        return loginPhone.length === 10 && loginOtp.length === 4 && loginOtpVerified;
+      if (activeLoginMethod === 'password')
+        return loginPhone.length === 10 && loginStep === 'password' && loginPass.length >= 8;
+      return false;
     }
     if (role === 'dealer') {
       return (
@@ -1137,9 +1139,8 @@ export function OnboardingScreen({
       signupTermsAgreed
     );
   }, [
-    dealerLoginMethod,
+    activeLoginMethod,
     dealerVerified,
-    electricianLoginMethod,
     loginOtp,
     loginOtpVerified,
     loginPass,
@@ -1162,43 +1163,17 @@ export function OnboardingScreen({
   const submitAuth = async () => {
     dismissKeyboard();
     if (mode === 'login') {
-      if (role === 'electrician') {
-        if (electricianLoginMethod === 'otp') {
-          if (!loginOtpVerified)
-            return setError('loginOtp', 'Please verify the OTP before logging in.');
-          setError('loginOtp');
-        }
-        if (electricianLoginMethod === 'password') {
-          if (loginPass.length < 8)
-            return setError('loginPass', 'Password must be at least 8 characters long.');
-          setError('loginPass');
-        }
-        if (!electricianLoginMethod) return setError('loginMode', 'Please choose a login option.');
-      } else if (role === 'dealer') {
-        if (dealerLoginMethod === 'otp') {
-          if (!loginOtpVerified)
-            return setError('loginOtp', 'Please verify the OTP before logging in.');
-          setError('loginOtp');
-        }
-        if (dealerLoginMethod === 'password') {
-          if (loginPass.length < 8)
-            return setError('loginPass', 'Password must be at least 8 characters long.');
-          setError('loginPass');
-        }
-        if (!dealerLoginMethod) return setError('loginMode', 'Please choose a login option.');
-      } else if (role === 'counterboy') {
-        if (dealerLoginMethod === 'otp') {
-          if (!loginOtpVerified)
-            return setError('loginOtp', 'Please verify the OTP before logging in.');
-          setError('loginOtp');
-        }
-        if (dealerLoginMethod === 'password') {
-          if (loginPass.length < 8)
-            return setError('loginPass', 'Password must be at least 8 characters long.');
-          setError('loginPass');
-        }
-        if (!dealerLoginMethod) return setError('loginMode', 'Please choose a login option.');
+      if (activeLoginMethod === 'otp') {
+        if (!loginOtpVerified)
+          return setError('loginOtp', 'Please verify the OTP before logging in.');
+        setError('loginOtp');
       }
+      if (activeLoginMethod === 'password') {
+        if (loginPass.length < 8)
+          return setError('loginPass', PASSWORD_RULE_MESSAGE);
+        setError('loginPass');
+      }
+      if (!activeLoginMethod) return setError('loginMode', 'Please choose a login option.');
     }
     if (mode === 'signup' && role === 'dealer') {
       if (signupPhone.length !== 10)
@@ -1209,8 +1184,11 @@ export function OnboardingScreen({
       setError('signupOtp');
     }
     if (mode === 'signup' && (signupPass.length > 0 || signupConfirmPass.length > 0)) {
-      if (signupPass.length < 8)
-        return setError('signupPass', 'Password must be at least 8 characters long.');
+      if (!isValidPassword(signupPass)) {
+        setError('signupPass', PASSWORD_RULE_MESSAGE);
+        showPasswordRuleAlert();
+        return;
+      }
       if (signupConfirmPass !== signupPass)
         return setError(
           'signupConfirmPass',
@@ -1230,11 +1208,9 @@ export function OnboardingScreen({
       const passwordConfigured =
         mode === 'signup'
           ? signupPass.length >= 8
-          : (role === 'dealer' || role === 'counterboy')
-            ? dealerLoginMethod === 'password' ? true : undefined
-            : electricianLoginMethod === 'password'
-              ? true
-              : undefined;
+          : activeLoginMethod === 'password'
+            ? true
+            : undefined;
       const passwordValue =
         mode === 'signup'
           ? signupPass.length >= 8 ? signupPass : ''
@@ -1251,10 +1227,7 @@ export function OnboardingScreen({
 
     try {
       if (mode === 'login') {
-        if (
-          (role === 'electrician' && electricianLoginMethod === 'password') ||
-          ((role === 'dealer' || role === 'counterboy') && dealerLoginMethod === 'password')
-        ) {
+        if (activeLoginMethod === 'password') {
           const res = await authApi.loginWithPassword(loginPhone, role, loginPass);
           finishLogin(res.user);
           return;
@@ -1273,7 +1246,7 @@ export function OnboardingScreen({
           town: signupCity.trim(),
           district: signupCity.trim(),
           state: signupState.trim(),
-          address: '',
+          address: `${signupCity.trim()}, ${signupState.trim()}`,
           pincode: signupPincode.trim() || undefined,
           gstNumber: normalizeGstOrPanNumber(signupGstNumber) || undefined,
           password: signupPass.trim() || undefined,
@@ -1334,10 +1307,7 @@ export function OnboardingScreen({
     } catch (err: any) {
       const message = err?.message || tx('Something went wrong. Please try again.');
       if (mode === 'login') {
-        if (
-          (role === 'electrician' && electricianLoginMethod === 'password') ||
-          ((role === 'dealer' || role === 'counterboy') && dealerLoginMethod === 'password')
-        ) {
+        if (activeLoginMethod === 'password') {
           setError('loginPass', message);
         } else {
           setError('loginOtp', message);
@@ -1360,7 +1330,7 @@ export function OnboardingScreen({
       return setError('loginPhone', 'Please enter a valid 10-digit mobile number.');
     setError('loginPhone');
 
-    const doSendOtp = (userRole: 'electrician' | 'dealer' | 'counterboy') => {
+    const doSendOtp = (userRole: UserRole) => {
       setLoading(true);
       authApi.sendOtp(loginPhone, userRole)
         .then((res) => {
@@ -1378,46 +1348,96 @@ export function OnboardingScreen({
         .finally(() => setLoading(false));
     };
 
-    if (role === 'electrician') {
-      if (!electricianLoginMethod) return setError('loginMode', 'Please choose a login option.');
-      setError('loginMode');
-      setLoginOtp('');
-      setLoginPass('');
-      setLoginOtpVerified(false);
-      if (electricianLoginMethod === 'otp') {
-        doSendOtp('electrician');
-      } else {
-        setLoginStep('password');
-      }
+    if (!activeLoginMethod) return setError('loginMode', 'Please choose a login option.');
+    setError('loginMode');
+    setLoginOtp('');
+    setLoginPass('');
+    setLoginOtpVerified(false);
+    if (activeLoginMethod === 'otp') {
+      doSendOtp(role);
+    } else {
+      setLoginStep('password');
+    }
+  };
+
+  const openForgotPassword = () => {
+    dismissKeyboard();
+    setForgotPhone(loginPhone.length === 10 ? loginPhone : '');
+    setForgotOtp('');
+    setForgotOtpVerified(false);
+    setForgotPassword('');
+    setForgotConfirmPassword('');
+    setForgotDevOtp('');
+    setForgotStep('phone');
+    setShowForgotPassword(false);
+    setForgotVisible(true);
+  };
+
+  const sendForgotOtp = () => {
+    dismissKeyboard();
+    if (forgotPhone.length !== 10) {
+      Alert.alert(tx('Invalid Mobile Number'), tx('Please enter a valid 10-digit mobile number.'));
       return;
     }
-    if (role === 'dealer') {
-      if (!dealerLoginMethod) return setError('loginMode', 'Please choose a login option.');
-      setError('loginMode');
-      setLoginOtp('');
-      setLoginPass('');
-      setLoginOtpVerified(false);
-      if (dealerLoginMethod === 'otp') {
-        doSendOtp('dealer');
-      } else {
-        setLoginStep('password');
-      }
+    setForgotLoading(true);
+    authApi.sendPasswordResetOtp(forgotPhone, role)
+      .then((res) => {
+        setForgotDevOtp(res.devOtp ? `Dev OTP: ${res.devOtp}` : '');
+        setForgotOtp('');
+        setForgotOtpVerified(false);
+        setForgotPassword('');
+        setForgotConfirmPassword('');
+        setForgotStep('otp');
+      })
+      .catch((err: Error) => Alert.alert(tx('Could not send OTP'), err.message || tx('Please try again.')))
+      .finally(() => setForgotLoading(false));
+  };
+
+  const verifyForgotOtp = () => {
+    dismissKeyboard();
+    if (forgotOtp.trim().length < 4) {
+      Alert.alert(tx('OTP Required'), tx('Enter the OTP sent to your mobile number.'));
       return;
     }
-    if (role === 'counterboy') {
-      if (!dealerLoginMethod) return setError('loginMode', 'Please choose a login option.');
-      setError('loginMode');
-      setLoginOtp('');
-      setLoginPass('');
-      setLoginOtpVerified(false);
-      if (dealerLoginMethod === 'otp') {
-        doSendOtp('counterboy');
-      } else {
-        setLoginStep('password');
-      }
+    setForgotLoading(true);
+    authApi.verifyPasswordResetOtp(forgotPhone, role, forgotOtp.trim())
+      .then(() => {
+        setForgotOtpVerified(true);
+        setForgotStep('password');
+        Alert.alert(tx('OTP Verified'), tx('Now create your new password.'));
+      })
+      .catch((err: Error) => Alert.alert(tx('Invalid OTP'), err.message || tx('Please try again.')))
+      .finally(() => setForgotLoading(false));
+  };
+
+  const confirmForgotPassword = () => {
+    dismissKeyboard();
+    if (!forgotOtpVerified) {
+      Alert.alert(tx('OTP Verification Required'), tx('Please verify OTP before updating password.'));
+      setForgotStep('otp');
       return;
     }
-    setLoginStep('otp');
+    if (!isValidPassword(forgotPassword.trim())) {
+      Alert.alert(tx('Password Required'), tx(PASSWORD_RULE_MESSAGE));
+      return;
+    }
+    if (forgotPassword.trim() !== forgotConfirmPassword.trim()) {
+      Alert.alert(tx('Password Mismatch'), tx('Passwords do not match. Please re-enter the same password.'));
+      return;
+    }
+    setForgotLoading(true);
+    authApi.resetPasswordWithOtp(forgotPhone, role, forgotOtp.trim(), forgotPassword.trim())
+      .then(() => {
+        setLoginPhone(forgotPhone);
+        setLoginPass(forgotPassword.trim());
+        setLoginStep('password');
+        if (role === 'electrician') setElectricianLoginMethod('password');
+        else setDealerLoginMethod('password');
+        setForgotVisible(false);
+        Alert.alert(tx('Password Updated'), tx('You can now login with your new password.'));
+      })
+      .catch((err: Error) => Alert.alert(tx('Could not reset password'), err.message || tx('Please try again.')))
+      .finally(() => setForgotLoading(false));
   };
 
   const verifyLoginOtp = () => {
@@ -2165,15 +2185,22 @@ export function OnboardingScreen({
                                   <Field
                                     label={tx('Password')}
                                     value={loginPass}
-                                    onChangeText={setLoginPass}
-                                    placeholder={tx('Enter password')}
+                                    onChangeText={(value) => setLoginPass(cleanPasswordInput(value))}
+                                    placeholder={tx('Enter 8 character password')}
                                     secureTextEntry={!showPassword}
+                                    maxLength={8}
                                     error={errors.loginPass}
                                     onFocus={scrollToForm}
                                     inputRef={loginPassRef}
                                     actionContent={<EyeIcon open={showPassword} />}
                                     onActionPress={() => setShowPassword((current) => !current)}
                                   />
+                                ) : null}
+                                {electricianLoginMethod === 'password' &&
+                                loginStep === 'password' ? (
+                                  <Pressable onPress={openForgotPassword} style={s.forgotLinkWrap}>
+                                    <Text style={s.forgotLinkText}>{tx('Forgot Password?')}</Text>
+                                  </Pressable>
                                 ) : null}
                                 {electricianLoginMethod === 'password' &&
                                 loginStep === 'password' ? (
@@ -2330,15 +2357,21 @@ export function OnboardingScreen({
                                   <Field
                                     label={tx('Password')}
                                     value={loginPass}
-                                    onChangeText={setLoginPass}
-                                    placeholder={tx('Enter password')}
+                                    onChangeText={(value) => setLoginPass(cleanPasswordInput(value))}
+                                    placeholder={tx('Enter 8 character password')}
                                     secureTextEntry={!showPassword}
+                                    maxLength={8}
                                     error={errors.loginPass}
                                     onFocus={scrollToForm}
                                     inputRef={loginPassRef}
                                     actionContent={<EyeIcon open={showPassword} />}
                                     onActionPress={() => setShowPassword((current) => !current)}
                                   />
+                                ) : null}
+                                {dealerLoginMethod === 'password' && loginStep === 'password' ? (
+                                  <Pressable onPress={openForgotPassword} style={s.forgotLinkWrap}>
+                                    <Text style={s.forgotLinkText}>{tx('Forgot Password?')}</Text>
+                                  </Pressable>
                                 ) : null}
                                 {dealerLoginMethod === 'password' && loginStep === 'password' ? (
                                   <Button
@@ -2590,12 +2623,14 @@ export function OnboardingScreen({
                                   label={tx('Password (Optional)')}
                                   value={signupPass}
                                   onChangeText={(value) => {
+                                    const nextPassword = cleanPasswordInput(value);
                                     setSignupPasswordSkipped(false);
-                                    setSignupPass(value);
-                                    setError('signupPass', getPasswordError(value));
+                                    setSignupPass(nextPassword);
+                                    setError('signupPass', getPasswordError(nextPassword));
                                   }}
-                                  placeholder={tx('Create password if you want')}
+                                  placeholder={tx('Create 8 character password')}
                                   secureTextEntry={!showPassword}
+                                  maxLength={8}
                                   error={getPasswordError(signupPass)}
                                   onFocus={scrollToForm}
                                   inputRef={signupPassRef}
@@ -2609,8 +2644,9 @@ export function OnboardingScreen({
                                   label={tx('Confirm Password (Optional)')}
                                   value={signupConfirmPass}
                                   onChangeText={(value) => {
-                                    setSignupConfirmPass(value);
-                                    if (signupPass.length > 0 && value !== signupPass) {
+                                    const nextPassword = cleanPasswordInput(value);
+                                    setSignupConfirmPass(nextPassword);
+                                    if (signupPass.length > 0 && nextPassword !== signupPass) {
                                       setError('signupConfirmPass', 'Passwords do not match.');
                                     } else {
                                       setError('signupConfirmPass');
@@ -2618,6 +2654,7 @@ export function OnboardingScreen({
                                   }}
                                   placeholder={tx('Re-enter password')}
                                   secureTextEntry={!showPassword}
+                                  maxLength={8}
                                   error={errors.signupConfirmPass}
                                   onFocus={scrollToForm}
                                   inputRef={signupConfirmPassRef}
@@ -2870,12 +2907,14 @@ export function OnboardingScreen({
                                   label={tx('Password (Optional)')}
                                   value={signupPass}
                                   onChangeText={(value) => {
+                                    const nextPassword = cleanPasswordInput(value);
                                     setSignupPasswordSkipped(false);
-                                    setSignupPass(value);
-                                    setError('signupPass', getPasswordError(value));
+                                    setSignupPass(nextPassword);
+                                    setError('signupPass', getPasswordError(nextPassword));
                                   }}
-                                  placeholder={tx('Create password if you want')}
+                                  placeholder={tx('Create 8 character password')}
                                   secureTextEntry={!showPassword}
+                                  maxLength={8}
                                   error={getPasswordError(signupPass)}
                                   onFocus={scrollToForm}
                                   inputRef={signupPassRef}
@@ -2889,8 +2928,9 @@ export function OnboardingScreen({
                                   label={tx('Confirm Password (Optional)')}
                                   value={signupConfirmPass}
                                   onChangeText={(value) => {
-                                    setSignupConfirmPass(value);
-                                    if (signupPass.length > 0 && value !== signupPass) {
+                                    const nextPassword = cleanPasswordInput(value);
+                                    setSignupConfirmPass(nextPassword);
+                                    if (signupPass.length > 0 && nextPassword !== signupPass) {
                                       setError('signupConfirmPass', 'Passwords do not match.');
                                     } else {
                                       setError('signupConfirmPass');
@@ -2898,6 +2938,7 @@ export function OnboardingScreen({
                                   }}
                                   placeholder={tx('Re-enter password')}
                                   secureTextEntry={!showPassword}
+                                  maxLength={8}
                                   error={errors.signupConfirmPass}
                                   onFocus={scrollToForm}
                                   inputRef={signupConfirmPassRef}
@@ -2960,8 +3001,95 @@ export function OnboardingScreen({
           </View>
         </KeyboardAvoidingView>
       </LinearGradient>
-
-
+      <Modal visible={forgotVisible} transparent animationType="fade" onRequestClose={() => setForgotVisible(false)}>
+        <View style={s.forgotOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setForgotVisible(false)} />
+          <View style={s.forgotCard}>
+            <View style={s.forgotHandle} />
+            <Text style={s.forgotTitle}>{tx('Forgot Password')}</Text>
+            <Text style={s.forgotSubtitle}>
+              {forgotStep === 'phone'
+                ? tx('Enter your registered mobile number to receive an OTP.')
+                : forgotStep === 'otp'
+                  ? tx('Enter and verify the OTP sent to your mobile number.')
+                  : tx('OTP verified. Now create a new password for your account.')}
+            </Text>
+            <Field
+              label={tx('Mobile Number')}
+              value={forgotPhone}
+              onChangeText={handlePhone(setForgotPhone)}
+              placeholder={tx('Enter mobile number')}
+              keyboardType="phone-pad"
+              prefix="+91"
+              maxLength={10}
+              editable={forgotStep === 'phone'}
+            />
+            {forgotStep !== 'phone' ? (
+              <>
+                {forgotDevOtp ? <Info text={forgotDevOtp} kind="success" /> : null}
+                <Field
+                  label={tx('OTP')}
+                  value={forgotOtp}
+                  onChangeText={handleOtp(setForgotOtp)}
+                  placeholder={tx('Enter 4 digit OTP')}
+                  keyboardType="numeric"
+                  maxLength={4}
+                  editable={forgotStep === 'otp'}
+                />
+                {forgotOtpVerified ? <Info text={tx('OTP verified successfully.')} kind="success" /> : null}
+              </>
+            ) : null}
+            {forgotStep === 'password' ? (
+              <>
+                <Field
+                  label={tx('New Password')}
+                  value={forgotPassword}
+                  onChangeText={(value) => setForgotPassword(cleanPasswordInput(value))}
+                  placeholder={tx('Create 8 character password')}
+                  secureTextEntry={!showForgotPassword}
+                  maxLength={8}
+                  actionContent={<EyeIcon open={showForgotPassword} />}
+                  onActionPress={() => setShowForgotPassword((current) => !current)}
+                />
+                <Field
+                  label={tx('Confirm Password')}
+                  value={forgotConfirmPassword}
+                  onChangeText={(value) => setForgotConfirmPassword(cleanPasswordInput(value))}
+                  placeholder={tx('Re-enter new password')}
+                  secureTextEntry={!showForgotPassword}
+                  maxLength={8}
+                />
+              </>
+            ) : null}
+            <Button
+              label={
+                forgotLoading
+                  ? tx('Please wait...')
+                  : forgotStep === 'phone'
+                    ? tx('Send OTP')
+                    : forgotStep === 'otp'
+                      ? tx('Verify OTP')
+                      : tx('Update Password')
+              }
+              onPress={
+                forgotStep === 'phone'
+                  ? sendForgotOtp
+                  : forgotStep === 'otp'
+                    ? verifyForgotOtp
+                    : confirmForgotPassword
+              }
+              disabled={forgotLoading}
+              colors={['#173E80', '#355C95']}
+              shadowColor="#173E80"
+            />
+            {forgotStep !== 'phone' ? (
+              <Pressable onPress={sendForgotOtp} style={s.forgotResendBtn} disabled={forgotLoading}>
+                <Text style={s.forgotResendText}>{tx('Resend OTP')}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -2971,6 +3099,26 @@ const s = StyleSheet.create({
   bg: { ...StyleSheet.absoluteFillObject },
   kav: { flex: 1 },
   dismissSurface: { flex: 1 },
+  forgotOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15,23,42,0.48)',
+  },
+  forgotCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 24,
+    gap: 12,
+    ...createShadow({ color: '#0F172A', offsetY: -8, blur: 28, opacity: 0.18, elevation: 12 }),
+  },
+  forgotHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 999, backgroundColor: '#D8E2F0', marginBottom: 4 },
+  forgotTitle: { color: C.title, fontSize: 20, fontWeight: '900', textAlign: 'center' },
+  forgotSubtitle: { color: C.muted2, fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  forgotResendBtn: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 8 },
+  forgotResendText: { color: '#173E80', fontSize: 13, fontWeight: '900' },
   content: { flexGrow: 1, paddingHorizontal: 14, paddingTop: 34, paddingBottom: 24 },
   glow1: {
     position: 'absolute',
@@ -3418,6 +3566,8 @@ const s = StyleSheet.create({
   },
   loginChoiceText: { color: C.text, fontSize: 12, fontWeight: '800', textAlign: 'center' },
   loginChoiceTextActive: { color: '#173E80' },
+  forgotLinkWrap: { alignSelf: 'flex-end', paddingVertical: 4, paddingHorizontal: 2, marginTop: -6 },
+  forgotLinkText: { color: '#173E80', fontSize: 12, fontWeight: '900' },
   form: { gap: 12 },
   authCard: {
     borderRadius: 30,
@@ -3541,6 +3691,23 @@ const s = StyleSheet.create({
   fieldActionDisabled: { backgroundColor: '#E3E9F2' },
   fieldActionText: { color: C.accentA, fontSize: 11, fontWeight: '800' },
   fieldActionTextDisabled: { color: '#97A6BE' },
+  verifyActionBelow: {
+    marginTop: 9,
+    minHeight: 46,
+    borderRadius: 14,
+    paddingHorizontal: 22,
+    alignSelf: 'stretch',
+    backgroundColor: '#EEF4FF',
+    borderWidth: 1,
+    borderColor: '#D8E6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifyActionBelowDisabled: {
+    backgroundColor: '#E3E9F2',
+    borderColor: '#D4DEEB',
+  },
+  verifyActionBelowText: { color: C.accentA, fontSize: 14, fontWeight: '900' },
   btnOuter: { marginTop: 4 },
   btn: {
     height: 46,

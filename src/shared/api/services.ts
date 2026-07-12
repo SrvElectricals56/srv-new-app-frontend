@@ -278,6 +278,33 @@ export const authApi = {
     return res;
   },
 
+  sendPasswordResetOtp: (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy') =>
+    api.post<{ success: boolean; message: string; devOtp?: string }>(
+      '/mobile/auth/password-reset/send-otp',
+      { phone: normalizePhone(phone), role }
+    ),
+
+  verifyPasswordResetOtp: (
+    phone: string,
+    role: 'electrician' | 'dealer' | 'user' | 'counterboy',
+    otp: string
+  ) =>
+    api.post<{ success: boolean; message: string }>(
+      '/mobile/auth/password-reset/verify-otp',
+      { phone: normalizePhone(phone), role, otp }
+    ),
+
+  resetPasswordWithOtp: (
+    phone: string,
+    role: 'electrician' | 'dealer' | 'user' | 'counterboy',
+    otp: string,
+    newPassword: string
+  ) =>
+    api.post<{ success: boolean; message: string }>(
+      '/mobile/auth/password-reset/confirm',
+      { phone: normalizePhone(phone), role, otp, newPassword }
+    ),
+
   registerDealer: async (data: {
     name: string;
     phone: string;
@@ -423,7 +450,10 @@ export const catalogApi = {
   addToCart: (data: { productId: string; quantity?: number }) =>
     api.post<{ message: string; item: ProductCartItem }>('/mobile/cart', data, true),
 
-  buyNow: (data: { productId: string; quantity?: number; shippingAddress?: string }) =>
+  clearCart: () =>
+    api.delete<{ message: string }>('/mobile/cart', true),
+
+  buyNow: (data: { productId: string; quantity?: number; shippingAddress?: string; cartTotal?: number }) =>
     api.post<{ message: string; order: ProductOrder }>('/mobile/product-orders', data, true),
 
   buyNowWithPoints: (data: { productId: string; quantity?: number; shippingAddress: string }) =>
@@ -433,7 +463,7 @@ export const catalogApi = {
       true
     ),
 
-  createRazorpayOrder: (data: { productId: string; quantity?: number; shippingAddress: string }) =>
+  createRazorpayOrder: (data: { productId: string; quantity?: number; shippingAddress: string; cartTotal?: number }) =>
     api.post<RazorpayOrderResponse>('/mobile/payments/razorpay/order', data, true),
 
   verifyRazorpayPayment: (data: {
@@ -456,8 +486,20 @@ export type ActivityEventType =
   | 'profile_view'
   | 'button_tap';
 
+function isJwtExpired(token: string) {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload || typeof globalThis.atob !== 'function') return false;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+    const decoded = JSON.parse(globalThis.atob(normalized));
+    return typeof decoded?.exp === 'number' && decoded.exp * 1000 <= Date.now();
+  } catch {
+    return false;
+  }
+}
+
 export const activityApi = {
-  track: (data: {
+  track: async (data: {
     eventType: ActivityEventType;
     eventLabel?: string;
     screen?: string;
@@ -468,7 +510,18 @@ export const activityApi = {
     quantity?: number;
     durationMs?: number;
     metadata?: Record<string, unknown>;
-  }) => api.post<{ message: string; id: string }>('/mobile/activity', data, true),
+  }) => {
+    const token = await storage.getAccessToken();
+    if (!token || isJwtExpired(token)) return { message: 'skipped', id: '' };
+    try {
+      return await api.post<{ message: string; id: string }>('/mobile/activity', data, true);
+    } catch (error: any) {
+      if (error?.message === 'SESSION_EXPIRED' || error?.status === 401) {
+        return { message: 'skipped', id: '' };
+      }
+      throw error;
+    }
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -721,7 +774,9 @@ export const supportApi = {
   getMyTickets: () =>
     api.get<{ data: any[] }>('/mobile/support/tickets', undefined, true),
   replyToTicket: (ticketId: string, message: string) =>
-    api.post<{ message: string }>(`/mobile/support/tickets/${ticketId}/reply`, { message }, true),
+    api.post<{ message: string; reply?: any }>(`/mobile/support/tickets/${ticketId}/reply`, { message }, true),
+  deleteTicketReply: (ticketId: string, replyId: string) =>
+    api.delete<{ message: string }>(`/mobile/support/tickets/${ticketId}/replies/${encodeURIComponent(replyId)}`, true),
   closeTicket: (ticketId: string) =>
     api.patch<{ message: string }>(`/mobile/support/tickets/${ticketId}/close`, {}, true),
 };
@@ -806,6 +861,7 @@ export type UserProfile = {
   bankName?: string | null;
   accountHolderName?: string | null;
   // KYC documents
+  aadharNumber?: string | null;
   aadharFrontImage?: string | null;
   panDocument?: string | null;
   gstDocument?: string | null;
@@ -1006,6 +1062,14 @@ export type AppSettings = {
   generalCatalogPdfUrl?: string | null;
   dealerCatalogPdfUrl?: string | null;
   catalogPdfUrl?: string | null;
+  qrFirstScannerVisibility?: {
+    scannerName: boolean;
+    scannerPhone: boolean;
+    dealerName: boolean;
+    dealerPhone: boolean;
+    productName: boolean;
+    scannedAt: boolean;
+  };
   rolePageControls?: Record<string, Record<string, boolean>> | null;
   appPageContent?: AppPageContentMap | null;
   pageSectionOrder?: Record<string, Record<string, string[]>> | null;

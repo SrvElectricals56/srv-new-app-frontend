@@ -6,8 +6,9 @@ import { createShadow } from '@/shared/theme/shadows';
 import { ratingApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { Dialog } from '@/shared/components/Dialog';
 
-export function RateUsPage({ onBack }: { onBack: () => void }) {
+export function RateUsPage({ onBack, onHome }: { onBack: () => void; onHome?: () => void }) {
   const { tx, theme, language } = usePreferenceContext();
   const { role } = useAuth();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'rate_us');
@@ -15,6 +16,7 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
   const [review, setReview] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'error' | 'info' | 'success'; title: string; message?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   // Load existing rating on mount
   useEffect(() => {
     ratingApi.get().then((res) => {
@@ -75,13 +77,30 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
     try {
       await ratingApi.submit(rating, review.trim() || undefined);
       setSubmitted(true);
-    } catch {
-      // silently fail — still show thank you
-      setSubmitted(true);
+    } catch (error: any) {
+      setDialog({
+        visible: true,
+        variant: 'error',
+        title: tx('Rating not saved'),
+        message: error?.message || tx('Please try again.'),
+      });
     } finally {
       setSubmitting(false);
     }
   };
+
+  const ratingMessage =
+    rating >= 5
+      ? rateCopy.excellent
+      : rating >= 4
+        ? rateCopy.veryGood
+        : rating >= 3
+          ? rateCopy.good
+          : rating >= 2
+            ? rateCopy.needsImprovement
+            : rating === 1
+              ? rateCopy.better
+              : rateCopy.defaultScale;
 
   return (
     <KeyboardAvoidingView
@@ -111,7 +130,7 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
               {tx('Thank you for your rating!')}
             </Text>
             <Text style={[styles.rateThankYouSub, { color: theme.textMuted }]}>
-              {tx('Your feedback helps us improve.')}
+              {tx('Your feedback helps us improve. You can update it anytime.')}
             </Text>
             <View style={styles.rateThankYouTags}>
               <View style={[styles.rateThankYouTag, { backgroundColor: theme.surface }]}>
@@ -127,6 +146,28 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
                 </View>
               ) : null}
             </View>
+            {review.trim() ? (
+              <View style={[styles.savedReviewBox, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                <Text style={[styles.savedReviewLabel, { color: theme.textMuted }]}>{tx('Your review')}</Text>
+                <Text style={[styles.savedReviewText, { color: theme.textPrimary }]}>{review.trim()}</Text>
+              </View>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.editRatingBtn, { backgroundColor: theme.accent }]}
+              onPress={() => setSubmitted(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.editRatingText}>{tx('Edit Rating')}</Text>
+            </TouchableOpacity>
+            {onHome ? (
+              <TouchableOpacity
+                style={[styles.homeBtn, { borderColor: theme.border, backgroundColor: theme.bg }]}
+                onPress={onHome}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.homeBtnText, { color: theme.textPrimary }]}>{tx('Go to Home')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : (
           <>
@@ -138,15 +179,24 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
             >
               <View style={styles.heroGlowPrimary} />
               <View style={styles.heroGlowSecondary} />
-              <View style={styles.heroIconWrap}>
-                <AppIcon name="star" size={24} color={theme.accent} />
+              <View style={styles.heroBrandRow}>
+                <View style={styles.heroIconWrap}>
+                  <AppIcon name="star" size={24} color={theme.accent} />
+                </View>
+                <View style={styles.heroBrandTextWrap}>
+                  <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>
+                    {tx('Welcome from SRV')}
+                  </Text>
+                  <Text style={[styles.heroBrandName, { color: theme.textPrimary }]}>
+                    SRV Electricals
+                  </Text>
+                </View>
               </View>
-              <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>{pageContent.pageTitle || tx('Rate Us')}</Text>
               <Text style={[styles.rateTitle, { color: theme.textPrimary }]}>
-                {tx('Rate the App')}
+                {tx('Rate your app experience')}
               </Text>
               <Text style={[styles.rateSubtitle, { color: theme.textSecondary }]}>
-                {tx('How was your experience?')}
+                {tx('Your review helps us improve support, rewards, orders, and daily app experience.')}
               </Text>
               <View style={styles.ratingHints}>
                 {rateCopy.hints.map((item) => (
@@ -169,12 +219,19 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
               ]}
             >
               <View style={styles.rateHeaderRow}>
-                <Text style={[styles.rateSectionLabel, { color: theme.textPrimary }]}>
-                  {rateCopy.selectRating}
-                </Text>
-                <Text style={[styles.rateSectionMeta, { color: theme.textMuted }]}>
-                  {rating > 0 ? `${rating}/5` : rateCopy.tapStar}
-                </Text>
+                <View>
+                  <Text style={[styles.rateSectionLabel, { color: theme.textPrimary }]}>
+                    {rateCopy.selectRating}
+                  </Text>
+                  <Text style={[styles.rateSectionSub, { color: theme.textMuted }]}>
+                    {tx('Tap once to choose your score')}
+                  </Text>
+                </View>
+                <View style={[styles.ratingScorePill, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                  <Text style={[styles.rateSectionMeta, { color: rating > 0 ? theme.accent : theme.textMuted }]}>
+                    {rating > 0 ? `${rating}/5` : rateCopy.tapStar}
+                  </Text>
+                </View>
               </View>
               <View style={styles.starsRow}>
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -197,19 +254,10 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={[styles.rateScaleText, { color: theme.textMuted }]}>
-                {rating >= 5
-                  ? rateCopy.excellent
-                  : rating >= 4
-                    ? rateCopy.veryGood
-                    : rating >= 3
-                      ? rateCopy.good
-                      : rating >= 2
-                        ? rateCopy.needsImprovement
-                        : rating === 1
-                          ? rateCopy.better
-                          : rateCopy.defaultScale}
-              </Text>
+              <View style={[styles.ratingMessageBox, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                <AppIcon name="star" size={16} color={theme.accent} />
+                <Text style={[styles.rateScaleText, { color: theme.textPrimary }]}>{ratingMessage}</Text>
+              </View>
             </View>
             <View
               style={[
@@ -247,7 +295,7 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
                 />
               </View>
             </View>
-      <TouchableOpacity
+            <TouchableOpacity
               style={[
                 styles.rateSubmitBtn,
                 { backgroundColor: rating > 0 ? theme.accent : theme.border },
@@ -260,83 +308,147 @@ export function RateUsPage({ onBack }: { onBack: () => void }) {
                 : <Text style={styles.rateSubmitBtnText}>{tx('Submit Rating')}</Text>
               }
             </TouchableOpacity>
+            {onHome ? (
+              <TouchableOpacity
+                style={[styles.formHomeBtn, { borderColor: theme.border, backgroundColor: theme.surface }]}
+                onPress={onHome}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.formHomeBtnText, { color: theme.textPrimary }]}>{tx('Go to Home')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </>
         )}
       </ScrollView>
+      <Dialog
+        visible={dialog.visible}
+        variant={dialog.variant}
+        title={dialog.title}
+        message={dialog.message}
+        onClose={() => setDialog((current) => ({ ...current, visible: false }))}
+      />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 140, gap: 16 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 140, gap: 16 },
   heroCard: {
-    borderRadius: 30,
-    padding: 22,
+    borderRadius: 28,
+    padding: 20,
     borderWidth: 1,
-    alignItems: 'center',
     overflow: 'hidden',
     position: 'relative',
-    ...createShadow({ color: '#0F172A', offsetY: 12, blur: 20, opacity: 0.08, elevation: 4 }),
+    ...createShadow({ color: '#0F172A', offsetY: 14, blur: 24, opacity: 0.1, elevation: 5 }),
   },
   heroGlowPrimary: {
     position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(232,69,60,0.16)',
-    top: -64,
-    right: -28,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    top: -82,
+    right: -48,
   },
   heroGlowSecondary: {
     position: 'absolute',
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: 'rgba(37,99,235,0.12)',
-    bottom: -48,
-    left: -26,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: 'rgba(245,158,11,0.16)',
+    bottom: -64,
+    left: -42,
+  },
+  heroBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 18,
   },
   heroIconWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
+    width: 58,
+    height: 58,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.14)',
+    ...createShadow({ color: '#B91C1C', offsetY: 8, blur: 14, opacity: 0.12, elevation: 3 }),
+  },
+  heroBrandTextWrap: {
+    flex: 1,
   },
   heroEyebrow: {
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  rateCard: { borderWidth: 1, borderRadius: 24, padding: 20 },
-  rateTitle: { fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 8 },
-  rateSubtitle: { fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: 14 },
-  ratingHints: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
-  ratingHintChip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  heroBrandName: { fontSize: 20, fontWeight: '900', lineHeight: 24 },
+  rateCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 18,
+    ...createShadow({ color: '#0F172A', offsetY: 8, blur: 18, opacity: 0.06, elevation: 3 }),
+  },
+  rateTitle: { fontSize: 25, fontWeight: '900', marginBottom: 8, lineHeight: 31 },
+  rateSubtitle: { fontSize: 14, lineHeight: 21, marginBottom: 16 },
+  ratingHints: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  ratingHintChip: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(15,23,42,0.06)',
+  },
   ratingHintText: { fontSize: 12, fontWeight: '700' },
   rateHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 14,
+    gap: 12,
   },
-  rateSectionLabel: { fontSize: 15, fontWeight: '800' },
-  rateSectionMeta: { fontSize: 12, fontWeight: '700' },
-  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 14 },
+  rateSectionLabel: { fontSize: 16, fontWeight: '900' },
+  rateSectionSub: { fontSize: 12, marginTop: 3, fontWeight: '600' },
+  ratingScorePill: {
+    minWidth: 76,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  rateSectionMeta: { fontSize: 12, fontWeight: '900' },
+  starsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginBottom: 14 },
   starBtn: {
-    width: 52,
-    height: 52,
+    flex: 1,
+    height: 56,
     borderRadius: 18,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rateScaleText: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
-  reviewCard: { borderWidth: 1, borderRadius: 24, padding: 20 },
+  ratingMessageBox: {
+    minHeight: 46,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  rateScaleText: { fontSize: 13, textAlign: 'center', lineHeight: 20, fontWeight: '800', flexShrink: 1 },
+  reviewCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 18,
+    ...createShadow({ color: '#0F172A', offsetY: 8, blur: 18, opacity: 0.05, elevation: 2 }),
+  },
   reviewTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -357,6 +469,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   rateSubmitBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  formHomeBtn: {
+    height: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formHomeBtnText: { fontSize: 15, fontWeight: '900' },
   rateThankYou: {
     alignItems: 'center',
     borderRadius: 28,
@@ -383,4 +503,32 @@ const styles = StyleSheet.create({
   },
   rateThankYouTag: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
   rateThankYouTagText: { fontSize: 12, fontWeight: '700' },
+  savedReviewBox: {
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 18,
+  },
+  savedReviewLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', marginBottom: 6 },
+  savedReviewText: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  editRatingBtn: {
+    alignSelf: 'stretch',
+    height: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  editRatingText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  homeBtn: {
+    alignSelf: 'stretch',
+    height: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  homeBtnText: { fontSize: 15, fontWeight: '900' },
 });

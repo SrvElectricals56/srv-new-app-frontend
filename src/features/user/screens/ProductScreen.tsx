@@ -642,6 +642,15 @@ export function ProductScreen({
     return catalogCategories.filter((cat) => matchingCategoryIds.has(cat.id));
   }, [catalogCategories, isSearching, matchingCategoryIds]);
 
+  const categoryTabs = useMemo(() => {
+    const activeCategory = catalogCategories.find((cat) => cat.id === category);
+    if (!activeCategory) return catalogCategories;
+    return [
+      activeCategory,
+      ...catalogCategories.filter((cat) => cat.id !== category),
+    ];
+  }, [catalogCategories, category]);
+
   const relatedProducts = useMemo(() => {
     if (!selectedProduct) return [];
     const sameCategory = catalogProducts.filter(
@@ -685,7 +694,7 @@ export function ProductScreen({
           activeOpacity={0.84}
           accessibilityLabel={tx('Open cart')}
         >
-          <CartIcon size={21} color={darkMode ? '#F8FAFC' : Colors.primary} />
+          <CartIcon size={21} color="#D92D27" />
           {cartCount > 0 ? (
             <View style={styles.headerCartBadge}>
               <Text style={styles.headerCartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
@@ -767,9 +776,9 @@ export function ProductScreen({
 
       {/* Category Tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabList}>
-        {catalogCategories.map((cat, catIndex) => {
+        {categoryTabs.map((cat) => {
           const active = !isSearching && cat.id === category;
-          const cc = getCatColor(cat.id, catIndex);
+          const cc = getCatColor(cat.id, catalogCategories.findIndex((item) => item.id === cat.id));
           return (
             <TouchableOpacity
               key={cat.id}
@@ -947,7 +956,7 @@ const styles = StyleSheet.create({
   pageTitleDark: { color: '#F8FAFC' },
   headerCartBtn: { position: 'absolute', right: 0, width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: Colors.border },
   headerCartBtnDark: { backgroundColor: '#182133', borderColor: '#243043' },
-  headerCartBadge: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, borderWidth: 1.5, borderColor: '#FFFFFF' },
+  headerCartBadge: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D92D27', borderWidth: 1.5, borderColor: '#FFFFFF' },
   headerCartBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900', lineHeight: 12 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.surface, borderRadius: 18, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 14, height: 50 },
   searchWrapDark: { backgroundColor: '#111827', borderColor: '#243043' },

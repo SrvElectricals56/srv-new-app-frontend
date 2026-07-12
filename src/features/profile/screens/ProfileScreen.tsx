@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Svg, { Path, Circle } from 'react-native-svg';
 import type { Screen, UserRole } from '@/shared/types/navigation';
 import {
   AppIcon,
@@ -34,7 +35,7 @@ import { BankDetailsPage } from './BankDetailsScreen';
 import { BankTransferRequestPage } from './BankTransferRequestScreen';
 import { ContactSupportPage } from './ContactSupportScreen';
 import { MyOrdersPage } from './MyOrdersScreen';
-import { RedemptionPage } from './MyRedemptionScreen';
+import { RedemptionPage, type GiftStoreOrderFilter } from './MyRedemptionScreen';
 import { NeedHelpPage } from './NeedHelpScreen';
 import { NotificationsPage } from './NotificationsScreen';
 import { OffersPage } from './OffersScreen';
@@ -46,7 +47,7 @@ import { RateUsPage } from './RateUsScreen';
 import { ReferFriendPage } from './ReferFriendScreen';
 import { ScanHistoryPage } from './ScanHistoryScreen';
 import { TransferPointsPage } from './TransferPointsScreen';
-import { createShadow } from '@/shared/theme/shadows';
+import { premium, premiumShadow } from '@/shared/theme/premium';
 import { Dialog } from '@/shared/components/Dialog';
 import { KYCVerificationScreen } from './KYCVerificationScreen';
 import { TierIcon } from '@/features/dealer/screens/MemberTierScreen';
@@ -57,6 +58,7 @@ import {
   getElectricianTier,
 } from '@/features/electrician/screens/ElectricianTierScreen';
 import { authApi, storage } from '@/shared/api';
+import { resolveImageUrl } from '@/shared/api/config';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
 import {
@@ -82,6 +84,7 @@ import {
 
 const PROFILE_MENU_FEATURE_MAP: Record<string, AppFeatureKey> = {
   'My Redemption': 'my_redemption',
+  'Gift Store Order': 'my_redemption',
   'Gift Store': 'rewards',
   'Dealer Bonus': 'dealer_bonus',
   'Transfer Points': 'transfer_points',
@@ -91,6 +94,7 @@ const PROFILE_MENU_FEATURE_MAP: Record<string, AppFeatureKey> = {
   'Need Help': 'need_help',
   'Offers & Promotions': 'offers_promotions',
   Cart: 'cart',
+  'My Cart': 'cart',
 };
 
 const SETTINGS_FEATURE_MAP: Record<string, AppFeatureKey> = {
@@ -105,6 +109,27 @@ const SETTINGS_FEATURE_MAP: Record<string, AppFeatureKey> = {
 
 function resolveProfilePoints(...values: (number | null | undefined)[]) {
   return Math.max(...values.map((value) => Number(value ?? 0)));
+}
+
+function normalizeGiftName(value?: string | null) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function CartShortcutIcon({ color = '#D92D27' }: { color?: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M5 6h1.6l1.5 8.2c.2 1 1 1.8 2.1 1.8h6.6c1 0 1.8-.6 2.1-1.6l1.2-5.2H7.2"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M5 6 4.6 4H3" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx={10} cy={20} r={1.4} fill={color} />
+      <Circle cx={18} cy={20} r={1.4} fill={color} />
+    </Svg>
+  );
 }
 
 export function ProfileScreen({
@@ -154,6 +179,8 @@ export function ProfileScreen({
     uploadProfilePhoto,
     removeProfilePhoto: removeRemoteProfilePhoto,
     appSettings,
+    giftProducts,
+    redemptions,
     refreshAll,
   } = useAppData();
 
@@ -182,6 +209,7 @@ export function ProfileScreen({
         gstNumber: '',
         panHolderName: '',
         panNumber: '',
+        aadharNumber: '',
         dealerCode: '',
         electricianCode: '',
         counterboyCode: '',
@@ -201,6 +229,7 @@ export function ProfileScreen({
       gstNumber: authUser.gstNumber ?? '',
       panHolderName: '',
       panNumber: '',
+      aadharNumber: authUser.aadharNumber ?? '',
       dealerCode: currentRole === 'dealer' ? authUser.dealerCode ?? '' : '',
       electricianCode: authUser.electricianCode ?? '',
       counterboyCode: authUser.counterboyCode ?? '',
@@ -211,6 +240,7 @@ export function ProfileScreen({
   const [profile, setProfile] = useState<Profile>(buildProfileFromAuth);
   const [draft, setDraft] = useState<Profile>(buildProfileFromAuth);
   const [subPage, setSubPage] = useState<SubPage>(null);
+  const [giftStoreInitialFilter, setGiftStoreInitialFilter] = useState<GiftStoreOrderFilter>('This Month');
   const [showEdit, setShowEdit] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
   const [showImgPicker, setShowImgPicker] = useState(false);
@@ -263,13 +293,13 @@ export function ProfileScreen({
       ...preferenceValue.theme,
       bg: darkMode ? '#0B1220' : preferenceValue.theme.bg,
       surface: darkMode ? '#111827' : '#FFFFFF',
-      soft: darkMode ? '#1F2937' : preferenceValue.theme.soft,
-      border: darkMode ? '#243043' : '#EAEAF2',
-      textPrimary: darkMode ? '#F8FAFC' : '#0F1120',
-      textSecondary: darkMode ? '#D0D9E8' : '#4A4B5C',
-      textMuted: darkMode ? '#94A3B8' : '#9898A8',
-      heroSurface: darkMode ? '#111827' : preferenceValue.theme.heroSurface,
-      heroStrip: darkMode ? '#0F172A' : preferenceValue.theme.heroStrip,
+      soft: darkMode ? '#1F2937' : premium.surfaceSoft,
+      border: darkMode ? '#243043' : premium.line,
+      textPrimary: darkMode ? '#F8FAFC' : premium.ink,
+      textSecondary: darkMode ? '#D0D9E8' : '#344054',
+      textMuted: darkMode ? '#94A3B8' : premium.muted,
+      heroSurface: darkMode ? '#111827' : premium.surface,
+      heroStrip: darkMode ? '#0F172A' : premium.primarySoft,
     };
     if (currentRole === 'counterboy') {
       if (darkMode) {
@@ -288,15 +318,19 @@ export function ProfileScreen({
       }
       return {
         ...base,
-        bg: cbPalette.softBg,
-        surface: cbPalette.surface,
-        soft: cbPalette.soft,
-        border: cbPalette.border,
-        textPrimary: cbPalette.text,
-        textSecondary: cbPalette.primaryInk,
-        textMuted: cbPalette.muted,
-        heroSurface: cbPalette.bg,
-        heroStrip: cbPalette.soft,
+        bg: premium.bg,
+        surface: premium.surface,
+        soft: premium.navySoft,
+        border: premium.line,
+        textPrimary: premium.ink,
+        textSecondary: premium.navy,
+        textMuted: premium.muted,
+        heroSurface: premium.surface,
+        heroStrip: premium.navySoft,
+        accent: premium.navy,
+        accentSoft: premium.navySoft,
+        accentDeep: premium.primaryDark,
+        heroGradient: ['#173E80', '#355C95', '#D92D27'] as [string, string, string],
       };
     }
     if (currentRole === 'user') {
@@ -316,15 +350,19 @@ export function ProfileScreen({
       }
       return {
         ...base,
-        bg: cuTheme.heroLight[0],
-        surface: cuTheme.surface,
-        soft: cuTheme.soft,
-        border: cuTheme.border,
-        textPrimary: cuTheme.ink,
-        textSecondary: cuTheme.primaryDeep,
-        textMuted: cuTheme.muted,
-        heroSurface: cuTheme.soft,
-        heroStrip: cuTheme.heroLight[1],
+        bg: premium.bg,
+        surface: premium.surface,
+        soft: premium.primarySoft,
+        border: premium.line,
+        textPrimary: premium.ink,
+        textSecondary: premium.primaryDark,
+        textMuted: premium.muted,
+        heroSurface: premium.primarySoft,
+        heroStrip: premium.surface,
+        accent: premium.primary,
+        accentSoft: premium.primarySoft,
+        accentDeep: premium.primaryDark,
+        heroGradient: ['#D92D27', '#8F1F1B', '#173E80'] as [string, string, string],
       };
     }
     return base;
@@ -374,7 +412,39 @@ export function ProfileScreen({
     authUser?.walletBalance,
   );
   const electricianScans = totalScans ?? authUser?.totalScans ?? 0;
-  const electricianRedemptions = authUser?.totalRedemptions ?? 0;
+  const achievedGiftSummary = useMemo(() => {
+    const giftByName = new Map<string, { imageUrl: string | null; mrp: number }>();
+    giftProducts.forEach((gift) => {
+      giftByName.set(normalizeGiftName(gift.name), {
+        imageUrl: resolveImageUrl(gift.imageUrl ?? (gift as any).image ?? null),
+        mrp: Number(gift.mrp ?? 0),
+      });
+    });
+
+    const deliveredGifts = (redemptions ?? [])
+      .filter((item: any) => {
+        const type = String(item.type ?? '').toLowerCase();
+        const status = String(item.status ?? '').toLowerCase();
+        const isGift = Boolean(item.giftName || item.giftProductId) || (!type.includes('bank') && !type.includes('transfer') && !type.includes('bonus'));
+        return isGift && (status === 'delivered' || Boolean(item.deliveredAt));
+      })
+      .sort((a: any, b: any) => {
+        const aTime = new Date(a.deliveredAt ?? a.processedAt ?? a.requestedAt ?? 0).getTime();
+        const bTime = new Date(b.deliveredAt ?? b.processedAt ?? b.requestedAt ?? 0).getTime();
+        return bTime - aTime;
+      });
+
+    const totalValue = deliveredGifts.reduce((sum: number, item: any) => {
+      const gift = giftByName.get(normalizeGiftName(item.giftName ?? item.title));
+      return sum + Number(item.amount ?? item.mrp ?? gift?.mrp ?? 0);
+    }, 0);
+    const completedGifts = deliveredGifts;
+
+    return {
+      count: deliveredGifts.length,
+      priceLabel: totalValue > 0 ? `₹${totalValue.toLocaleString('en-IN')}` : `${completedGifts.length} ${tx('gifts')}`,
+    };
+  }, [giftProducts, redemptions, tx]);
   const dealerMembership = useMemo(() => getDealerMembership(electricianCount), [electricianCount]);
   const electricianMembership = useMemo(
     () => getElectricianTier(electricianPoints),
@@ -515,53 +585,72 @@ export function ProfileScreen({
             panHolderName: '',
           };
 
-    // Save locally first (instant UI update)
-    setProfile(nextProfile);
-    onProfilePhotoChange(draftPhotoUri);
-    setPendingDraftImage(null);
-    setShowEdit(false);
-
-    // Save to backend
-    setIsSaving(true);
     const photoChanged = draftPhotoUri !== activeProfilePhoto;
-    const apiData = currentRole === 'dealer'
-      ? {
-          name: nextProfile.name,
-          email: nextProfile.email,
-          town: nextProfile.city,
-          district: nextProfile.district,
-          state: nextProfile.state,
-          address: nextProfile.address,
-          pincode: nextProfile.pincode,
-          gstNumber: nextProfile.gstNumber,
-        }
-      : {
-          name: nextProfile.name,
-          email: nextProfile.email,
-          city: nextProfile.city,
-          state: nextProfile.state,
-          district: nextProfile.district,
-          address: nextProfile.address,
-          pincode: nextProfile.pincode,
-        };
+    const profileChanged = JSON.stringify(nextProfile) !== JSON.stringify(profile);
 
-    void authApi.updateProfile(apiData)
-      .then(async (updatedUser) => {
-        // Update auth context immediately so UI reflects changes
-        updateUser(updatedUser);
-        await storage.setUserProfile(updatedUser);
-        if (photoChanged) {
-          await syncRemoteProfilePhoto(draftPhotoUri);
-        } else {
+    if (!profileChanged && !photoChanged) {
+      setPendingDraftImage(null);
+      setShowEdit(false);
+      return;
+    }
+
+    const commitProfileUpdate = () => {
+      // Save locally first (instant UI update)
+      setProfile(nextProfile);
+      onProfilePhotoChange(draftPhotoUri);
+      setPendingDraftImage(null);
+      setShowEdit(false);
+
+      // Save to backend
+      setIsSaving(true);
+      const apiData = currentRole === 'dealer'
+        ? {
+            name: nextProfile.name,
+            email: nextProfile.email,
+            town: nextProfile.city,
+            district: nextProfile.district,
+            state: nextProfile.state,
+            address: nextProfile.address,
+            pincode: nextProfile.pincode,
+            gstNumber: nextProfile.gstNumber,
+          }
+        : {
+            name: nextProfile.name,
+            email: nextProfile.email,
+            city: nextProfile.city,
+            state: nextProfile.state,
+            district: nextProfile.district,
+            address: nextProfile.address,
+            pincode: nextProfile.pincode,
+          };
+
+      void authApi.updateProfile(apiData)
+        .then(async (updatedUser) => {
+          // Update auth context immediately so UI reflects changes
+          updateUser(updatedUser);
+          await storage.setUserProfile(updatedUser);
+          if (photoChanged) {
+            await syncRemoteProfilePhoto(draftPhotoUri);
+          } else {
+            await refreshProfile();
+          }
+        })
+        .catch(async () => {
+          setDialog({ visible: true, variant: 'error', title: tx('Unable to save changes'), message: tx('Please try again.') });
+          // Revert local state back to what's in auth context
           await refreshProfile();
-        }
-      })
-      .catch(async () => {
-        setDialog({ visible: true, variant: 'error', title: tx('Unable to save changes'), message: tx('Please try again.') });
-        // Revert local state back to what's in auth context
-        await refreshProfile();
-      })
-      .finally(() => setIsSaving(false));
+        })
+        .finally(() => setIsSaving(false));
+    };
+
+    setDialog({
+      visible: true,
+      variant: 'confirm',
+      title: tx('Save profile changes?'),
+      message: tx('Are you sure you want to update your profile details?'),
+      confirmLabel: tx('Save'),
+      onConfirm: commitProfileUpdate,
+    });
   };
 
   const pickDraftPhoto = async (source: 'camera' | 'gallery') => {
@@ -654,6 +743,7 @@ export function ProfileScreen({
           setSubPage(currentRole === 'dealer' ? 'Dealer Bonus' : 'Transfer Points')
         }
         currentRole={currentRole}
+        initialFilter={giftStoreInitialFilter}
       />
     ),
     'Dealer Bonus': <PartnerCommissionPage onBack={() => setSubPage(null)} />,
@@ -685,7 +775,7 @@ export function ProfileScreen({
     'Scan History': <ScanHistoryPage onBack={() => setSubPage(null)} />,
     'Contact Support': <ContactSupportPage onBack={() => setSubPage(null)} />,
     'Privacy Policy': <PrivacyPolicyPage onBack={() => setSubPage(null)} />,
-    'Rate Us': <RateUsPage onBack={() => setSubPage(null)} />,
+    'Rate Us': <RateUsPage onBack={() => setSubPage(null)} onHome={() => onNavigate('home')} />,
     'KYC Verification': <KYCVerificationScreen onBack={() => setSubPage(null)} currentRole={currentRole} />,
   };
 
@@ -719,8 +809,8 @@ export function ProfileScreen({
   const counterboySurface = theme.surface;
   const counterboyGlowPrimary = theme.heroGlowPrimary;
   const counterboyGlowSecondary = theme.heroGlowSecondary;
-  const electricianHeroBg = darkMode ? theme.heroSurface : '#F7FBFF';
-  const electricianHeroBorder = darkMode ? theme.border : '#D6E6FA';
+  const electricianHeroBg = darkMode ? theme.heroSurface : premium.surface;
+  const electricianHeroBorder = darkMode ? theme.border : premium.line;
   const heroAvatarBorderColor = darkMode
     ? 'rgba(248,250,252,0.18)'
     : isElectricianProfile
@@ -745,6 +835,21 @@ export function ProfileScreen({
           { backgroundColor: isElectricianProfile ? 'rgba(59,130,246,0.10)' : counterboyGlowSecondary },
         ]}
       />
+      <TouchableOpacity
+        onPress={() => onNavigate('cart')}
+        activeOpacity={0.82}
+        style={[
+          styles.heroCartBtn,
+          { backgroundColor: darkMode ? '#1F2937' : '#FFFFFF', borderColor: darkMode ? '#374151' : '#FAD1D1' },
+        ]}
+      >
+        <CartShortcutIcon />
+        {cartCount && cartCount > 0 ? (
+          <View style={styles.heroCartBadge}>
+            <Text style={styles.heroCartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+          </View>
+        ) : null}
+      </TouchableOpacity>
       <View style={styles.heroTop}>
         <TouchableOpacity
           onPress={openPhotoPicker}
@@ -798,7 +903,7 @@ export function ProfileScreen({
             +91 {profile.phone}
           </Text>
           <View style={styles.tagRow}>
-            <View style={[styles.tag, { backgroundColor: isElectricianProfile ? '#EAF3FF' : theme.soft }]}>
+            <View style={[styles.tag, { backgroundColor: isElectricianProfile ? premium.navySoft : theme.soft }]}>
               <AppIcon name="location" size={12} color={theme.textSecondary} />
               <Text style={[styles.tagTxt, { color: theme.textSecondary }]}>
                 {tx(profile.city)}
@@ -884,6 +989,8 @@ export function ProfileScreen({
                   val: electricianScans.toLocaleString(),
                   label: t('scans'),
                   icon: 'scan' as IconName,
+                  imageUrl: null,
+                  subLabel: '',
                   bg: C.primaryLight,
                   color: C.primary,
                   onPress: () => setSubPage('Scan History'),
@@ -892,17 +999,24 @@ export function ProfileScreen({
                   val: electricianPoints.toLocaleString(),
                   label: t('points'),
                   icon: 'star' as IconName,
+                  imageUrl: null,
+                  subLabel: '',
                   bg: electricianMembership.soft,
                   color: electricianMembership.accent,
                   onPress: () => onNavigate('wallet'),
                 },
                 {
-                  val: electricianRedemptions.toLocaleString(),
-                  label: t('rewards'),
+                  val: achievedGiftSummary.count.toLocaleString(),
+                  label: 'Achieved Gifts',
                   icon: 'gift' as IconName,
+                  imageUrl: null,
+                  subLabel: achievedGiftSummary.priceLabel,
                   bg: C.tealLight,
                   color: C.teal,
-                  onPress: () => onNavigate('rewards'),
+                  onPress: () => {
+                    setGiftStoreInitialFilter('Delivered');
+                    setSubPage('My Redemption');
+                  },
                 },
               ].map((item) => (
                 <TouchableOpacity
@@ -918,7 +1032,11 @@ export function ProfileScreen({
                   activeOpacity={0.8}
                 >
                   <View style={[styles.statIcon, { backgroundColor: item.bg }]}>
-                    <AppIcon name={item.icon} size={18} color={item.color} />
+                    {item.imageUrl ? (
+                      <Image source={{ uri: item.imageUrl }} style={styles.statGiftImage} resizeMode="cover" />
+                    ) : (
+                      <AppIcon name={item.icon} size={18} color={item.color} />
+                    )}
                   </View>
                   <Text
                     style={[styles.statVal, { color: item.color }]}
@@ -929,6 +1047,11 @@ export function ProfileScreen({
                     {item.val}
                   </Text>
                   <Text style={[styles.statLbl, { color: theme.textMuted }]}>{tx(item.label)}</Text>
+                  {item.subLabel ? (
+                    <Text style={[styles.statSubLbl, { color: theme.textSecondary }]} numberOfLines={1}>
+                      {item.subLabel}
+                    </Text>
+                  ) : null}
                 </TouchableOpacity>
               ))}
             </View>
@@ -1082,13 +1205,18 @@ export function ProfileScreen({
                     ? [styles.menuBorder, { borderBottomColor: theme.border }]
                     : null,
                 ]}
-                onPress={() =>
-                  item.route
-                    ? onNavigate(item.route)
-                    : item.screen
-                      ? setSubPage(item.screen)
-                      : undefined
-                }
+                onPress={() => {
+                  if (item.route) {
+                    onNavigate(item.route);
+                    return;
+                  }
+                  if (item.screen) {
+                    if (item.screen === 'My Redemption') {
+                      setGiftStoreInitialFilter('This Month');
+                    }
+                    setSubPage(item.screen);
+                  }
+                }}
                 activeOpacity={0.75}
               >
                 <View style={[styles.menuIcon, { backgroundColor: item.bg }]}>
@@ -1561,22 +1689,23 @@ export function ProfileScreen({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  content: { padding: 16, gap: 14, paddingBottom: 120 },
+  content: { padding: 16, gap: 16, paddingBottom: 120 },
   pageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pageTitle: { fontSize: 26, fontWeight: '900' },
   editHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: 14,
+    borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderWidth: 1,
+    ...premiumShadow('sm'),
   },
-  editHeaderText: { fontSize: 14, fontWeight: '700' },
-  heroCard: { borderRadius: 28, overflow: 'hidden', borderWidth: 1 },
+  editHeaderText: { fontSize: 14, fontWeight: '800' },
+  heroCard: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, ...premiumShadow('md') },
   heroCardPlain: {
-    ...createShadow({ color: '#102A63', offsetY: 10, blur: 22, opacity: 0.08, elevation: 5 }),
+    ...premiumShadow('md'),
   },
   blobTL: {
     position: 'absolute',
@@ -1585,6 +1714,7 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     borderRadius: 65,
+    display: 'none',
   },
   blobBR: {
     position: 'absolute',
@@ -1593,13 +1723,42 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
+    display: 'none',
   },
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 22, paddingBottom: 16 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 20 },
+  heroCartBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    zIndex: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 15,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...premiumShadow('sm'),
+  },
+  heroCartBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#D92D27',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  heroCartBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900', lineHeight: 12 },
   avatarWrap: { position: 'relative', paddingBottom: 4, paddingRight: 4 },
   avatarRing: {
     width: 80,
     height: 80,
-    borderRadius: 26,
+    borderRadius: 24,
     borderWidth: 2.5,
     borderColor: 'rgba(15,17,32,0.08)',
     overflow: 'hidden',
@@ -1615,7 +1774,7 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: C.surface,
+    borderColor: premium.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1626,11 +1785,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  tagTxt: { fontSize: 11, fontWeight: '700' },
+  tagTxt: { fontSize: 11, fontWeight: '800' },
   memberStrip: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1677,30 +1836,33 @@ const styles = StyleSheet.create({
   dealerProgressTrack: { alignItems: 'center', gap: 6 },
   progressFill: { height: '100%', borderRadius: 3 },
   statsRow: { flexDirection: 'row', gap: 10 },
-  statBox: { flex: 1, minWidth: 0, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 14, alignItems: 'center', gap: 6, borderWidth: 1, overflow: 'hidden' },
+  statBox: { flex: 1, minWidth: 0, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 14, alignItems: 'center', gap: 6, borderWidth: 1, overflow: 'hidden', ...premiumShadow('sm') },
   statIcon: {
     width: 38,
     height: 38,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  statGiftImage: { width: '100%', height: '100%' },
   statVal: { width: '100%', textAlign: 'center', fontSize: 18, lineHeight: 22, fontWeight: '900' },
   statLbl: { width: '100%', textAlign: 'center', fontSize: 11, fontWeight: '600' },
-  sectionCard: { borderRadius: 24, padding: 20, borderWidth: 1 },
+  statSubLbl: { width: '100%', textAlign: 'center', fontSize: 10, fontWeight: '800' },
+  sectionCard: { borderRadius: 20, padding: 18, borderWidth: 1, ...premiumShadow('sm') },
   cardHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  cardTitle: { fontSize: 17, fontWeight: '800' },
+  cardTitle: { fontSize: 17, fontWeight: '900' },
   visibilityBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: C.blueLight,
-    borderRadius: 12,
+    borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
@@ -1740,20 +1902,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   detailBorder: { borderBottomWidth: 1, borderBottomColor: '#F2F2FA' },
-  detailLbl: { fontSize: 13, fontWeight: '500', width: 100 },
-  detailVal: { flex: 1, fontSize: 13, fontWeight: '700', textAlign: 'right' },
+  detailLbl: { fontSize: 13, fontWeight: '600', width: 100 },
+  detailVal: { flex: 1, fontSize: 13, fontWeight: '800', textAlign: 'right' },
   detailEmpty: { color: C.muted, fontStyle: 'italic', fontWeight: '400' },
-  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
   menuBorder: { borderBottomWidth: 1, borderBottomColor: '#F2F2FA' },
   menuIcon: {
     width: 46,
     height: 46,
-    borderRadius: 15,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
-  menuLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
+  menuLabel: { flex: 1, fontSize: 15, fontWeight: '700' },
   arrowWrap: {
     width: 28,
     height: 30,
@@ -1761,7 +1923,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    ...createShadow({ color: '#0F172A', offsetY: 6, blur: 12, opacity: 0.08, elevation: 3 }),
+    ...premiumShadow('sm'),
   },
   arrowCore: {
     width: 18,
@@ -1783,13 +1945,14 @@ const styles = StyleSheet.create({
     borderColor: C.surface,
   },
   signOutBtn: {
-    borderRadius: 20,
+    borderRadius: 18,
     paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     borderWidth: 1.5,
+    ...premiumShadow('sm'),
   },
   signOutIconWrap: {
     width: 34,

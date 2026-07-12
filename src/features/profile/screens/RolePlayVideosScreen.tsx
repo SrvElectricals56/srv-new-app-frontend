@@ -17,7 +17,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { EmptyState, PageHeader } from '../components/ProfileShared';
 import { playsApi, type PlayInteractions, type PlayVideo } from '@/shared/api/services';
 import { resolveImageUrl } from '@/shared/api/config';
@@ -28,6 +28,8 @@ import type { UserRole } from '@/shared/types/navigation';
 import { formatISTDate } from '@/shared/utils/dateIST';
 
 type VideoCategoryKey = 'all' | 'guides' | 'reels' | 'tips';
+
+const logoImage = require('../../../../assets/srv logo white.jpeg');
 
 const VIDEO_FILTERS: { id: VideoCategoryKey; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -43,6 +45,9 @@ const EMPTY_INTERACTIONS: PlayInteractions = {
   likedByMe: false,
   comments: [],
 };
+
+const INSTAGRAM_URL = 'https://www.instagram.com/srv__electricals/';
+const INSTAGRAM_APP_URL = 'instagram://user?username=srv__electricals';
 
 function getYouTubeVideoId(url: string): string | null {
   const patterns = [
@@ -79,6 +84,10 @@ function getThumbnail(video: PlayVideo): string | null {
   if (video.thumbnailUrl) return video.thumbnailUrl;
   const youtubeId = isYouTube(video.videoUrl) ? getYouTubeVideoId(video.videoUrl) : null;
   return youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
+}
+
+function cleanExternalUrl(url: string) {
+  return encodeURI(url.trim().replace(/\\/g, '/'));
 }
 
 function HeartActionIcon({ active }: { active: boolean }) {
@@ -134,6 +143,32 @@ function OpenActionIcon() {
   );
 }
 
+function InstagramActionIcon() {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 32 32" fill="none">
+      <Rect x="8" y="8" width="16" height="16" rx="4.5" stroke="#FFFFFF" strokeWidth={1.8} fill="none" />
+      <Circle cx="16" cy="16" r="4" stroke="#FFFFFF" strokeWidth={1.8} fill="none" />
+      <Circle cx="21.5" cy="10.5" r="1.2" fill="#FFFFFF" />
+    </Svg>
+  );
+}
+
+function PlayPauseGlyph({ paused }: { paused: boolean }) {
+  return (
+    <Svg width={36} height={36} viewBox="0 0 36 36" fill="none">
+      <Circle cx="18" cy="18" r="17" fill="rgba(0,0,0,0.42)" stroke="rgba(255,255,255,0.46)" />
+      {paused ? (
+        <Path d="M15 12.5v11l9-5.5-9-5.5z" fill="#FFFFFF" />
+      ) : (
+        <>
+          <Rect x="13" y="11.5" width="4" height="13" rx="1.2" fill="#FFFFFF" />
+          <Rect x="20" y="11.5" width="4" height="13" rx="1.2" fill="#FFFFFF" />
+        </>
+      )}
+    </Svg>
+  );
+}
+
 function YouTubePlayer({ videoId, active }: { videoId: string; active: boolean }) {
   return (
     <WebView
@@ -157,19 +192,19 @@ function YouTubePlayer({ videoId, active }: { videoId: string; active: boolean }
   );
 }
 
-function DirectVideoPlayer({ videoUrl, active }: { videoUrl: string; active: boolean }) {
+function DirectVideoPlayer({ videoUrl, active, paused }: { videoUrl: string; active: boolean; paused: boolean }) {
   const player = useVideoPlayer(videoUrl, (instance) => {
     instance.loop = true;
     instance.muted = false;
   });
 
   useEffect(() => {
-    if (active) {
+    if (active && !paused) {
       player.play();
     } else {
       player.pause();
     }
-  }, [active, player]);
+  }, [active, paused, player]);
 
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />;
 }
@@ -189,6 +224,8 @@ export function RolePlayVideosScreen({
   const [videos, setVideos] = useState<PlayVideo[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<VideoCategoryKey>('all');
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const [pausedVideoIds, setPausedVideoIds] = useState<Set<string>>(new Set());
+  const [expandedDescriptionIds, setExpandedDescriptionIds] = useState<Set<string>>(new Set());
   const [interactionsMap, setInteractionsMap] = useState<Record<string, PlayInteractions>>({});
   const [commentVideo, setCommentVideo] = useState<PlayVideo | null>(null);
   const [commentDraft, setCommentDraft] = useState('');
@@ -230,6 +267,10 @@ export function RolePlayVideosScreen({
   useEffect(() => {
     setActiveVideoId(filteredVideos[0]?.id ?? null);
   }, [filteredVideos]);
+
+  useEffect(() => {
+    setPausedVideoIds(new Set());
+  }, [activeVideoId]);
 
   const hydrateInteractions = useCallback(async (video: PlayVideo) => {
     if (!isAuthenticated) {
@@ -310,12 +351,27 @@ export function RolePlayVideosScreen({
     }
   };
 
+  const openVideoUrl = async (url: string) => {
+    const safeUrl = cleanExternalUrl(url);
+    try {
+      const supported = await Linking.canOpenURL(safeUrl);
+      if (!supported) {
+        Alert.alert(tx('Unable to open'), tx('This video link cannot be opened on this device.'));
+        return;
+      }
+      await Linking.openURL(safeUrl);
+    } catch {
+      Alert.alert(tx('Unable to open'), tx('Please try again in a moment.'));
+    }
+  };
+
   const handleShare = async (video: PlayVideo) => {
+    const safeUrl = cleanExternalUrl(video.videoUrl);
     try {
       await Share.share({
         title: video.title,
-        message: `${video.title}\n${video.videoUrl}`,
-        url: video.videoUrl,
+        message: `${video.title}\n${safeUrl}`,
+        url: safeUrl,
       });
       if (isAuthenticated) {
         const updated = await playsApi.recordShare(video.id);
@@ -329,6 +385,39 @@ export function RolePlayVideosScreen({
   const openComments = (video: PlayVideo) => {
     setCommentVideo(video);
     void hydrateInteractions(video);
+  };
+
+  const openInstagram = async () => {
+    try {
+      const canOpenApp = await Linking.canOpenURL(INSTAGRAM_APP_URL);
+      await Linking.openURL(canOpenApp ? INSTAGRAM_APP_URL : INSTAGRAM_URL);
+    } catch {
+      Linking.openURL(INSTAGRAM_URL).catch(() => undefined);
+    }
+  };
+
+  const toggleVideoPlayback = (videoId: string) => {
+    setPausedVideoIds((current) => {
+      const next = new Set(current);
+      if (next.has(videoId)) {
+        next.delete(videoId);
+      } else {
+        next.add(videoId);
+      }
+      return next;
+    });
+  };
+
+  const toggleDescription = (videoId: string) => {
+    setExpandedDescriptionIds((current) => {
+      const next = new Set(current);
+      if (next.has(videoId)) {
+        next.delete(videoId);
+      } else {
+        next.add(videoId);
+      }
+      return next;
+    });
   };
 
   const submitComment = async () => {
@@ -369,14 +458,17 @@ export function RolePlayVideosScreen({
     const thumbnail = getThumbnail(item);
     const youtubeId = isYouTube(item.videoUrl) ? getYouTubeVideoId(item.videoUrl) : null;
     const active = item.id === activeVideoId;
+    const paused = pausedVideoIds.has(item.id);
+    const descriptionExpanded = expandedDescriptionIds.has(item.id);
+    const hasLongDescription = (item.description?.trim().length ?? 0) > 120;
 
     return (
       <View style={[styles.reel, { width: reelWidth, height: reelHeight, backgroundColor: '#050816' }]}>
         <View style={styles.videoSurface}>
           {youtubeId ? (
-            <YouTubePlayer videoId={youtubeId} active={active} />
+            <YouTubePlayer videoId={youtubeId} active={active && !paused} />
           ) : isDirectVideo(item.videoUrl) ? (
-            <DirectVideoPlayer videoUrl={item.videoUrl} active={active} />
+            <DirectVideoPlayer videoUrl={item.videoUrl} active={active} paused={paused} />
           ) : thumbnail ? (
             <Image source={{ uri: thumbnail }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           ) : (
@@ -384,7 +476,14 @@ export function RolePlayVideosScreen({
               <Text style={[styles.videoFallbackText, { color: theme.textPrimary }]}>{tx('Unable to preview this video')}</Text>
             </View>
           )}
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.82)']} style={styles.videoShade} />
+          <LinearGradient
+            pointerEvents="none"
+            colors={['transparent', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.82)']}
+            style={styles.videoShade}
+          />
+          <Pressable onPress={() => toggleVideoPlayback(item.id)} style={styles.centerTapZone}>
+            {paused ? <PlayPauseGlyph paused /> : null}
+          </Pressable>
         </View>
 
         <View style={styles.topBar}>
@@ -428,22 +527,47 @@ export function RolePlayVideosScreen({
             </View>
             <Text style={styles.actionText}>{interactions.shareCount}</Text>
           </Pressable>
-          <Pressable onPress={() => Linking.openURL(item.videoUrl).catch(() => undefined)} style={styles.actionButton}>
+          <Pressable onPress={() => void openVideoUrl(item.videoUrl)} style={styles.actionButton}>
             <View style={styles.actionIcon}>
               <OpenActionIcon />
             </View>
             <Text style={styles.actionText}>{tx('Open')}</Text>
           </Pressable>
+          <Pressable onPress={() => void openInstagram()} style={styles.actionButton}>
+            <LinearGradient colors={['#F58529', '#DD2A7B', '#8134AF', '#515BD4']} style={styles.actionIcon}>
+              <InstagramActionIcon />
+            </LinearGradient>
+            <Text style={styles.actionText}>{tx('Instagram')}</Text>
+          </Pressable>
         </View>
 
         <View style={styles.caption}>
+          <View style={styles.brandWatermark}>
+            <View style={styles.brandLogoBubble}>
+              <Image source={logoImage} style={styles.brandLogo} resizeMode="contain" />
+            </View>
+            <View style={styles.brandNamePill}>
+              <Text style={styles.brandText}>SRV Electricals</Text>
+            </View>
+          </View>
           <View style={styles.metaRow}>
             <Text style={styles.categoryText}>{tx(normalizeVideoCategory(item.category).toUpperCase())}</Text>
             <Text style={styles.dot}>•</Text>
             <Text style={styles.metaText}>{item.viewCount ?? 0} {tx('views')}</Text>
           </View>
           <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-          {item.description ? <Text style={styles.description} numberOfLines={3}>{item.description}</Text> : null}
+          {item.description ? (
+            <>
+              <Text style={styles.description} numberOfLines={descriptionExpanded ? undefined : 3}>
+                {item.description}
+              </Text>
+              {hasLongDescription ? (
+                <Pressable onPress={() => toggleDescription(item.id)} style={styles.showMoreBtn}>
+                  <Text style={styles.showMoreText}>{descriptionExpanded ? tx('Show less') : tx('Show more')}</Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : null}
           <Text style={styles.dateText}>{formatISTDate(item.createdAt)}</Text>
         </View>
       </View>
@@ -586,6 +710,18 @@ const styles = StyleSheet.create({
   videoShade: {
     ...StyleSheet.absoluteFillObject,
   },
+  centerTapZone: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: 118,
+    height: 118,
+    marginLeft: -59,
+    marginTop: -59,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 59,
+  },
   videoFallback: {
     flex: 1,
     alignItems: 'center',
@@ -682,6 +818,42 @@ const styles = StyleSheet.create({
     bottom: 34,
     gap: 6,
   },
+  brandWatermark: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  brandLogoBubble: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  brandNamePill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  brandLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  brandText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -713,6 +885,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontWeight: '600',
+  },
+  showMoreBtn: {
+    alignSelf: 'flex-start',
+    paddingTop: 2,
+    paddingBottom: 2,
+  },
+  showMoreText: {
+    color: '#FDE68A',
+    fontSize: 12,
+    fontWeight: '900',
   },
   dateText: {
     color: 'rgba(255,255,255,0.62)',

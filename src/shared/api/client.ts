@@ -41,7 +41,7 @@ function dedupKey(path: string, options: RequestOptions): string {
 
 const debugLog = (...args: unknown[]) => {
   if (__DEV__) {
-    console.warn(...args);
+    void args;
   }
 };
 

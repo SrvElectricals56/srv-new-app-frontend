@@ -43,6 +43,7 @@ export const defaultProfile = {
   gstNumber: '',
   panHolderName: '',
   panNumber: '',
+  aadharNumber: '',
   dealerCode: '',
   electricianCode: '',
   counterboyCode: '',

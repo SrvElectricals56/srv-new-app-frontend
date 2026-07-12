@@ -4,6 +4,9 @@ import {
   Animated,
   Easing,
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,8 +30,10 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
   const pageContent = useAppPageContent((role ?? 'dealer') as any, 'dealer_bonus');
   const glow = useRef(new Animated.Value(0)).current;
   const floatY = useRef(new Animated.Value(0)).current;
+  const scrollRef = useRef<ScrollView | null>(null);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
@@ -54,6 +59,26 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
     return () => { glowLoop.stop(); floatLoop.stop(); };
   }, [floatY, glow]);
 
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const focusWithdrawInput = () => {
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, Platform.OS === 'ios' ? 120 : 280);
+  };
+
   const handleWithdraw = async () => {
     const amount = Number(withdrawAmount);
     if (!withdrawAmount.trim() || Number.isNaN(amount) || amount <= 0) {
@@ -78,9 +103,21 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
   const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.9] });
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: theme.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
       <PageHeader title={pageContent.pageTitle || tx('Dealer Bonus')} onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={[styles.content, { paddingBottom: keyboardHeight + 120 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
+        contentInset={{ bottom: keyboardHeight }}
+        scrollIndicatorInsets={{ bottom: keyboardHeight }}
+      >
         <Animated.View style={{ transform: [{ translateY: floatY }] }}>
           <LinearGradient
             colors={theme.textPrimary === '#F8FAFC' ? theme.heroGradientDark : theme.heroGradient}
@@ -171,6 +208,7 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
             placeholder={pageContent.inputLabel || tx('Enter amount in rupees')}
             placeholderTextColor={theme.textMuted}
             keyboardType="number-pad"
+            onFocus={focusWithdrawInput}
             style={[styles.input, { backgroundColor: theme.bg, borderColor: theme.border, color: theme.textPrimary }]}
           />
           <View style={styles.quickAmounts}>
@@ -199,7 +237,7 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
         </View>
       </ScrollView>
       <Dialog visible={dialog.visible} variant={dialog.variant} title={dialog.title} message={dialog.message} onClose={closeDialog} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

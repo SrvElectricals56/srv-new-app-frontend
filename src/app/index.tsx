@@ -1,6 +1,6 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, BackHandler, Easing, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav as DealerBottomNav } from '@/features/dealer/screens/BottomNav';
 import { CallElectricianScreen as DealerCallElectricianScreen } from '@/features/dealer/screens/CallElectricianScreen';
@@ -87,7 +87,11 @@ function resolveRewardPoints(
 }
 
 function roleNeedsAdminApproval(role: UserRole | null | undefined): role is UserRole {
-  return role === 'dealer' || role === 'electrician' || role === 'user' || role === 'counterboy';
+  return role === 'dealer' || role === 'electrician' || role === 'user';
+}
+
+function resolveAvailableAppRole(role: UserRole | null | undefined): UserRole {
+  return role === 'dealer' || role === 'electrician' || role === 'user' ? role : 'electrician';
 }
 
 function isApprovedAccountStatus(status?: string | null, role?: UserRole | null) {
@@ -199,6 +203,7 @@ function AppContent() {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [notificationBanner, setNotificationBanner] = useState<{ id: string; title: string; message?: string } | null>(null);
   const notificationBannerY = useRef(new Animated.Value(-96)).current;
+  const notificationBannerX = useRef(new Animated.Value(0)).current;
   const notificationBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastBannerNotificationIdRef = useRef<string | null>(null);
   const [userCartItems, setUserCartItems] = useState<CartItem[]>([]);
@@ -246,7 +251,7 @@ function AppContent() {
     }
 
     void (async () => {
-      const roles: UserRole[] = ['dealer', 'electrician', 'user', 'counterboy'];
+      const roles: UserRole[] = ['electrician', 'user', 'dealer'];
       const entries = await Promise.all(
         roles.map(async (role) => [role, await storage.getPasswordConfigured(role)] as const)
       );
@@ -271,7 +276,7 @@ function AppContent() {
   useEffect(() => {
     if (isPreviewMode) {
       setAuthResolved(true);
-      setCurrentRole(previewState.role);
+      setCurrentRole(resolveAvailableAppRole(previewState.role));
       setCurrentScreen(previewTarget.screen);
       setProfileInitialSubPage(previewTarget.subPage);
       setShowOnboarding(false);
@@ -282,7 +287,14 @@ function AppContent() {
     if (!authLoading && !authResolved) {
       setAuthResolved(true);
       if (isAuthenticated && user && authRole) {
-        setCurrentRole(authRole as UserRole);
+        const availableRole = resolveAvailableAppRole(authRole as UserRole);
+        if (authRole === 'counterboy') {
+          void logout();
+          setCurrentRole('electrician');
+          setShowOnboarding(true);
+          return;
+        }
+        setCurrentRole(availableRole);
         // Sync points/scans from real API profile
         setElectricianRewardPoints(resolveRewardPoints(user));
         setElectricianRewardScans(user.totalScans ?? 0);
@@ -298,6 +310,7 @@ function AppContent() {
     previewState.role,
     previewTarget.screen,
     previewTarget.subPage,
+    logout,
     user,
   ]);
 
@@ -325,6 +338,69 @@ function AppContent() {
     }
   }, [user, authRole]);
 
+  const hideNotificationBanner = useCallback(
+    (direction: 'up' | 'side' = 'up') => {
+      if (notificationBannerTimerRef.current) {
+        clearTimeout(notificationBannerTimerRef.current);
+        notificationBannerTimerRef.current = null;
+      }
+      Animated.parallel([
+        Animated.timing(notificationBannerY, {
+          toValue: direction === 'up' ? -96 : 0,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(notificationBannerX, {
+          toValue: direction === 'side' ? 420 : 0,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        notificationBannerX.setValue(0);
+        notificationBannerY.setValue(-96);
+        setNotificationBanner(null);
+      });
+    },
+    [notificationBannerX, notificationBannerY]
+  );
+
+  const notificationBannerPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dx) > 14 || gesture.dy < -8,
+        onPanResponderMove: (_, gesture) => {
+          notificationBannerX.setValue(gesture.dx);
+          if (gesture.dy < 0) {
+            notificationBannerY.setValue(gesture.dy);
+          }
+        },
+        onPanResponderRelease: (_, gesture) => {
+          if (Math.abs(gesture.dx) > 80) {
+            hideNotificationBanner('side');
+            return;
+          }
+          if (gesture.dy < -28) {
+            hideNotificationBanner('up');
+            return;
+          }
+          Animated.parallel([
+            Animated.spring(notificationBannerX, {
+              toValue: 0,
+              useNativeDriver: true,
+            }),
+            Animated.spring(notificationBannerY, {
+              toValue: 0,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        },
+      }),
+    [hideNotificationBanner, notificationBannerX, notificationBannerY]
+  );
+
   // Fetch unread notification count — poll every 30s when authenticated
   useEffect(() => {
     if (isPreviewMode) return;
@@ -338,6 +414,7 @@ function AppContent() {
         title: notification.title || 'New notification',
         message: notification.message || notification.body || '',
       });
+      notificationBannerX.setValue(0);
       Animated.timing(notificationBannerY, {
         toValue: 0,
         duration: 260,
@@ -345,16 +422,18 @@ function AppContent() {
         useNativeDriver: true,
       }).start();
       notificationBannerTimerRef.current = setTimeout(() => {
-        Animated.timing(notificationBannerY, {
-          toValue: -96,
-          duration: 220,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }).start(() => setNotificationBanner(null));
+        hideNotificationBanner('up');
       }, 4200);
     };
     const checkUnread = async () => {
       try {
+        const notificationsEnabled = await storage.getPushNotificationsEnabled();
+        if (!notificationsEnabled) {
+          setHasUnreadNotif(false);
+          setUnreadNotifCount(0);
+          setNotificationBanner(null);
+          return;
+        }
         const { notificationsApi: notifApi } = await import('@/shared/api');
         const res = await notifApi.getAll(authRole as string, user.id);
         if (!res.data?.length) { setHasUnreadNotif(false); setUnreadNotifCount(0); return; }
@@ -377,7 +456,7 @@ function AppContent() {
       clearInterval(interval);
       if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
     };
-  }, [authRole, currentScreen, isAuthenticated, isPreviewMode, notificationBannerY, user]);
+  }, [authRole, currentScreen, hideNotificationBanner, isAuthenticated, isPreviewMode, notificationBannerX, notificationBannerY, user]);
 
   const preferenceValue = usePreferenceValue({
     language,
@@ -503,6 +582,13 @@ function AppContent() {
         return;
       }
 
+      if (screen === 'my_redemption') {
+        setProfileInitialSubPage('My Redemption');
+        showRouteLoader();
+        setCurrentScreen('profile');
+        return;
+      }
+
       // If auth landing is open (guestAuthRole set) and user taps a non-blocked screen,
       // dismiss the auth flow and navigate normally
       if (guestAuthRole && screen !== 'wallet' && screen !== 'profile') {
@@ -607,6 +693,15 @@ function AppContent() {
       image: first.image,
       price: first.price,
       qty: first.qty,
+      items: userCartItems.map((cartItem) => ({
+        id: cartItem.id,
+        name: cartItem.name,
+        desc: cartItem.desc,
+        image: cartItem.image,
+        price: cartItem.price,
+        qty: cartItem.qty,
+      })),
+      source: 'cart',
     });
     setCurrentScreen('checkout');
   }, [userCartItems]);
@@ -647,6 +742,15 @@ function AppContent() {
       image: first.image,
       price: first.price,
       qty: first.qty,
+      items: electricianCartItems.map((cartItem) => ({
+        id: cartItem.id,
+        name: cartItem.name,
+        desc: cartItem.desc,
+        image: cartItem.image,
+        price: cartItem.price,
+        qty: cartItem.qty,
+      })),
+      source: 'cart',
     });
     setCurrentScreen('checkout');
   }, [electricianCartItems]);
@@ -661,6 +765,15 @@ function AppContent() {
       image: first.image,
       price: first.price,
       qty: first.qty,
+      items: dealerCartItems.map((cartItem) => ({
+        id: cartItem.id,
+        name: cartItem.name,
+        desc: cartItem.desc,
+        image: cartItem.image,
+        price: cartItem.price,
+        qty: cartItem.qty,
+      })),
+      source: 'cart',
     });
     setCurrentScreen('checkout');
   }, [dealerCartItems]);
@@ -683,18 +796,44 @@ function AppContent() {
       image: first.image,
       price: first.price,
       qty: first.qty,
+      items: counterboyCartItems.map((cartItem) => ({
+        id: cartItem.id,
+        name: cartItem.name,
+        desc: cartItem.desc,
+        image: cartItem.image,
+        price: cartItem.price,
+        qty: cartItem.qty,
+      })),
+      source: 'cart',
     });
     setCurrentScreen('checkout');
   }, [counterboyCartItems]);
 
   const handleCheckoutUpdateQty = useCallback((id: string, qty: number) => {
-    setCheckoutItem((prev) => prev ? { ...prev, qty } : prev);
+    setCheckoutItem((prev) => prev
+      ? {
+          ...prev,
+          qty: prev.id === id ? qty : prev.qty,
+          items: prev.items?.map((cartItem) => cartItem.id === id ? { ...cartItem, qty } : cartItem),
+        }
+      : prev);
   }, []);
 
   const handleOrderPlaced = useCallback(() => {
+    if (checkoutItem?.source === 'cart') {
+      if (currentRole === 'dealer') {
+        setDealerCartItems([]);
+      } else if (currentRole === 'counterboy') {
+        setCounterboyCartItems([]);
+      } else if (currentRole === 'electrician') {
+        setElectricianCartItems([]);
+      } else {
+        setUserCartItems([]);
+      }
+    }
     setCheckoutItem(null);
     setCurrentScreen('home');
-  }, []);
+  }, [checkoutItem?.source, currentRole]);
 
   const handleSignOut = useCallback(() => {
     if (isPreviewMode) {
@@ -729,6 +868,14 @@ function AppContent() {
 
   const handleAuthenticatedRoleStart = useCallback(
     (role: UserRole, options?: OnboardingStartOptions) => {
+      if (role === 'counterboy') {
+        setCurrentRole('electrician');
+        setCurrentScreen('home');
+        setGuestAuthRole(null);
+        setShowOnboarding(true);
+        return;
+      }
+
       if (typeof options?.passwordConfigured === 'boolean') {
         handlePasswordConfiguredChange(role, options.passwordConfigured);
       }
@@ -743,7 +890,7 @@ function AppContent() {
       const realUser = (globalThis as typeof globalThis & { __srvLoginUser?: typeof user }).__srvLoginUser;
       if (realUser) {
         login(realUser, role);
-        if (role === 'electrician' || role === 'user' || role === 'counterboy') {
+        if (role === 'electrician' || role === 'user') {
           setElectricianRewardPoints(resolveRewardPoints(realUser));
           setElectricianRewardScans(realUser.totalScans ?? 0);
         }
@@ -753,7 +900,7 @@ function AppContent() {
           const storedProfile = await storage.getUserProfile<typeof user extends infer T ? Exclude<T, null> : never>();
           if (!storedProfile) return;
           login(storedProfile, role);
-          if (role === 'electrician' || role === 'user' || role === 'counterboy') {
+          if (role === 'electrician' || role === 'user') {
             setElectricianRewardPoints(resolveRewardPoints(storedProfile));
             setElectricianRewardScans(storedProfile.totalScans ?? 0);
           }
@@ -1026,6 +1173,7 @@ function AppContent() {
               initialSubPage={profileInitialSubPage}
               onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
               profileResetKey={profileResetKey}
+              cartCount={dealerCartCount}
             />
           );
         case 'dealer_tier':
@@ -1162,6 +1310,7 @@ function AppContent() {
               initialSubPage={profileInitialSubPage}
               onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
               profileResetKey={profileResetKey}
+              cartCount={userCartCount}
             />
           );
         case 'wallet':
@@ -1297,6 +1446,7 @@ function AppContent() {
               initialSubPage={profileInitialSubPage}
               onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
               profileResetKey={profileResetKey}
+              cartCount={counterboyCartCount}
             />
           );
         case 'bank_details':
@@ -1612,13 +1762,18 @@ function AppContent() {
         ) : null}
         <SrvLogoLoader visible={routeLoading} label="Opening SRV page..." />
         {notificationBanner ? (
-          <Animated.View style={[styles.notificationBannerWrap, { transform: [{ translateY: notificationBannerY }] }]}>
+          <Animated.View
+            {...notificationBannerPanResponder.panHandlers}
+            style={[
+              styles.notificationBannerWrap,
+              { transform: [{ translateX: notificationBannerX }, { translateY: notificationBannerY }] },
+            ]}
+          >
             <TouchableOpacity
               activeOpacity={0.9}
               style={[styles.notificationBanner, { backgroundColor: appTheme.surface ?? '#FFFFFF' }]}
               onPress={() => {
-                if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
-                setNotificationBanner(null);
+                hideNotificationBanner('up');
                 handleNavigate('notification');
               }}
             >
@@ -1648,7 +1803,7 @@ const styles = StyleSheet.create({
   },
   notificationBannerWrap: {
     position: 'absolute',
-    top: 12,
+    top: 72,
     left: 14,
     right: 14,
     zIndex: 2000,

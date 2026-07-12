@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { AppIcon, C, PageHeader, PrimaryBtn } from '../components/ProfileShared';
@@ -14,99 +13,100 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { authApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
-import { useAppData } from '@/shared/context/AppDataContext';
 import { Dialog } from '@/shared/components/Dialog';
-
-const bankOptions = [
-  'State Bank of India',
-  'Punjab National Bank',
-  'Bank of India',
-  'Central Bank of India',
-  'Indian Bank',
-  'Indian Overseas Bank',
-  'Punjab & Sind Bank',
-  'UCO Bank',
-  'HDFC Bank',
-  'ICICI Bank',
-  'Axis Bank',
-  'Bank of Baroda',
-  'Canara Bank',
-  'Union Bank of India',
-  'Kotak Mahindra Bank',
-  'IDFC FIRST Bank',
-  'Yes Bank',
-  'IndusInd Bank',
-  'Federal Bank',
-  'RBL Bank',
-  'Bandhan Bank',
-  'AU Small Finance Bank',
-  'Other Bank',
-];
 
 export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
   const { role, user, updateUser } = useAuth();
-  const { appSettings } = useAppData();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'bank_details');
 
-  // When upiOnlyMode is ON — show only Account Holder Name + UPI ID
-  const upiOnly = appSettings?.upiOnlyMode === true;
-
   const [saving, setSaving] = useState(false);
-  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string }>({ visible: false, variant: 'info', title: '', message: '' });
+  const [dialog, setDialog] = useState<{
+    visible: boolean;
+    variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info';
+    title: string;
+    message?: string;
+  }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
+
   const [accountHolderName, setAccountHolderName] = useState(user?.accountHolderName ?? '');
-  const [accountNumber, setAccountNumber] = useState(user?.bankAccount ?? '');
-  const [ifsc, setIfsc] = useState(user?.ifsc ?? '');
+  const [googlePayNumber, setGooglePayNumber] = useState(user?.bankAccount ?? '');
   const [upi, setUpi] = useState(user?.upiId ?? '');
-  const [selectedBank, setSelectedBank] = useState(user?.bankName ?? '');
-  const [showBankOptions, setShowBankOptions] = useState(false);
   const [upiError, setUpiError] = useState('');
 
-  // Pre-fill when the signed-in user changes. Avoid resetting while the user is typing.
   useEffect(() => {
     setAccountHolderName(user?.accountHolderName ?? '');
-    setAccountNumber(user?.bankAccount ?? '');
-    setIfsc(user?.ifsc ?? '');
+    setGooglePayNumber(user?.bankAccount ?? '');
     setUpi(user?.upiId ?? '');
-    setSelectedBank(user?.bankName ?? '');
-  }, [role, user?.id, user?.accountHolderName, user?.bankAccount, user?.ifsc, user?.upiId, user?.bankName]);
+  }, [role, user?.id, user?.accountHolderName, user?.bankAccount, user?.upiId]);
 
   const isValidUpi = (value: string) =>
     /^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$/.test(value.trim());
 
   const handleSave = async () => {
-    if (
-      !accountHolderName.trim() ||
-      !upi.trim()
-    ) {
-      setDialog({ visible: true, variant: 'info', title: tx('Required fields'), message: tx('Please fill all required fields.') }); return;
+    const holder = accountHolderName.trim();
+    const gpay = googlePayNumber.trim();
+    const upiId = upi.trim();
+
+    if (!holder || !gpay || !upiId) {
+      setDialog({
+        visible: true,
+        variant: 'info',
+        title: tx('Required fields'),
+        message: tx('Please fill all required fields.'),
+      });
+      return;
     }
-    if (!/^[A-Za-z ]+$/.test(accountHolderName.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid account holder name'), message: tx('Account holder name should contain only letters and spaces.') }); return;
+    if (!/^[A-Za-z ]+$/.test(holder)) {
+      setDialog({
+        visible: true,
+        variant: 'info',
+        title: tx('Invalid account holder name'),
+        message: tx('Account holder name should contain only letters and spaces.'),
+      });
+      return;
     }
-    if (!upiOnly && accountNumber.trim() && !/^\d+$/.test(accountNumber.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid account number'), message: tx('Account number should contain only numbers.') }); return;
+    if (!/^\d{10}$/.test(gpay)) {
+      setDialog({
+        visible: true,
+        variant: 'info',
+        title: tx('Invalid Google Pay number'),
+        message: tx('Please enter a valid 10 digit Google Pay number.'),
+      });
+      return;
     }
-    if (!isValidUpi(upi.trim())) {
-      setUpiError(tx('Please enter a valid UPI ID in the format name@bank.'));
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid UPI ID'), message: tx('Please enter a valid UPI ID in the format name@bank.') }); return;
+    if (!isValidUpi(upiId)) {
+      const message = tx('Please enter a valid UPI ID in the format name@bank.');
+      setUpiError(message);
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid UPI ID'), message });
+      return;
     }
+
     setUpiError('');
     setSaving(true);
     try {
       const updated = await authApi.updateProfile({
-        accountHolderName: accountHolderName.trim(),
-        bankAccount: upiOnly ? null : (accountNumber.trim() || null),
-        ifsc: upiOnly ? null : (ifsc.trim().toUpperCase() || null),
-        bankName: upiOnly ? null : (selectedBank.trim() || null),
-        upiId: upi.trim(),
+        accountHolderName: holder,
+        bankAccount: gpay,
+        ifsc: null,
+        bankName: null,
+        upiId,
         bankLinked: true,
       });
       updateUser(updated);
-      setDialog({ visible: true, variant: 'success', title: tx('Saved'), message: tx('Bank details saved successfully!') });
+      setDialog({
+        visible: true,
+        variant: 'success',
+        title: tx('Saved'),
+        message: tx('Bank details saved successfully!'),
+      });
     } catch {
-      setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Failed to save bank details. Please try again.') });
+      setDialog({
+        visible: true,
+        variant: 'error',
+        title: tx('Error'),
+        message: tx('Failed to save bank details. Please try again.'),
+      });
     } finally {
       setSaving(false);
     }
@@ -124,13 +124,12 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          {/* Bank linked status */}
-          {user?.bankLinked && (
+          {user?.bankLinked ? (
             <View style={styles.linkedBadge}>
               <AppIcon name="bank" size={16} color={C.success} />
-              <Text style={styles.linkedText}>{tx('Bank account linked')}</Text>
+              <Text style={styles.linkedText}>{tx('Payment details linked')}</Text>
             </View>
-          )}
+          ) : null}
 
           <View style={styles.headerRow}>
             <View style={styles.iconWrap}>
@@ -139,7 +138,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
             <View style={styles.headerCopy}>
               <Text style={[styles.title, { color: theme.textPrimary }]}>{t('bankDetails')}</Text>
               <Text style={[styles.sub, { color: theme.textMuted }]}>
-                {tx('Add your bank account and UPI ID for smooth payouts')}
+                {tx('Add Google Pay number and UPI ID for smooth payouts')}
               </Text>
             </View>
           </View>
@@ -160,75 +159,29 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
             </View>
           </View>
 
-          {!upiOnly && (
-            <View>
-              <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Account Number')}</Text>
-              <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}>
-                <AppIcon name="bank" size={18} color={C.gold} />
-                <TextInput
-                  style={[styles.input, { color: theme.textPrimary }]}
-                  placeholder={tx('Enter Account Number')}
-                  placeholderTextColor={theme.textMuted}
-                  value={accountNumber}
-                  onChangeText={(v) => setAccountNumber(v.replace(/\D/g, ''))}
-                  keyboardType="number-pad"
-                  maxLength={18}
-                />
-              </View>
+          <View>
+            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Google Pay Number')} *</Text>
+            <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+              <AppIcon name="link" size={18} color={C.gold} />
+              <TextInput
+                style={[styles.input, { color: theme.textPrimary }]}
+                placeholder={tx('Enter Google Pay Number')}
+                placeholderTextColor={theme.textMuted}
+                value={googlePayNumber}
+                onChangeText={(v) => setGooglePayNumber(v.replace(/\D/g, '').slice(0, 10))}
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
             </View>
-          )}
-
-          {!upiOnly && (
-            <View>
-              <Text style={[styles.label, { color: theme.textMuted }]}>{tx('IFSC Code')}</Text>
-              <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}>
-                <AppIcon name="bank" size={18} color={C.gold} />
-                <TextInput
-                  style={[styles.input, { color: theme.textPrimary }]}
-                  placeholder={tx('Enter IFSC Code')}
-                  placeholderTextColor={theme.textMuted}
-                  value={ifsc}
-                  onChangeText={(v) => setIfsc(v.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                  autoCapitalize="characters"
-                  maxLength={11}
-                />
-              </View>
-            </View>
-          )}
-
-          {!upiOnly && (
-            <View>
-              <Text style={[styles.label, { color: theme.textMuted }]}>{tx('Select Bank')}</Text>
-              <TouchableOpacity
-                style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }]}
-                activeOpacity={0.85}
-                onPress={() => setShowBankOptions((c) => !c)}
-              >
-                <AppIcon name="bank" size={18} color={C.gold} />
-                <Text style={[styles.input, { color: selectedBank ? theme.textPrimary : theme.textMuted }]}>
-                  {selectedBank || tx('Select Bank')}
-                </Text>
-              </TouchableOpacity>
-              {showBankOptions && (
-                <View style={[styles.bankOptionsWrap, { borderColor: theme.border }]}>
-                  {bankOptions.map((bank) => (
-                    <TouchableOpacity
-                      key={bank}
-                      style={[styles.bankOption, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}
-                      activeOpacity={0.85}
-                      onPress={() => { setSelectedBank(bank); setShowBankOptions(false); }}
-                    >
-                      <Text style={[styles.bankOptionText, { color: theme.textPrimary }]}>{bank}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
+          </View>
 
           <View>
             <Text style={[styles.label, { color: theme.textMuted }]}>{tx('UPI ID')} *</Text>
-            <View style={[styles.inputWrap, { backgroundColor: theme.soft, borderColor: theme.border }, upiError ? styles.inputWrapError : null]}>
+            <View style={[
+              styles.inputWrap,
+              { backgroundColor: theme.soft, borderColor: theme.border },
+              upiError ? styles.inputWrapError : null,
+            ]}>
               <AppIcon name="link" size={18} color={C.gold} />
               <TextInput
                 style={[styles.input, { color: theme.textPrimary }]}
@@ -238,7 +191,11 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
                 onChangeText={(v) => {
                   const next = v.replace(/\s/g, '');
                   setUpi(next);
-                  if (upiError) setUpiError(next && !isValidUpi(next) ? tx('Please enter a valid UPI ID in the format name@bank.') : '');
+                  if (upiError) {
+                    setUpiError(next && !isValidUpi(next)
+                      ? tx('Please enter a valid UPI ID in the format name@bank.')
+                      : '');
+                  }
                 }}
                 autoCapitalize="none"
               />
@@ -297,7 +254,4 @@ const styles = StyleSheet.create({
   inputWrapError: { borderColor: '#B42318', backgroundColor: '#FFF4F2' },
   input: { flex: 1, fontSize: 15, fontWeight: '600' },
   errorText: { marginTop: 7, fontSize: 12, fontWeight: '700', color: '#B42318', lineHeight: 18 },
-  bankOptionsWrap: { marginTop: 8, borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
-  bankOption: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1 },
-  bankOptionText: { fontSize: 14, fontWeight: '600' },
 });

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { useAuth } from '@/shared/context/AuthContext';
 import { catalogApi } from '@/shared/api';
 import { useAppData } from '@/shared/context/AppDataContext';
+import { premium, premiumGradients, premiumShadow } from '@/shared/theme/premium';
 
 type CheckoutRole = 'electrician' | 'dealer' | 'customer' | 'counterboy';
 type PaymentMethod = 'online' | 'cod' | 'points';
@@ -34,48 +35,48 @@ const ROLE_THEMES: Record<CheckoutRole, {
   gradientDark: [string, string];
 }> = {
   electrician: {
-    primary: '#173E80', primaryDark: '#355C95', primarySoft: '#EAF3FF',
-    bg: '#F2F3F7', bgDark: '#0F172A',
+    primary: '#173E80', primaryDark: '#102A63', primarySoft: '#E8F0FE',
+    bg: premium.bg, bgDark: '#0F172A',
     card: '#FFFFFF', cardDark: '#172033',
-    border: '#E5E7EB', borderDark: '#25344E',
-    text: '#1C1E2E', textDark: '#F8FAFC',
-    muted: '#6B7280', mutedDark: '#A8B3C7',
+    border: premium.line, borderDark: '#25344E',
+    text: premium.ink, textDark: '#F8FAFC',
+    muted: premium.muted, mutedDark: '#A8B3C7',
     gradient: ['#173E80', '#355C95'],
-    gradientDark: ['#173E80', '#1D4ED8'],
+    gradientDark: ['#102A63', '#1D4ED8'],
   },
   dealer: {
-    primary: '#173E80', primaryDark: '#355C95', primarySoft: '#EAF3FF',
-    bg: '#F4F8FF', bgDark: '#0F172A',
+    primary: premium.navy, primaryDark: premium.primaryDark, primarySoft: premium.navySoft,
+    bg: '#F3F7FC', bgDark: '#0F172A',
     card: '#FFFFFF', cardDark: '#172033',
-    border: '#E5E7EB', borderDark: '#2B3A52',
-    text: '#1F2937', textDark: '#F8FAFC',
-    muted: '#6B7280', mutedDark: '#9FB0C4',
-    gradient: ['#173E80', '#355C95'],
+    border: premium.line, borderDark: '#2B3A52',
+    text: premium.ink, textDark: '#F8FAFC',
+    muted: premium.muted, mutedDark: '#9FB0C4',
+    gradient: premiumGradients.navy,
     gradientDark: ['#173E80', '#1D4ED8'],
   },
   customer: {
-    primary: '#6A2F12', primaryDark: '#8D4A1E', primarySoft: '#FBF1E7',
-    bg: '#F2F3F7', bgDark: '#0F172A',
+    primary: '#C88913', primaryDark: '#8A5A0A', primarySoft: '#FFF4D6',
+    bg: '#FFF9EA', bgDark: '#0F172A',
     card: '#FFFFFF', cardDark: '#162132',
-    border: '#E5D4C1', borderDark: '#2B3A52',
-    text: '#1F2937', textDark: '#F8FAFC',
-    muted: '#6B7280', mutedDark: '#9FB0C4',
-    gradient: ['#6A2F12', '#8D4A1E'],
-    gradientDark: ['#8D4A1E', '#6A2F12'],
+    border: premium.line, borderDark: '#2B3A52',
+    text: premium.ink, textDark: '#F8FAFC',
+    muted: premium.muted, mutedDark: '#9FB0C4',
+    gradient: ['#E7B52C', '#C88913'],
+    gradientDark: ['#8A5A0A', '#C88913'],
   },
   counterboy: {
-    primary: '#8B3C2A', primaryDark: '#6B2D1D', primarySoft: '#F5EDE4',
-    bg: '#F9F4ED', bgDark: '#0F172A',
+    primary: '#8B3C2A', primaryDark: '#5C2418', primarySoft: '#F5E2DA',
+    bg: '#FBF4EF', bgDark: '#0F172A',
     card: '#FFFFFF', cardDark: '#1A0F0A',
-    border: '#E0D0C0', borderDark: '#2B3A52',
-    text: '#2D1A10', textDark: '#F8FAFC',
-    muted: '#8A7A6E', mutedDark: '#9FB0C4',
-    gradient: ['#8B3C2A', '#6B2D1D'],
-    gradientDark: ['#6B2D1D', '#5C3D2E'],
+    border: premium.line, borderDark: '#2B3A52',
+    text: premium.ink, textDark: '#F8FAFC',
+    muted: premium.muted, mutedDark: '#9FB0C4',
+    gradient: ['#8B3C2A', '#B65A3F'],
+    gradientDark: ['#5C2418', '#8B3C2A'],
   },
 };
 
-export type CheckoutItem = {
+type CheckoutLineItem = {
   id: string;
   name: string;
   desc: string;
@@ -84,10 +85,31 @@ export type CheckoutItem = {
   qty: number;
 };
 
+export type CheckoutItem = CheckoutLineItem & {
+  items?: CheckoutLineItem[];
+  source?: 'buy-now' | 'cart';
+};
+
 function BackIcon({ color }: { color: string }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path d="M15 18l-6-6 6-6" stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function EditIcon({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path d="M13.8 5.2l5 5M4.5 19.5l4.9-1 9.2-9.2a2.1 2.1 0 0 0 0-3l-.9-.9a2.1 2.1 0 0 0-3 0L5.5 14.6l-1 4.9z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function PlusIcon({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 5v14M5 12h14" stroke={color} strokeWidth={2.3} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -126,6 +148,7 @@ export function CheckoutScreen({
   const theme = ROLE_THEMES[role] ?? ROLE_THEMES.customer;
 
   const [address, setAddress] = useState((user as any)?.address ?? '');
+  const [addressEditing, setAddressEditing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
   const [placing, setPlacing] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string; completeOnClose?: boolean }>({ visible: false, variant: 'info', title: '', message: '' });
@@ -142,10 +165,25 @@ export function CheckoutScreen({
   const border = darkMode ? theme.borderDark : theme.border;
   const textPrimary = darkMode ? theme.textDark : theme.text;
   const textMuted = darkMode ? theme.mutedDark : theme.muted;
-  const inputBg = darkMode ? theme.borderDark : '#F8F9FA';
+  const inputBg = darkMode ? theme.borderDark : premium.surfaceSoft;
   const gradient = darkMode ? theme.gradientDark : theme.gradient;
 
-  const totalPrice = item.price * item.qty;
+  const checkoutItems = useMemo(
+    () => (item.items?.length ? item.items : [item]),
+    [item]
+  );
+  const isCartCheckout = checkoutItems.length > 1 || item.source === 'cart';
+  const totalPrice = checkoutItems.reduce((sum, line) => sum + (line.price * line.qty), 0);
+  const totalQty = checkoutItems.reduce((sum, line) => sum + line.qty, 0);
+  const displayItem = isCartCheckout
+    ? {
+        ...item,
+        name: `${checkoutItems.length} ${checkoutItems.length === 1 ? tx('product') : tx('products')} ${tx('in cart')}`,
+        desc: checkoutItems.map((line) => `${line.name} x ${line.qty}`).join('  |  '),
+        price: totalPrice,
+        qty: totalQty,
+      }
+    : item;
   const minimumRole = role === 'customer' ? 'user' : role;
   const minimumOrderAmount = Number(appSettings?.minimumOrderAmounts?.[minimumRole] ?? 0);
   const availablePoints = Math.max(
@@ -153,6 +191,28 @@ export function CheckoutScreen({
     Number((user as any)?.walletBalance ?? (user as any)?.totalPoints ?? 0)
   );
   const canPayWithPoints = availablePoints >= totalPrice;
+
+  const handleSaveAddress = useCallback(() => {
+    const nextAddress = address.trim();
+    if (!nextAddress) {
+      setDialog({ visible: true, variant: 'info', title: tx('Address required'), message: tx('Please enter your shipping address.') });
+      return;
+    }
+    updateUser({ address: nextAddress } as any);
+    setAddress(nextAddress);
+    setAddressEditing(false);
+    setDialog({
+      visible: true,
+      variant: 'success',
+      title: tx('Address updated'),
+      message: tx('Your shipping address has been updated successfully.'),
+    });
+  }, [address, tx, updateUser]);
+
+  const handleAddAnotherAddress = useCallback(() => {
+    setAddress('');
+    setAddressEditing(true);
+  }, []);
 
   const handlePlaceOrder = useCallback(async () => {
     if (totalPrice < minimumOrderAmount) {
@@ -181,36 +241,55 @@ export function CheckoutScreen({
           return;
         }
 
-        const result = await catalogApi.buyNowWithPoints({
-          productId: item.id,
-          quantity: item.qty,
-          shippingAddress: address.trim(),
-        });
+        let latestWalletBalance = availablePoints;
+        let pointsUsed = 0;
+        for (const line of checkoutItems) {
+          const result = await catalogApi.buyNowWithPoints({
+            productId: line.id,
+            quantity: line.qty,
+            shippingAddress: address.trim(),
+          });
+          latestWalletBalance = result.walletBalance;
+          pointsUsed += Number(result.pointsUsed ?? line.price * line.qty);
+        }
+        if (isCartCheckout) {
+          await catalogApi.clearCart().catch(() => undefined);
+        }
         updateUser({
-          walletBalance: result.walletBalance,
-          ...(role === 'dealer' ? {} : { totalPoints: result.walletBalance }),
+          walletBalance: latestWalletBalance,
+          ...(role === 'dealer' ? {} : { totalPoints: latestWalletBalance }),
         } as any);
         setDialog({
           visible: true,
           variant: 'success',
           title: tx('Order Confirmed'),
-          message: `${tx('Your order has been placed using points.')} ${Number(result.pointsUsed ?? totalPrice).toLocaleString('en-IN')} ${tx('points deducted.')}`,
+          message: `${tx('Your order has been placed using points.')} ${pointsUsed.toLocaleString('en-IN')} ${tx('points deducted.')}`,
           completeOnClose: true,
         });
         return;
       }
 
       if (paymentMethod === 'cod') {
-        await catalogApi.buyNow({
-          productId: item.id,
-          quantity: item.qty,
-          shippingAddress: address.trim(),
-        });
+        await Promise.all(
+          checkoutItems.map((line) =>
+            catalogApi.buyNow({
+              productId: line.id,
+              quantity: line.qty,
+              shippingAddress: address.trim(),
+              cartTotal: isCartCheckout ? totalPrice : undefined,
+            })
+          )
+        );
+        if (isCartCheckout) {
+          await catalogApi.clearCart().catch(() => undefined);
+        }
         setDialog({
           visible: true,
           variant: 'success',
           title: tx('Order Confirmed'),
-          message: tx('Your order has been placed successfully with Cash on Delivery. You can track it from My Orders.'),
+          message: isCartCheckout
+            ? tx('All cart products have been placed successfully with Cash on Delivery. You can track them from My Orders.')
+            : tx('Your order has been placed successfully with Cash on Delivery. You can track it from My Orders.'),
           completeOnClose: true,
         });
         return;
@@ -220,21 +299,25 @@ export function CheckoutScreen({
         throw new Error(tx('Online payment is available in the Android app.'));
       }
 
-      const paymentOrder = await catalogApi.createRazorpayOrder({
-        productId: item.id,
-        quantity: item.qty,
-        shippingAddress: address.trim(),
-      });
+      const { default: RazorpayCheckout } = await import('react-native-razorpay');
+      for (const line of checkoutItems) {
+        const paymentOrder = await catalogApi.createRazorpayOrder({
+          productId: line.id,
+          quantity: line.qty,
+          shippingAddress: address.trim(),
+          cartTotal: isCartCheckout ? totalPrice : undefined,
+        });
 
-      let paymentResponse;
-      try {
-        const { default: RazorpayCheckout } = await import('react-native-razorpay');
+        let paymentResponse;
+        try {
         const checkoutOptions = {
           key: paymentOrder.keyId,
           amount: paymentOrder.amount,
           currency: paymentOrder.currency,
           name: paymentOrder.businessName,
-          description: paymentOrder.description,
+          description: isCartCheckout
+            ? `${tx('Cart item')}: ${line.name} x ${line.qty}`
+            : paymentOrder.description,
           order_id: paymentOrder.razorpayOrderId,
           prefill: paymentOrder.prefill,
           method: 'upi',
@@ -243,25 +326,31 @@ export function CheckoutScreen({
         };
         // Razorpay supports `method`, but v3's bundled TypeScript definition omits it.
         paymentResponse = await RazorpayCheckout.open(checkoutOptions as any);
-      } catch (paymentError: any) {
-        await catalogApi.recordRazorpayFailure({
-          productOrderId: paymentOrder.productOrderId,
-          reason: paymentError?.description || paymentError?.message || 'Payment cancelled',
-        }).catch(() => undefined);
-        throw paymentError;
-      }
+        } catch (paymentError: any) {
+          await catalogApi.recordRazorpayFailure({
+            productOrderId: paymentOrder.productOrderId,
+            reason: paymentError?.description || paymentError?.message || 'Payment cancelled',
+          }).catch(() => undefined);
+          throw paymentError;
+        }
 
-      await catalogApi.verifyRazorpayPayment({
-        productOrderId: paymentOrder.productOrderId,
-        razorpayOrderId: paymentResponse.razorpay_order_id,
-        razorpayPaymentId: paymentResponse.razorpay_payment_id,
-        razorpaySignature: paymentResponse.razorpay_signature,
-      });
+        await catalogApi.verifyRazorpayPayment({
+          productOrderId: paymentOrder.productOrderId,
+          razorpayOrderId: paymentResponse.razorpay_order_id,
+          razorpayPaymentId: paymentResponse.razorpay_payment_id,
+          razorpaySignature: paymentResponse.razorpay_signature,
+        });
+      }
+      if (isCartCheckout) {
+        await catalogApi.clearCart().catch(() => undefined);
+      }
       setDialog({
         visible: true,
         variant: 'success',
         title: tx('Order Confirmed'),
-        message: tx('Payment received. Your order has been confirmed and is ready for processing.'),
+        message: isCartCheckout
+          ? tx('Payment received for all cart products. Your orders are confirmed and ready for processing.')
+          : tx('Payment received. Your order has been confirmed and is ready for processing.'),
         completeOnClose: true,
       });
     } catch (error: any) {
@@ -274,7 +363,7 @@ export function CheckoutScreen({
     } finally {
       setPlacing(false);
     }
-  }, [item, address, paymentMethod, theme.primary, tx, canPayWithPoints, availablePoints, totalPrice, minimumOrderAmount, role, updateUser]);
+  }, [checkoutItems, isCartCheckout, address, paymentMethod, theme.primary, tx, canPayWithPoints, availablePoints, totalPrice, minimumOrderAmount, role, updateUser]);
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
@@ -292,37 +381,37 @@ export function CheckoutScreen({
       >
         <View style={[styles.productCard, { backgroundColor: card, borderColor: border }]}>
           <View style={styles.productImageWrap}>
-            {item.image ? (
-              <Image source={item.image} style={styles.productImage} resizeMode="contain" />
+            {displayItem.image ? (
+              <Image source={displayItem.image} style={styles.productImage} resizeMode="contain" />
             ) : (
               <View style={[styles.productImagePlaceholder, { backgroundColor: theme.primarySoft }]}>
-                <Text style={{ color: theme.primaryDark, fontSize: 12 }}>{truncate(item.name, 2)}</Text>
+                <Text style={{ color: theme.primaryDark, fontSize: 12 }}>{truncate(displayItem.name, 2)}</Text>
               </View>
             )}
           </View>
           <View style={styles.productInfo}>
-            <Text style={[styles.productName, { color: textPrimary }]} numberOfLines={2}>{item.name}</Text>
-            <Text style={[styles.productDesc, { color: textMuted }]} numberOfLines={1}>{item.desc}</Text>
+            <Text style={[styles.productName, { color: textPrimary }]} numberOfLines={2}>{displayItem.name}</Text>
+            <Text style={[styles.productDesc, { color: textMuted }]} numberOfLines={isCartCheckout ? 3 : 1}>{displayItem.desc}</Text>
             <View style={styles.productPriceRow}>
-              <Text style={[styles.productPrice, { color: textPrimary }]}>₹{item.price.toLocaleString('en-IN')}</Text>
-              {onUpdateQty ? (
+              <Text style={[styles.productPrice, { color: textPrimary }]}>₹{displayItem.price.toLocaleString('en-IN')}</Text>
+              {onUpdateQty && !isCartCheckout ? (
                 <View style={[styles.checkoutQtyPill, { backgroundColor: inputBg, borderColor: border }]}>
                   <Pressable
                     style={[styles.checkoutQtyBtn, { backgroundColor: theme.primaryDark }]}
-                    onPress={() => item.qty > 1 && onUpdateQty(item.id, item.qty - 1)}
+                    onPress={() => displayItem.qty > 1 && onUpdateQty(displayItem.id, displayItem.qty - 1)}
                   >
                     <Text style={styles.checkoutQtyBtnText}>−</Text>
                   </Pressable>
-                  <Text style={[styles.checkoutQtyText, { color: textPrimary }]}>{item.qty}</Text>
+                  <Text style={[styles.checkoutQtyText, { color: textPrimary }]}>{displayItem.qty}</Text>
                   <Pressable
                     style={[styles.checkoutQtyBtn, { backgroundColor: theme.primary }]}
-                    onPress={() => onUpdateQty(item.id, item.qty + 1)}
+                    onPress={() => onUpdateQty(displayItem.id, displayItem.qty + 1)}
                   >
                     <Text style={styles.checkoutQtyBtnText}>+</Text>
                   </Pressable>
                 </View>
               ) : (
-                <Text style={[styles.productQty, { color: textMuted }]}>Qty: {item.qty}</Text>
+                <Text style={[styles.productQty, { color: textMuted }]}>Qty: {displayItem.qty}</Text>
               )}
             </View>
             <Text style={[styles.productTotal, { color: theme.primary }]}>₹{totalPrice.toLocaleString('en-IN')}</Text>
@@ -342,17 +431,58 @@ export function CheckoutScreen({
         </View>
 
         <View style={[styles.sectionCard, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.sectionTitle, { color: textPrimary }]}>{tx('Shipping Address')}</Text>
+          <View style={styles.addressHeaderRow}>
+            <Text style={[styles.sectionTitle, styles.addressTitle, { color: textPrimary }]}>{tx('Shipping Address')}</Text>
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={() => setAddressEditing(true)}
+              style={[styles.addressEditBtn, { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}
+              accessibilityRole="button"
+              accessibilityLabel={tx('Edit shipping address')}
+            >
+              <EditIcon color={theme.primary} />
+              <Text style={[styles.addressEditText, { color: theme.primary }]}>{tx('Edit')}</Text>
+            </TouchableOpacity>
+          </View>
           <TextInput
-            style={[styles.addressInput, { backgroundColor: inputBg, color: textPrimary, borderColor: border }]}
+            style={[
+              styles.addressInput,
+              {
+                backgroundColor: addressEditing ? inputBg : (darkMode ? '#111827' : '#F8FAFC'),
+                color: textPrimary,
+                borderColor: addressEditing ? theme.primary : border,
+              },
+              !addressEditing ? styles.addressInputLocked : null,
+            ]}
             placeholder={tx('Enter your address')}
             placeholderTextColor={textMuted}
             value={address}
             onChangeText={setAddress}
+            editable={addressEditing}
+            selectTextOnFocus={addressEditing}
             multiline
             numberOfLines={3}
             textAlignVertical="top"
           />
+          {addressEditing ? (
+            <TouchableOpacity
+              activeOpacity={0.84}
+              onPress={handleSaveAddress}
+              style={[styles.saveAddressBtn, { backgroundColor: theme.primary }]}
+            >
+              <Text style={styles.saveAddressText}>{tx('Save Address')}</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={[styles.addressHint, { color: textMuted }]}>{tx('Tap edit to update your delivery address.')}</Text>
+          )}
+          <TouchableOpacity
+            activeOpacity={0.84}
+            onPress={handleAddAnotherAddress}
+            style={[styles.addAddressBtn, { borderColor: theme.primary, backgroundColor: darkMode ? '#111827' : theme.primarySoft }]}
+          >
+            <PlusIcon color={theme.primary} />
+            <Text style={[styles.addAddressText, { color: theme.primary }]}>{tx('Add another address')}</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={[styles.sectionCard, { backgroundColor: card, borderColor: border }]}>
@@ -488,16 +618,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     margin: 14,
     marginBottom: 10,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     padding: 14,
+    ...premiumShadow('md'),
   },
   productImageWrap: {
     width: 90,
     height: 90,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     marginRight: 14,
+    backgroundColor: premium.surfaceSoft,
+    borderWidth: 1,
+    borderColor: premium.line,
   },
   productImage: {
     width: '100%',
@@ -510,20 +644,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   productInfo: { flex: 1 },
-  productName: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
-  productDesc: { fontSize: 12, marginBottom: 6 },
+  productName: { fontSize: 15, fontWeight: '900', marginBottom: 2, lineHeight: 20 },
+  productDesc: { fontSize: 12, marginBottom: 8, fontWeight: '600' },
   productPriceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 4,
   },
-  productPrice: { fontSize: 14, fontWeight: '700' },
+  productPrice: { fontSize: 14, fontWeight: '800' },
   productQty: { fontSize: 12 },
-  productTotal: { fontSize: 16, fontWeight: '800' },
+  productTotal: { fontSize: 18, fontWeight: '900' },
   checkoutQtyPill: {
     flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderRadius: 10, overflow: 'hidden',
+    borderWidth: 1, borderRadius: 999, overflow: 'hidden',
   },
   checkoutQtyBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   checkoutQtyBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900', lineHeight: 18 },
@@ -532,14 +666,40 @@ const styles = StyleSheet.create({
   sectionCard: {
     margin: 14,
     marginBottom: 10,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     padding: 16,
+    ...premiumShadow('sm'),
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '900',
     marginBottom: 10,
+  },
+  addressHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 10,
+  },
+  addressTitle: {
+    marginBottom: 0,
+    flex: 1,
+  },
+  addressEditBtn: {
+    minHeight: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  addressEditText: {
+    fontSize: 12,
+    fontWeight: '900',
   },
 
   contactRow: {
@@ -547,31 +707,68 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5D4C1',
+    borderBottomColor: premium.line,
   },
-  contactLabel: { fontSize: 13 },
-  contactValue: { fontSize: 13, fontWeight: '600' },
+  contactLabel: { fontSize: 13, fontWeight: '600' },
+  contactValue: { fontSize: 13, fontWeight: '800', flexShrink: 1, textAlign: 'right' },
 
   addressInput: {
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 12,
     fontSize: 14,
     minHeight: 80,
+    fontWeight: '600',
+  },
+  addressInputLocked: {
+    opacity: 0.9,
+  },
+  addressHint: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    marginTop: 8,
+    lineHeight: 16,
+  },
+  saveAddressBtn: {
+    minHeight: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    ...premiumShadow('sm'),
+  },
+  saveAddressText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  addAddressBtn: {
+    minHeight: 44,
+    borderRadius: 14,
+    borderWidth: 1.3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  addAddressText: {
+    fontSize: 13,
+    fontWeight: '900',
   },
 
   paymentOption: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1.5,
     gap: 10,
   },
   paymentList: { gap: 10 },
   paymentCopy: { flex: 1 },
-  paymentText: { fontSize: 14, fontWeight: '600' },
-  paymentHint: { fontSize: 11, marginTop: 3 },
+  paymentText: { fontSize: 14, fontWeight: '800' },
+  paymentHint: { fontSize: 11, marginTop: 3, lineHeight: 15 },
 
   footer: {
     position: 'absolute',
@@ -581,22 +778,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     borderTopWidth: 1,
+    ...premiumShadow('lg'),
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 6,
   },
-  summaryLabel: { fontSize: 13 },
-  summaryLabelBold: { fontSize: 15, fontWeight: '700' },
-  summaryValue: { fontSize: 13 },
+  summaryLabel: { fontSize: 13, fontWeight: '600' },
+  summaryLabelBold: { fontSize: 15, fontWeight: '900' },
+  summaryValue: { fontSize: 13, fontWeight: '800' },
   summaryDivider: { height: 1, marginVertical: 6 },
-  summaryTotal: { fontSize: 17, fontWeight: '800' },
-  placeOrderShell: { marginTop: 12, borderRadius: 14, overflow: 'hidden' },
+  summaryTotal: { fontSize: 18, fontWeight: '900' },
+  placeOrderShell: { marginTop: 12, borderRadius: 16, overflow: 'hidden', ...premiumShadow('sm') },
   placeOrderBtn: {
     paddingVertical: 15,
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: 16,
   },
   placeOrderText: {
     color: '#fff',

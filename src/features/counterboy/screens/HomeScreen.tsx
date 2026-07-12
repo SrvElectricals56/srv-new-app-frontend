@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import {
-  Image, Linking, ScrollView,
+  Image, RefreshControl, ScrollView,
   StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ import { WebsitePromoSection } from '@/shared/components/WebsitePromoSection';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
 import type { Screen } from '@/shared/types/navigation';
 import { useAppPageContent, useAppPageSections } from '@/shared/hooks';
+import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
 import type { HomePageSectionKey } from '@/shared/config/appPageContent';
 import { API_BASE_URL } from '@/shared/api/config';
 import { counterboyTheme as cb } from '@/features/counterboy/theme';
@@ -55,6 +56,8 @@ function resolveRemoteImageUrl(value?: string | null): string | null {
 }
 
 const CB_HOME_CAT_IMAGES: Record<string, string> = {
+  industrialfan:'/uploads/products/product-1782470321481-895716428.webp',
+  stabilizer:   '/uploads/products/product-1783746715702-366632093.PNG',
   fanbox:       'https://srvelectricals.com/cdn/shop/files/FC_4_17-30.png?v=1757426626&width=320',
   concealedbox: 'https://srvelectricals.com/cdn/shop/files/CRD_PL_3.png?v=1757426566&width=320',
   busbar:       'https://cdn.shopify.com/s/files/1/0651/4583/1466/files/Bus_Bar_100A_Super.png',
@@ -63,6 +66,14 @@ const CB_HOME_CAT_IMAGES: Record<string, string> = {
 
 const CB_HOME_LABELS: Record<string, string> = {
   'fan': 'Fan Box',
+  'industrial': 'Industrial Fan',
+  'industial': 'Industrial Fan',
+  'industrialfan': 'Industrial Fan',
+  'industialfan': 'Industrial Fan',
+  'axialfan': 'Industrial Fan',
+  'ventilation': 'Industrial Fan',
+  'stabilizer': 'Stabilizer',
+  'voltage': 'Stabilizer',
   'fanbox': 'Fan Box',
   'fan-box': 'Fan Box',
   'concealed': 'Concealed Box',
@@ -78,7 +89,7 @@ const CB_HOME_LABELS: Record<string, string> = {
   'dd': 'MCB Box',
 };
 
-const CB_HOME_CATEGORY_ORDER = ['Fan Box', 'Concealed Box', 'BUS BAR SUPER', 'ECO SPN DD MCB BOX'] as const;
+const CB_HOME_CATEGORY_ORDER = ['Industrial Fan', 'Stabilizer', 'Fan Box', 'Concealed Box', 'BUS BAR SUPER', 'ECO SPN DD MCB BOX'] as const;
 
 function sanitizeCbCategoryKey(value: string) {
   return value.toLowerCase().trim();
@@ -93,7 +104,7 @@ function normalizeCbHomeCategory(id: string) {
     }
   }
   // Check if any search term matches
-  const searchTerms = ['fan', 'concealed', 'bus', 'bar', 'busbar', 'super', 'mcb', 'eco', 'spn', 'dd'];
+  const searchTerms = ['industrial', 'industrialfan', 'industial', 'industialfan', 'axialfan', 'ventilation', 'stabilizer', 'voltage', 'fan', 'concealed', 'bus', 'bar', 'busbar', 'super', 'mcb', 'eco', 'spn', 'dd'];
   for (const term of searchTerms) {
     if (sanitized.includes(term)) {
       return CB_HOME_LABELS[term] || sanitized;
@@ -109,17 +120,19 @@ function getCbHomeCatImage(id: string, apiImageUrl?: string | null) {
   if (remoteUrl && !isLogoLike) return remoteUrl;
 
   const idLower = id.toLowerCase();
-  if (idLower.includes('bus') || idLower.includes('bar')) return CB_HOME_CAT_IMAGES.busbar;
-  if (idLower.includes('mcb') || idLower.includes('eco') || idLower.includes('spn')) return CB_HOME_CAT_IMAGES.mcb;
-  if (idLower.includes('concealed')) return CB_HOME_CAT_IMAGES.concealedbox;
-  if (idLower.includes('fan')) return CB_HOME_CAT_IMAGES.fanbox;
+  const fromAsset = (key: string) => resolveRemoteImageUrl(CB_HOME_CAT_IMAGES[key]) ?? CB_HOME_CAT_IMAGES[key];
+  if (idLower.includes('bus') || idLower.includes('bar')) return fromAsset('busbar');
+  if (idLower.includes('mcb') || idLower.includes('eco') || idLower.includes('spn')) return fromAsset('mcb');
+  if (idLower.includes('stabilizer') || idLower.includes('voltage')) return fromAsset('stabilizer');
+  if (idLower.includes('industrial') || idLower.includes('industial') || idLower.includes('axial') || idLower.includes('ventilation')) return fromAsset('industrialfan');
+  if (idLower.includes('concealed')) return fromAsset('concealedbox');
+  if (idLower.includes('fan')) return fromAsset('fanbox');
 
   const normalizedId = normalizeCbHomeCategory(id);
-  return CB_HOME_CAT_IMAGES[normalizedId] ?? CB_HOME_CAT_IMAGES.fanbox;
+  return (CB_HOME_CAT_IMAGES[normalizedId] ? fromAsset(normalizedId) : null) ?? fromAsset('fanbox');
 }
 
 const CB_PRIMARY = cb.primary;
-const CB_LIGHT = cb.bg;
 
 const logoImage = require('../../../../assets/srv logo white.jpeg');
 
@@ -198,14 +211,23 @@ export function HomeScreen({
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const { user: authUser } = useAuth();
-  const { banners: ctxBanners, testimonials: ctxTestimonials, appSettings, categories: ctxCategories } = useAppData();
+  const { banners: ctxBanners, testimonials: ctxTestimonials, appSettings, categories: ctxCategories, refreshAll } = useAppData();
   const pageContent = useAppPageContent('counterboy', 'home');
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const homeScrollRef = useRef<ScrollView>(null);
   useRegisterScrollToTop('home', homeScrollRef);
   const [apiBannerSlides, setApiBannerSlides] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [supportWhatsapp, setSupportWhatsapp] = useState('918837684004');
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAll();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const heroImageHeight = Math.round((width - 28) * 0.56);
   const showTestimonials = appSettings?.testimonialsEnabled !== false;
   const rolePageControls = useMemo(
@@ -309,7 +331,9 @@ export function HomeScreen({
       icon: WhatsAppIcon,
       iconColors: [cb.successSoft, '#CDE7DB'] as const,
       iconTint: cb.success,
-      onPress: () => Linking.openURL(`https://wa.me/${supportWhatsapp}?text=Hello%20SRV%20Team`),
+      onPress: () => {
+        void openWhatsAppSupport(supportWhatsapp);
+      },
       hidden: !showWhatsapp,
     },
     {
@@ -418,7 +442,7 @@ export function HomeScreen({
                   </Text>
                   <View style={[styles.cbCatPill, darkMode ? styles.cbCatPillDark : null]}>
                     <Text style={[styles.cbCatPillText, darkMode ? styles.cbCatPillTextDark : null]}>
-                      {pageContent.cardButtonLabel || tx('View Products')}
+                      {tx('Buy Now')}
                     </Text>
                   </View>
                 </View>
@@ -455,8 +479,9 @@ export function HomeScreen({
       ref={homeScrollRef}
       style={[styles.screen, darkMode ? styles.screenDark : null]}
       showsVerticalScrollIndicator={false}
-      bounces={false}
+      bounces
       overScrollMode="never"
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={cb.primary} />}
     >
       {/* Hero */}
       <LinearGradient
@@ -475,6 +500,7 @@ export function HomeScreen({
               <Image source={logoImage} style={styles.logoImage} resizeMode="contain" />
             </View>
           </View>
+          <Text style={styles.srvBrandTitle} numberOfLines={1}>SRV Electricals</Text>
           {showNotifications ? (
             <TouchableOpacity
               onPress={() => onNavigate('notification')}
@@ -522,36 +548,54 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5EDE4' },
+  screen: { flex: 1, backgroundColor: cb.softBg },
   screenDark: { backgroundColor: cb.darkBg },
   heroShell: {
     paddingHorizontal: 14,
     paddingBottom: 12,
     overflow: 'hidden',
-    ...createShadow({ color: CB_PRIMARY, offsetY: 8, blur: 20, opacity: 0.12, elevation: 6 }),
+    borderBottomWidth: 1,
+    borderBottomColor: cb.border,
   },
-  heroGlowOne: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(139,60,42,0.12)', top: -60, right: -40 },
-  heroGlowTwo: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(111,78,55,0.12)', bottom: -30, left: -20 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  srvBrandTitle: {
+    flex: 1,
+    textAlign: 'center',
+    color: CB_PRIMARY,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    marginHorizontal: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    textTransform: 'uppercase',
+    overflow: 'hidden',
+  },
+  heroGlowOne: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(139,60,42,0.12)', top: -60, right: -40, display: 'none' },
+  heroGlowTwo: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(111,78,55,0.12)', bottom: -30, left: -20, display: 'none' },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  brandBlock: { flexDirection: 'row', alignItems: 'center' },
   logoWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...createShadow({ color: CB_PRIMARY, offsetY: 2, blur: 8, opacity: 0.12, elevation: 3 }) },
   logoWrapDark: { backgroundColor: cb.darkSurface },
   logoImage: { width: 48, height: 48 },
-  topActionBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: CB_LIGHT, alignItems: 'center', justifyContent: 'center', ...createShadow({ color: CB_PRIMARY, offsetY: 2, blur: 6, opacity: 0.1, elevation: 2 }) },
+  topActionBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: cb.surface, borderWidth: 1, borderColor: cb.border, alignItems: 'center', justifyContent: 'center', ...createShadow({ color: cb.primary, offsetY: 2, blur: 6, opacity: 0.08, elevation: 2 }) },
   topActionBtnDark: { backgroundColor: cb.darkSurface },
   topIconCore: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  notificationCore: { backgroundColor: '#EDE0D4' },
+  notificationCore: { backgroundColor: cb.soft },
   notificationCoreDark: { backgroundColor: 'rgba(111,78,55,0.2)' },
   redDot: { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: CB_PRIMARY, borderWidth: 1.5, borderColor: '#FFFFFF' },
   notificationBadge: { position: 'absolute', top: 4, right: 3, minWidth: 19, height: 19, borderRadius: 10, paddingHorizontal: 4, backgroundColor: '#DC2626', borderWidth: 1.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   notificationBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   heroBannerWrap: { marginTop: 8, marginBottom: 4 },
-  body: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 120 },
+  body: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 120, backgroundColor: cb.softBg },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 22 },
   quickCard: {
-    borderRadius: 20, backgroundColor: '#FFFFFF', padding: 14,
+    borderRadius: 10, backgroundColor: '#FFFFFF', padding: 14,
     marginBottom: 12,
-    ...createShadow({ color: CB_PRIMARY, offsetY: 4, blur: 10, opacity: 0.07, elevation: 3 }),
+    borderWidth: 1,
+    borderColor: cb.border,
+    ...createShadow({ color: cb.primary, offsetY: 4, blur: 10, opacity: 0.06, elevation: 3 }),
   },
   quickCardDark: { backgroundColor: cb.darkSurface, borderColor: cb.darkBorder },
   quickIconBox: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
@@ -575,19 +619,19 @@ const styles = StyleSheet.create({
   viewAllTextDark: { color: cb.slate },
   homeCatGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 22 },
   cbCatCard: {
-    borderRadius: 18,
+    borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: cb.border,
-    ...createShadow({ color: CB_PRIMARY, offsetY: 6, blur: 12, opacity: 0.1, elevation: 4 }),
+    ...createShadow({ color: cb.primary, offsetY: 6, blur: 12, opacity: 0.08, elevation: 4 }),
   },
   cbCatCardDark: { backgroundColor: cb.darkSurface, borderColor: cb.darkBorder },
   cbCatImgZone: {
     height: 132,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFD',
   },
   cbCatImgZoneDark: { backgroundColor: cb.darkSurface },
   cbCatImage: { width: '88%', height: '88%' },
@@ -600,7 +644,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: cb.soft,
   },
   cbCatPillDark: { backgroundColor: 'rgba(255,255,255,0.08)' },

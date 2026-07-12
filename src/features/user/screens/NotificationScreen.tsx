@@ -116,7 +116,16 @@ type NotifItem = {
   type: string;
   colors: [string, string];
   icon: typeof BellIcon;
+  read: boolean;
+  orderStamp: number;
 };
+
+function sortNotificationItems(items: NotifItem[]) {
+  return [...items].sort((a, b) => {
+    if (a.read !== b.read) return a.read ? 1 : -1;
+    return b.orderStamp - a.orderStamp;
+  });
+}
 
 export function NotificationScreen({
   onNavigate,
@@ -132,6 +141,7 @@ export function NotificationScreen({
   const roleTheme = ROLE_THEME[role === 'electrician' ? 'electrician' : 'user'];
   const { user } = useAuth();
   const [notifItems, setNotifItems] = useState<NotifItem[]>([]);
+  const [selectedNotification, setSelectedNotification] = useState<NotifItem | null>(null);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
@@ -141,25 +151,29 @@ export function NotificationScreen({
   const loadAndMarkSeen = useCallback(async () => {
     setLoading(true);
     try {
-      const [res, clearedIds] = await Promise.all([
+      const [res, seenIds, clearedIds] = await Promise.all([
         notificationsApi.getAll(role, user?.id),
+        storage.getSeenNotificationIds(notifScope),
         storage.getClearedNotificationIds(notifScope),
       ]);
-      const visibleNotifications = (res.data ?? []).filter((n: any) => !clearedIds.has(n.id));
+      const visibleNotifications = (res.data ?? []).filter((n: any) => !clearedIds.has(String(n.id)));
       if (visibleNotifications.length) {
-        const mapped: NotifItem[] = visibleNotifications.map((n: any, i: number) => ({
-          id: n.id,
+        const mapped: NotifItem[] = visibleNotifications.map((n: any, i: number) => {
+          const id = String(n.id);
+          const dateValue = n.sentAt ?? n.createdAt ?? n.updatedAt;
+          return {
+          id,
           title: n.title,
-          body: n.message,
-          time: formatNotifTime(n.sentAt),
+          body: n.message ?? n.body ?? '',
+          time: formatNotifTime(dateValue),
           type: n.targetRole ?? 'General',
           colors: roleTheme.cycle[i % roleTheme.cycle.length],
           icon: ICON_CYCLE[i % ICON_CYCLE.length],
-        }));
-        setNotifItems(mapped);
-        const ids = mapped.map(n => n.id);
-        await storage.markNotificationsAsSeen(ids, notifScope);
-        onNotificationsSeen?.();
+          read: seenIds.has(id),
+          orderStamp: dateValue ? new Date(dateValue).getTime() : Date.now() - i,
+          };
+        });
+        setNotifItems(sortNotificationItems(mapped));
       } else {
         setNotifItems([]);
       }
@@ -168,12 +182,25 @@ export function NotificationScreen({
     } finally {
       setLoading(false);
     }
-  }, [notifScope, onNotificationsSeen, role, roleTheme.cycle, user?.id]);
+  }, [notifScope, role, roleTheme.cycle, user?.id]);
 
   const handleClearNotification = useCallback(async (id: string) => {
     await storage.clearNotifications([id], notifScope);
     setNotifItems((current) => current.filter((item) => item.id !== id));
   }, [notifScope]);
+
+  const handleMarkNotificationDone = useCallback(async () => {
+    if (!selectedNotification) return;
+    const selectedId = selectedNotification.id;
+    setSelectedNotification(null);
+    await storage.markNotificationsAsSeen([selectedId], notifScope);
+    setNotifItems((current) =>
+      sortNotificationItems(
+        current.map((item) => (item.id === selectedId ? { ...item, read: true } : item)),
+      ),
+    );
+    onNotificationsSeen?.();
+  }, [notifScope, onNotificationsSeen, selectedNotification]);
 
   const handleClearAllNotifications = useCallback(() => {
     if (!notifItems.length) return;
@@ -193,6 +220,69 @@ export function NotificationScreen({
   }, [loadAndMarkSeen]);
 
   const displayedNotifications = showAllNotifications ? notifItems : notifItems.slice(0, 5);
+
+  if (selectedNotification) {
+    const Icon = selectedNotification.icon;
+    return (
+      <ScrollView
+        style={[styles.screen, darkMode ? styles.screenDark : null]}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <LinearGradient
+          colors={roleTheme.hero}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.detailHero}
+        >
+          <TouchableOpacity
+            style={styles.detailBackBtn}
+            activeOpacity={0.85}
+            onPress={() => setSelectedNotification(null)}
+          >
+            <Text style={styles.detailBackText}>{tx('Back')}</Text>
+          </TouchableOpacity>
+          <View style={styles.detailHeroIcon}>
+            <Icon color="#FFFFFF" size={30} />
+          </View>
+          <Text style={styles.detailEyebrow}>{selectedNotification.type}</Text>
+          <Text style={styles.detailHeroTitle}>{tx('Notification Details')}</Text>
+          <Text style={styles.detailHeroSub}>{selectedNotification.time}</Text>
+        </LinearGradient>
+
+        <View style={[styles.detailCard, darkMode ? styles.detailCardDark : null]}>
+          <View style={styles.detailCardTop}>
+            <View style={[styles.detailIconWrap, darkMode ? styles.iconWrapDark : null]}>
+              <Icon />
+            </View>
+            <View style={styles.detailMeta}>
+              <Text style={[styles.detailType, darkMode ? styles.cardTypeDark : null]}>
+                {selectedNotification.type}
+              </Text>
+              <Text style={[styles.detailTime, darkMode ? styles.cardTimeDark : null]}>
+                {selectedNotification.time}
+              </Text>
+            </View>
+          </View>
+          <Text style={[styles.detailTitle, darkMode ? styles.cardTitleDark : null]}>
+            {selectedNotification.title}
+          </Text>
+          <Text style={[styles.detailBody, darkMode ? styles.cardBodyDark : null]}>
+            {selectedNotification.body}
+          </Text>
+          <TouchableOpacity
+            style={[styles.detailDoneBtn, darkMode ? styles.listMoreBtnDark : null]}
+            activeOpacity={0.86}
+            onPress={() => void handleMarkNotificationDone()}
+          >
+            <Text style={[styles.detailDoneText, darkMode ? styles.listMoreTextDark : null]}>
+              {tx('Done')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -226,13 +316,6 @@ export function NotificationScreen({
             onPress={() => onNavigate('home')}
           >
             <Text style={styles.heroActionText}>{pageContent.primaryCtaLabel || tx('Back Home')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.heroGhostBtn}
-            activeOpacity={0.85}
-            onPress={() => setShowAllNotifications(true)}
-          >
-            <Text style={styles.heroGhostText}>{pageContent.secondaryCtaLabel || tx('More')}</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -278,48 +361,66 @@ export function NotificationScreen({
       {displayedNotifications.map((item, index) => {
         const Icon = item.icon;
         return (
-          <LinearGradient
+          <TouchableOpacity
             key={item.id}
-            colors={
-              darkMode
-                ? (['#182133', '#23324C'] as [string, string])
-                : item.colors
-            }
-            style={[styles.card, darkMode ? styles.cardDark : null]}
+            activeOpacity={0.86}
+            onPress={() => setSelectedNotification(item)}
           >
-            <View style={styles.cardTop}>
-              <View style={[styles.iconWrap, darkMode ? styles.iconWrapDark : null]}>
-                <Icon />
-              </View>
-              <View style={styles.meta}>
-                <Text style={[styles.cardType, darkMode ? styles.cardTypeDark : null]}>
-                  {item.type}
-                </Text>
-                <View style={styles.metaActions}>
-                  <Text style={[styles.cardTime, darkMode ? styles.cardTimeDark : null]}>
-                    {item.time}
+            <LinearGradient
+              colors={
+                darkMode
+                  ? (['#182133', '#23324C'] as [string, string])
+                  : item.colors
+              }
+              style={[styles.card, darkMode ? styles.cardDark : null]}
+            >
+              <View style={styles.cardTop}>
+                <View style={[styles.iconWrap, darkMode ? styles.iconWrapDark : null]}>
+                  <Icon />
+                </View>
+                <View style={styles.meta}>
+                  <Text style={[styles.cardType, darkMode ? styles.cardTypeDark : null]}>
+                    {item.type}
                   </Text>
-                  <TouchableOpacity
-                    onPress={() => void handleClearNotification(item.id)}
-                    activeOpacity={0.8}
-                    style={[styles.clearBtn, darkMode ? styles.clearBtnDark : null]}
-                  >
-                    <Text style={[styles.clearBtnText, darkMode ? styles.clearBtnTextDark : null]}>
-                      {tx('Clear')}
+                  <View style={styles.metaActions}>
+                    <Text style={[styles.cardTime, darkMode ? styles.cardTimeDark : null]}>
+                      {item.time}
                     </Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => void handleClearNotification(item.id)}
+                      activeOpacity={0.8}
+                      style={[styles.clearBtn, darkMode ? styles.clearBtnDark : null]}
+                    >
+                      <Text style={[styles.clearBtnText, darkMode ? styles.clearBtnTextDark : null]}>
+                        {tx('Clear')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-            </View>
-            <Text style={[styles.cardTitle, darkMode ? styles.cardTitleDark : null]}>
-              {item.title}
-            </Text>
-            <Text style={[styles.cardBody, darkMode ? styles.cardBodyDark : null]}>
-              {item.body}
-            </Text>
-          </LinearGradient>
+              <Text style={[styles.cardTitle, darkMode ? styles.cardTitleDark : null]}>
+                {item.title}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
         );
       })}
+      {!showAllNotifications && notifItems.length > displayedNotifications.length ? (
+        <TouchableOpacity
+          style={[styles.listMoreBtn, darkMode ? styles.listMoreBtnDark : null]}
+          activeOpacity={0.86}
+          onPress={() => setShowAllNotifications(true)}
+        >
+          <Text style={[styles.listMoreText, darkMode ? styles.listMoreTextDark : null]}>
+            {pageContent.secondaryCtaLabel || tx('More')}
+          </Text>
+          <View style={styles.listMoreBadge}>
+            <Text style={styles.listMoreBadgeText}>
+              +{notifItems.length - displayedNotifications.length}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      ) : null}
       <Dialog
         visible={dialog.visible}
         variant={dialog.variant}
@@ -382,7 +483,81 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   heroActionText: { color: '#6A2F12', fontWeight: '800', fontSize: 12.5 },
+  detailHero: {
+    borderRadius: 28,
+    padding: 18,
+    minHeight: 230,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    ...createShadow({ color: '#0F172A', offsetY: 10, blur: 18, opacity: 0.18, elevation: 7 }),
+  },
+  detailBackBtn: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  detailBackText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
+  detailHeroIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  detailEyebrow: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  detailHeroTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: '900', marginTop: 6 },
+  detailHeroSub: { color: 'rgba(255,255,255,0.76)', fontSize: 13, fontWeight: '700', marginTop: 8 },
+  detailCard: {
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(15,23,42,0.06)',
+    ...createShadow({ color: '#0F172A', offsetY: 8, blur: 16, opacity: 0.08, elevation: 4 }),
+  },
+  detailCardDark: {
+    backgroundColor: '#111827',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  detailCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  detailIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 18,
+    backgroundColor: '#F5F4E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailMeta: { flex: 1 },
+  detailType: { color: '#6A2F12', fontSize: 13, fontWeight: '900' },
+  detailTime: { color: '#7A684A', fontSize: 12, fontWeight: '700', marginTop: 3 },
+  detailTitle: { color: '#6A2F12', fontSize: 22, fontWeight: '900', lineHeight: 28 },
+  detailBody: { color: '#51462F', fontSize: 14, lineHeight: 23, marginTop: 12 },
+  detailDoneBtn: {
+    marginTop: 22,
+    borderRadius: 18,
+    minHeight: 48,
+    backgroundColor: '#6A2F12',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailDoneText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   heroGhostBtn: {
+    position: 'relative',
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
@@ -391,6 +566,48 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   heroGhostText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12.5 },
+  moreCountBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreCountText: { color: '#FFFFFF', fontSize: 9.5, fontWeight: '900' },
+  listMoreBtn: {
+    alignSelf: 'center',
+    minWidth: 150,
+    minHeight: 44,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    backgroundColor: '#10254A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    ...createShadow({ color: '#0F172A', offsetY: 6, blur: 14, opacity: 0.12, elevation: 4 }),
+  },
+  listMoreBtnDark: { backgroundColor: '#F8FAFC' },
+  listMoreText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  listMoreTextDark: { color: '#10254A' },
+  listMoreBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    paddingHorizontal: 7,
+    backgroundColor: '#E8453C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listMoreBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

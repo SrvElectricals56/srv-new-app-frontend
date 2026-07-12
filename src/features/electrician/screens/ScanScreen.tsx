@@ -19,8 +19,10 @@ import {
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { usePreferenceContext } from '@/shared/preferences';
+import { useAppData } from '@/shared/context/AppDataContext';
 import { scanApi, type DuplicateScanDetails } from '@/shared/api';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
+import { resolveFirstScanVisibility } from '@/shared/utils/firstScanVisibility';
 import type { RewardHistoryItem, ScanMode } from '@/shared/types/rewards';
 import type { Screen } from '@/shared/types/navigation';
 
@@ -262,6 +264,7 @@ export function ScanScreen({
   onCommitRewards: (items: PendingRewardItem[]) => { addedPoints: number; addedScans: number };
 }) {
   const { darkMode, tx } = usePreferenceContext();
+  const { appSettings } = useAppData();
   const { width } = useWindowDimensions();
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -278,6 +281,16 @@ export function ScanScreen({
   const [scanErrorType, setScanErrorType] = useState<ScanErrorType>(null);
   const hasScanFailure = scanErrorType === 'invalid' || scanErrorType === 'request_failed';
   const [duplicateScan, setDuplicateScan] = useState<DuplicateScanDetails | null>(null);
+  const firstScanVisibility = useMemo(
+    () => resolveFirstScanVisibility(appSettings),
+    [appSettings],
+  );
+  const showAnyFirstScanDetail =
+    firstScanVisibility.scannerName ||
+    firstScanVisibility.scannerPhone ||
+    firstScanVisibility.dealerName ||
+    firstScanVisibility.dealerPhone ||
+    firstScanVisibility.scannedAt;
   const frameSize = Math.min(width - 80, 280);
 
   const laserY = useRef(new Animated.Value(0)).current;
@@ -1087,7 +1100,7 @@ export function ScanScreen({
                 : hasScanFailure ? { color: '#991B1B' } : null,
             ]}>
               {scanErrorType === 'already_scanned'
-                ? tx('This QR code is already redeemed. First scanner details are shown below.')
+                ? tx('This QR code has already been redeemed. Original scan details are shown below.')
                 : scanErrorType === 'invalid'
                   ? tx('This QR is not registered with SRV products.')
                   : earnedPoints > 0
@@ -1097,50 +1110,68 @@ export function ScanScreen({
             {scanErrorType === 'already_scanned' ? (
               <View style={[styles.duplicateCard, isDark ? styles.duplicateCardDark : null]}>
                 <Text style={[styles.duplicateTitle, isDark ? styles.duplicateTitleDark : null]}>
-                  {tx('First scanner details')}
+                  {tx('Scanned By')}
                 </Text>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Name')}</Text>
-                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
-                    {duplicateScan?.name || tx('Not available')}
+                {showAnyFirstScanDetail ? (
+                  <>
+                    {firstScanVisibility.scannerName && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Name')}</Text>
+                        <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                          {duplicateScan?.name || tx('Not available')}
+                        </Text>
+                      </View>
+                    )}
+                    {firstScanVisibility.scannerPhone && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Phone')}</Text>
+                        {duplicateScan?.phone ? (
+                          <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.phone)} activeOpacity={0.8}>
+                            <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
+                              +91 {duplicateScan.phone}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
+                        )}
+                      </View>
+                    )}
+                    {firstScanVisibility.dealerName && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Name')}</Text>
+                        <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                          {duplicateScan?.dealerName || tx('Not available')}
+                        </Text>
+                      </View>
+                    )}
+                    {firstScanVisibility.dealerPhone && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Phone')}</Text>
+                        {duplicateScan?.dealerPhone ? (
+                          <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.dealerPhone)} activeOpacity={0.8}>
+                            <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
+                              +91 {duplicateScan.dealerPhone}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
+                        )}
+                      </View>
+                    )}
+                    {firstScanVisibility.scannedAt && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Date & Time')}</Text>
+                        <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                          {duplicateScan?.scannedAt ? new Date(duplicateScan.scannedAt).toLocaleString() : tx('Not available')}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>
+                    {tx('First scanner details are hidden.')}
                   </Text>
-                </View>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Phone')}</Text>
-                  {duplicateScan?.phone ? (
-                    <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.phone)} activeOpacity={0.8}>
-                      <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
-                        +91 {duplicateScan.phone}  {tx('Call')}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
-                  )}
-                </View>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Name')}</Text>
-                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
-                    {duplicateScan?.dealerName || tx('Not available')}
-                  </Text>
-                </View>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Phone')}</Text>
-                  {duplicateScan?.dealerPhone ? (
-                    <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.dealerPhone)} activeOpacity={0.8}>
-                      <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
-                        +91 {duplicateScan.dealerPhone}  {tx('Call')}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
-                  )}
-                </View>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Date & Time')}</Text>
-                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
-                    {duplicateScan?.scannedAt ? new Date(duplicateScan.scannedAt).toLocaleString() : tx('Not available')}
-                  </Text>
-                </View>
+                )}
               </View>
             ) : null}
           </Animated.View>
@@ -1310,7 +1341,7 @@ export function ScanScreen({
               text:
                 scanMode === 'multi'
                   ? 'Select Multi mode and scan products one by one'
-                  : 'Select Single mode for instant point credit',
+                  : 'Single and multiple scan mode for instant credit',
               color: Colors.primary,
             },
             {

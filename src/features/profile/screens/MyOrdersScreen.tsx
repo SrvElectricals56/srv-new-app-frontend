@@ -15,6 +15,21 @@ function formatDate(value?: string | null) {
   return result || 'Recent';
 }
 
+function addDays(value: string | null | undefined, days: number) {
+  const base = value ? new Date(value) : new Date();
+  if (Number.isNaN(base.getTime())) return null;
+  const next = new Date(base);
+  next.setDate(next.getDate() + days);
+  return next.toISOString();
+}
+
+function getExpectedDeliveryDate(order: UserOrder) {
+  return (
+    order.estimatedDeliveryAt ??
+    addDays(order.paidAt ?? order.orderedAt ?? order.createdAt, 5)
+  );
+}
+
 function toStatusLabel(status?: string | null, type?: string | null) {
   const normalized = String(status ?? '').trim().toLowerCase();
   if (type === 'product' && normalized === 'pending') return 'Order Confirmed';
@@ -72,7 +87,7 @@ function getTrackingSteps(order: UserOrder) {
     { label: 'Payment done', value: order.paidAt ? formatDate(order.paidAt) : toStatusLabel(order.paymentStatus), done: order.paymentStatus === 'paid' || order.type === 'gift' },
     { label: 'Processing', value: rejected ? 'Rejected by admin' : 'Order confirmed', done: !rejected && ['pending', 'approved', 'shipped', 'delivered'].includes(status) },
     { label: 'Dispatched', value: order.dispatchedAt ? formatDate(order.dispatchedAt) : (order.trackingNumber || 'Waiting for dispatch'), done: ['shipped', 'delivered'].includes(status) },
-    { label: rejected ? 'Refund' : 'Delivery', value: rejected ? (order.refundMessage || 'Refund will be processed within 2 business days.') : (order.deliveredAt ? formatDate(order.deliveredAt) : `Expected ${formatDate(order.estimatedDeliveryAt)}`), done: rejected || status === 'delivered' },
+    { label: rejected ? 'Refund' : 'Delivery', value: rejected ? (order.refundMessage || 'Refund will be processed within 2 business days.') : (order.deliveredAt ? formatDate(order.deliveredAt) : `Expected ${formatDate(getExpectedDeliveryDate(order))}`), done: rejected || status === 'delivered' },
   ];
 }
 
@@ -88,7 +103,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     ordersApi
       .getAll()
-      .then((data) => setOrders(Array.isArray(data) ? data : []))
+      .then((data) => setOrders(Array.isArray(data) ? data.filter((order) => order.type === 'product') : []))
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
   }, []);
@@ -161,7 +176,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             ]}
           >
             <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-              {pageContent.emptyStateTitle || tx('No orders or redemptions found yet.')}
+              {pageContent.emptyStateTitle || tx('No product orders found yet.')}
             </Text>
           </View>
         ) : (
@@ -170,6 +185,8 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             const trackingSteps = getTrackingSteps(order);
             const statusColors = getOrderStatusColors(order.status, order.paymentStatus);
             const orderImage = getOrderImage(order, giftImageByName);
+            const expectedDeliveryAt = getExpectedDeliveryDate(order);
+            const showExpectedDelivery = !['delivered', 'rejected', 'cancelled'].includes(String(order.status).toLowerCase());
             return (
             <TouchableOpacity
               key={order.id}
@@ -211,6 +228,12 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
                     ? `₹${order.total.toLocaleString('en-IN')}`
                     : `${order.points.toLocaleString('en-IN')} pts`}</Text>
               </View>
+              {showExpectedDelivery && (
+                <View style={[styles.expectedBox, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}>
+                  <Text style={styles.expectedLabel}>{tx('Expected Delivery')}</Text>
+                  <Text style={styles.expectedValue}>{formatDate(expectedDeliveryAt)}</Text>
+                </View>
+              )}
               {expanded && (
                 <View style={[styles.trackingBox, { backgroundColor: theme.soft, borderColor: theme.border }]}>
                   <Text style={[styles.trackingTitle, { color: theme.textPrimary }]}>{tx('Shipping Details')}</Text>
@@ -291,6 +314,18 @@ const styles = StyleSheet.create({
   },
   detailText: { fontSize: 13, fontWeight: '700' },
   dot: { marginHorizontal: 8, fontSize: 14 },
+  expectedBox: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  expectedLabel: { color: '#047857', fontSize: 12, fontWeight: '800' },
+  expectedValue: { color: '#065F46', fontSize: 13, fontWeight: '900' },
   trackingBox: { borderRadius: 18, borderWidth: 1, padding: 14, gap: 10 },
   trackingTitle: { fontSize: 13, fontWeight: '900', marginBottom: 2 },
   trackingStep: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },

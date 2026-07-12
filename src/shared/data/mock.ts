@@ -13,7 +13,7 @@ export const roleContent: Record<
   electrician: {
     title: 'Welcome to SRV',
     description: 'Electrician access for QR rewards, secure login, and fast registration.',
-    tone: ['#F4A45A', '#DE5A36', '#6B231C'],
+    tone: ['#EAF3FF', '#173E80', '#102A63'],
   },
   dealer: {
     title: 'Welcome to SRV',
@@ -23,12 +23,12 @@ export const roleContent: Record<
   user: {
     title: 'Welcome to SRV',
     description: 'Browse certified electrical products and connect with dealers and electricians.',
-    tone: ['#60A5FA', '#2563EB', '#1E3A8A'],
+    tone: ['#FBF1E7', '#8D4A1E', '#6A2F12'],
   },
   counterboy: {
     title: 'Welcome to SRV',
     description: 'Counter boy access for billing support, scanning, and day-to-day store operations.',
-    tone: ['#F87171', '#E8453C', '#991B1B'],
+    tone: ['#F5EDE4', '#8B3C2A', '#6F4E37'],
   },
 };
 

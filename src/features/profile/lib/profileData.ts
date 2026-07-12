@@ -37,6 +37,15 @@ export type DealerMembership = {
 };
 
 export const electricianMenuItems: ProfileMenuItem[] = [
+  { label: 'My Orders', icon: 'order', color: C.purple, bg: C.purpleLight, screen: 'My Orders' },
+  {
+    label: 'Gift Store Order',
+    icon: 'redeem',
+    color: C.primary,
+    bg: C.primaryLight,
+    screen: 'My Redemption',
+  },
+  { label: 'My Cart', icon: 'order', color: '#8B5CF6', bg: '#EDE9FE', route: 'cart' },
   {
     label: 'KYC Verification',
     icon: 'shieldCheck',
@@ -51,15 +60,7 @@ export const electricianMenuItems: ProfileMenuItem[] = [
     bg: '#EDE9FE',
     screen: 'Play Zone',
   },
-  {
-    label: 'My Redemption',
-    icon: 'redeem',
-    color: C.primary,
-    bg: C.primaryLight,
-    screen: 'My Redemption',
-  },
   { label: 'Gift Store', icon: 'gift', color: C.teal, bg: C.tealLight, route: 'rewards' },
-  { label: 'Cart', icon: 'order', color: '#8B5CF6', bg: '#EDE9FE', route: 'cart' },
   {
     label: 'Transfer Points',
     icon: 'transfer',
@@ -67,7 +68,6 @@ export const electricianMenuItems: ProfileMenuItem[] = [
     bg: C.blueLight,
     screen: 'Transfer Points',
   },
-  { label: 'My Orders', icon: 'order', color: C.purple, bg: C.purpleLight, screen: 'My Orders' },
   { label: 'Bank Details', icon: 'bank', color: C.gold, bg: C.goldLight, screen: 'Bank Details' },
   {
     label: 'Refer To A Friend',
@@ -87,6 +87,15 @@ export const electricianMenuItems: ProfileMenuItem[] = [
 ];
 
 export const dealerMenuItems: ProfileMenuItem[] = [
+  { label: 'My Orders', icon: 'order', color: C.purple, bg: C.purpleLight, screen: 'My Orders' },
+  {
+    label: 'Gift Store Order',
+    icon: 'redeem',
+    color: C.primary,
+    bg: C.primaryLight,
+    screen: 'My Redemption',
+  },
+  { label: 'My Cart', icon: 'order', color: '#1D4ED8', bg: '#DBEAFE', route: 'cart' },
   {
     label: 'KYC Verification',
     icon: 'shieldCheck',
@@ -101,15 +110,7 @@ export const dealerMenuItems: ProfileMenuItem[] = [
     bg: '#DBEAFE',
     screen: 'Play Zone',
   },
-  {
-    label: 'My Redemption',
-    icon: 'redeem',
-    color: C.primary,
-    bg: C.primaryLight,
-    screen: 'My Redemption',
-  },
   { label: 'Gift Store', icon: 'gift', color: C.teal, bg: C.tealLight, route: 'rewards' },
-  { label: 'Cart', icon: 'order', color: '#1D4ED8', bg: '#DBEAFE', route: 'cart' },
   {
     label: 'Dealer Bonus',
     icon: 'transfer',
@@ -117,7 +118,6 @@ export const dealerMenuItems: ProfileMenuItem[] = [
     bg: C.blueLight,
     screen: 'Dealer Bonus',
   },
-  { label: 'My Orders', icon: 'order', color: C.purple, bg: C.purpleLight, screen: 'My Orders' },
   { label: 'Bank Details', icon: 'bank', color: C.gold, bg: C.goldLight, screen: 'Bank Details' },
   {
     label: 'Refer To A Friend',
@@ -179,6 +179,7 @@ export const detailRows: ProfileDetailRow[] = [
   { label: 'City', key: 'city' },
   { label: 'District', key: 'district' },
   { label: 'Pincode', key: 'pincode' },
+  { label: 'Aadhaar Number', key: 'aadharNumber', emptyText: 'Not provided' },
   { label: 'GST Holder Name', key: 'gstHolderName' },
   { label: 'GST Number', key: 'gstNumber' },
   { label: 'PAN Holder Name', key: 'panHolderName', emptyText: 'Not provided' },
@@ -194,6 +195,7 @@ export const electricianDetailRows: ProfileDetailRow[] = [
   { label: 'City', key: 'city' },
   { label: 'District', key: 'district' },
   { label: 'Pincode', key: 'pincode' },
+  { label: 'Aadhaar Number', key: 'aadharNumber', emptyText: 'Not provided' },
   { label: 'Electrician Code', key: 'electricianCode' },
 ];
 
@@ -206,6 +208,7 @@ export const counterboyDetailRows: ProfileDetailRow[] = [
   { label: 'City', key: 'city' },
   { label: 'District', key: 'district' },
   { label: 'Pincode', key: 'pincode' },
+  { label: 'Aadhaar Number', key: 'aadharNumber', emptyText: 'Not provided' },
   { label: 'Counter Boy ID', key: 'counterboyCode' },
 ];
 
@@ -215,6 +218,21 @@ export const counterboyMenuItems: ProfileMenuItem[] = electricianMenuItems.filte
 
 /** Customer app — same routes as counter boy; warm accent colors */
 export const userMenuItems: ProfileMenuItem[] = [
+  { label: 'My Orders', icon: 'order', color: '#6A2F12', bg: '#F5E8DC', screen: 'My Orders' },
+  {
+    label: 'Gift Store Order',
+    icon: 'redeem',
+    color: CUSTOMER_THEME.primaryDeep,
+    bg: CUSTOMER_THEME.soft,
+    screen: 'My Redemption',
+  },
+  {
+    label: 'My Cart',
+    icon: 'order',
+    color: CUSTOMER_THEME.primary,
+    bg: '#F0DEC9',
+    route: 'cart',
+  },
   {
     label: 'KYC Verification',
     icon: 'shieldCheck',
@@ -223,27 +241,12 @@ export const userMenuItems: ProfileMenuItem[] = [
     screen: 'KYC Verification',
   },
   {
-    label: 'My Redemption',
-    icon: 'redeem',
-    color: CUSTOMER_THEME.primaryDeep,
-    bg: CUSTOMER_THEME.soft,
-    screen: 'My Redemption',
-  },
-  {
     label: 'Gift Store',
     icon: 'gift',
     color: '#0D9488',
     bg: '#CCFBF1',
     route: 'rewards',
   },
-  {
-    label: 'Cart',
-    icon: 'order',
-    color: CUSTOMER_THEME.primary,
-    bg: '#F0DEC9',
-    route: 'cart',
-  },
-  { label: 'My Orders', icon: 'order', color: '#6A2F12', bg: '#F5E8DC', screen: 'My Orders' },
   { label: 'Bank Details', icon: 'bank', color: '#B45309', bg: '#FEF3C7', screen: 'Bank Details' },
   {
     label: 'Refer To A Friend',
@@ -270,6 +273,7 @@ export const userDetailRows: ProfileDetailRow[] = [
   { label: 'City', key: 'city' },
   { label: 'District', key: 'district' },
   { label: 'Pincode', key: 'pincode' },
+  { label: 'Aadhaar Number', key: 'aadharNumber', emptyText: 'Not provided' },
   { label: 'Customer ID', key: 'userCode' },
 ];
 

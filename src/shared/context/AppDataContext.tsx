@@ -46,7 +46,7 @@ import { useAppPreviewState } from '../preview/appPreviewStore';
 
 const debugLog = (...args: unknown[]) => {
   if (__DEV__) {
-    console.warn(...args);
+    void args;
   }
 };
 
@@ -376,8 +376,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       } else if (!shouldLoadScanHistory) {
         setScanHistory(null);
       }
-      const clearedIds = await storage.getClearedNotificationIds(notificationScope);
-      setNotifications((notifs.data ?? []).filter((notification) => !clearedIds.has(notification.id)));
+      const [clearedIds, pushNotificationsEnabled] = await Promise.all([
+        storage.getClearedNotificationIds(notificationScope),
+        storage.getPushNotificationsEnabled(),
+      ]);
+      setNotifications(
+        pushNotificationsEnabled
+          ? (notifs.data ?? []).filter((notification) => !clearedIds.has(notification.id))
+          : [],
+      );
       setRedemptions(reds.data ?? []);
       if (qr) setUserQrCode(qr);
       if (ref) setReferral(ref);
@@ -440,6 +447,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     const register = async () => {
       try {
+        const pushNotificationsEnabled = await storage.getPushNotificationsEnabled();
+        if (!active || !pushNotificationsEnabled) return;
         const Notifications = await getNativeNotifications();
         if (!Notifications || !active) return;
 
@@ -459,7 +468,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-        if (active && token) await notificationsApi.registerPushToken(token, Platform.OS);
+        if (active && token && pushNotificationsEnabled) await notificationsApi.registerPushToken(token, Platform.OS);
         received = Notifications.addNotificationReceivedListener(() => {
           clearCache('/mobile/notifications');
           void loadPrivateData();

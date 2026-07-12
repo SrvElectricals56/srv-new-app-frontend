@@ -27,7 +27,8 @@ import { formatISTDate } from '@/shared/utils/dateIST';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
 
-type ElectricianStatus = 'Active' | 'Pending';
+type ElectricianStatus = 'Active' | 'Inactive' | 'Pending';
+type NetworkPeriodFilter = 'all' | 'thisMonth' | 'lastMonth';
 
 type Electrician = {
   id: string;
@@ -124,6 +125,37 @@ function StatCard({
   );
 }
 
+const NETWORK_PERIODS: { key: NetworkPeriodFilter; label: string }[] = [
+  { key: 'all', label: 'All Time' },
+  { key: 'thisMonth', label: 'This Month' },
+  { key: 'lastMonth', label: 'Last Month' },
+];
+
+function getMonthRange(period: NetworkPeriodFilter) {
+  const now = new Date();
+  if (period === 'thisMonth') {
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), 1),
+      end: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+    };
+  }
+  if (period === 'lastMonth') {
+    return {
+      start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+      end: new Date(now.getFullYear(), now.getMonth(), 1),
+    };
+  }
+  return null;
+}
+
+function isInNetworkPeriod(item: Electrician, period: NetworkPeriodFilter) {
+  const range = getMonthRange(period);
+  if (!range) return true;
+  if (!item.createdAt) return false;
+  const joinedDate = new Date(item.createdAt);
+  return !Number.isNaN(joinedDate.getTime()) && joinedDate >= range.start && joinedDate < range.end;
+}
+
 export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Screen) => void }) {
   const { tx, darkMode, theme } = usePreferenceContext();
   const { user: authUser } = useAuth();
@@ -133,6 +165,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
   const [apiLoaded, setApiLoaded] = useState(false);
   const [apiLoading, setApiLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [periodFilter, setPeriodFilter] = useState<NetworkPeriodFilter>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -169,7 +202,7 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
           createdAt: e.joinedDate,
           totalScans: e.totalScans ?? 0,
           points: e.totalPoints ?? 0,
-          status: (e.status === 'active' ? 'Active' : 'Pending') as ElectricianStatus,
+          status: (e.status === 'active' ? 'Active' : e.status === 'inactive' || e.status === 'suspended' ? 'Inactive' : 'Pending') as ElectricianStatus,
         }));
         setElectricians(mapped);
       }
@@ -182,34 +215,30 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    if (!term) return electricians;
-    return electricians.filter(
-      (item) =>
+    return electricians.filter((item) => {
+      const matchesPeriod = isInNetworkPeriod(item, periodFilter);
+      if (!matchesPeriod) return false;
+      if (!term) return true;
+      return (
         item.name.toLowerCase().includes(term) ||
         item.phone.includes(term) ||
         item.city.toLowerCase().includes(term)
-    );
-  }, [electricians, query]);
-
-  const isAddedThisMonth = (item: Electrician) => {
-    if (!item.createdAt) return false;
-    const createdDate = new Date(item.createdAt);
-    if (Number.isNaN(createdDate.getTime())) return false;
-    const now = new Date();
-    return (
-      createdDate.getMonth() === now.getMonth() && createdDate.getFullYear() === now.getFullYear()
-    );
-  };
+      );
+    });
+  }, [electricians, periodFilter, query]);
 
   const electricianStats = useMemo(() => {
     let activeCount = 0;
-    let addedThisMonth = 0;
+    let inactiveCount = 0;
     let maxSerial = 0;
+    const periodItems = electricians.filter((item) => isInNetworkPeriod(item, periodFilter));
+
+    for (const item of periodItems) {
+      if (item.status === 'Active') activeCount += 1;
+      if (item.status === 'Inactive') inactiveCount += 1;
+    }
 
     for (const item of electricians) {
-      if (item.status === 'Active') activeCount += 1;
-      if (isAddedThisMonth(item)) addedThisMonth += 1;
-
       if (authUser?.dealerCode && item.electricianCode && !item.electricianCode.startsWith(`${authUser.dealerCode}-`)) {
         continue;
       }
@@ -220,13 +249,13 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
 
     return {
       activeCount,
-      totalElectricians: electricians.length,
-      addedThisMonth,
+      inactiveCount,
+      totalElectricians: periodItems.length,
       nextElectricianSerial: String(maxSerial + 1).padStart(3, '0'),
     };
-  }, [authUser?.dealerCode, electricians]);
+  }, [authUser?.dealerCode, electricians, periodFilter]);
 
-  const { activeCount, totalElectricians, addedThisMonth, nextElectricianSerial } = electricianStats;
+  const { activeCount, inactiveCount, totalElectricians, nextElectricianSerial } = electricianStats;
   const cleanPhone = newPhone.replace(/\D/g, '').slice(0, 10);
   const canAddElectrician =
     newName.trim().length >= 3 &&
@@ -373,23 +402,55 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
 
         <View style={styles.statsRow}>
           <StatCard
-            label={tx('Active')}
+            label={tx('Active Electricians')}
             value={`${activeCount}`}
             accent={darkMode ? ['#1E293B', '#243447', '#2A3C53'] : ['#E8F1FF', '#D4E4FF', '#C4DBFF']}
             darkMode={darkMode}
           />
           <StatCard
-            label={tx('Total\nElectricians')}
-            value={`${totalElectricians}`}
-            accent={darkMode ? ['#1D2A44', '#233658', '#2E4671'] : ['#EEF5FF', '#DCE8FF', '#C7DAFF']}
+            label={tx('Inactive Electricians')}
+            value={`${inactiveCount}`}
+            accent={darkMode ? ['#3B1D1D', '#4B2424', '#5A2A2A'] : ['#FFF1F2', '#FFE4E6', '#FECDD3']}
             darkMode={darkMode}
           />
           <StatCard
-            label={tx('Added This Month')}
-            value={`${addedThisMonth}`}
+            label={tx('Total Network')}
+            value={`${totalElectricians}`}
             accent={darkMode ? ['#102A22', '#14362C', '#1A4537'] : ['#F4F8FF', '#E5EEFF', '#D7E7FF']}
             darkMode={darkMode}
           />
+        </View>
+
+        <View style={[styles.periodPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View>
+            <Text style={[styles.periodTitle, { color: theme.textPrimary }]}>{tx('Network filter')}</Text>
+            <Text style={[styles.periodSub, { color: theme.textMuted }]}>
+              {tx('Check active and inactive electricians by joining month')}
+            </Text>
+          </View>
+          <View style={styles.periodChipRow}>
+            {NETWORK_PERIODS.map((period) => {
+              const selected = periodFilter === period.key;
+              return (
+                <TouchableOpacity
+                  key={period.key}
+                  style={[
+                    styles.periodChip,
+                    {
+                      backgroundColor: selected ? '#173E80' : darkMode ? theme.soft : '#F5F8FC',
+                      borderColor: selected ? '#173E80' : theme.border,
+                    },
+                  ]}
+                  onPress={() => setPeriodFilter(period.key)}
+                  activeOpacity={0.84}
+                >
+                  <Text style={[styles.periodChipText, { color: selected ? '#FFFFFF' : theme.textSecondary }]}>
+                    {tx(period.label)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         <View
@@ -438,13 +499,21 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
                 <View
                   style={[
                     styles.statusPill,
-                    item.status === 'Active' ? styles.statusActive : styles.statusPending,
+                    item.status === 'Active'
+                      ? styles.statusActive
+                      : item.status === 'Inactive'
+                        ? styles.statusInactive
+                        : styles.statusPending,
                   ]}
                 >
                   <Text
                     style={[
                       styles.statusText,
-                      item.status === 'Active' ? styles.statusTextActive : styles.statusTextPending,
+                      item.status === 'Active'
+                        ? styles.statusTextActive
+                        : item.status === 'Inactive'
+                          ? styles.statusTextInactive
+                          : styles.statusTextPending,
                     ]}
                   >
                     {tx(item.status)}
@@ -700,6 +769,38 @@ const styles = StyleSheet.create({
   statLabelDark: { color: '#CBD5E1' },
   statValue: { marginTop: 8, fontSize: 20, color: '#1B2D45', fontWeight: '900' },
   statValueDark: { color: '#F8FAFC' },
+  periodPanel: {
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 14,
+    gap: 12,
+    ...createShadow({ color: '#0F2747', offsetY: 5, blur: 12, opacity: 0.04, elevation: 2 }),
+  },
+  periodTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  periodSub: {
+    marginTop: 3,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '600',
+  },
+  periodChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  periodChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+  },
+  periodChipText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -738,9 +839,11 @@ const styles = StyleSheet.create({
   memberPhone: { marginTop: 2, color: '#7488A1', fontSize: 12.5 },
   statusPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   statusActive: { backgroundColor: '#E8FFF0' },
+  statusInactive: { backgroundColor: '#FFE4E6' },
   statusPending: { backgroundColor: '#FFF4E2' },
   statusText: { fontSize: 11, fontWeight: '800' },
   statusTextActive: { color: '#17834C' },
+  statusTextInactive: { color: '#BE123C' },
   statusTextPending: { color: '#C97910' },
   metaRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   metaPill: {

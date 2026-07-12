@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -7,21 +7,33 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { formatISTDate } from '@/shared/utils/dateIST';
 
-const SPARKLER_COLORS = ['#FACC15', '#F97316', '#EF4444', '#22C55E', '#0EA5E9', '#A855F7', '#EC4899', '#FFFFFF'];
-const CRACKER_PARTICLES = Array.from({ length: 64 }, (_, index) => {
+const FIREWORK_COLORS = ['#FFF7CC', '#FDE68A', '#FACC15', '#F59E0B', '#FFFFFF', '#FB923C', '#EF4444', '#FFD700'];
+const FIREWORK_PARTICLES = Array.from({ length: 72 }, (_, index) => {
   const side = index % 2 === 0 ? 'left' : 'right';
   const lane = Math.floor(index / 2);
-  const distance = 44 + (lane % 16) * 18;
-  const fall = 56 + ((lane * 41) % 230);
-  const size = 9 + (lane % 6);
-  const angle = side === 'left' ? -38 + (lane % 9) * 10 : 38 - (lane % 9) * 10;
+  const distance = 38 + (lane % 18) * 13;
+  const spread = -92 + (lane % 9) * 24 + Math.floor(lane / 9) * 10;
+  const size = 4 + (lane % 4);
+  const rotate = side === 'left' ? -46 + (lane % 8) * 13 : 46 - (lane % 8) * 13;
   return {
     side,
     x: side === 'left' ? distance : -distance,
-    y: fall,
-    color: SPARKLER_COLORS[index % SPARKLER_COLORS.length],
-    rotate: `${angle}deg`,
+    y: spread,
+    color: FIREWORK_COLORS[index % FIREWORK_COLORS.length],
     size,
+    rotate: `${rotate}deg`,
+  };
+});
+const OFFER_CONFETTI = Array.from({ length: 18 }, (_, index) => {
+  const side = index % 2 === 0 ? 'left' : 'right';
+  const lane = Math.floor(index / 2);
+  return {
+    side,
+    x: side === 'left' ? 64 + lane * 18 : -64 - lane * 18,
+    y: -42 + (lane % 5) * 34,
+    rotate: `${side === 'left' ? -26 + lane * 7 : 26 - lane * 7}deg`,
+    color: index % 3 === 0 ? '#DC2626' : index % 3 === 1 ? '#F59E0B' : '#16A34A',
+    label: index % 3 === 0 ? '%' : index % 3 === 1 ? 'OFF' : 'DEAL',
   };
 });
 
@@ -29,10 +41,7 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
   const { role } = useAuth();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'offers');
-  const crackerAnim = useRef(new Animated.Value(0)).current;
-  const sparklerPulse = useRef(new Animated.Value(0)).current;
-  const sparklerLoopRef = useRef<Animated.CompositeAnimation | null>(null);
-  const sparklerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fireworkAnim = useRef(new Animated.Value(0)).current;
   const [loading, setLoading] = useState(true);
   const [offers, setOffers] = useState<
     {
@@ -51,58 +60,24 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
   >([]);
   const [selectedOffer, setSelectedOffer] = useState<(typeof offers)[number] | null>(null);
 
-  const stopSparkler = useCallback(() => {
-    if (sparklerTimerRef.current) {
-      clearTimeout(sparklerTimerRef.current);
-      sparklerTimerRef.current = null;
-    }
-    sparklerLoopRef.current?.stop();
-    sparklerLoopRef.current = null;
-    crackerAnim.stopAnimation();
-    sparklerPulse.stopAnimation();
-    crackerAnim.setValue(0);
-    sparklerPulse.setValue(0);
-  }, [crackerAnim, sparklerPulse]);
+  const openOffer = (offer: (typeof offers)[number]) => {
+    setSelectedOffer(offer);
+  };
 
-  const startSparkler = useCallback(() => {
-    stopSparkler();
-    crackerAnim.setValue(0);
-    sparklerPulse.setValue(0);
-    sparklerLoopRef.current = Animated.loop(
-      Animated.sequence([
-        Animated.timing(sparklerPulse, {
-          toValue: 1,
-          duration: 950,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sparklerPulse, {
-          toValue: 0,
-          duration: 850,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    sparklerLoopRef.current.start();
+  useEffect(() => {
+    if (!selectedOffer) return;
+    fireworkAnim.stopAnimation();
+    fireworkAnim.setValue(0);
     Animated.sequence([
-      Animated.delay(60),
-      Animated.timing(crackerAnim, {
+      Animated.delay(80),
+      Animated.timing(fireworkAnim, {
         toValue: 1,
-        duration: 30000,
-        easing: Easing.out(Easing.quad),
+        duration: 2800,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
-    sparklerTimerRef.current = setTimeout(stopSparkler, 30000);
-  }, [crackerAnim, sparklerPulse, stopSparkler]);
-
-  const openOffer = (offer: (typeof offers)[number]) => {
-    setSelectedOffer(offer);
-    startSparkler();
-  };
-
-  useEffect(() => () => stopSparkler(), [stopSparkler]);
+  }, [fireworkAnim, selectedOffer]);
 
   useEffect(() => {
     offersApi.getAll().then((res) => {
@@ -128,63 +103,84 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
   if (selectedOffer) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.bg }}>
-        <PageHeader title={tx('Offer Details')} onBack={() => { stopSparkler(); setSelectedOffer(null); }} />
-        <View pointerEvents="none" style={styles.crackerLayer}>
+        <PageHeader title={tx('Offer Details')} onBack={() => setSelectedOffer(null)} />
+        <View pointerEvents="none" style={styles.fireworkLayer}>
           {(['left', 'right'] as const).map((side) => (
-            <Animated.View
-              key={side}
-              style={[
-                styles.crackerCore,
-                side === 'left' ? styles.crackerCoreLeft : styles.crackerCoreRight,
-                {
-                  opacity: crackerAnim.interpolate({
-                    inputRange: [0, 0.02, 0.94, 1],
-                    outputRange: [0, 1, 0.85, 0],
-                  }),
-                  transform: [
-                    {
-                      scale: crackerAnim.interpolate({
-                        inputRange: [0, 0.06, 1],
-                        outputRange: [0.45, 1.55, 2.15],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
+            <View key={side}>
+              <Animated.View
+                style={[
+                  styles.fireworkGlow,
+                  side === 'left' ? styles.fireworkOriginLeft : styles.fireworkOriginRight,
+                  {
+                    opacity: fireworkAnim.interpolate({
+                      inputRange: [0, 0.12, 0.58, 1],
+                      outputRange: [0, 0.95, 0.35, 0],
+                    }),
+                    transform: [
+                      {
+                        scale: fireworkAnim.interpolate({
+                          inputRange: [0, 0.18, 1],
+                          outputRange: [0.3, 1.45, 2.6],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.fireworkRing,
+                  side === 'left' ? styles.fireworkOriginLeft : styles.fireworkOriginRight,
+                  {
+                    opacity: fireworkAnim.interpolate({
+                      inputRange: [0, 0.18, 0.62, 1],
+                      outputRange: [0, 0.9, 0.28, 0],
+                    }),
+                    transform: [
+                      {
+                        scale: fireworkAnim.interpolate({
+                          inputRange: [0, 0.28, 1],
+                          outputRange: [0.2, 1.35, 3.2],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+            </View>
           ))}
-          {CRACKER_PARTICLES.map((particle, index) => (
+          {FIREWORK_PARTICLES.map((particle, index) => (
             <Animated.View
-              key={`${particle.color}-${index}`}
+              key={`${particle.side}-${index}`}
               style={[
-                styles.crackerParticle,
-                particle.side === 'left' ? styles.crackerParticleLeft : styles.crackerParticleRight,
+                styles.fireworkParticle,
+                particle.side === 'left' ? styles.fireworkParticleLeft : styles.fireworkParticleRight,
                 {
                   width: particle.size,
-                  height: particle.size * 2.15,
-                  borderRadius: particle.size / 2,
+                  height: particle.size * 3.8,
+                  borderRadius: particle.size,
                   backgroundColor: particle.color,
-                  opacity: sparklerPulse.interpolate({
-                    inputRange: [0, 0.05, 0.18, 0.5, 0.82, 1],
-                    outputRange: [0, 0.45, 1, 0.62, 1, 0.34],
+                  opacity: fireworkAnim.interpolate({
+                    inputRange: [0, 0.08, 0.72, 1],
+                    outputRange: [0, 1, 0.9, 0],
                   }),
                   transform: [
                     {
-                      translateX: crackerAnim.interpolate({
+                      translateX: fireworkAnim.interpolate({
                         inputRange: [0, 1],
                         outputRange: [0, particle.x],
                       }),
                     },
                     {
-                      translateY: crackerAnim.interpolate({
+                      translateY: fireworkAnim.interpolate({
                         inputRange: [0, 1],
                         outputRange: [0, particle.y],
                       }),
                     },
                     {
-                      scale: crackerAnim.interpolate({
-                        inputRange: [0, 0.08, 0.75, 1],
-                        outputRange: [0.75, 1.35, 1.15, 0.85],
+                      scale: fireworkAnim.interpolate({
+                        inputRange: [0, 0.16, 1],
+                        outputRange: [0.3, 1.35, 0.74],
                       }),
                     },
                     { rotate: particle.rotate },
@@ -193,6 +189,72 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
               ]}
             />
           ))}
+          {OFFER_CONFETTI.map((piece, index) => (
+            <Animated.View
+              key={`offer-confetti-${index}`}
+              style={[
+                styles.offerConfetti,
+                piece.side === 'left' ? styles.fireworkParticleLeft : styles.fireworkParticleRight,
+                {
+                  backgroundColor: piece.color,
+                  opacity: fireworkAnim.interpolate({
+                    inputRange: [0, 0.12, 0.78, 1],
+                    outputRange: [0, 1, 0.92, 0],
+                  }),
+                  transform: [
+                    {
+                      translateX: fireworkAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, piece.x],
+                      }),
+                    },
+                    {
+                      translateY: fireworkAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, piece.y],
+                      }),
+                    },
+                    {
+                      scale: fireworkAnim.interpolate({
+                        inputRange: [0, 0.2, 1],
+                        outputRange: [0.55, 1.08, 0.82],
+                      }),
+                    },
+                    { rotate: piece.rotate },
+                  ],
+                },
+              ]}
+            >
+              <Text style={styles.offerConfettiText}>{piece.label}</Text>
+            </Animated.View>
+          ))}
+          <Animated.View
+            style={[
+              styles.bumperBadge,
+              {
+                opacity: fireworkAnim.interpolate({
+                  inputRange: [0, 0.18, 0.72, 1],
+                  outputRange: [0, 1, 1, 0],
+                }),
+                transform: [
+                  {
+                    translateY: fireworkAnim.interpolate({
+                      inputRange: [0, 0.3, 1],
+                      outputRange: [-12, 0, -8],
+                    }),
+                  },
+                  {
+                    scale: fireworkAnim.interpolate({
+                      inputRange: [0, 0.24, 1],
+                      outputRange: [0.82, 1.06, 0.96],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.bumperBadgeText}>{tx('Bumper Offer')}</Text>
+          </Animated.View>
         </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={[styles.detailHero, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -331,44 +393,87 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 14, paddingBottom: 32 },
-  crackerLayer: {
+  fireworkLayer: {
     position: 'absolute',
-    top: 76,
+    top: 56,
     left: 0,
     right: 0,
-    height: 260,
+    height: 190,
     zIndex: 20,
   },
-  crackerCore: {
+  fireworkGlow: {
     position: 'absolute',
-    top: 10,
-    width: 82,
-    height: 82,
-    borderRadius: 41,
-    backgroundColor: 'rgba(250,204,21,0.34)',
-    borderWidth: 2,
-    borderColor: 'rgba(245,158,11,0.58)',
+    top: 48,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(250,204,21,0.44)',
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.82,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 0 },
   },
-  crackerCoreLeft: {
-    left: 18,
-  },
-  crackerCoreRight: {
-    right: 18,
-  },
-  crackerParticle: {
+  fireworkRing: {
     position: 'absolute',
-    top: 36,
+    top: 48,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 2.4,
+    borderColor: 'rgba(245,158,11,0.88)',
+    backgroundColor: 'transparent',
+  },
+  fireworkOriginLeft: {
+    left: 14,
+  },
+  fireworkOriginRight: {
+    right: 14,
+  },
+  fireworkParticle: {
+    position: 'absolute',
+    top: 82,
+    shadowColor: '#FACC15',
+    shadowOpacity: 0.65,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  fireworkParticleLeft: {
+    left: 56,
+  },
+  fireworkParticleRight: {
+    right: 56,
+  },
+  offerConfetti: {
+    position: 'absolute',
+    top: 84,
+    minWidth: 30,
+    height: 18,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
     shadowColor: '#F59E0B',
     shadowOpacity: 0.35,
-    shadowRadius: 7,
-    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
   },
-  crackerParticleLeft: {
-    left: 52,
+  offerConfettiText: { color: '#FFFFFF', fontSize: 8, fontWeight: '900' },
+  bumperBadge: {
+    position: 'absolute',
+    top: 110,
+    alignSelf: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    backgroundColor: '#7C2D12',
+    borderWidth: 1.5,
+    borderColor: '#FACC15',
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
-  crackerParticleRight: {
-    right: 52,
-  },
+  bumperBadgeText: { color: '#FFF7CC', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   offerCard: { borderRadius: 24, borderWidth: 1, padding: 18, gap: 14 },
   offerHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   offerIcon: {

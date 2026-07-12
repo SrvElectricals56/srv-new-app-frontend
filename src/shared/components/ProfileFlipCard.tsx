@@ -75,6 +75,32 @@ function LocationIcon({ color = '#FFFFFF', size = 12 }: { color?: string; size?:
   );
 }
 
+function TapClickIcon({ color = '#FFFFFF', size = 15 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M9.2 11.2V5.9a1.45 1.45 0 1 1 2.9 0v5.3"
+        stroke={color}
+        strokeWidth={1.7}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M12.1 10.4l1.05-.58a1.55 1.55 0 0 1 2.15.62l.18.34.96-.52a1.54 1.54 0 0 1 2.13.66l.12.24.48-.22a1.42 1.42 0 0 1 1.94.78c.22.55.12 1.17-.26 1.62l-3.15 3.73a5.1 5.1 0 0 1-4.17 1.82h-.72a4.85 4.85 0 0 1-3.82-1.86l-2.1-2.66a1.5 1.5 0 0 1 .2-2.08 1.63 1.63 0 0 1 2.2.06l.92.9"
+        stroke={color}
+        strokeWidth={1.7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M5.1 5.1L3.8 3.8M18.9 5.1l1.3-1.3M5.1 18.9l-1.3 1.3"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -281,6 +307,14 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
     (flipped
       ? tx('Tap to return to profile card')
       : tx('Tap to view your details'));
+  const tapHintIconColor =
+    role === 'user'
+      ? '#6A2F12'
+      : counterboyLightCard
+        ? '#2D1A10'
+        : isCounterboy
+          ? '#F5EDE4'
+          : '#FFFFFF';
   const codeLabelText = pageContent.codeLabel || codeLabel;
   const locationLabelText = pageContent.locationLabel || tx('Location');
   const detailHeadingText =
@@ -526,20 +560,30 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
                     >
                       {profile?.phone ? '+91 ' + profile.phone : fallbackText}
                     </Text>
-                    <Animated.Text
+                    <Animated.View
                       style={[
-                        styles.inlineTapHint,
-                        role === 'user' ? styles.inlineTapHintUser : null,
-                        isCounterboy ? styles.inlineTapHintCounterboy : null,
-                        counterboyLightCard ? styles.inlineTapHintCounterboyOnLight : null,
-                        darkMode && !isCounterboy ? styles.inlineTapHintDark : null,
-                        darkMode && isCounterboy ? styles.inlineTapHintCounterboyDark : null,
+                        styles.inlineTapHintWrap,
                         { transform: [{ scale: hintPulse }] },
                       ]}
-                      numberOfLines={1}
                     >
-                      {flipHintText}
-                    </Animated.Text>
+                      <Text
+                        style={[
+                          styles.inlineTapHint,
+                          role === 'user' ? styles.inlineTapHintUser : null,
+                          isCounterboy ? styles.inlineTapHintCounterboy : null,
+                          counterboyLightCard ? styles.inlineTapHintCounterboyOnLight : null,
+                          darkMode && !isCounterboy ? styles.inlineTapHintDark : null,
+                          darkMode && isCounterboy ? styles.inlineTapHintCounterboyDark : null,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {flipHintText}
+                      </Text>
+                      <View style={[styles.inlineTapIcon, counterboyLightCard || role === 'user' ? styles.inlineTapIconLight : null]}>
+                        <View style={styles.inlineTapIconGlow} />
+                        <TapClickIcon color={tapHintIconColor} size={18} />
+                      </View>
+                    </Animated.View>
                   </View>
                 </View>
               </View>
@@ -847,12 +891,47 @@ const styles = StyleSheet.create({
   phoneTextUser: { color: '#7A5336' },
   phoneTextCounterboy: { color: '#E8D9CC' },
   phoneTextCounterboyDark: { color: '#D4C4B8' },
+  inlineTapHintWrap: {
+    marginTop: 12,
+    marginLeft: 56,
+    alignSelf: 'flex-start',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 5,
+    maxWidth: 170,
+  },
   inlineTapHint: {
     color: 'rgba(255,255,255,0.72)',
-    fontSize: 7.8,
-    marginTop: 10,
+    fontSize: 10.5,
+    lineHeight: 13,
+    fontWeight: '900',
     paddingRight: 2,
     flexShrink: 1,
+    textAlign: 'center',
+  },
+  inlineTapIcon: {
+    width: 38,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.32)',
+    overflow: 'hidden',
+  },
+  inlineTapIconLight: {
+    backgroundColor: 'rgba(255,255,255,0.62)',
+    borderColor: 'rgba(106,47,18,0.12)',
+  },
+  inlineTapIconGlow: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    right: -6,
+    top: -8,
   },
   inlineTapHintDark: { color: 'rgba(226,232,240,0.82)' },
   inlineTapHintUser: { color: 'rgba(92,50,22,0.78)' },

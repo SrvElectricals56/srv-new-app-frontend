@@ -1,11 +1,64 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { AppIcon, C, IconName, PageHeader } from '../components/ProfileShared';
+import Svg, { Path, Rect } from 'react-native-svg';
+import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { Dialog } from '@/shared/components/Dialog';
 import { usePreferenceContext } from '@/shared/preferences';
 import { settingsApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
+
+const SUPPORT_PHONE = '8837684004';
+const SUPPORT_WHATSAPP = '918837684004';
+type ContactIconName = 'phone' | 'whatsapp' | 'mail' | 'building';
+
+function ContactActionIcon({ name, color = C.primary, size = 24 }: { name: ContactIconName; color?: string; size?: number }) {
+  if (name === 'whatsapp') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <Path
+          d="M16 3.4C9.06 3.4 3.44 8.83 3.44 15.52c0 2.28.66 4.42 1.8 6.24L3.6 28.6l7.08-1.56A12.9 12.9 0 0 0 16 28c6.94 0 12.56-5.43 12.56-12.48S22.94 3.4 16 3.4Z"
+          fill="#25D366"
+        />
+        <Path
+          d="M22.94 19.46c-.31.86-1.55 1.58-2.2 1.69-.58.1-1.34.14-2.16-.14-.5-.17-1.14-.37-1.96-.72-3.45-1.48-5.7-4.87-5.87-5.1-.17-.22-1.4-1.86-1.4-3.56 0-1.7.89-2.53 1.2-2.88.31-.34.69-.43.92-.43h.66c.21.01.5-.08.78.6.31.74 1.05 2.55 1.14 2.74.09.19.14.41.03.65-.11.24-.17.39-.34.6-.17.21-.36.47-.52.63-.17.17-.35.36-.15.7.2.34.9 1.48 1.94 2.4 1.33 1.18 2.45 1.55 2.8 1.72.35.17.55.14.75-.09.2-.22.86-1 1.09-1.34.23-.34.46-.29.78-.17.31.12 2 .94 2.34 1.11.34.17.57.26.66.41.08.15.08.88-.23 1.74Z"
+          fill="#FFFFFF"
+        />
+      </Svg>
+    );
+  }
+
+  if (name === 'mail') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Rect x="3.5" y="5.5" width="17" height="13" rx="3" stroke={color} strokeWidth={1.9} />
+        <Path d="M5 8l6.1 4.72a1.5 1.5 0 0 0 1.8 0L19 8" stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+
+  if (name === 'building') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path d="M5.5 20V5.8c0-1 .8-1.8 1.8-1.8h7.4c1 0 1.8.8 1.8 1.8V20" stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+        <Path d="M3.8 20h16.4M9 8h4M9 11.5h4M9 15h4" stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M7.1 4.8 9 4.36c.64-.15 1.3.18 1.55.79l.84 2.02c.22.53.08 1.15-.35 1.53l-1.06.94c.67 1.38 1.72 2.43 3.1 3.1l.94-1.06c.38-.43 1-.57 1.53-.35l2.02.84c.61.25.94.91.79 1.55l-.44 1.9c-.18.78-.87 1.34-1.67 1.34C10.07 17 5 11.93 5 5.75c0-.8.56-1.49 1.34-1.67l.76.72Z"
+        stroke={color}
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 export function ContactSupportPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
@@ -13,7 +66,7 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'contact_support');
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'contact' | 'faq'>('contact');
-  const [supportPhone, setSupportPhone] = useState('8837668004');
+  const [supportPhone] = useState(SUPPORT_PHONE);
   const [supportEmail, setSupportEmail] = useState('info@srvelectricals.com');
   const [headOffice] = useState(
     'Paul Electricals\nNangal kalan road, Village Jawaharke, Mansa, Punjab - 151505',
@@ -24,7 +77,6 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     settingsApi.getAppSettings()
       .then((settings) => {
-        if (settings.supportPhone) setSupportPhone(settings.supportPhone);
         if (settings.supportEmail) setSupportEmail(settings.supportEmail);
       })
       .catch(() => {});
@@ -32,9 +84,11 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
 
   const contactItems = useMemo(() => [
     {
-      icon: 'phone' as IconName,
+      icon: 'phone' as ContactIconName,
       label: tx('Phone'),
       value: supportPhone,
+      color: '#0F766E',
+      tint: '#CCFBF1',
       action: async () => {
         const telUrl = `tel:${supportPhone.replace(/[^0-9+]/g, '')}`;
         const canOpen = await Linking.canOpenURL(telUrl);
@@ -46,9 +100,21 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
       },
     },
     {
-      icon: 'mail' as IconName,
+      icon: 'whatsapp' as ContactIconName,
+      label: tx('WhatsApp'),
+      value: `+91 ${supportPhone}`,
+      color: '#16A34A',
+      tint: '#DCFCE7',
+      action: async () => {
+        await openWhatsAppSupport(SUPPORT_WHATSAPP);
+      },
+    },
+    {
+      icon: 'mail' as ContactIconName,
       label: tx('Email'),
       value: supportEmail,
+      color: '#2563EB',
+      tint: '#DBEAFE',
       action: async () => {
         const mailUrl = `mailto:${supportEmail}`;
         const canOpen = await Linking.canOpenURL(mailUrl);
@@ -60,9 +126,11 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
       },
     },
     {
-      icon: 'building' as IconName,
+      icon: 'building' as ContactIconName,
       label: tx('Head Office'),
       value: headOffice,
+      color: '#7C3AED',
+      tint: '#EDE9FE',
       action: () => setDialog({ visible: true, variant: 'info', title: tx('Address'), message: headOffice.replace('\n', ', ') }),
     },
   ], [headOffice, supportEmail, supportPhone, tx]);
@@ -117,8 +185,8 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
                 onPress={item.action}
                 activeOpacity={0.8}
               >
-                <View style={styles.contactIcon}>
-                  <AppIcon name={item.icon} size={22} color={C.primary} />
+                <View style={[styles.contactIcon, { backgroundColor: item.tint }]}>
+                  <ContactActionIcon name={item.icon} size={24} color={item.color} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.contactLabel, { color: theme.textMuted }]}>

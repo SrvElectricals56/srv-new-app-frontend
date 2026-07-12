@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect, Line, Polyline } from 'react-native-svg';
-import { hs, isSmallDevice, isTablet, rf, screenWidth, ws } from '@/shared/hooks/useResponsive';
+import { hs, isShortDevice, isSmallDevice, isTablet, rf, screenWidth, ws } from '@/shared/hooks/useResponsive';
 import { usePreferenceContext } from '@/shared/preferences';
 
-export type UserRole = 'user' | 'dealer' | 'electrician' | 'counter-boy';
+export type UserRole = 'user' | 'dealer' | 'electrician';
 
 interface MainSlideProps {
   onRoleSelect: (role: UserRole) => void;
@@ -36,7 +36,6 @@ const LOGO = require('../../../assets/srv-login-logo.png');
 const DEALER = require('../../../assets/Dealear_main.png');
 const ELECTRICIAN = require('../../../assets/electrician_main.png');
 const CUSTOMER = require('../../../assets/Customer_main.png');
-const COUNTER_BOY = require('../../../assets/Counter_main.png');
 const TOP_CORNER_LEFT = require('../../../assets/top_corner_left_ornament.png');
 const TOP_CORNER_RIGHT = require('../../../assets/top_corner_right_ornament.png');
 
@@ -46,10 +45,6 @@ const GOLD = '#C9802A';
 
 const CARD_DATA: RoleCardConfig[] = [
   {
-    role: 'dealer',
-    image: DEALER,
-  },
-  {
     role: 'electrician',
     image: ELECTRICIAN,
   },
@@ -58,8 +53,8 @@ const CARD_DATA: RoleCardConfig[] = [
     image: CUSTOMER,
   },
   {
-    role: 'counter-boy',
-    image: COUNTER_BOY,
+    role: 'dealer',
+    image: DEALER,
   },
 ];
 
@@ -176,10 +171,12 @@ function RoleCard({
   item,
   onPress,
   cardWidth,
+  cardHeight,
 }: {
   item: RoleCardConfig;
   onPress: () => void;
   cardWidth: DimensionValue;
+  cardHeight: number;
 }) {
   return (
     <Pressable
@@ -188,7 +185,7 @@ function RoleCard({
       onPress={onPress}
       style={[styles.roleCardPressable, { width: cardWidth }]}
     >
-      <View style={styles.roleCard}>
+      <View style={[styles.roleCard, { height: cardHeight }]}>
         <Image
           source={item.image}
           resizeMode="stretch"
@@ -206,7 +203,9 @@ export default function MainSlide({ onRoleSelect }: MainSlideProps) {
   const insets = useSafeAreaInsets();
   const { darkMode } = usePreferenceContext();
   const compact = isSmallDevice;
-  const cardWidth: DimensionValue = isTablet ? '49%' : '49.1%';
+  const cardWidth: DimensionValue = '100%';
+  const cardHeight = isTablet ? hs(150) : isShortDevice ? hs(128) : compact ? hs(134) : hs(140);
+  const topPadding = Math.max(insets.top, hs(8)) + (isShortDevice ? hs(8) : hs(12));
   const cornerTop = insets.top + hs(8);
 
   const bg = darkMode ? '#0B1220' : PAGE_BG;
@@ -223,14 +222,21 @@ export default function MainSlide({ onRoleSelect }: MainSlideProps) {
         style={[
           styles.content,
           compact ? styles.contentCompact : null,
-          { paddingTop: Math.max(insets.top, hs(8)) + hs(18), backgroundColor: bg },
+          { paddingTop: topPadding, backgroundColor: bg },
         ]}
       >
         <TopCornerOrnament side="left" top={cornerTop} />
         <TopCornerOrnament side="right" top={cornerTop} />
 
-        <View style={styles.heroArt}>
-          <Image source={LOGO} resizeMode="contain" style={styles.heroLogo} />
+        <View style={[styles.heroArt, isShortDevice ? styles.heroArtShort : null]}>
+          <Image
+            source={LOGO}
+            resizeMode="contain"
+            style={[
+              styles.heroLogo,
+              isShortDevice ? styles.heroLogoShort : compact ? styles.heroLogoCompact : null,
+            ]}
+          />
         </View>
 
         <DividerTitle label="25 YEARS OF TRUST & IMPROVEMENT" color={GOLD} />
@@ -239,30 +245,32 @@ export default function MainSlide({ onRoleSelect }: MainSlideProps) {
           style={[
             styles.welcomeTitle,
             compact ? styles.welcomeTitleCompact : null,
+            isShortDevice ? styles.welcomeTitleShort : null,
             fontsLoaded ? styles.welcomeTitleLaconic : null,
             { color: titleColor },
           ]}
         >
           SRV WELCOMES YOU
         </Text>
-        <Text style={[styles.welcomeSubtitle, { color: subtitleColor }]}>
+        <Text style={[styles.welcomeSubtitle, isShortDevice ? styles.welcomeSubtitleShort : null, { color: subtitleColor }]}>
           North India&apos;s Largest Metal Box Manufacturer
         </Text>
 
         <DividerTitle label="CHOOSE YOUR PROFILE" color={dividerColor} />
 
-        <View style={styles.grid}>
+        <View style={[styles.grid, isShortDevice ? styles.gridShort : null]}>
           {CARD_DATA.map((item) => (
             <RoleCard
               key={item.role}
               item={item}
               cardWidth={cardWidth}
+              cardHeight={cardHeight}
               onPress={() => onRoleSelect(item.role)}
             />
           ))}
         </View>
 
-        <View style={styles.featuresGrid}>
+        <View style={[styles.featuresGrid, isShortDevice ? styles.featuresGridShort : null]}>
           {FEATURE_BADGES.map((badge) => (
             <View key={badge.title} style={[styles.featureCard, { backgroundColor: featureCardBg, borderColor: featureCardBorder }]}>
               <FeatureIcon icon={badge.icon} accent={badge.accent} />
@@ -305,13 +313,26 @@ const styles = StyleSheet.create({
   },
   heroArt: {
     alignItems: 'center',
-    paddingTop: hs(30),
-    paddingBottom: hs(8),
+    paddingTop: hs(20),
+    paddingBottom: hs(5),
+  },
+  heroArtShort: {
+    paddingTop: hs(12),
+    paddingBottom: hs(2),
   },
   heroLogo: {
-    width: ws(238),
-    height: hs(88),
-    marginBottom: hs(4),
+    width: ws(222),
+    height: hs(74),
+    marginBottom: hs(2),
+  },
+  heroLogoCompact: {
+    width: ws(210),
+    height: hs(70),
+  },
+  heroLogoShort: {
+    width: ws(198),
+    height: hs(62),
+    marginBottom: 0,
   },
   dividerRow: {
     flexDirection: 'row',
@@ -347,7 +368,7 @@ const styles = StyleSheet.create({
     color: DARK_NAVY,
     fontSize: rf(24, 22, 27),
     fontWeight: '900',
-    marginTop: hs(16),
+    marginTop: hs(10),
   },
   welcomeTitleLaconic: {
     fontFamily: 'LaconicBold',
@@ -357,29 +378,43 @@ const styles = StyleSheet.create({
   welcomeTitleCompact: {
     fontSize: rf(22, 20, 24),
   },
+  welcomeTitleShort: {
+    fontSize: rf(20, 19, 22),
+    marginTop: hs(7),
+  },
   welcomeSubtitle: {
     textAlign: 'center',
     color: '#1E2640',
     fontSize: rf(12.8, 11.5, 14.5),
     fontWeight: '500',
-    marginTop: hs(8),
-    marginBottom: hs(10),
+    marginTop: hs(5),
+    marginBottom: hs(7),
+  },
+  welcomeSubtitleShort: {
+    fontSize: rf(11.5, 10.8, 12.5),
+    marginTop: hs(3),
+    marginBottom: hs(5),
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: hs(16),
-    marginTop: hs(10),
+    rowGap: hs(10),
+    marginTop: hs(8),
+  },
+  gridShort: {
+    rowGap: hs(7),
+    marginTop: hs(5),
   },
   roleCardPressable: {
     borderRadius: ws(16),
   },
   roleCard: {
     borderRadius: ws(16),
-    height: hs(146),
+    height: hs(116),
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(13,29,54,0.08)',
     shadowColor: '#0F172A',
@@ -396,22 +431,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'nowrap',
     justifyContent: 'space-between',
-    marginTop: hs(20),
+    marginTop: hs(12),
     gap: ws(6),
+  },
+  featuresGridShort: {
+    marginTop: hs(8),
+    gap: ws(4),
   },
   featureCard: {
     flex: 1,
-    minHeight: hs(58),
+    minHeight: hs(54),
     borderRadius: ws(12),
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E1DB',
     paddingHorizontal: ws(8),
-    paddingVertical: hs(8),
+    paddingVertical: hs(7),
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: hs(6),
+    gap: hs(4),
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.08,

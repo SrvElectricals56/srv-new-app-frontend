@@ -89,6 +89,10 @@ function getExpectedDeliveryDate(order: GiftStoreOrder) {
   return order.estimatedDeliveryAt ?? addDays(order.processedAt ?? order.rawDate, 5);
 }
 
+function getTabLabel(tab: RedemptionTab) {
+  return tab === 'Buy Gift' ? 'Gift Order' : tab;
+}
+
 function getGiftTrackingSteps(order: GiftStoreOrder) {
   const status = String(order.status ?? '').toLowerCase();
   const rejected = status === 'rejected' || status === 'cancelled';
@@ -314,7 +318,7 @@ export function RedemptionPage({
                   <Text
                     style={[styles.tabText, { color: isActive ? theme.accent : theme.textSecondary }]}
                   >
-                    {tx(tab)}
+                    {tx(getTabLabel(tab))}
                   </Text>
                 </TouchableOpacity>
               );

@@ -5,17 +5,26 @@ import { type AppLanguage, usePreferenceContext } from '@/shared/preferences';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { storage } from '@/shared/api';
 
 export function AppSettingsPage({ onBack }: { onBack: () => void }) {
   const { language, setLanguage, darkMode, setDarkMode, t, theme } = usePreferenceContext();
   const { role } = useAuth();
-  const { profile, updatePreferences } = useAppData();
+  const { profile } = useAppData();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'app_settings');
   const [notifEnabled, setNotifEnabled] = useState(profile?.pushEnabled !== false);
   const [savingNotifications, setSavingNotifications] = useState(false);
 
   React.useEffect(() => {
-    setNotifEnabled(profile?.pushEnabled !== false);
+    let active = true;
+    storage.getPushNotificationsEnabled().then((localEnabled) => {
+      if (active) setNotifEnabled(localEnabled && profile?.pushEnabled !== false);
+    }).catch(() => {
+      if (active) setNotifEnabled(profile?.pushEnabled !== false);
+    });
+    return () => {
+      active = false;
+    };
   }, [profile?.pushEnabled]);
 
   const Toggle = ({ val, onToggle, disabled }: { val: boolean; onToggle: () => void; disabled?: boolean }) => (
@@ -34,8 +43,9 @@ export function AppSettingsPage({ onBack }: { onBack: () => void }) {
     setNotifEnabled(nextValue);
     setSavingNotifications(true);
     try {
-      await updatePreferences({ pushEnabled: nextValue });
+      await storage.setPushNotificationsEnabled(nextValue);
     } catch {
+      await storage.setPushNotificationsEnabled(!nextValue);
       setNotifEnabled(!nextValue);
     } finally {
       setSavingNotifications(false);

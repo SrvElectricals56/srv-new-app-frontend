@@ -533,7 +533,7 @@ export function WalletScreen({
   const electricianActions = [
     {
       id: 'buy',
-      label: 'Buy Gift',
+      label: 'Gift Order',
       detail: 'Premium offers',
       icon: GiftIcon,
       tint: '#FBE4CC',
@@ -595,7 +595,7 @@ export function WalletScreen({
   const userActions = [
     {
       id: 'buy',
-      label: 'Buy Gift',
+      label: 'Gift Order',
       detail: 'Premium offers',
       icon: GiftIcon,
       tint: '#FBE4CC',

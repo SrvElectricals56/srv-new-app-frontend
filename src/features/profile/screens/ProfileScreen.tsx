@@ -775,7 +775,7 @@ export function ProfileScreen({
     'Scan History': <ScanHistoryPage onBack={() => setSubPage(null)} />,
     'Contact Support': <ContactSupportPage onBack={() => setSubPage(null)} />,
     'Privacy Policy': <PrivacyPolicyPage onBack={() => setSubPage(null)} />,
-    'Rate Us': <RateUsPage onBack={() => setSubPage(null)} />,
+    'Rate Us': <RateUsPage onBack={() => setSubPage(null)} onHome={() => onNavigate('home')} />,
     'KYC Verification': <KYCVerificationScreen onBack={() => setSubPage(null)} currentRole={currentRole} />,
   };
 

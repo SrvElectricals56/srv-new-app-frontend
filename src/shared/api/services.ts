@@ -1062,6 +1062,14 @@ export type AppSettings = {
   generalCatalogPdfUrl?: string | null;
   dealerCatalogPdfUrl?: string | null;
   catalogPdfUrl?: string | null;
+  qrFirstScannerVisibility?: {
+    scannerName: boolean;
+    scannerPhone: boolean;
+    dealerName: boolean;
+    dealerPhone: boolean;
+    productName: boolean;
+    scannedAt: boolean;
+  };
   rolePageControls?: Record<string, Record<string, boolean>> | null;
   appPageContent?: AppPageContentMap | null;
   pageSectionOrder?: Record<string, Record<string, string[]>> | null;

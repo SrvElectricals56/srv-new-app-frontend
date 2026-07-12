@@ -18,9 +18,11 @@ import {
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { usePreferenceContext } from '@/shared/preferences';
+import { useAppData } from '@/shared/context/AppDataContext';
 import { scanApi, type DuplicateScanDetails } from '@/shared/api';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { Dialog } from '@/shared/components/Dialog';
+import { resolveFirstScanVisibility } from '@/shared/utils/firstScanVisibility';
 import type { RewardHistoryItem, ScanMode } from '@/shared/types/rewards';
 import type { Screen } from '@/shared/types/navigation';
 
@@ -262,6 +264,7 @@ export function ScanScreen({
   onCommitRewards: (items: PendingRewardItem[]) => { addedPoints: number; addedScans: number };
 }) {
   const { darkMode, tx } = usePreferenceContext();
+  const { appSettings } = useAppData();
   const { width } = useWindowDimensions();
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -272,6 +275,17 @@ export function ScanScreen({
   const [detectedLabel, setDetectedLabel] = useState('SRV MCB 32A detected');
   const [earnedPoints, setEarnedPoints] = useState(0);
   const [duplicateScan, setDuplicateScan] = useState<DuplicateScanDetails | null>(null);
+  const firstScanVisibility = useMemo(
+    () => resolveFirstScanVisibility(appSettings),
+    [appSettings],
+  );
+  const showAnyFirstScanDetail =
+    firstScanVisibility.scannerName ||
+    firstScanVisibility.scannerPhone ||
+    firstScanVisibility.dealerName ||
+    firstScanVisibility.dealerPhone ||
+    firstScanVisibility.productName ||
+    firstScanVisibility.scannedAt;
   const [batchItems, setBatchItems] = useState<PendingRewardItem[]>([]);
   const [showAllBatchItems, setShowAllBatchItems] = useState(false);
   const frameSize = Math.min(width - 80, 280);
@@ -1041,54 +1055,74 @@ export function ScanScreen({
                 <Text style={[styles.duplicateTitle, isDark ? styles.duplicateTitleDark : null]}>
                   {tx('Scanned By')}
                 </Text>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Name')}</Text>
-                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
-                    {duplicateScan.name || tx('Not available')}
+                {showAnyFirstScanDetail ? (
+                  <>
+                    {firstScanVisibility.scannerName && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Name')}</Text>
+                        <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                          {duplicateScan.name || tx('Not available')}
+                        </Text>
+                      </View>
+                    )}
+                    {firstScanVisibility.scannerPhone && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Phone')}</Text>
+                        {duplicateScan.phone ? (
+                          <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.phone)} activeOpacity={0.8}>
+                            <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
+                              +91 {duplicateScan.phone}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
+                        )}
+                      </View>
+                    )}
+                    {firstScanVisibility.dealerName && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Name')}</Text>
+                        <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                          {duplicateScan.dealerName || tx('Not available')}
+                        </Text>
+                      </View>
+                    )}
+                    {firstScanVisibility.dealerPhone && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Phone')}</Text>
+                        {duplicateScan.dealerPhone ? (
+                          <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.dealerPhone)} activeOpacity={0.8}>
+                            <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
+                              +91 {duplicateScan.dealerPhone}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
+                        )}
+                      </View>
+                    )}
+                    {firstScanVisibility.productName && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Product')}</Text>
+                        <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                          {duplicateScan.productName || tx('Not available')}
+                        </Text>
+                      </View>
+                    )}
+                    {firstScanVisibility.scannedAt && (
+                      <View style={styles.duplicateRow}>
+                        <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Scanned At')}</Text>
+                        <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
+                          {duplicateScan.scannedAt ? new Date(duplicateScan.scannedAt).toLocaleString() : tx('Not available')}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>
+                    {tx('First scanner details are hidden.')}
                   </Text>
-                </View>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Phone')}</Text>
-                  {duplicateScan.phone ? (
-                    <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.phone)} activeOpacity={0.8}>
-                      <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
-                        +91 {duplicateScan.phone}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
-                  )}
-                </View>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Name')}</Text>
-                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
-                    {duplicateScan.dealerName || tx('Not available')}
-                  </Text>
-                </View>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Dealer Phone')}</Text>
-                  {duplicateScan.dealerPhone ? (
-                    <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.dealerPhone)} activeOpacity={0.8}>
-                      <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
-                        +91 {duplicateScan.dealerPhone}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]}>{tx('Not available')}</Text>
-                  )}
-                </View>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Product')}</Text>
-                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
-                    {duplicateScan.productName || tx('Not available')}
-                  </Text>
-                </View>
-                <View style={styles.duplicateRow}>
-                  <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Scanned At')}</Text>
-                  <Text style={[styles.duplicateValue, isDark ? styles.duplicateValueDark : null]} numberOfLines={2}>
-                    {duplicateScan.scannedAt ? new Date(duplicateScan.scannedAt).toLocaleString() : tx('Not available')}
-                  </Text>
-                </View>
+                )}
               </View>
             ) : null}
           </Animated.View>

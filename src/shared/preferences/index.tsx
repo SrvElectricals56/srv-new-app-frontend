@@ -53,6 +53,7 @@ export const translations = {
     myOrders: 'My Order',
     'My Orders': 'My Orders',
     'Gift Store Order': 'Gift Store Order',
+    'Gift Order': 'Gift Order',
     'My Cart': 'My Cart',
     'Google Pay Number': 'Google Pay Number',
     'Enter Google Pay Number': 'Enter Google Pay Number',

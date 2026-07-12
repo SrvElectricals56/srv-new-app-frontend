@@ -4,7 +4,6 @@ import MainSlide, { UserRole as OnboardingRole } from './Main_Slide';
 import DealerSlide from './Dealer_Slide';
 import ElectricianSlide from './Electrician_Slide';
 import CustomerSlide from './Customer_Slide';
-import CounterBoySlide from '../counterboy/screens/CounterBoySlide';
 import type { UserRole } from '@/shared/types/navigation';
 import { usePreferenceContext } from '@/shared/preferences';
 
@@ -20,9 +19,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
   const handleBack = () => setSelectedRole(null);
 
   const handleContinue = (role: OnboardingRole) => {
-    // counter-boy maps to counterboy app role
-    const appRole: UserRole = role === 'counter-boy' ? 'counterboy' : role;
-    onComplete(appRole);
+    onComplete(role as UserRole);
   };
 
   if (selectedRole === 'dealer') {
@@ -46,14 +43,6 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
       </View>
     );
   }
-  if (selectedRole === 'counter-boy') {
-    return (
-      <View style={[s.root, { backgroundColor: bg }]}>
-        <CounterBoySlide onBack={handleBack} onContinue={() => handleContinue('counter-boy')} />
-      </View>
-    );
-  }
-
   return (
     <View style={[s.root, { backgroundColor: bg }]}>
       <MainSlide onRoleSelect={(role) => setSelectedRole(role)} />

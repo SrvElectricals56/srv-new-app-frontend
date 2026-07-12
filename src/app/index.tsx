@@ -87,7 +87,11 @@ function resolveRewardPoints(
 }
 
 function roleNeedsAdminApproval(role: UserRole | null | undefined): role is UserRole {
-  return role === 'dealer' || role === 'electrician' || role === 'user' || role === 'counterboy';
+  return role === 'dealer' || role === 'electrician' || role === 'user';
+}
+
+function resolveAvailableAppRole(role: UserRole | null | undefined): UserRole {
+  return role === 'dealer' || role === 'electrician' || role === 'user' ? role : 'electrician';
 }
 
 function isApprovedAccountStatus(status?: string | null, role?: UserRole | null) {
@@ -247,7 +251,7 @@ function AppContent() {
     }
 
     void (async () => {
-      const roles: UserRole[] = ['dealer', 'electrician', 'user', 'counterboy'];
+      const roles: UserRole[] = ['electrician', 'user', 'dealer'];
       const entries = await Promise.all(
         roles.map(async (role) => [role, await storage.getPasswordConfigured(role)] as const)
       );
@@ -272,7 +276,7 @@ function AppContent() {
   useEffect(() => {
     if (isPreviewMode) {
       setAuthResolved(true);
-      setCurrentRole(previewState.role);
+      setCurrentRole(resolveAvailableAppRole(previewState.role));
       setCurrentScreen(previewTarget.screen);
       setProfileInitialSubPage(previewTarget.subPage);
       setShowOnboarding(false);
@@ -283,7 +287,14 @@ function AppContent() {
     if (!authLoading && !authResolved) {
       setAuthResolved(true);
       if (isAuthenticated && user && authRole) {
-        setCurrentRole(authRole as UserRole);
+        const availableRole = resolveAvailableAppRole(authRole as UserRole);
+        if (authRole === 'counterboy') {
+          void logout();
+          setCurrentRole('electrician');
+          setShowOnboarding(true);
+          return;
+        }
+        setCurrentRole(availableRole);
         // Sync points/scans from real API profile
         setElectricianRewardPoints(resolveRewardPoints(user));
         setElectricianRewardScans(user.totalScans ?? 0);
@@ -299,6 +310,7 @@ function AppContent() {
     previewState.role,
     previewTarget.screen,
     previewTarget.subPage,
+    logout,
     user,
   ]);
 
@@ -415,6 +427,13 @@ function AppContent() {
     };
     const checkUnread = async () => {
       try {
+        const notificationsEnabled = await storage.getPushNotificationsEnabled();
+        if (!notificationsEnabled) {
+          setHasUnreadNotif(false);
+          setUnreadNotifCount(0);
+          setNotificationBanner(null);
+          return;
+        }
         const { notificationsApi: notifApi } = await import('@/shared/api');
         const res = await notifApi.getAll(authRole as string, user.id);
         if (!res.data?.length) { setHasUnreadNotif(false); setUnreadNotifCount(0); return; }
@@ -849,6 +868,14 @@ function AppContent() {
 
   const handleAuthenticatedRoleStart = useCallback(
     (role: UserRole, options?: OnboardingStartOptions) => {
+      if (role === 'counterboy') {
+        setCurrentRole('electrician');
+        setCurrentScreen('home');
+        setGuestAuthRole(null);
+        setShowOnboarding(true);
+        return;
+      }
+
       if (typeof options?.passwordConfigured === 'boolean') {
         handlePasswordConfiguredChange(role, options.passwordConfigured);
       }
@@ -863,7 +890,7 @@ function AppContent() {
       const realUser = (globalThis as typeof globalThis & { __srvLoginUser?: typeof user }).__srvLoginUser;
       if (realUser) {
         login(realUser, role);
-        if (role === 'electrician' || role === 'user' || role === 'counterboy') {
+        if (role === 'electrician' || role === 'user') {
           setElectricianRewardPoints(resolveRewardPoints(realUser));
           setElectricianRewardScans(realUser.totalScans ?? 0);
         }
@@ -873,7 +900,7 @@ function AppContent() {
           const storedProfile = await storage.getUserProfile<typeof user extends infer T ? Exclude<T, null> : never>();
           if (!storedProfile) return;
           login(storedProfile, role);
-          if (role === 'electrician' || role === 'user' || role === 'counterboy') {
+          if (role === 'electrician' || role === 'user') {
             setElectricianRewardPoints(resolveRewardPoints(storedProfile));
             setElectricianRewardScans(storedProfile.totalScans ?? 0);
           }

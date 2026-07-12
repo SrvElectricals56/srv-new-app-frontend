@@ -48,6 +48,7 @@ const KEYS = {
   PASSWORD_CONFIGURED_PREFIX: 'srv_password_configured',
   SEEN_NOTIFICATION_IDS_PREFIX: 'srv_seen_notification_ids',
   CLEARED_NOTIFICATION_IDS_PREFIX: 'srv_cleared_notification_ids',
+  PUSH_NOTIFICATIONS_ENABLED: 'srv_push_notifications_enabled',
 };
 
 export const storage = {
@@ -103,6 +104,14 @@ export const storage = {
     return (await safeGet(this.buildPasswordConfiguredKey(role))) === 'true';
   },
 
+  async setPushNotificationsEnabled(enabled: boolean) {
+    await safeSet(KEYS.PUSH_NOTIFICATIONS_ENABLED, enabled ? 'true' : 'false');
+  },
+
+  async getPushNotificationsEnabled(): Promise<boolean> {
+    return (await safeGet(KEYS.PUSH_NOTIFICATIONS_ENABLED)) !== 'false';
+  },
+
   async clearAll() {
     const allKeys = await safeGetAllKeys();
     const scopedKeys = allKeys.filter(
@@ -116,6 +125,7 @@ export const storage = {
       KEYS.REFRESH_TOKEN,
       KEYS.USER_PROFILE,
       KEYS.USER_ROLE,
+      KEYS.PUSH_NOTIFICATIONS_ENABLED,
     ];
     await Promise.all([...directKeys, ...scopedKeys].map(safeRemove));
   },

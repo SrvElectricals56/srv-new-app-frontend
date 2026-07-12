@@ -499,6 +499,8 @@ function Field({
 }) {
   const { tx, darkMode } = usePreferenceContext();
   const hasAction = Boolean(actionLabel || actionContent);
+  const isVerifyAction = Boolean(actionLabel) && !actionContent && (actionLabel === 'Verify' || actionLabel === tx('Verify') || actionTestID?.includes('phone-verify'));
+  const hasInlineAction = hasAction && !isVerifyAction;
   const isWideAction = actionLabel === 'Current Address';
   return (
     <View style={s.group}>
@@ -509,13 +511,13 @@ function Field({
             <Text style={[s.prefix, darkMode ? { color: '#94A3B8' } : null]}>{prefix}</Text>
           </View>
         ) : null}
-        <View style={[s.inputWrap, hasAction ? s.inputWrapWithAction : null]}>
+        <View style={[s.inputWrap, hasInlineAction ? s.inputWrapWithAction : null]}>
           <TextInput
             ref={inputRef}
             testID={inputTestID}
             style={[
               s.input,
-              hasAction ? s.inputWithAction : null,
+              hasInlineAction ? s.inputWithAction : null,
               isWideAction ? s.inputWithWideAction : null,
               darkMode ? { color: '#F1F5F9' } : null,
             ]}
@@ -536,7 +538,7 @@ function Field({
             maxLength={maxLength}
           />
         </View>
-        {actionLabel || actionContent ? (
+        {hasInlineAction ? (
           <Pressable
             onPress={onActionPress}
             disabled={actionDisabled}
@@ -556,6 +558,18 @@ function Field({
           </Pressable>
         ) : null}
       </View>
+      {isVerifyAction ? (
+        <Pressable
+          onPress={onActionPress}
+          disabled={actionDisabled}
+          testID={actionTestID}
+          style={[s.verifyActionBelow, actionDisabled ? s.verifyActionBelowDisabled : null]}
+        >
+          <Text style={[s.verifyActionBelowText, actionDisabled ? s.fieldActionTextDisabled : null]}>
+            {actionLabel ? tx(actionLabel) : ''}
+          </Text>
+        </Pressable>
+      ) : null}
       {error ? <Info text={error} kind="error" /> : null}
     </View>
   );
@@ -3562,6 +3576,23 @@ const s = StyleSheet.create({
   fieldActionDisabled: { backgroundColor: '#E3E9F2' },
   fieldActionText: { color: C.accentA, fontSize: 11, fontWeight: '800' },
   fieldActionTextDisabled: { color: '#97A6BE' },
+  verifyActionBelow: {
+    marginTop: 9,
+    minHeight: 46,
+    borderRadius: 14,
+    paddingHorizontal: 22,
+    alignSelf: 'stretch',
+    backgroundColor: '#EEF4FF',
+    borderWidth: 1,
+    borderColor: '#D8E6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifyActionBelowDisabled: {
+    backgroundColor: '#E3E9F2',
+    borderColor: '#D4DEEB',
+  },
+  verifyActionBelowText: { color: C.accentA, fontSize: 14, fontWeight: '900' },
   btnOuter: { marginTop: 4 },
   btn: {
     height: 46,

@@ -1037,7 +1037,7 @@ export function ScanScreen({
             {duplicateScan ? (
               <View style={[styles.duplicateCard, isDark ? styles.duplicateCardDark : null]}>
                 <Text style={[styles.duplicateTitle, isDark ? styles.duplicateTitleDark : null]}>
-                  {tx('First scanner details')}
+                  {tx('Scanned By')}
                 </Text>
                 <View style={styles.duplicateRow}>
                   <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Name')}</Text>
@@ -1050,7 +1050,7 @@ export function ScanScreen({
                   {duplicateScan.phone ? (
                     <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.phone)} activeOpacity={0.8}>
                       <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
-                        +91 {duplicateScan.phone}  {tx('Call')}
+                        +91 {duplicateScan.phone}
                       </Text>
                     </TouchableOpacity>
                   ) : (
@@ -1068,7 +1068,7 @@ export function ScanScreen({
                   {duplicateScan.dealerPhone ? (
                     <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.dealerPhone)} activeOpacity={0.8}>
                       <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
-                        +91 {duplicateScan.dealerPhone}  {tx('Call')}
+                        +91 {duplicateScan.dealerPhone}
                       </Text>
                     </TouchableOpacity>
                   ) : (

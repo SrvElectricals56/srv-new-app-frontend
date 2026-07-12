@@ -15,6 +15,7 @@ export type Screen =
   | 'dealer_tier'
   | 'electrician_tier'
   | 'bank_details'
+  | 'my_redemption'
   | 'transfer_points'
   | 'dealer_bonus'
   | 'support';

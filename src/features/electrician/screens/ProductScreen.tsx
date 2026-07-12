@@ -24,17 +24,63 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
+import { premium, premiumShadow } from '@/shared/theme/premium';
 import type { Screen } from '@/shared/types/navigation';
 import { activityApi, catalogApi, resolveImageUrl, type Product as ApiProduct, type ProductCategory as ApiProductCategory } from '@/shared/api';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const C = {
-  primary: '#E8453C',
-  bg: '#F2F3F7',
-  surface: '#FFFFFF',
-  border: '#EEEEF3',
-  textDark: '#1C1E2E',
-  textMuted: '#9898A8',
+  primary: premium.navy,
+  bg: premium.bg,
+  surface: premium.surface,
+  border: premium.line,
+  textDark: premium.ink,
+  textMuted: premium.muted,
+};
+
+type ProductRole = 'electrician' | 'dealer' | 'customer' | 'counterboy';
+type ProductRoleTheme = {
+  primary: string;
+  soft: string;
+  pageBg: string;
+  iconSoft: string;
+  onPrimary: string;
+  activeMeta: string;
+};
+
+const PRODUCT_ROLE_THEMES: Record<ProductRole, ProductRoleTheme> = {
+  electrician: {
+    primary: premium.navy,
+    soft: premium.navySoft,
+    iconSoft: premium.navySoft,
+    pageBg: '#F3F7FC',
+    onPrimary: '#FFFFFF',
+    activeMeta: 'rgba(255,255,255,0.86)',
+  },
+  dealer: {
+    primary: premium.navy,
+    soft: premium.navySoft,
+    iconSoft: premium.navySoft,
+    pageBg: '#F3F7FC',
+    onPrimary: '#FFFFFF',
+    activeMeta: 'rgba(255,255,255,0.86)',
+  },
+  customer: {
+    primary: '#8D4A1E',
+    soft: '#FBF1E7',
+    iconSoft: '#F5E8DC',
+    pageBg: '#FFF9F2',
+    onPrimary: '#FFFFFF',
+    activeMeta: 'rgba(255,255,255,0.86)',
+  },
+  counterboy: {
+    primary: '#8B3C2A',
+    soft: '#F5EDE4',
+    iconSoft: '#F0E4D4',
+    pageBg: '#F9F4ED',
+    onPrimary: '#FFFFFF',
+    activeMeta: 'rgba(255,255,255,0.86)',
+  },
 };
 
 // ── Category colour map (keyed by normalised category id) ────────────────────
@@ -381,8 +427,8 @@ function buildUiCategories(products: UiProduct[], apiCats: ApiProductCategory[])
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 const ProductCard = memo(function ProductCard({
-  product, cardW, onOpen, onAction, onCart, darkMode, actionLabel, cartBusy,
-}: { product: UiProduct; cardW: number; onOpen: () => void; onAction?: () => void; onCart?: () => void; darkMode: boolean; actionLabel: string; cartBusy?: boolean }) {
+  product, cardW, onOpen, onAction, onCart, darkMode, actionLabel, cartBusy, roleTheme,
+}: { product: UiProduct; cardW: number; onOpen: () => void; onAction?: () => void; onCart?: () => void; darkMode: boolean; actionLabel: string; cartBusy?: boolean; roleTheme: ProductRoleTheme }) {
   const cc = catColor(product.category);
   const mrp = product.mrp && product.mrp > product.price ? product.mrp : null;
   const discount = mrp ? Math.round(((mrp - product.price) / mrp) * 100) : 0;
@@ -426,8 +472,8 @@ const ProductCard = memo(function ProductCard({
   const rotateX = tiltY.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-5deg'] });
 
   // Bigger image — fills almost full card width
-  const imgSize   = cardW + 35;
-  const imgHeight = cardW + 60;
+  const imgSize   = Math.round(cardW * 0.9);
+  const imgHeight = Math.round(cardW * 0.98);
 
   return (
     <Pressable onPress={onOpen} onPressIn={onIn} onPressOut={onOut}>
@@ -436,7 +482,7 @@ const ProductCard = memo(function ProductCard({
         {/* Coloured glow shadow on press */}
         <Animated.View style={[
           styles.cardGlow,
-          { width: cardW, backgroundColor: cc.scanText + '33', opacity: glowOp },
+          { width: cardW, backgroundColor: cc.scanText + '18', opacity: glowOp },
         ]} />
 
         <Animated.View style={[
@@ -444,7 +490,7 @@ const ProductCard = memo(function ProductCard({
           darkMode ? styles.cardDark : null,
           {
             width: cardW,
-            minHeight: cardW * 2.18,
+            minHeight: cardW * 1.78,
             transform: [
               { scale: pressScale },
               { perspective: 800 },
@@ -455,17 +501,17 @@ const ProductCard = memo(function ProductCard({
         ]}>
           {/* Image zone — taller, bigger image */}
           <LinearGradient
-            colors={['#FFFFFF', '#FFFFFF', '#FFFFFF']}
+            colors={darkMode ? ['#111827', '#182233', '#111827'] : ['#FFFFFF', '#FFFFFF', '#F8FAFD']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={[styles.imgZone, { height: imgHeight }]}
           >
             {product.badge != null && (
-              <View style={[styles.badge, { backgroundColor: cc.scanText }]}>
-                <Text style={styles.badgeText}>{product.badge}</Text>
+              <View style={[styles.badge, { backgroundColor: roleTheme.primary }]}>
+                <Text style={[styles.badgeText, { color: roleTheme.onPrimary }]}>{product.badge}</Text>
               </View>
             )}
-            <View style={[styles.ptsBadge, { borderColor: cc.scanText + '44' }]}>
-              <Text style={[styles.ptsBadgeText, { color: cc.scanText }]}>+{product.points} pts</Text>
+            <View style={[styles.ptsBadge, { borderColor: premium.line }]}>
+              <Text style={[styles.ptsBadgeText, { color: roleTheme.primary }]}>+{product.points} pts</Text>
             </View>
             {discount > 0 ? (
               <View style={styles.cardDiscountBadge}>
@@ -476,35 +522,38 @@ const ProductCard = memo(function ProductCard({
           </LinearGradient>
 
           {/* Thin accent line */}
-          <View style={[styles.accentLine, { backgroundColor: cc.scanText }]} />
+          <View style={styles.productDivider} />
 
           {/* Info zone */}
           <View style={[styles.infoZone, darkMode ? styles.infoZoneDark : null]}>
             <View>
-              <View style={styles.productNamePriceRow}>
-                <Text style={[styles.productName, darkMode ? styles.productNameDark : null]} numberOfLines={2}>{product.name}</Text>
-                <Text style={[styles.productCardPrice, { color: cc.scanText }]}>₹{product.price.toLocaleString('en-IN')}</Text>
+              <Text style={[styles.productName, darkMode ? styles.productNameDark : null]} numberOfLines={2}>{product.name}</Text>
+              <View style={styles.productPriceRow}>
+                <Text style={[styles.productCardPrice, darkMode ? styles.productCardPriceDark : null]}>₹{product.price.toLocaleString('en-IN')}</Text>
+                {mrp ? (
+                  <>
+                    <Text style={styles.productMrp}>₹{mrp.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.productOfferText}>{discount}% off</Text>
+                  </>
+                ) : null}
               </View>
               {mrp ? (
-                <View style={styles.productOfferRow}>
-                  <Text style={styles.productMrp}>₹{mrp.toLocaleString('en-IN')}</Text>
-                  <Text style={styles.productOfferText}>{discount}% off</Text>
-                </View>
+                <Text style={styles.productTaxText}>Inclusive of all taxes</Text>
               ) : null}
               <Text style={[styles.productSub,  darkMode ? styles.productSubDark  : null]} numberOfLines={2}>{product.sub}</Text>
             </View>
             <View style={styles.cardActionRow}>
-              <TouchableOpacity onPress={onAction ?? onOpen} style={[styles.scanBtn, { backgroundColor: cc.scanBg }]} activeOpacity={0.8}>
-                <ScanIcon size={15} color={cc.scanText} />
-                <Text style={[styles.scanBtnText, { color: cc.scanText }]}>{actionLabel}</Text>
+              <TouchableOpacity onPress={onAction ?? onOpen} style={[styles.scanBtn, { backgroundColor: roleTheme.soft }]} activeOpacity={0.8}>
+                <ScanIcon size={15} color={roleTheme.primary} />
+                <Text style={[styles.scanBtnText, { color: roleTheme.primary }]}>{actionLabel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={onCart}
-                style={[styles.quickCartBtn, { backgroundColor: cc.scanText, opacity: cartBusy ? 0.72 : 1 }]}
+                style={[styles.quickCartBtn, { backgroundColor: roleTheme.primary, opacity: cartBusy ? 0.72 : 1 }]}
                 activeOpacity={0.82}
                 disabled={cartBusy}
               >
-                {cartBusy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <CartIcon size={18} color="#FFFFFF" />}
+                {cartBusy ? <ActivityIndicator size="small" color={roleTheme.onPrimary} /> : <CartIcon size={18} color={roleTheme.onPrimary} />}
               </TouchableOpacity>
             </View>
           </View>
@@ -522,6 +571,7 @@ function ProductDetailView({
   role,
   darkMode,
   isCustomer,
+  roleTheme,
   onBack,
   onAddToCart,
   onBuyNow,
@@ -536,6 +586,7 @@ function ProductDetailView({
   role: 'electrician' | 'dealer' | 'customer' | 'counterboy';
   darkMode: boolean;
   isCustomer: boolean;
+  roleTheme: ProductRoleTheme;
   onBack: () => void;
   onAddToCart: () => void;
   onBuyNow: () => void;
@@ -546,12 +597,11 @@ function ProductDetailView({
   onQtyChange: (qty: number) => void;
 }) {
   const { tx } = usePreferenceContext();
-  const cc = catColor(product.category);
-  const bg = darkMode ? '#0F172A' : '#F2F3F7';
-  const card = darkMode ? '#172033' : '#FFFFFF';
-  const text = darkMode ? '#F8FAFC' : '#1C1E2E';
-  const muted = darkMode ? '#A8B3C7' : '#6B7280';
-  const border = darkMode ? '#25344E' : '#E5E7EB';
+  const bg = darkMode ? '#0B1220' : '#FFFFFF';
+  const card = darkMode ? '#111827' : '#FFFFFF';
+  const text = darkMode ? '#F8FAFC' : premium.ink;
+  const muted = darkMode ? '#A8B3C7' : premium.muted;
+  const border = darkMode ? '#25344E' : premium.line;
   const mrp = product.mrp && product.mrp > product.price ? product.mrp : null;
   const discount = mrp ? Math.round(((mrp - product.price) / mrp) * 100) : 0;
 
@@ -568,8 +618,8 @@ function ProductDetailView({
           </View>
         </View>
 
-        <LinearGradient colors={catColor(product.category).cardGradient} style={[styles.detailImagePanel, { borderColor: border }]}>
-          {product.badge ? <Text style={[styles.detailBadge, { backgroundColor: cc.scanText }]}>{product.badge}</Text> : null}
+        <LinearGradient colors={darkMode ? ['#111827', '#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFD', '#F5F7FB']} style={[styles.detailImagePanel, { borderColor: border }]}>
+          {product.badge ? <Text style={[styles.detailBadge, { backgroundColor: roleTheme.primary, color: roleTheme.onPrimary }]}>{product.badge}</Text> : null}
           {discount > 0 ? <Text style={styles.detailDiscount}>{discount}% OFF</Text> : null}
           <Image source={{ uri: product.imageUrl }} style={styles.detailImage} contentFit="contain" transition={200} />
         </LinearGradient>
@@ -579,12 +629,12 @@ function ProductDetailView({
             <View style={{ flex: 1 }}>
               <View style={styles.detailNamePriceRow}>
                 <Text style={[styles.detailProductName, { color: text }]}>{product.name}</Text>
-                <Text style={[styles.detailInlinePrice, { color: cc.scanText }]}>₹{product.price.toLocaleString('en-IN')}</Text>
+                <Text style={[styles.detailInlinePrice, { color: text }]}>₹{product.price.toLocaleString('en-IN')}</Text>
               </View>
-              <Text style={[styles.detailCategory, { color: cc.scanText }]}>{catLabel(product.category)}</Text>
+              <Text style={[styles.detailCategory, { color: roleTheme.primary }]}>{catLabel(product.category)}</Text>
             </View>
-            <View style={[styles.detailPointsPill, { backgroundColor: cc.scanBg }]}>
-              <Text style={[styles.detailPointsText, { color: cc.scanText }]}>+{product.points} pts</Text>
+            <View style={[styles.detailPointsPill, { backgroundColor: roleTheme.soft }]}>
+              <Text style={[styles.detailPointsText, { color: roleTheme.primary }]}>+{product.points} pts</Text>
             </View>
           </View>
 
@@ -597,7 +647,7 @@ function ProductDetailView({
           </View>
 
           <View style={styles.detailTrustRow}>
-            <View style={[styles.detailTrustChip, { backgroundColor: darkMode ? '#102032' : '#EEF4FF', borderColor: border }]}>
+            <View style={[styles.detailTrustChip, { backgroundColor: darkMode ? '#102032' : roleTheme.soft, borderColor: border }]}>
               <Text style={styles.detailTrustIcon}>✓</Text>
               <Text style={[styles.detailTrustText, { color: text }]}>{tx('SRV Assured')}</Text>
             </View>
@@ -607,7 +657,7 @@ function ProductDetailView({
             </View>
           </View>
 
-          <View style={[styles.detailOfferPanel, { borderColor: cc.scanText + '33', backgroundColor: darkMode ? '#111827' : '#FFFDF5' }]}>
+          <View style={[styles.detailOfferPanel, { borderColor: roleTheme.primary + '33', backgroundColor: darkMode ? '#111827' : roleTheme.soft }]}>
             <Text style={[styles.detailOfferTitle, { color: text }]}>{tx('Available Offers')}</Text>
             <Text style={[styles.detailOfferLine, { color: muted }]}>• {tx('Earn')} {product.points} {tx('reward points on this product.')}</Text>
             {discount > 0 ? (
@@ -647,7 +697,7 @@ function ProductDetailView({
                   <Image source={{ uri: item.imageUrl }} style={styles.relatedImage} contentFit="contain" transition={150} />
                   <Text style={[styles.relatedName, { color: text }]} numberOfLines={2}>{item.name}</Text>
                   <Text style={[styles.relatedPrice, { color: text }]}>₹{item.price.toLocaleString('en-IN')}</Text>
-                  <Text style={[styles.relatedPoints, { color: catColor(item.category).scanText }]}>+{item.points} pts</Text>
+              <Text style={[styles.relatedPoints, { color: roleTheme.primary }]}>+{item.points} pts</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -660,14 +710,14 @@ function ProductDetailView({
           <Text style={[styles.detailQtyLabel, { color: muted }]}>{tx('Qty')}</Text>
           <View style={[styles.detailQtyPicker, { backgroundColor: darkMode ? '#111827' : '#F8FAFC', borderColor: border }]}>
             <Pressable
-              style={[styles.detailQtyBtn, { backgroundColor: cc.scanText }]}
+              style={[styles.detailQtyBtn, { backgroundColor: roleTheme.primary }]}
               onPress={() => qty > 1 && onQtyChange(qty - 1)}
             >
               <Text style={styles.detailQtyBtnText}>−</Text>
             </Pressable>
             <Text style={[styles.detailQtyValue, { color: text }]}>{qty}</Text>
             <Pressable
-              style={[styles.detailQtyBtn, { backgroundColor: cc.scanText }]}
+              style={[styles.detailQtyBtn, { backgroundColor: roleTheme.primary }]}
               onPress={() => onQtyChange(qty + 1)}
             >
               <Text style={styles.detailQtyBtnText}>+</Text>
@@ -679,18 +729,18 @@ function ProductDetailView({
           <TouchableOpacity
             onPress={onAddToCart}
             disabled={actionBusy !== null}
-            style={[styles.detailSecondaryBtn, { borderColor: cc.scanText, opacity: actionBusy ? 0.75 : 1 }]}
+            style={[styles.detailSecondaryBtn, { borderColor: roleTheme.primary, opacity: actionBusy ? 0.75 : 1 }]}
             activeOpacity={0.84}
           >
-            {actionBusy === 'cart' ? <ActivityIndicator color={cc.scanText} /> : <Text style={[styles.detailSecondaryText, { color: cc.scanText }]}>{tx('Add to Cart')}</Text>}
+            {actionBusy === 'cart' ? <ActivityIndicator color={roleTheme.primary} /> : <Text style={[styles.detailSecondaryText, { color: roleTheme.primary }]}>{tx('Add to Cart')}</Text>}
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onBuyNow}
             disabled={actionBusy !== null}
-            style={[styles.detailPrimaryBtn, { backgroundColor: isCustomer ? '#6A2F12' : cc.scanText, opacity: actionBusy ? 0.75 : 1 }]}
+            style={[styles.detailPrimaryBtn, { backgroundColor: roleTheme.primary, opacity: actionBusy ? 0.75 : 1 }]}
             activeOpacity={0.84}
           >
-            {actionBusy === 'buy' ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.detailPrimaryText}>{tx('Buy Now')}</Text>}
+            {actionBusy === 'buy' ? <ActivityIndicator color={roleTheme.onPrimary} /> : <Text style={[styles.detailPrimaryText, { color: roleTheme.onPrimary }]}>{tx('Buy Now')}</Text>}
           </TouchableOpacity>
         </View>
       </View>
@@ -754,7 +804,16 @@ export function ProductScreen({
     () => ({ id: 'all', label: pageContent.pageTitle || tx('All Products'), count: products.length, imageUrl: DEFAULT_IMAGES.fanbox }),
     [pageContent.pageTitle, products.length, tx]
   );
-  const categoryItems = useMemo(() => [allCategoryItem, ...uiCategories], [allCategoryItem, uiCategories]);
+  const categoryItems = useMemo(() => {
+    if (category === 'all') return [allCategoryItem, ...uiCategories];
+    const activeCategory = uiCategories.find((item) => item.id === category);
+    if (!activeCategory) return [allCategoryItem, ...uiCategories];
+    return [
+      activeCategory,
+      allCategoryItem,
+      ...uiCategories.filter((item) => item.id !== category),
+    ];
+  }, [allCategoryItem, category, uiCategories]);
 
   // Sync initialCategory changes
   useEffect(() => {
@@ -820,11 +879,10 @@ export function ProductScreen({
   }, [filtered]);
 
   const currentCat = categoryItems.find(c => c.id === category) ?? allCategoryItem;
-  const cc = category === 'all' ? DEFAULT_CAT_COLOR : catColor(category);
-
   const isDealer = role === 'dealer';
   const isCustomer = role === 'customer';
   const isCounterboy = role === 'counterboy';
+  const productTheme = PRODUCT_ROLE_THEMES[role] ?? PRODUCT_ROLE_THEMES.electrician;
   const productActionLabel = tx('Buy Now');
   const requireAuth = useCallback(() => {
     if (isAuthenticated) return true;
@@ -1047,6 +1105,7 @@ export function ProductScreen({
         darkMode={darkMode}
         actionLabel={productActionLabel}
         cartBusy={cardCartBusyId === item.left.id}
+        roleTheme={productTheme}
       />
       {item.right
         ? (
@@ -1059,11 +1118,12 @@ export function ProductScreen({
             darkMode={darkMode}
             actionLabel={productActionLabel}
             cartBusy={cardCartBusyId === item.right!.id}
+            roleTheme={productTheme}
           />
         )
         : <View style={{ width: cardW }} />}
     </View>
-  ), [cardCartBusyId, cardW, darkMode, handleCardAction, handleOpenProduct, handleQuickAddToCart, productActionLabel]);
+  ), [cardCartBusyId, cardW, darkMode, handleCardAction, handleOpenProduct, handleQuickAddToCart, productActionLabel, productTheme]);
 
   const keyExtractor = useCallback((item: ProductRow) => item.key, []);
 
@@ -1072,22 +1132,20 @@ export function ProductScreen({
     <View style={{ gap: 14, paddingBottom: 4 }}>
       {/* Title */}
       <View style={styles.pageTitleRow}>
-        <Text style={[styles.pageTitle, darkMode ? styles.pageTitleDark : null, isCounterboy && { color: '#5C3D2E' }, isCounterboy && darkMode && { color: '#F5EDE4' }]}>{pageContent.pageTitle || tx('All Products')}</Text>
+        <Text style={[styles.pageTitle, darkMode ? styles.pageTitleDark : null]}>{pageContent.pageTitle || tx('All Products')}</Text>
         <TouchableOpacity
           onPress={() => onNavigate('cart')}
           style={[
             styles.headerCartBtn,
             darkMode ? styles.headerCartBtnDark : null,
-            isCounterboy && { borderColor: '#E0D0C0', backgroundColor: '#F9F4ED' },
-            isCounterboy && darkMode && { borderColor: '#2D1C14', backgroundColor: '#1A0F0A' },
           ]}
           activeOpacity={0.82}
           accessibilityRole="button"
           accessibilityLabel={tx('Open cart')}
         >
-          <CartIcon size={21} color={isCounterboy ? '#8B3C2A' : darkMode ? '#F8FAFC' : C.primary} />
+          <CartIcon size={21} color="#D92D27" />
           {cartCount > 0 ? (
-            <View style={styles.headerCartBadge}>
+            <View style={[styles.headerCartBadge, { backgroundColor: '#D92D27' }]}>
               <Text style={styles.headerCartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
             </View>
           ) : null}
@@ -1095,14 +1153,14 @@ export function ProductScreen({
       </View>
 
       {/* Search bar */}
-      <View style={[styles.searchWrap, darkMode ? styles.searchWrapDark : null, isCounterboy && { backgroundColor: '#F9F4ED', borderColor: '#E0D0C0' }, isCounterboy && darkMode && { backgroundColor: '#1A0F0A', borderColor: '#2D1C14' }]}>
+      <View style={[styles.searchWrap, darkMode ? styles.searchWrapDark : null]}>
         <Text style={{ fontSize: 15, color: C.textMuted }}>🔍</Text>
         <TextInput
           value={search}
           onChangeText={setSearch}
           placeholder={pageContent.searchPlaceholder || tx('Search all products...')}
           placeholderTextColor={C.textMuted}
-          style={[styles.searchInput, darkMode ? styles.searchInputDark : null, isCounterboy && { color: '#2D1A10' }, isCounterboy && darkMode && { color: '#F5EDE4' }]}
+          style={[styles.searchInput, darkMode ? styles.searchInputDark : null]}
         />
         {search.length > 0 && (
           <Pressable onPress={() => setSearch('')}>
@@ -1113,16 +1171,11 @@ export function ProductScreen({
           onPress={() => setShowFilters(v => !v)}
           style={[
             styles.filterBtn,
-            showFilters && { backgroundColor: 
-              isCustomer ? '#6A2F12' :
-              isDealer   ? '#173E80' :
-              isCounterboy ? '#8B3C2A' :
-              '#173E80'
-            }
+            showFilters && { backgroundColor: productTheme.primary }
           ]}
           activeOpacity={0.82}
         >
-          <FilterIcon color={showFilters ? '#FFFFFF' : C.textDark} />
+          <FilterIcon color={showFilters ? productTheme.onPrimary : C.textDark} />
         </TouchableOpacity>
       </View>
 
@@ -1145,7 +1198,7 @@ export function ProductScreen({
                 <Text style={[styles.suggestionName, { color: darkMode ? '#F8FAFC' : '#1C1E2E' }]} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.suggestionMeta} numberOfLines={1}>{catLabel(item.category)}</Text>
               </View>
-              <Text style={[styles.suggestionPrice, { color: catColor(item.category).scanText }]}>₹{item.price.toLocaleString('en-IN')}</Text>
+              <Text style={[styles.suggestionPrice, { color: darkMode ? '#F8FAFC' : premium.ink }]}>₹{item.price.toLocaleString('en-IN')}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -1153,36 +1206,24 @@ export function ProductScreen({
 
       {/* Filter panel */}
       {showFilters && (
-        <View style={[styles.filterPanel, darkMode ? styles.filterPanelDark : null, isCounterboy && { backgroundColor: '#F9F4ED', borderColor: '#E0D0C0' }, isCounterboy && darkMode && { backgroundColor: '#1A0F0A', borderColor: '#2D1C14' }]}>
+        <View style={[styles.filterPanel, darkMode ? styles.filterPanelDark : null]}>
           <View style={styles.filterPanelHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.filterPanelTitle, darkMode ? styles.filterPanelTitleDark : null, isCounterboy && { color: '#5C3D2E' }, isCounterboy && darkMode && { color: '#F5EDE4' }]}>{tx('Filter products')}</Text>
+              <Text style={[styles.filterPanelTitle, darkMode ? styles.filterPanelTitleDark : null]}>{tx('Filter products')}</Text>
               <Text style={[styles.filterPanelSub, darkMode ? styles.filterPanelSubDark : null]}>{tx('Choose a category to see matching products.')}</Text>
             </View>
             <TouchableOpacity onPress={() => setShowFilters(false)} activeOpacity={0.8}>
-              <Text style={[styles.filterClose, isCounterboy && { color: '#8B3C2A' }]}>{tx('Close')}</Text>
+              <Text style={[styles.filterClose, { color: productTheme.primary }]}>{tx('Close')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.filterGrid}>
             {uiCategories.map(cat => {
               const active = !isSearching && cat.id === category;
-              const cc2 = catColor(cat.id);
-              
-              // Customer theme colors
-              const customerBg = active ? '#6A2F12' : '#FBF1E7';
-              const customerBorder = active ? '#6A2F12' : '#E5D4C1';
-              const customerIconBg = active ? 'rgba(255,255,255,0.2)' : '#F5E8DC';
-              const customerIconColor = active ? '#fff' : '#6A2F12';
-              const customerTextColor = active ? '#fff' : '#6A2F12';
-              const customerMetaColor = active ? 'rgba(255,255,255,0.86)' : '#8D4A1E';
-              
-              // Counterboy theme colors
-              const counterboyBg = active ? '#8B3C2A' : '#F9F4ED';
-              const counterboyBorder = active ? '#8B3C2A' : '#E0D0C0';
-              const counterboyIconBg = active ? 'rgba(255,255,255,0.2)' : '#EDE0D4';
-              const counterboyIconColor = active ? '#fff' : '#8B3C2A';
-              const counterboyTextColor = active ? '#fff' : '#5C3D2E';
-              const counterboyMetaColor = active ? 'rgba(255,255,255,0.86)' : '#8A7A6E';
+              const activeCardStyle = active ? { backgroundColor: productTheme.primary, borderColor: productTheme.primary } : null;
+              const iconBg = active ? 'rgba(255,255,255,0.22)' : productTheme.iconSoft;
+              const iconColor = active ? productTheme.onPrimary : productTheme.primary;
+              const titleColor = active ? productTheme.onPrimary : premium.ink;
+              const metaColor = active ? productTheme.activeMeta : premium.muted;
               
               return (
                 <TouchableOpacity
@@ -1191,41 +1232,29 @@ export function ProductScreen({
                   style={[
                     styles.filterCard, 
                     darkMode ? styles.filterCardDark : null, 
-                    isCustomer
-                      ? { backgroundColor: customerBg, borderColor: customerBorder }
-                      : isCounterboy
-                        ? { backgroundColor: counterboyBg, borderColor: counterboyBorder }
-                        : active && { backgroundColor: cc2.scanText, borderColor: cc2.scanText }
+                    activeCardStyle
                   ]}
                   activeOpacity={0.86}
                 >
                   <View style={[
                     styles.filterCardIcon, 
-                    { backgroundColor: isCustomer ? customerIconBg : isCounterboy ? counterboyIconBg : (active ? 'rgba(255,255,255,0.2)' : cc2.iconBg) }
+                    { backgroundColor: iconBg }
                   ]}>
                     <CatIcon 
                       id={cat.id} 
                       size={22} 
-                      color={isCustomer ? customerIconColor : isCounterboy ? counterboyIconColor : (active ? '#fff' : cc2.scanText)} 
+                      color={iconColor}
                     />
                   </View>
                   <Text style={[
                     styles.filterCardTitle, 
                     darkMode && !active ? styles.filterCardTitleDark : null, 
-                    isCustomer 
-                      ? { color: customerTextColor }
-                      : isCounterboy
-                        ? { color: counterboyTextColor }
-                        : active && { color: '#fff' }
+                    { color: titleColor }
                   ]} numberOfLines={1}>{cat.label}</Text>
                   <Text style={[
                     styles.filterCardMeta, 
                     darkMode && !active ? styles.filterCardMetaDark : null, 
-                    isCustomer
-                      ? { color: customerMetaColor }
-                      : isCounterboy
-                        ? { color: counterboyMetaColor }
-                        : active && { color: 'rgba(255,255,255,0.86)' }
+                    { color: metaColor }
                   ]}>{cat.count} {tx('products')}</Text>
                 </TouchableOpacity>
               );
@@ -1243,21 +1272,12 @@ export function ProductScreen({
         contentContainerStyle={styles.tabList}
           renderItem={({ item: cat }) => {
             const active = !isSearching && cat.id === category;
-            const cc2 = cat.id === 'all' ? DEFAULT_CAT_COLOR : catColor(cat.id);
-            
-            // Customer theme colors
-            const customerBg = active ? '#6A2F12' : '#FFFFFF';
-            const customerBorder = active ? '#6A2F12' : '#EEEEF3';
-            const customerIconBg = active ? 'rgba(255,255,255,0.2)' : '#F5E8DC';
-            const customerIconColor = active ? '#fff' : '#6A2F12';
-            const customerTextColor = active ? '#fff' : '#1C1E2E';
-            
-            // Counterboy theme colors
-            const counterboyBg = active ? '#8B3C2A' : '#FFFFFF';
-            const counterboyBorder = active ? '#8B3C2A' : '#EEEEF3';
-            const counterboyIconBg = active ? 'rgba(255,255,255,0.2)' : '#EDE0D4';
-            const counterboyIconColor = active ? '#fff' : '#8B3C2A';
-            const counterboyTextColor = active ? '#fff' : '#1C1E2E';
+            const tabStyle = active
+              ? { backgroundColor: productTheme.primary, borderColor: productTheme.primary }
+              : { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderColor: darkMode ? '#243043' : premium.line };
+            const tabIconBg = active ? 'rgba(255,255,255,0.22)' : productTheme.iconSoft;
+            const tabIconColor = active ? productTheme.onPrimary : productTheme.primary;
+            const tabTextColor = active ? productTheme.onPrimary : (darkMode ? '#F8FAFC' : '#1C1E2E');
             
             return (
               <TouchableOpacity
@@ -1265,32 +1285,24 @@ export function ProductScreen({
                 style={[
                   styles.categoryTab, 
                   darkMode ? styles.categoryTabDark : null, 
-                  isCustomer 
-                    ? { backgroundColor: customerBg, borderColor: customerBorder }
-                    : isCounterboy
-                      ? { backgroundColor: counterboyBg, borderColor: counterboyBorder }
-                      : active && { backgroundColor: cc2.scanText, borderColor: cc2.scanText }
+                  tabStyle
                 ]}
                 activeOpacity={0.8}
               >
                 <View style={[
                   styles.tabIconWrap, 
-                  { backgroundColor: isCustomer ? customerIconBg : isCounterboy ? counterboyIconBg : (active ? 'rgba(255,255,255,0.2)' : cc2.iconBg) }
+                  { backgroundColor: tabIconBg }
                 ]}>
                   <CatIcon 
                     id={cat.id} 
                     size={18} 
-                    color={isCustomer ? customerIconColor : isCounterboy ? counterboyIconColor : (active ? '#fff' : cc2.scanText)} 
+                    color={tabIconColor}
                   />
                 </View>
                 <Text style={[
                   styles.categoryText, 
                   darkMode && !active ? styles.categoryTextDark : null, 
-                  isCustomer 
-                    ? { color: customerTextColor }
-                    : isCounterboy
-                      ? { color: counterboyTextColor }
-                      : active && { color: '#fff' }
+                  { color: tabTextColor }
                 ]}>{cat.label}</Text>
               </TouchableOpacity>
           );
@@ -1299,8 +1311,8 @@ export function ProductScreen({
 
       {/* Banner or search result info */}
       {isSearching ? (
-        <View style={[styles.searchResultBanner, darkMode ? styles.searchResultBannerDark : null, isCounterboy && { backgroundColor: '#F9F4ED', borderColor: '#E0D0C0' }, isCounterboy && darkMode && { backgroundColor: '#1A0F0A', borderColor: '#2D1C14' }]}>
-          <Text style={[styles.searchResultText, darkMode ? styles.searchResultTextDark : null, isCounterboy && { color: '#5C3D2E' }, isCounterboy && darkMode && { color: '#F5EDE4' }]}>
+        <View style={[styles.searchResultBanner, darkMode ? styles.searchResultBannerDark : null]}>
+          <Text style={[styles.searchResultText, darkMode ? styles.searchResultTextDark : null]}>
             {filtered.length > 0
               ? `${filtered.length} ${tx('results for')} "${search}"`
               : `${tx('No results for')} "${search}"`}
@@ -1311,15 +1323,15 @@ export function ProductScreen({
         </View>
       ) : (
         <View 
-          style={[styles.catBanner, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEEEF3' }]}
+          style={[styles.catBanner, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderWidth: 1, borderColor: darkMode ? '#243043' : productTheme.primary + '24' }]}
         >
           <View style={styles.catBannerLeft}>
-            <View style={[styles.bannerIconWrap, { backgroundColor: isCustomer ? '#F5E8DC' : isCounterboy ? '#F0DFD0' : cc.iconBg }]}>
-              <CatIcon id={category} size={32} color={isCustomer ? '#6A2F12' : isCounterboy ? '#8B3C2A' : cc.scanText} />
+            <View style={[styles.bannerIconWrap, { backgroundColor: productTheme.iconSoft }]}>
+              <CatIcon id={category} size={32} color={productTheme.primary} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[styles.catBannerTitle, { color: isCustomer ? '#6A2F12' : isCounterboy ? '#5C3D2E' : '#1C1E2E' }]} numberOfLines={1} adjustsFontSizeToFit>{currentCat.label}</Text>
-              <Text style={[styles.catBannerSub, { color: isCustomer ? '#8D4A1E' : isCounterboy ? '#8A7A6E' : '#9898A8' }]} numberOfLines={1}>
+              <Text style={[styles.catBannerTitle, { color: darkMode ? '#F8FAFC' : premium.ink }]} numberOfLines={1} adjustsFontSizeToFit>{currentCat.label}</Text>
+              <Text style={[styles.catBannerSub, { color: premium.muted }]} numberOfLines={1}>
                 {catalogLoading && products.length === 0 ? tx('Loading...') : `${filtered.length} ${tx('products available')}`}
               </Text>
             </View>
@@ -1330,7 +1342,7 @@ export function ProductScreen({
         </View>
       )}
     </View>
-  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, cc, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, pageContent.pageTitle, pageContent.searchPlaceholder, searchSuggestions, handleOpenProduct, cartCount]);
+  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, pageContent.pageTitle, pageContent.searchPlaceholder, searchSuggestions, handleOpenProduct, cartCount, productTheme]);
 
   const ListFooter = useMemo(() => (
     <View>
@@ -1387,6 +1399,7 @@ export function ProductScreen({
           role={role}
           darkMode={darkMode}
           isCustomer={isCustomer}
+          roleTheme={productTheme}
           onBack={() => { setSelectedProduct(null); setDetailQty(1); }}
           onAddToCart={handleAddSelectedToCart}
           onBuyNow={handleBuySelectedNow}
@@ -1405,7 +1418,7 @@ export function ProductScreen({
     <>
       <FlatList
         ref={productListRef}
-        style={[styles.screen, darkMode ? styles.screenDark : null, isCounterboy && { backgroundColor: '#F9F4ED' }, isCounterboy && darkMode && { backgroundColor: '#120A07' }]}
+        style={[styles.screen, { backgroundColor: productTheme.pageBg }, darkMode ? styles.screenDark : null]}
         contentContainerStyle={styles.content}
         data={rows}
         keyExtractor={keyExtractor}
@@ -1424,8 +1437,8 @@ export function ProductScreen({
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={isCounterboy ? ['#8B3C2A'] : ['#1A3C8F']}
-            tintColor={isCounterboy ? '#8B3C2A' : '#1A3C8F'}
+            colors={[productTheme.primary]}
+            tintColor={productTheme.primary}
           />
         }
       />
@@ -1435,9 +1448,9 @@ export function ProductScreen({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F2F3F7' },
+  screen: { flex: 1, backgroundColor: premium.bg },
   screenDark: { backgroundColor: '#08111F' },
-  content: { padding: 14, gap: 14, paddingBottom: 120 },
+  content: { padding: 14, gap: 16, paddingBottom: 120 },
 
   pageTitleRow: {
     minHeight: 46,
@@ -1447,24 +1460,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 52,
     position: 'relative',
   },
-  pageTitle: { fontSize: 22, fontWeight: '800', color: '#1C1E2E', textAlign: 'center' },
+  pageTitle: { fontSize: 22, fontWeight: '900', color: premium.ink, textAlign: 'center' },
   pageTitleDark: { color: '#F8FAFC' },
   headerCartBtn: {
     position: 'absolute',
     right: 0,
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: premium.surface,
     borderWidth: 1,
-    borderColor: '#EEEEF3',
-    shadowColor: '#1A3C8F',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 2,
+    borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   headerCartBtnDark: { backgroundColor: '#111827', borderColor: '#243043' },
   headerCartBadge: {
@@ -1477,7 +1486,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E8453C',
+    backgroundColor: premium.navy,
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
@@ -1485,59 +1494,62 @@ const styles = StyleSheet.create({
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1,
-    borderColor: '#EEEEF3', paddingHorizontal: 14, height: 50,
+    backgroundColor: premium.surface, borderRadius: 18, borderWidth: 1,
+    borderColor: premium.line, paddingHorizontal: 14, height: 54,
+    ...premiumShadow('sm'),
   },
   searchWrapDark: { backgroundColor: '#111827', borderColor: '#243043' },
-  searchInput: { flex: 1, fontSize: 15, color: '#1C1E2E' },
+  searchInput: { flex: 1, fontSize: 15, color: premium.ink, fontWeight: '600' },
   searchInputDark: { color: '#F8FAFC' },
   filterBtn: {
     width: 38, height: 38, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F6FA',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: premium.surfaceSoft,
   },
-  filterBtnActive: { backgroundColor: '#E8453C' },
+  filterBtnActive: { backgroundColor: premium.navy },
 
   filterPanel: {
-    backgroundColor: '#FFFFFF', borderRadius: 22, padding: 14,
-    borderWidth: 1, borderColor: '#EEEEF3',
+    backgroundColor: premium.surface, borderRadius: 22, padding: 14,
+    borderWidth: 1, borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   filterPanelDark: { backgroundColor: '#111827', borderColor: '#243043' },
   filterPanelHeader: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'flex-start', gap: 10, marginBottom: 12,
   },
-  filterPanelTitle: { fontSize: 16, fontWeight: '800', color: '#1C1E2E' },
+  filterPanelTitle: { fontSize: 16, fontWeight: '900', color: premium.ink },
   filterPanelTitleDark: { color: '#F8FAFC' },
-  filterPanelSub: { fontSize: 12, color: '#9898A8', marginTop: 3, lineHeight: 17 },
+  filterPanelSub: { fontSize: 12, color: premium.muted, marginTop: 3, lineHeight: 17 },
   filterPanelSubDark: { color: '#94A3B8' },
-  filterClose: { fontSize: 12.5, fontWeight: '800', color: '#E8453C' },
+  filterClose: { fontSize: 12.5, fontWeight: '900', color: premium.navy },
   filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   filterCard: {
-    width: '48%', backgroundColor: '#FAFBFD', borderWidth: 1,
-    borderColor: '#EEEEF3', borderRadius: 18, padding: 12,
+    width: '48%', backgroundColor: premium.surfaceSoft, borderWidth: 1,
+    borderColor: premium.line, borderRadius: 18, padding: 12,
   },
   filterCardDark: { backgroundColor: '#182133', borderColor: '#243043' },
   filterCardIcon: {
     width: 42, height: 42, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center', marginBottom: 10,
   },
-  filterCardTitle: { fontSize: 13, fontWeight: '800', color: '#1C1E2E' },
+  filterCardTitle: { fontSize: 13, fontWeight: '900', color: premium.ink },
   filterCardTitleDark: { color: '#F8FAFC' },
-  filterCardMeta: { fontSize: 11.5, color: '#9898A8', marginTop: 4 },
+  filterCardMeta: { fontSize: 11.5, color: premium.muted, marginTop: 4 },
   filterCardMetaDark: { color: '#94A3B8' },
 
   tabList: { gap: 10, paddingVertical: 2 },
   categoryTab: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 12, paddingVertical: 9, borderRadius: 22,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEEEF3',
+    backgroundColor: premium.surface, borderWidth: 1, borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   categoryTabDark: { backgroundColor: '#111827', borderColor: '#243043' },
   tabIconWrap: {
     width: 28, height: 28, borderRadius: 8,
     alignItems: 'center', justifyContent: 'center',
   },
-  categoryText: { fontSize: 13, fontWeight: '700', color: '#1C1E2E' },
+  categoryText: { fontSize: 13, fontWeight: '800', color: premium.ink },
   categoryTextDark: { color: '#F8FAFC' },
 
   catBanner: {
@@ -1562,13 +1574,14 @@ const styles = StyleSheet.create({
   catActionPlaceholder: { width: 64, flexShrink: 0 },
 
   searchResultBanner: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14,
-    borderWidth: 1, borderColor: '#EEEEF3', alignItems: 'center',
+    backgroundColor: premium.surface, borderRadius: 16, padding: 14,
+    borderWidth: 1, borderColor: premium.line, alignItems: 'center',
+    ...premiumShadow('sm'),
   },
   searchResultBannerDark: { backgroundColor: '#111827', borderColor: '#243043' },
-  searchResultText: { fontSize: 15, fontWeight: '700', color: '#1C1E2E' },
+  searchResultText: { fontSize: 15, fontWeight: '900', color: premium.ink },
   searchResultTextDark: { color: '#F8FAFC' },
-  searchResultSub: { fontSize: 12, color: '#9898A8', marginTop: 4 },
+  searchResultSub: { fontSize: 12, color: premium.muted, marginTop: 4 },
   searchResultSubDark: { color: '#94A3B8' },
 
   row: { flexDirection: 'row', gap: 12 },
@@ -1577,46 +1590,45 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -8,
     alignSelf: 'center',
-    height: 20,
-    borderRadius: 20,
+    height: 10,
+    borderRadius: 10,
     zIndex: 0,
   },
 
   card: {
-    backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden',
-    borderWidth: 1, borderColor: '#EEEEF3',
-    shadowColor: '#1A3C8F',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
+    backgroundColor: premium.surface, borderRadius: 8, overflow: 'hidden',
+    borderWidth: 1, borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   cardDark: { backgroundColor: '#111827', borderColor: '#243043' },
 
-  accentLine: { height: 3, width: '100%' },
+  productDivider: { height: 1, width: '100%', backgroundColor: premium.line },
 
   imgZone: {
     alignItems: 'center', justifyContent: 'center',
     position: 'relative', overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: premium.line,
   },
   badge: {
     position: 'absolute', top: 10, left: 10, zIndex: 3,
-    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3,
   },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   ptsBadge: {
     position: 'absolute', top: 10, right: 10, zIndex: 3,
-    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 999,
     borderWidth: 1, paddingHorizontal: 7, paddingVertical: 3,
   },
-  ptsBadgeText: { fontSize: 11, fontWeight: '800' },
+  ptsBadgeText: { fontSize: 10.5, fontWeight: '800' },
   cardDiscountBadge: {
     position: 'absolute',
     left: 10,
     bottom: 10,
     zIndex: 3,
-    backgroundColor: '#16A34A',
-    borderRadius: 999,
+    backgroundColor: premium.success,
+    borderRadius: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
@@ -1624,42 +1636,51 @@ const styles = StyleSheet.create({
 
   infoZone: {
     flex: 1,
-    padding: 11,
+    padding: 10,
     paddingTop: 10,
     paddingBottom: 12,
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: premium.surface,
   },
   infoZoneDark: { backgroundColor: '#111827' },
   infoSpacer: { height: 8 },
 
-  productNamePriceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  productCategoryTag: {
+    color: premium.navy,
+    fontSize: 9.5,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    marginBottom: 5,
+  },
+  productCategoryTagDark: { color: '#FCA5A5' },
   productName: {
-    flex: 1, fontSize: 12, fontWeight: '800', color: '#1C1E2E',
-    textTransform: 'uppercase', letterSpacing: 0.2,
+    flex: 1, fontSize: 12.5, fontWeight: '800', color: premium.ink, lineHeight: 16,
   },
   productNameDark: { color: '#F8FAFC' },
-  productCardPrice: { fontSize: 12, fontWeight: '900', flexShrink: 0, marginTop: 1 },
-  productOfferRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  productMrp: { color: '#9CA3AF', fontSize: 10.5, fontWeight: '700', textDecorationLine: 'line-through' },
-  productOfferText: { color: '#16A34A', fontSize: 10.5, fontWeight: '900' },
-  productSub: { fontSize: 10.5, color: '#9898A8', marginTop: 3, lineHeight: 14 },
+  productPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 8 },
+  productCardPrice: { color: premium.ink, fontSize: 14, fontWeight: '900', flexShrink: 0 },
+  productCardPriceDark: { color: '#F8FAFC' },
+  productMrp: { color: '#98A2B3', fontSize: 10.5, fontWeight: '700', textDecorationLine: 'line-through' },
+  productOfferText: { color: premium.success, fontSize: 10.5, fontWeight: '900' },
+  productTaxText: { color: premium.muted, fontSize: 9.5, fontWeight: '600', marginTop: 3 },
+  productSub: { fontSize: 10.5, color: premium.muted, marginTop: 6, lineHeight: 14 },
   productSubDark: { color: '#CBD5E1' },
 
-  cardActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   scanBtn: {
     flex: 1,
-    minHeight: 36,
+    minHeight: 34,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, borderRadius: 11, paddingVertical: 8, paddingHorizontal: 6,
+    gap: 5, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 6,
   },
-  scanBtnText: { fontSize: 11.5, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
+  scanBtnText: { fontSize: 11.5, fontWeight: '900', flexShrink: 1, textAlign: 'center' },
   quickCartBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
+    width: 34,
+    height: 34,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
+    ...premiumShadow('sm'),
   },
 
   suggestionPanel: {
@@ -1678,16 +1699,16 @@ const styles = StyleSheet.create({
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyEmoji: { fontSize: 40 },
-  emptyText: { fontSize: 15, fontWeight: '600', color: '#9898A8' },
+  emptyText: { fontSize: 15, fontWeight: '700', color: premium.muted },
   emptyTextDark: { color: '#94A3B8' },
 
   detailScreen: { flex: 1 },
-  detailContent: { padding: 16, paddingBottom: 128 },
+  detailContent: { padding: 14, paddingBottom: 136 },
   detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   detailBackBtn: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1696,13 +1717,14 @@ const styles = StyleSheet.create({
   detailHeaderTitle: { fontSize: 18, fontWeight: '900' },
   detailHeaderSub: { fontSize: 12.5, marginTop: 2, fontWeight: '600' },
   detailImagePanel: {
-    height: 320,
-    borderRadius: 24,
+    height: 350,
+    borderRadius: 0,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    marginBottom: 14,
+    marginHorizontal: -14,
+    marginBottom: 0,
   },
   detailImage: { width: '88%', height: '88%' },
   detailBadge: {
@@ -1732,36 +1754,36 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
   },
-  detailInfoCard: { borderRadius: 22, borderWidth: 1, padding: 18 },
+  detailInfoCard: { borderRadius: 0, borderWidth: 0, paddingHorizontal: 4, paddingTop: 18, paddingBottom: 18 },
   detailTitleRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   detailNamePriceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  detailProductName: { flex: 1, fontSize: 22, fontWeight: '900', lineHeight: 29 },
-  detailInlinePrice: { fontSize: 18, fontWeight: '900', marginTop: 3, flexShrink: 0 },
+  detailProductName: { flex: 1, fontSize: 21, fontWeight: '900', lineHeight: 28 },
+  detailInlinePrice: { fontSize: 20, fontWeight: '900', marginTop: 2, flexShrink: 0 },
   detailCategory: { fontSize: 12.5, fontWeight: '800', marginTop: 6, textTransform: 'uppercase' },
   detailPointsPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   detailPointsText: { fontSize: 12, fontWeight: '900' },
   detailPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, flexWrap: 'wrap' },
-  detailPrice: { fontSize: 24, fontWeight: '900' },
+  detailPrice: { fontSize: 26, fontWeight: '900' },
   detailMrp: { fontSize: 14, fontWeight: '700', textDecorationLine: 'line-through' },
   detailStock: { fontSize: 12.5, fontWeight: '900' },
   detailTrustRow: { flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' },
-  detailTrustChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  detailTrustChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
   detailTrustIcon: { color: '#16A34A', fontSize: 12, fontWeight: '900' },
   detailTrustText: { fontSize: 12, fontWeight: '900' },
-  detailOfferPanel: { borderWidth: 1, borderRadius: 16, padding: 13, marginTop: 14, gap: 6 },
+  detailOfferPanel: { borderWidth: 1, borderRadius: 10, padding: 13, marginTop: 14, gap: 6 },
   detailOfferTitle: { fontSize: 14, fontWeight: '900', marginBottom: 2 },
   detailOfferLine: { fontSize: 12.5, lineHeight: 18, fontWeight: '600' },
   detailMetaGrid: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  detailMetaBox: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 12 },
+  detailMetaBox: { flex: 1, borderWidth: 1, borderRadius: 10, padding: 12 },
   detailMetaLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', marginBottom: 5 },
   detailMetaValue: { fontSize: 13, fontWeight: '800' },
   detailSectionTitle: { fontSize: 15, fontWeight: '900', marginTop: 18, marginBottom: 8 },
   detailDescription: { fontSize: 14, lineHeight: 21, fontWeight: '500' },
-  relatedPanel: { borderRadius: 22, borderWidth: 1, padding: 16, marginTop: 14 },
+  relatedPanel: { borderRadius: 12, borderWidth: 1, padding: 14, marginTop: 14, ...premiumShadow('sm') },
   relatedTitle: { fontSize: 17, fontWeight: '900' },
   relatedSub: { fontSize: 12, fontWeight: '700', marginTop: 3, marginBottom: 12 },
   relatedList: { gap: 12, paddingRight: 12 },
-  relatedCard: { width: 132, borderWidth: 1, borderRadius: 16, padding: 10 },
+  relatedCard: { width: 132, borderWidth: 1, borderRadius: 10, padding: 10 },
   relatedImage: { width: '100%', height: 94, marginBottom: 8 },
   relatedName: { fontSize: 12, lineHeight: 16, fontWeight: '900', minHeight: 32 },
   relatedPrice: { marginTop: 4, fontSize: 12, fontWeight: '900' },
@@ -1774,6 +1796,7 @@ const styles = StyleSheet.create({
     padding: 14,
     paddingBottom: 20,
     borderTopWidth: 1,
+    ...premiumShadow('lg'),
   },
   detailQtyRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -1782,7 +1805,7 @@ const styles = StyleSheet.create({
   detailQtyLabel: { fontSize: 14, fontWeight: '700' },
   detailQtyPicker: {
     flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderRadius: 12, overflow: 'hidden',
+    borderWidth: 1, borderRadius: 8, overflow: 'hidden',
   },
   detailQtyBtn: {
     width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
@@ -1796,7 +1819,7 @@ const styles = StyleSheet.create({
   detailSecondaryBtn: {
     flex: 1,
     height: 52,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1805,7 +1828,7 @@ const styles = StyleSheet.create({
   detailPrimaryBtn: {
     flex: 1,
     height: 52,
-    borderRadius: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -5,7 +5,6 @@ import {
   Animated,
   Easing,
   Image,
-  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -29,6 +28,7 @@ import { WebsitePromoSection } from '@/shared/components/WebsitePromoSection';
 import { TopFiveLeaderboard } from '@/shared/components/TopFiveLeaderboard';
 import { BannerCarousel, type BannerSlide as CarouselSlide } from '@/shared/components/BannerCarousel';
 import { createShadow } from '@/shared/theme/shadows';
+import { premium, premiumShadow } from '@/shared/theme/premium';
 import { formatCountText, usePreferenceContext } from '@/shared/preferences';
 import type { Screen } from '@/shared/types/navigation';
 import { useAuth } from '@/shared/context/AuthContext';
@@ -38,6 +38,7 @@ import {
   resolveRolePageControls,
 } from '@/shared/config/rolePageControls';
 import { useAppPageContent, useAppPageSections, useCatalogDownload } from '@/shared/hooks';
+import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
 import type { HomePageSectionKey } from '@/shared/config/appPageContent';
 import { API_BASE_URL } from '@/shared/api/config';
 
@@ -51,6 +52,8 @@ const CAT_IMAGES: Record<string, string> = {
   modular: 'https://srvelectricals.com/cdn/shop/files/3x3_679e5d30-ecf2-446e-9452-354bbf4c4a26.png?v=1757426377&width=320',
   mcb: 'https://srvelectricals.com/cdn/shop/files/MCB_Box_4_Way_GI.png?v=1757426418&width=320',
   busbar: 'https://cdn.shopify.com/s/files/1/0651/4583/1466/files/Bus_Bar_100A_Super.png',
+  industrialfan: '/uploads/products/product-1782470321481-895716428.webp',
+  stabilizer: '/uploads/products/product-1783746715702-366632093.PNG',
   exhaust: 'https://srvelectricals.com/cdn/shop/files/AP-Turtle-Fan.webp?v=1747938680&width=320',
   led: 'https://srvelectricals.com/cdn/shop/files/FloodLightSleek.png?v=1757426471&width=320',
   changeover: 'https://srvelectricals.com/cdn/shop/files/ACO_100A_FP.png?v=1757426480&width=320',
@@ -65,6 +68,8 @@ const HOME_CATEGORY_LABELS: Record<string, string> = {
   modularbox: 'Modular Box',
   mcb: 'MCB Box',
   busbar: 'Bus Bar',
+  industrialfan: 'Industrial Fan',
+  stabilizer: 'Stabilizer',
   exhaust: 'Exhaust Fan',
   led: 'LED Lights',
   changeover: 'Changeover',
@@ -82,6 +87,7 @@ const HOME_CATEGORY_LABELS: Record<string, string> = {
 const HOME_CATEGORY_ALIASES: Record<string, string> = {
   modularbox: 'modular',
   axialfan: 'exhaust',
+  industrialfan: 'industrialfan',
   ledflood: 'led',
   boxes: 'mcb',
   fans: 'exhaust',
@@ -357,16 +363,16 @@ function HomeCategoryCard({
             { width: cardW, transform: [{ scale: pressScale }, { perspective: 800 }, { rotateY }, { rotateX }] },
           ]}
         >
-          <View style={[homeCatStyles.imgZone, { backgroundColor: darkMode ? '#1E293B' : '#FFFFFF' }]}>
+          <View style={[homeCatStyles.imgZone, { backgroundColor: darkMode ? '#1E293B' : premium.surfaceSoft }]}>
             <AnimatedCatImage uri={imgUri} fallbackUri={fallbackUri} size={142} />
           </View>
-          <View style={[homeCatStyles.accentLine, { backgroundColor: '#4A637B' }]} />
+          <View style={[homeCatStyles.accentLine, { backgroundColor: premium.navy }]} />
           <View style={[homeCatStyles.infoZone, darkMode ? homeCatStyles.infoZoneDark : null]}>
             <Text style={[homeCatStyles.label, darkMode ? homeCatStyles.labelDark : null]} numberOfLines={2}>
               {cat.label}
             </Text>
-            <View style={[homeCatStyles.pill, { backgroundColor: darkMode ? 'rgba(255,255,255,0.08)' : '#F5F8FB' }]}>
-              <Text style={[homeCatStyles.pillText, { color: darkMode ? '#94A3B8' : '#4A637B' }]}>
+            <View style={[homeCatStyles.pill, { backgroundColor: darkMode ? 'rgba(255,255,255,0.08)' : premium.navySoft }]}>
+              <Text style={[homeCatStyles.pillText, { color: darkMode ? '#CBD5E1' : premium.navy }]}>
                 {buttonLabel ?? 'View Products'}
               </Text>
             </View>
@@ -522,7 +528,7 @@ export function HomeScreen({
       if (!normalizedId) return;
       catMap.set(normalizedId, (catMap.get(normalizedId) ?? 0) + 1);
     });
-    const ORDER = ['fanbox','concealedbox','modular','mcb','busbar','exhaust','led','changeover','mainswitch','louver','multipin','pintop'];
+    const ORDER = ['industrialfan','stabilizer','fanbox','concealedbox','modular','mcb','busbar','exhaust','led','changeover','mainswitch','louver','multipin','pintop'];
     const merged = new Map<string, { id: string; label: string; imageUrl?: string | null }>();
 
     ctxCategories.forEach((category) => {
@@ -557,7 +563,9 @@ export function HomeScreen({
   }, [ctxCategories, ctxProducts]);
   const displayedCategories = useMemo(() => {
     const hardcodedCategories = [
-      { id: 'Fan Box',          label: 'Fan Box',       fallbackImg: CAT_IMAGES.fanbox,      searchTerms: ['fan', 'fanbox', 'fan-box'] },
+      { id: 'Industrial Fan',  label: 'Industrial Fan', fallbackImg: CAT_IMAGES.industrialfan, searchTerms: ['industrial fan', 'industrialfan', 'industial fan', 'industialfan', 'ventilation', 'axial fan', 'axialfan'] },
+      { id: 'Stabilizer',      label: 'Stabilizer',     fallbackImg: CAT_IMAGES.stabilizer,    searchTerms: ['stabilizer', 'voltage stabilizer', 'ac stabilizer'] },
+      { id: 'Fan Box',          label: 'Fan Box',       fallbackImg: CAT_IMAGES.fanbox,      searchTerms: ['fan box', 'fanbox', 'fan-box'] },
       { id: 'Concealed Box',    label: 'Concealed Box', fallbackImg: CAT_IMAGES.concealedbox, searchTerms: ['concealed', 'concealedbox', 'concealed-box'] },
       { id: 'BUS BAR SUPER',    label: 'Bus Bar Super', fallbackImg: CAT_IMAGES.busbar,       searchTerms: ['bus bar super', 'busbarsuper'] },
       { id: 'ECO SPN DD MCB BOX', label: 'MCB Box',    fallbackImg: CAT_IMAGES.mcb,          searchTerms: ['mcb', 'eco', 'spn', 'dd'] },
@@ -657,10 +665,9 @@ export function HomeScreen({
       icon: WhatsAppIcon,
       iconColors: ['#DCFCE7', '#BBF7D0'] as const,
       iconTint: '#25D366',
-      onPress: () =>
-        Linking.openURL(
-          `https://wa.me/${supportWhatsapp}?text=Hello%20SRV%20Team,%20I%20need%20dealer%20support`
-        ),
+      onPress: () => {
+        void openWhatsAppSupport(supportWhatsapp);
+      },
       hidden: !showWhatsapp,
     },
     {
@@ -749,7 +756,7 @@ export function HomeScreen({
                 key={cat.id} cat={cat} index={index}
                 cardW={catCardW} darkMode={darkMode}
                 onPress={() => onOpenProductCategory(cat.targetCategoryId ?? cat.id)}
-                buttonLabel={pageContent.cardButtonLabel || 'View Products'}
+                buttonLabel="Buy Now"
               />
             ))}
           </View>
@@ -807,7 +814,7 @@ export function HomeScreen({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#1D4ED8" />}
     >
       <LinearGradient
-        colors={darkMode ? ['#0B1220', '#101A2F', '#18263E'] : ['#EAF3FF', '#DCE8FF', '#C7DAFF']}
+        colors={darkMode ? ['#0B1220', '#111827', '#1F2937'] : ['#FFFFFF', '#F8FAFD', '#EAF3FF']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.heroShell, { marginTop: -insets.top, paddingTop: 26 + insets.top }]}
@@ -819,6 +826,7 @@ export function HomeScreen({
           <View style={[styles.logoWrap, darkMode ? styles.logoWrapDark : null]}>
             <Image source={logoImage} style={styles.logoImage} resizeMode="contain" />
           </View>
+          <Text style={styles.srvBrandTitle} numberOfLines={1}>SRV Electricals</Text>
           {showNotifications ? (
             <TouchableOpacity
               onPress={() => onNavigate('notification')}
@@ -967,14 +975,29 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F8FF' },
+  screen: { flex: 1, backgroundColor: premium.bg },
   screenDark: { backgroundColor: '#08111F' },
   heroShell: {
     paddingTop: 26,
     paddingHorizontal: 14,
     paddingBottom: 12,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderBottomColor: premium.line,
+  },
+  srvBrandTitle: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#173E80',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    marginHorizontal: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    textTransform: 'uppercase',
     overflow: 'hidden',
   },
   heroGlowOne: {
@@ -985,6 +1008,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(37,99,235,0.16)',
     top: -60,
     right: -35,
+    display: 'none',
   },
   heroGlowTwo: {
     position: 'absolute',
@@ -994,12 +1018,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(191,219,254,0.28)',
     bottom: 20,
     left: -24,
+    display: 'none',
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 4,
   },
   logoWrap: {
     width: 50,
@@ -1028,15 +1053,15 @@ const styles = StyleSheet.create({
   statRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   statCardWrap: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 10,
     overflow: 'hidden',
-    ...createShadow({ color: '#94A3B8', offsetY: 8, blur: 16, opacity: 0.12, elevation: 4 }),
+    ...premiumShadow('sm'),
   },
   statCardWrapDark: {
     ...createShadow({ color: '#020617', offsetY: 8, blur: 16, opacity: 0.26, elevation: 4 }),
   },
   statCard: {
-    borderRadius: 16,
+    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     height: 96,
@@ -1073,11 +1098,11 @@ const styles = StyleSheet.create({
   },
   notificationBadge: { position: 'absolute', top: -7, right: -9, minWidth: 19, height: 19, borderRadius: 10, paddingHorizontal: 4, backgroundColor: '#DC2626', borderWidth: 1.5, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   notificationBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
-  statLabel: { color: '#5C6F91', fontSize: 10, fontWeight: '700', marginBottom: 5 },
+  statLabel: { color: premium.muted, fontSize: 10, fontWeight: '700', marginBottom: 5 },
   statLabelDark: { color: '#BFDBFE' },
-  statValue: { color: '#13294B', fontSize: 16, fontWeight: '900' },
+  statValue: { color: premium.ink, fontSize: 16, fontWeight: '900' },
   statValueDark: { color: '#F8FAFC' },
-  statHint: { color: '#6F819D', fontSize: 10.5, marginTop: 1, lineHeight: 14 },
+  statHint: { color: premium.muted, fontSize: 10.5, marginTop: 1, lineHeight: 14 },
   statHintDark: { color: '#CBD5E1' },
   tierIconChip: {
     position: 'absolute',
@@ -1090,12 +1115,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tierTextStack: { marginTop: -1, paddingRight: 28 },
-  body: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 18 },
+  body: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 18, backgroundColor: premium.bg },
   bannerCard: {
-    borderRadius: 28,
+    borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#F7FBFF',
-    ...createShadow({ color: '#0F172A', offsetY: 10, blur: 22, opacity: 0.16, elevation: 9 }),
+    backgroundColor: '#FFFFFF',
+    ...premiumShadow('md'),
   },
   bannerCardDark: {
     ...createShadow({ color: '#020617', offsetY: 10, blur: 22, opacity: 0.24, elevation: 9 }),
@@ -1108,17 +1133,19 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 22,
   },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D7E7FF' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: premium.line },
   dotDark: { backgroundColor: '#334155' },
-  dotActive: { width: 28, backgroundColor: '#173E80' },
+  dotActive: { width: 28, backgroundColor: premium.navy },
   dotActiveDark: { width: 28, backgroundColor: '#E2E8F0' },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 22 },
   quickCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    borderRadius: 10,
     padding: 14,
     marginBottom: 12,
-    ...createShadow({ color: '#0F172A', offsetY: 8, blur: 18, opacity: 0.07, elevation: 4 }),
+    borderWidth: 1,
+    borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   quickCardDark: {
     backgroundColor: '#111827',
@@ -1132,9 +1159,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
   },
-  quickTitle: { color: '#152238', fontSize: 14, fontWeight: '800' },
+  quickTitle: { color: premium.ink, fontSize: 14, fontWeight: '800' },
   quickTitleDark: { color: '#F8FAFC' },
-  quickSub: { color: '#74829D', fontSize: 11.5, marginTop: 3 },
+  quickSub: { color: premium.muted, fontSize: 11.5, marginTop: 3 },
   quickSubDark: { color: '#CBD5E1' },
   kycLockBadge: {
     marginTop: 8,
@@ -1152,7 +1179,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionEyebrow: {
-    color: '#7D8AA5',
+    color: premium.navy,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -1160,7 +1187,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   sectionEyebrowDark: { color: '#94A3B8' },
-  sectionTitle: { color: '#14213D', fontSize: 21, fontWeight: '900' },
+  sectionTitle: { color: premium.ink, fontSize: 21, fontWeight: '900' },
   sectionTitleDark: { color: '#F8FAFC' },
   productsTopBar: {
     flexDirection: 'row',
@@ -1179,18 +1206,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#D9E3F0',
+    borderColor: premium.line,
   },
   filterChipDark: { backgroundColor: '#111827', borderColor: '#243043' },
   filterChipActive: {
-    backgroundColor: '#173E80',
-    borderColor: '#173E80',
+    backgroundColor: premium.navy,
+    borderColor: premium.navy,
   },
-  filterChipText: { color: '#173E80', fontSize: 11.5, fontWeight: '800' },
+  filterChipText: { color: premium.navy, fontSize: 11.5, fontWeight: '800' },
   filterChipTextDark: { color: '#CBD5E1' },
   filterChipTextActive: { color: '#FFFFFF' },
   inlineAction: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewAllText: { color: '#173E80', fontSize: 13, fontWeight: '800' },
+  viewAllText: { color: premium.navy, fontSize: 13, fontWeight: '800' },
   homeCatGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1200,11 +1227,11 @@ const styles = StyleSheet.create({
   productsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   productCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E6ECF5',
-    ...createShadow({ color: '#0F172A', offsetY: 10, blur: 18, opacity: 0.08, elevation: 5 }),
+    borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   productCardDark: {
     backgroundColor: '#111827',
@@ -1225,8 +1252,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 10,
-    backgroundColor: 'rgba(19,41,75,0.84)',
+    borderRadius: 6,
+    backgroundColor: premium.navy,
   },
   productBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
   productShine: {
@@ -1239,9 +1266,9 @@ const styles = StyleSheet.create({
     right: -22,
   },
   productInfo: { padding: 13 },
-  productTitle: { color: '#152238', fontSize: 13, fontWeight: '800' },
+  productTitle: { color: premium.ink, fontSize: 13, fontWeight: '800' },
   productTitleDark: { color: '#F8FAFC' },
-  productSub: { color: '#70819C', fontSize: 11, marginTop: 4, lineHeight: 16, minHeight: 32 },
+  productSub: { color: premium.muted, fontSize: 11, marginTop: 4, lineHeight: 16, minHeight: 32 },
   productSubDark: { color: '#CBD5E1' },
   productFooter: {
     flexDirection: 'row',
@@ -1250,7 +1277,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 8,
   },
-  productPrice: { color: '#152238', fontSize: 15, fontWeight: '900' },
+  productPrice: { color: premium.navy, fontSize: 15, fontWeight: '900' },
   productPriceDark: { color: '#F8FAFC' },
   pointsPill: {
     backgroundColor: 'rgba(255,255,255,0.92)',
@@ -1271,7 +1298,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    borderRadius: 12,
+    borderRadius: 8,
     paddingVertical: 9,
   },
   productScanBtnText: { fontSize: 11.5, fontWeight: '800' },
@@ -1285,21 +1312,17 @@ const styles = StyleSheet.create({
   activityCardDark: {
     backgroundColor: '#111827',
   },
-  activityTitle: { color: '#173E80', fontSize: 16, fontWeight: '900' },
+  activityTitle: { color: premium.navy, fontSize: 16, fontWeight: '900' },
   activityTitleDark: { color: '#F8FAFC' },
-  activityCopy: { color: '#70819C', fontSize: 12.5, lineHeight: 19, marginTop: 8 },
+  activityCopy: { color: premium.muted, fontSize: 12.5, lineHeight: 19, marginTop: 8 },
   activityCopyDark: { color: '#CBD5E1' },
   // â”€â”€ Play Zone promo banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   playZoneCard: {
     width: '100%',
-    borderRadius: 20,
+    borderRadius: 10,
     overflow: 'hidden',
     marginBottom: 12,
-    shadowColor: '#6A2F12',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 7,
+    ...premiumShadow('md'),
   },
   playZoneCardDark: {
     shadowColor: '#1A0503',
@@ -1322,6 +1345,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.07)',
     top: -40,
     right: 60,
+    display: 'none',
   },
   playZoneBlob2: {
     position: 'absolute',
@@ -1331,6 +1355,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     bottom: -30,
     right: -10,
+    display: 'none',
   },
   playZoneLeft: {
     flexDirection: 'row',
@@ -1408,27 +1433,20 @@ const styles = StyleSheet.create({
 
 const homeCatStyles = StyleSheet.create({
   card: {
-    borderRadius: 18,
+    borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E6ECF5',
-    shadowColor: '#1A3C8F',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    elevation: 5,
+    borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   cardDark: { backgroundColor: '#111827', borderColor: '#1E293B' },
   imgZone: { height: 150, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   accentLine: { height: 3, width: '100%' },
   infoZone: { padding: 10, backgroundColor: '#FFFFFF' },
   infoZoneDark: { backgroundColor: '#111827' },
-  label: { fontSize: 12, fontWeight: '800', color: '#152238', lineHeight: 16, marginBottom: 6 },
+  label: { fontSize: 12, fontWeight: '800', color: premium.ink, lineHeight: 16, marginBottom: 6 },
   labelDark: { color: '#F1F5F9' },
-  pill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  pill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   pillText: { fontSize: 10, fontWeight: '700' },
 });
-
-
-

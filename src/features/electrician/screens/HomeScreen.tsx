@@ -5,7 +5,6 @@ import {
   Animated,
   Easing,
   Image,
-  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -28,6 +27,7 @@ import type { Screen } from '@/shared/types/navigation';
 import { formatCountText, usePreferenceContext } from '@/shared/preferences';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
 import { createShadow } from '@/shared/theme/shadows';
+import { premium, premiumShadow } from '@/shared/theme/premium';
 import {
   TESTIMONIAL_FALLBACK_COPY,
   getTestimonialTheme,
@@ -39,6 +39,7 @@ import { TopFiveLeaderboard } from '@/shared/components/TopFiveLeaderboard';
 import { BannerCarousel } from '@/shared/components/BannerCarousel';
 import { ElectricianTierIcon, getElectricianTier } from './ElectricianTierScreen';
 import { useAppPageContent, useAppPageSections, useCatalogDownload } from '@/shared/hooks';
+import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
 import type { HomePageSectionKey } from '@/shared/config/appPageContent';
 import { API_BASE_URL } from '@/shared/api';
 
@@ -51,6 +52,8 @@ const CAT_IMAGES: Record<string, string> = {
   modular:       'https://srvelectricals.com/cdn/shop/files/3x3_679e5d30-ecf2-446e-9452-354bbf4c4a26.png?v=1757426377&width=320',
   mcb:           'https://srvelectricals.com/cdn/shop/files/MCB_Box_4_Way_GI.png?v=1757426418&width=320',
   busbar:        'https://cdn.shopify.com/s/files/1/0651/4583/1466/files/Bus_Bar_100A_Super.png',
+  industrialfan: '/uploads/products/product-1782470321481-895716428.webp',
+  stabilizer:    '/uploads/products/product-1783746715702-366632093.PNG',
   exhaust:       'https://srvelectricals.com/cdn/shop/files/AP-Turtle-Fan.webp?v=1747938680&width=320',
   led:           'https://srvelectricals.com/cdn/shop/files/FloodLightSleek.png?v=1757426471&width=320',
   changeover:    'https://srvelectricals.com/cdn/shop/files/ACO_100A_FP.png?v=1757426480&width=320',
@@ -80,6 +83,8 @@ const HOME_CATEGORY_LABELS: Record<string, string> = {
   modularbox: 'Modular Box',
   mcb: 'MCB Box',
   busbar: 'Bus Bar',
+  industrialfan: 'Industrial Fan',
+  stabilizer: 'Stabilizer',
   exhaust: 'Exhaust Fan',
   led: 'LED Lights',
   changeover: 'Changeover',
@@ -97,6 +102,7 @@ const HOME_CATEGORY_LABELS: Record<string, string> = {
 const HOME_CATEGORY_ALIASES: Record<string, string> = {
   modularbox: 'modular',
   axialfan: 'exhaust',
+  industrialfan: 'industrialfan',
   ledflood: 'led',
   boxes: 'mcb',
   fans: 'exhaust',
@@ -113,12 +119,13 @@ function normalizeHomeCategory(id: string): string {
 
 function getCatImage(id: string, apiImageUrl?: string | null): string {
   const normalizedId = normalizeHomeCategory(id);
+  const fromAsset = (key: string) => resolveRemoteImageUrl(CAT_IMAGES[key]) ?? CAT_IMAGES[key];
   
   // First try to get from CAT_IMAGES with normalized ID
-  if (CAT_IMAGES[normalizedId]) return CAT_IMAGES[normalizedId];
+  if (CAT_IMAGES[normalizedId]) return fromAsset(normalizedId);
   
   // Try with original ID
-  if (CAT_IMAGES[id]) return CAT_IMAGES[id];
+  if (CAT_IMAGES[id]) return fromAsset(id);
   
   // Try API image URL — skip if it looks like a logo or profile photo
   if (apiImageUrl) {
@@ -129,20 +136,20 @@ function getCatImage(id: string, apiImageUrl?: string | null): string {
   // Try to match by keywords for specific categories
   const idLower = id.toLowerCase();
   if (idLower.includes('mcb') || idLower.includes('eco') || idLower.includes('spn')) {
-    return CAT_IMAGES.mcb;
+    return fromAsset('mcb');
   }
   if (idLower.includes('bus') || idLower.includes('bar')) {
-    return CAT_IMAGES.busbar;
+    return fromAsset('busbar');
   }
   if (idLower.includes('fan') && !idLower.includes('exhaust')) {
-    return CAT_IMAGES.fanbox;
+    return fromAsset('fanbox');
   }
   if (idLower.includes('concealed')) {
-    return CAT_IMAGES.concealedbox;
+    return fromAsset('concealedbox');
   }
   
   // Default fallback
-  return CAT_IMAGES.fanbox;
+  return fromAsset('fanbox');
 }
 
 function resolveRemoteImageUrl(value?: string | null): string | null {
@@ -284,19 +291,16 @@ function HomeCategoryCard({
             { width: cardW, transform: [{ scale: pressScale }, { perspective: 800 }, { rotateY }, { rotateX }] },
           ]}
         >
-          {/* White image zone */}
-          <View style={[homeCatStyles.imgZone, { backgroundColor: darkMode ? '#1E293B' : '#FFFFFF' }]}>
+          <View style={[homeCatStyles.imgZone, { backgroundColor: darkMode ? '#1E293B' : premium.surfaceSoft }]}>
             <AnimatedCatImage uri={imgUri} fallbackUri={fallbackUri} size={homeCatStyles.imgZone.height - 8} />
           </View>
-          {/* Accent line */}
-          <View style={[homeCatStyles.accentLine, { backgroundColor: '#4A637B' }]} />
-          {/* Label zone */}
+          <View style={[homeCatStyles.accentLine, { backgroundColor: premium.navy }]} />
           <View style={[homeCatStyles.infoZone, darkMode ? homeCatStyles.infoZoneDark : null]}>
             <Text style={[homeCatStyles.label, darkMode ? homeCatStyles.labelDark : null]} numberOfLines={2}>
               {cat.label}
             </Text>
-            <View style={[homeCatStyles.pill, { backgroundColor: darkMode ? 'rgba(255,255,255,0.08)' : '#F5F8FB' }]}>
-              <Text style={[homeCatStyles.pillText, { color: darkMode ? '#94A3B8' : '#4A637B' }]}>
+            <View style={[homeCatStyles.pill, { backgroundColor: darkMode ? 'rgba(255,255,255,0.08)' : premium.navySoft }]}>
+              <Text style={[homeCatStyles.pillText, { color: darkMode ? '#CBD5E1' : premium.navy }]}>
                 {buttonLabel ?? 'View Products'}
               </Text>
             </View>
@@ -309,16 +313,12 @@ function HomeCategoryCard({
 
 const homeCatStyles = StyleSheet.create({
   card: {
-    borderRadius: 18,
+    borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E6ECF5',
-    shadowColor: '#1A3C8F',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    elevation: 5,
+    borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   cardDark: { backgroundColor: '#111827', borderColor: '#1E293B' },
   imgZone: { height: 150, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
@@ -326,9 +326,9 @@ const homeCatStyles = StyleSheet.create({
   iconWrap: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   infoZone: { padding: 10, backgroundColor: '#FFFFFF' },
   infoZoneDark: { backgroundColor: '#111827' },
-  label: { fontSize: 12, fontWeight: '800', color: '#152238', lineHeight: 16, marginBottom: 6 },
+  label: { fontSize: 12, fontWeight: '800', color: premium.ink, lineHeight: 16, marginBottom: 6 },
   labelDark: { color: '#F1F5F9' },
-  pill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  pill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   pillText: { fontSize: 10, fontWeight: '700' },
 });
 
@@ -491,7 +491,7 @@ export function HomeScreen({
       if (!normalizedId) return;
       catMap.set(normalizedId, (catMap.get(normalizedId) ?? 0) + 1);
     });
-    const ORDER = ['fanbox','concealedbox','modular','mcb','busbar','exhaust','led','changeover','mainswitch','louver','multipin','pintop'];
+    const ORDER = ['industrialfan','stabilizer','fanbox','concealedbox','modular','mcb','busbar','exhaust','led','changeover','mainswitch','louver','multipin','pintop'];
     const merged = new Map<string, { id: string; label: string; imageUrl?: string | null }>();
 
     ctxCategories.forEach((category) => {
@@ -588,7 +588,9 @@ export function HomeScreen({
   // Show only 4 specific hardcoded categories on home screen
   const displayedCategories = useMemo(() => {
     const hardcodedCategories = [
-      { id: 'Fan Box',            label: 'Fan Box',       fallbackImg: CAT_IMAGES.fanbox,       searchTerms: ['fan', 'fanbox', 'fan-box'] },
+      { id: 'Industrial Fan',    label: 'Industrial Fan', fallbackImg: CAT_IMAGES.industrialfan, searchTerms: ['industrial fan', 'industrialfan', 'industial fan', 'industialfan', 'ventilation', 'axial fan', 'axialfan'] },
+      { id: 'Stabilizer',        label: 'Stabilizer',     fallbackImg: CAT_IMAGES.stabilizer,    searchTerms: ['stabilizer', 'voltage stabilizer', 'ac stabilizer'] },
+      { id: 'Fan Box',            label: 'Fan Box',       fallbackImg: CAT_IMAGES.fanbox,       searchTerms: ['fan box', 'fanbox', 'fan-box'] },
       { id: 'Concealed Box',      label: 'Concealed Box', fallbackImg: CAT_IMAGES.concealedbox,  searchTerms: ['concealed', 'concealedbox', 'concealed-box'] },
       { id: 'BUS BAR SUPER',      label: 'Bus Bar Super', fallbackImg: CAT_IMAGES.busbar,        searchTerms: ['bus bar super', 'busbarsuper'] },
       { id: 'ECO SPN DD MCB BOX', label: 'MCB Box',       fallbackImg: CAT_IMAGES.mcb,           searchTerms: ['mcb', 'eco', 'spn', 'dd'] },
@@ -669,8 +671,9 @@ export function HomeScreen({
       icon: WhatsAppIcon,
       iconColors: ['#DCFCE7', '#BBF7D0'] as const,
       iconTint: '#16A34A',
-      onPress: () =>
-          Linking.openURL(`https://wa.me/${appSettings?.whatsappNumber ?? '918837684004'}?text=Hello%20SRV%20Electricals%2C%20I%20need%20support`),
+      onPress: () => {
+        void openWhatsAppSupport(appSettings?.whatsappNumber);
+      },
       hidden: !showWhatsapp,
     },
   ].filter((item) => !item.hidden), [
@@ -746,7 +749,7 @@ export function HomeScreen({
                 key={cat.id} cat={cat} index={index}
                 cardW={catCardW} darkMode={darkMode}
                 onPress={() => onOpenProductCategory(cat.targetCategoryId ?? cat.id)}
-                buttonLabel={pageContent.cardButtonLabel || 'View Products'}
+                buttonLabel="Buy Now"
               />
             ))}
           </View>
@@ -783,10 +786,10 @@ export function HomeScreen({
       showsVerticalScrollIndicator={false}
       bounces
       overScrollMode="never"
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#E8453C" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#173E80" />}
     >
       <LinearGradient
-        colors={darkMode ? ['#0B1220', '#101A2F', '#18263E'] : ['#EAF3FF', '#DDEEFF', '#F6EEFF']}
+        colors={darkMode ? ['#0B1220', '#111827', '#1F2937'] : ['#FFFFFF', '#F8FAFD', '#EAF3FF']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.heroShell, { marginTop: -insets.top, paddingTop: 26 + insets.top }]}
@@ -801,6 +804,7 @@ export function HomeScreen({
               <Image source={logoImage} style={styles.logoImage} resizeMode="contain" />
             </View>
           </View>
+          <Text style={styles.srvBrandTitle} numberOfLines={1}>SRV Electricals</Text>
 
           <View style={styles.topActions}>
             {showNotifications ? (
@@ -970,7 +974,7 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#EEF3F8' },
+  container: { flex: 1, backgroundColor: premium.bg },
   containerDark: { backgroundColor: '#08111F' },
   heroShell: {
     paddingTop: 26,
@@ -978,6 +982,23 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderBottomColor: premium.line,
+  },
+  srvBrandTitle: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#173E80',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    marginHorizontal: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    textTransform: 'uppercase',
     overflow: 'hidden',
   },
   heroGlowOne: {
@@ -988,6 +1009,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(59,130,246,0.18)',
     top: -60,
     right: -35,
+    display: 'none',
   },
   heroGlowTwo: {
     position: 'absolute',
@@ -997,6 +1019,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(236,72,153,0.14)',
     bottom: 18,
     left: -28,
+    display: 'none',
   },
   heroGlowThree: {
     position: 'absolute',
@@ -1006,15 +1029,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(34,197,94,0.1)',
     top: 72,
     left: '34%',
+    display: 'none',
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    gap: 12,
+    marginBottom: 4,
   },
-  brandLockup: { flexDirection: 'row', flex: 1, alignItems: 'center' },
+  brandLockup: { flexDirection: 'row', alignItems: 'center' },
   logoWrap: {
     width: 50,
     height: 50,
@@ -1060,10 +1083,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   walletCore: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: premium.navySoft,
   },
   notificationCore: {
-    backgroundColor: '#FFEDD5',
+    backgroundColor: premium.navySoft,
   },
   notificationCoreDark: {
     backgroundColor: 'rgba(194,65,12,0.18)',
@@ -1075,7 +1098,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
-    ...createShadow({ color: '#94A3B8', offsetY: 8, blur: 16, opacity: 0.12, elevation: 4 }),
+    ...premiumShadow('sm'),
   },
   statCardWrapDark: {
     ...createShadow({ color: '#020617', offsetY: 8, blur: 16, opacity: 0.26, elevation: 4 }),
@@ -1106,11 +1129,11 @@ const styles = StyleSheet.create({
   statGlowWarm: {
     backgroundColor: 'rgba(244,114,182,0.2)',
   },
-  statLabel: { color: '#5C6F91', fontSize: 9.5, fontWeight: '700', marginBottom: 4 },
+  statLabel: { color: premium.muted, fontSize: 9.5, fontWeight: '700', marginBottom: 4 },
   statLabelDark: { color: '#BFDBFE' },
-  statValue: { color: '#13294B', fontSize: 16, fontWeight: '900' },
+  statValue: { color: premium.ink, fontSize: 16, fontWeight: '900' },
   statValueDark: { color: '#F8FAFC' },
-  statHint: { color: '#7A8CAA', fontSize: 9.5, marginTop: 2 },
+  statHint: { color: premium.muted, fontSize: 9.5, marginTop: 2 },
   statHintDark: { color: '#CBD5E1' },
   tapHintBadge: {
     position: 'absolute',
@@ -1132,7 +1155,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  body: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 18 },
+  body: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 18, backgroundColor: premium.bg },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1140,7 +1163,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionEyebrow: {
-    color: '#7D8AA5',
+    color: premium.navy,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -1148,13 +1171,13 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   sectionEyebrowDark: { color: '#94A3B8' },
-  sectionTitle: { color: '#14213D', fontSize: 21, fontWeight: '900' },
+  sectionTitle: { color: premium.ink, fontSize: 21, fontWeight: '900' },
   sectionTitleDark: { color: '#F8FAFC' },
   bannerCard: {
-    borderRadius: 28,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#D9E3F2',
-    ...createShadow({ color: '#0F172A', offsetY: 10, blur: 22, opacity: 0.16, elevation: 9 }),
+    ...premiumShadow('sm'),
   },
   bannerImage: { width: '100%', height: '100%' },
   dotsRow: {
@@ -1164,17 +1187,19 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 22,
   },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#C7D2E3' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: premium.line },
   dotDark: { backgroundColor: '#334155' },
-  dotActive: { width: 28, backgroundColor: '#0F172A' },
+  dotActive: { width: 28, backgroundColor: premium.navy },
   dotActiveDark: { width: 28, backgroundColor: '#E2E8F0' },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 22 },
   quickCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    borderRadius: 10,
     padding: 14,
     marginBottom: 12,
-    ...createShadow({ color: '#0F172A', offsetY: 8, blur: 18, opacity: 0.07, elevation: 4 }),
+    borderWidth: 1,
+    borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   quickCardDark: {
     backgroundColor: '#111827',
@@ -1188,12 +1213,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
   },
-  quickTitle: { color: '#152238', fontSize: 14, fontWeight: '800' },
+  quickTitle: { color: premium.ink, fontSize: 14, fontWeight: '800' },
   quickTitleDark: { color: '#F8FAFC' },
-  quickSub: { color: '#74829D', fontSize: 11.5, marginTop: 3 },
+  quickSub: { color: premium.muted, fontSize: 11.5, marginTop: 3 },
   quickSubDark: { color: '#CBD5E1' },
   inlineAction: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewAllText: { color: '#173E80', fontSize: 13, fontWeight: '800' },
+  viewAllText: { color: premium.navy, fontSize: 13, fontWeight: '800' },
   productsTopBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1227,11 +1252,11 @@ const styles = StyleSheet.create({
   productsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   productCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E6ECF5',
-    ...createShadow({ color: '#0F172A', offsetY: 10, blur: 18, opacity: 0.08, elevation: 5 }),
+    borderColor: premium.line,
+    ...premiumShadow('sm'),
   },
   productCardDark: {
     backgroundColor: '#111827',
@@ -1257,9 +1282,9 @@ const styles = StyleSheet.create({
   productBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
   productImage: { width: 112, height: 112 },
   productInfo: { padding: 13, paddingTop: 11 },
-  productName: { color: '#152238', fontSize: 13, fontWeight: '800', textTransform: 'uppercase' },
+  productName: { color: premium.ink, fontSize: 13, fontWeight: '800' },
   productNameDark: { color: '#F8FAFC' },
-  productDesc: { color: '#70819C', fontSize: 11, lineHeight: 16, marginTop: 4, minHeight: 32 },
+  productDesc: { color: premium.muted, fontSize: 11, lineHeight: 16, marginTop: 4, minHeight: 32 },
   productDescDark: { color: '#CBD5E1' },
   productFooter: {
     flexDirection: 'row',
@@ -1268,7 +1293,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 8,
   },
-  productPrice: { color: '#152238', fontSize: 15, fontWeight: '900' },
+  productPrice: { color: premium.navy, fontSize: 15, fontWeight: '900' },
   productPriceDark: { color: '#F8FAFC' },
   pointsPill: {
     backgroundColor: 'rgba(255,255,255,0.92)',
@@ -1309,15 +1334,15 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 10,
     overflow: 'hidden',
     alignItems: 'center',
     width: '22%',
     minWidth: 80,
     borderWidth: 1,
-    borderColor: '#E6ECF5',
+    borderColor: premium.line,
     paddingBottom: 10,
-    ...createShadow({ color: '#0F172A', offsetY: 4, blur: 12, opacity: 0.07, elevation: 3 }),
+    ...premiumShadow('sm'),
   },
   categoryCardDark: {
     backgroundColor: '#111827',
@@ -1326,7 +1351,7 @@ const styles = StyleSheet.create({
   categoryImgWrap: {
     width: '100%',
     height: 76,
-    backgroundColor: '#F4F7FF',
+    backgroundColor: premium.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -1341,7 +1366,7 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: 9.5,
     fontWeight: '800',
-    color: '#152238',
+    color: premium.ink,
     textAlign: 'center',
     lineHeight: 13,
     paddingHorizontal: 4,
@@ -1350,11 +1375,11 @@ const styles = StyleSheet.create({
   categoryPrice: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#E8453C',
+    color: premium.navy,
     textAlign: 'center',
     marginTop: 3,
     paddingHorizontal: 4,
   },
   categoryPriceDark: { color: '#F87171' },
-  notifDot: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#E8453C', borderWidth: 1.5, borderColor: '#fff' },
+  notifDot: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: premium.navy, borderWidth: 1.5, borderColor: '#fff' },
 });

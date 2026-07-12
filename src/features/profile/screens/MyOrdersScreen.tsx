@@ -103,7 +103,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     ordersApi
       .getAll()
-      .then((data) => setOrders(Array.isArray(data) ? data : []))
+      .then((data) => setOrders(Array.isArray(data) ? data.filter((order) => order.type === 'product') : []))
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
   }, []);
@@ -176,7 +176,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             ]}
           >
             <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-              {pageContent.emptyStateTitle || tx('No orders or redemptions found yet.')}
+              {pageContent.emptyStateTitle || tx('No product orders found yet.')}
             </Text>
           </View>
         ) : (

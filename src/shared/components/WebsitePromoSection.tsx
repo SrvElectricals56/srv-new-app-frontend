@@ -5,9 +5,9 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
+import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
 
 const WEBSITE_URL  = 'https://srvelectricals.com';
-const WHATSAPP_URL = 'https://wa.me/918837684004';
 const INSTAGRAM_URL = 'https://www.instagram.com/srv__electricals/';
 const FACEBOOK_URL  = 'https://www.facebook.com/people/SRV-Electricals/61575756084140/';
 const TWITTER_URL   = 'https://x.com/Srv_Electricals';
@@ -157,7 +157,9 @@ export function WebsitePromoSection({ darkMode }: { darkMode: boolean }) {
     {
       key: 'whatsapp',
       label: 'WhatsApp',
-      url: WHATSAPP_URL,
+      onPress: () => {
+        void openWhatsAppSupport('918837684004');
+      },
       Icon: WhatsAppBrandIcon,
       bg: '#25D366',
     },
@@ -165,6 +167,7 @@ export function WebsitePromoSection({ darkMode }: { darkMode: boolean }) {
       key: 'instagram',
       label: 'Instagram',
       url: INSTAGRAM_URL,
+      onPress: () => Linking.openURL(INSTAGRAM_URL).catch(() => {}),
       Icon: InstagramBrandIcon,
       bg: 'linear', // handled separately
       gradColors: ['#F58529', '#DD2A7B', '#8134AF', '#515BD4'] as const,
@@ -173,6 +176,7 @@ export function WebsitePromoSection({ darkMode }: { darkMode: boolean }) {
       key: 'facebook',
       label: 'Facebook',
       url: FACEBOOK_URL,
+      onPress: () => Linking.openURL(FACEBOOK_URL).catch(() => {}),
       Icon: FacebookBrandIcon,
       bg: '#1877F2',
     },
@@ -180,6 +184,7 @@ export function WebsitePromoSection({ darkMode }: { darkMode: boolean }) {
       key: 'twitter',
       label: 'Twitter',
       url: TWITTER_URL,
+      onPress: () => Linking.openURL(TWITTER_URL).catch(() => {}),
       Icon: TwitterBrandIcon,
       bg: '#000000',
     },
@@ -250,7 +255,7 @@ export function WebsitePromoSection({ darkMode }: { darkMode: boolean }) {
         {socialLinks.map((s) => (
           <Pressable
             key={s.key}
-            onPress={() => Linking.openURL(s.url).catch(() => {})}
+            onPress={s.onPress}
             style={({ pressed }) => [styles.socialBtn, { opacity: pressed ? 0.75 : 1 }]}
             accessibilityRole="link"
             accessibilityLabel={`Open ${s.label}`}

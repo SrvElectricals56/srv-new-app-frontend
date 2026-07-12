@@ -7,6 +7,7 @@ import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
 import { colors } from '@/shared/theme/colors';
 import { createShadow } from '@/shared/theme/shadows';
+import { premium } from '@/shared/theme/premium';
 import type { Screen, UserRole } from '@/shared/types/navigation';
 import type { RewardHistoryItem } from '@/shared/types/rewards';
 import { walletApi } from '@/shared/api';
@@ -60,6 +61,20 @@ function HistoryGlyph() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </Svg>
+  );
+}
+
+function GiftOrderIcon() {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M7 6.5H17C18.1 6.5 19 7.4 19 8.5V18C19 19.1 18.1 20 17 20H7C5.9 20 5 19.1 5 18V8.5C5 7.4 5.9 6.5 7 6.5Z"
+        stroke="#7A4A22"
+        strokeWidth={1.8}
+      />
+      <Path d="M8.5 10H15.5M8.5 13H15.5M8.5 16H12.5" stroke="#7A4A22" strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M9 6.5C9 4.84 10.34 3.5 12 3.5C13.66 3.5 15 4.84 15 6.5" stroke="#7A4A22" strokeWidth={1.8} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -135,6 +150,11 @@ const toLocalDateKey = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const parseSignedPoints = (value: string) => {
+  const numeric = Number(String(value).replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
 function resolveDisplayedPoints(...values: (number | null | undefined)[]) {
   return Math.max(...values.map((value) => Number(value ?? 0)));
 }
@@ -164,96 +184,96 @@ const ROLE_THEME: Record<string, {
   storeIconWrapBg: string;
 }> = {
   dealer: {
-    heroGradient: ['#173E80', '#355C95', '#88AEEA'],
-    heroShadow: '#173E80',
-    eyebrowColor: '#EAF3FF',
-    screenBg: '#F4F8FF',
-    cardBorder: '#D7E7FF',
-    cardShadow: '#173E80',
-    sectionEyebrow: '#173E80',
-    sectionIconBg: '#EAF3FF',
-    actionTileBg: '#F7FBFF',
-    actionTileBorder: '#D7E7FF',
-    timelineCardBg: '#F7FBFF',
-    timelineCardBorder: '#D7E7FF',
-    emptyStateBg: '#F7FBFF',
-    emptyStateBorder: '#D7E7FF',
-    emptyIconBg: '#DCE8FF',
-    emptyTitleColor: '#173E80',
-    paginationBtnBg: '#173E80',
-    paginationBtnDisabledBg: '#D7E7FF',
-    paginationBtnDisabledText: '#355C95',
-    paginationInfoBg: '#EEF5FF',
-    storeIconWrapBg: '#EAF3FF',
+    heroGradient: ['#173E80', '#355C95', '#EAF3FF'],
+    heroShadow: premium.navy,
+    eyebrowColor: premium.navySoft,
+    screenBg: premium.bg,
+    cardBorder: premium.line,
+    cardShadow: premium.ink,
+    sectionEyebrow: premium.navy,
+    sectionIconBg: premium.navySoft,
+    actionTileBg: premium.surfaceSoft,
+    actionTileBorder: premium.line,
+    timelineCardBg: premium.surface,
+    timelineCardBorder: premium.line,
+    emptyStateBg: premium.surface,
+    emptyStateBorder: premium.line,
+    emptyIconBg: premium.navySoft,
+    emptyTitleColor: premium.navy,
+    paginationBtnBg: premium.navy,
+    paginationBtnDisabledBg: premium.navySoft,
+    paginationBtnDisabledText: premium.navy,
+    paginationInfoBg: premium.navySoft,
+    storeIconWrapBg: premium.navySoft,
   },
   electrician: {
-    heroGradient: ['#18345B', '#355C95', '#E18D4E'],
-    heroShadow: '#193357',
-    eyebrowColor: '#FDE3B8',
-    screenBg: '#F4EFE8',
-    cardBorder: '#E9DED3',
-    cardShadow: '#734E2A',
-    sectionEyebrow: '#B57846',
-    sectionIconBg: '#FFF1E2',
-    actionTileBg: '#FFF7F0',
-    actionTileBorder: '#F1E0CF',
-    timelineCardBg: '#FBF5EF',
-    timelineCardBorder: '#EEE0D5',
-    emptyStateBg: '#FFF8F2',
-    emptyStateBorder: '#F0E1D3',
-    emptyIconBg: '#FBE9D8',
-    emptyTitleColor: '#B04D2E',
-    paginationBtnBg: '#B57846',
-    paginationBtnDisabledBg: '#E9DED3',
-    paginationBtnDisabledText: '#B57846',
-    paginationInfoBg: '#FBF5EF',
-    storeIconWrapBg: '#FFF0DA',
+    heroGradient: ['#173E80', '#355C95', '#EAF3FF'],
+    heroShadow: premium.navy,
+    eyebrowColor: premium.navySoft,
+    screenBg: premium.bg,
+    cardBorder: premium.line,
+    cardShadow: premium.ink,
+    sectionEyebrow: premium.navy,
+    sectionIconBg: premium.navySoft,
+    actionTileBg: premium.surfaceSoft,
+    actionTileBorder: premium.line,
+    timelineCardBg: premium.surface,
+    timelineCardBorder: premium.line,
+    emptyStateBg: premium.surface,
+    emptyStateBorder: premium.line,
+    emptyIconBg: premium.navySoft,
+    emptyTitleColor: premium.navy,
+    paginationBtnBg: premium.navy,
+    paginationBtnDisabledBg: premium.navySoft,
+    paginationBtnDisabledText: premium.navy,
+    paginationInfoBg: premium.navySoft,
+    storeIconWrapBg: premium.navySoft,
   },
   user: {
-    heroGradient: ['#6A2F12', '#8D4A1E', '#C97B3C'],
+    heroGradient: ['#6A2F12', '#8D4A1E', '#F0DEC9'],
     heroShadow: '#6A2F12',
-    eyebrowColor: '#FBE6D4',
-    screenBg: '#FBF6F1',
-    cardBorder: '#E9D5C1',
-    cardShadow: '#6A2F12',
+    eyebrowColor: '#FBF1E7',
+    screenBg: '#FFF9F2',
+    cardBorder: '#E8D7C7',
+    cardShadow: premium.ink,
     sectionEyebrow: '#8D4A1E',
     sectionIconBg: '#FBF1E7',
-    actionTileBg: '#FFF8F2',
-    actionTileBorder: '#EDD9C7',
-    timelineCardBg: '#FFF8F2',
-    timelineCardBorder: '#E9D5C1',
-    emptyStateBg: '#FFF8F2',
-    emptyStateBorder: '#E9D5C1',
-    emptyIconBg: '#F5E8DC',
+    actionTileBg: premium.surfaceSoft,
+    actionTileBorder: premium.line,
+    timelineCardBg: premium.surface,
+    timelineCardBorder: premium.line,
+    emptyStateBg: premium.surface,
+    emptyStateBorder: premium.line,
+    emptyIconBg: '#FBF1E7',
     emptyTitleColor: '#6A2F12',
     paginationBtnBg: '#8D4A1E',
-    paginationBtnDisabledBg: '#EAD7C6',
-    paginationBtnDisabledText: '#8D4A1E',
+    paginationBtnDisabledBg: '#FBF1E7',
+    paginationBtnDisabledText: '#6A2F12',
     paginationInfoBg: '#FBF1E7',
-    storeIconWrapBg: '#F5E8DC',
+    storeIconWrapBg: '#FBF1E7',
   },
   counterboy: {
-    heroGradient: ['#5C3D2E', '#8B3C2A', '#A87A66'],
+    heroGradient: ['#8B3C2A', '#6F4E37', '#F0E4D4'],
     heroShadow: '#6F4E37',
-    eyebrowColor: '#EDE0D4',
+    eyebrowColor: '#F5EDE4',
     screenBg: '#F9F4ED',
     cardBorder: '#E0D0C0',
-    cardShadow: '#6F4E37',
+    cardShadow: premium.ink,
     sectionEyebrow: '#8B3C2A',
     sectionIconBg: '#F5EDE4',
-    actionTileBg: '#FFFFFF',
-    actionTileBorder: '#E0D0C0',
-    timelineCardBg: '#F9F4ED',
-    timelineCardBorder: '#EDE0D4',
-    emptyStateBg: '#F9F4ED',
-    emptyStateBorder: '#E0D0C0',
-    emptyIconBg: '#EDE0D4',
-    emptyTitleColor: '#8B3C2A',
+    actionTileBg: premium.surfaceSoft,
+    actionTileBorder: premium.line,
+    timelineCardBg: premium.surface,
+    timelineCardBorder: premium.line,
+    emptyStateBg: premium.surface,
+    emptyStateBorder: premium.line,
+    emptyIconBg: '#F5EDE4',
+    emptyTitleColor: '#6F4E37',
     paginationBtnBg: '#8B3C2A',
-    paginationBtnDisabledBg: '#EDE0D4',
-    paginationBtnDisabledText: '#8B3C2A',
+    paginationBtnDisabledBg: '#F5EDE4',
+    paginationBtnDisabledText: '#6F4E37',
     paginationInfoBg: '#F5EDE4',
-    storeIconWrapBg: '#F0DFD0',
+    storeIconWrapBg: '#F5EDE4',
   },
 };
 
@@ -407,6 +427,17 @@ export function WalletScreen({
     });
   }, [activityDate, activityType, allMappedItems]);
 
+  const selectedDateBalance = useMemo(() => {
+    const date = activityDate.trim();
+    if (!date) return null;
+    const balanceAfterSelectedDate = allMappedItems.reduce((sum, item) => {
+      if (!item.rawDate) return sum;
+      const itemDate = toLocalDateKey(new Date(item.rawDate));
+      return itemDate > date ? sum + parseSignedPoints(item.points) : sum;
+    }, 0);
+    return Math.max(0, totalPoints - balanceAfterSelectedDate);
+  }, [activityDate, allMappedItems, totalPoints]);
+
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedItems = filteredItems.slice(startIndex, startIndex + itemsPerPage);
@@ -441,7 +472,7 @@ export function WalletScreen({
 
   const selectedDateLabel = activityDate
     ? new Date(`${activityDate}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    : tx('All Dates');
+    : tx('All activity dates');
 
   const currentMonthKey = toLocalDateKey(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const calendarMonthKey = toLocalDateKey(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1));
@@ -489,12 +520,20 @@ export function WalletScreen({
       tint: '#EAF3FF',
       target: 'dealer_bonus' as Screen,
     },
+    {
+      id: 'gift-order',
+      label: 'Gift Store Order',
+      detail: 'Order history',
+      icon: GiftOrderIcon,
+      tint: '#F5EDE4',
+      target: 'my_redemption' as Screen,
+    },
   ];
 
   const electricianActions = [
     {
       id: 'buy',
-      label: 'Buy Schemes',
+      label: 'Buy Gift',
       detail: 'Premium offers',
       icon: GiftIcon,
       tint: '#FBE4CC',
@@ -516,6 +555,14 @@ export function WalletScreen({
       tint: '#FFE0DA',
       target: 'transfer_points' as Screen,
     },
+    {
+      id: 'gift-order',
+      label: 'Gift Store Order',
+      detail: 'Order history',
+      icon: GiftOrderIcon,
+      tint: '#F5EDE4',
+      target: 'my_redemption' as Screen,
+    },
   ];
 
   const counterBoyActions = [
@@ -535,12 +582,20 @@ export function WalletScreen({
       tint: '#FFE0DA',
       target: 'transfer_points' as Screen,
     },
+    {
+      id: 'gift-order',
+      label: 'Gift Store Order',
+      detail: 'Order history',
+      icon: GiftOrderIcon,
+      tint: '#F5EDE4',
+      target: 'my_redemption' as Screen,
+    },
   ];
 
   const userActions = [
     {
       id: 'buy',
-      label: 'Buy Schemes',
+      label: 'Buy Gift',
       detail: 'Premium offers',
       icon: GiftIcon,
       tint: '#FBE4CC',
@@ -553,6 +608,14 @@ export function WalletScreen({
       icon: TransferIcon,
       tint: '#DDEAFE',
       target: 'bank_details' as Screen,
+    },
+    {
+      id: 'gift-order',
+      label: 'Gift Store Order',
+      detail: 'Order history',
+      icon: GiftOrderIcon,
+      tint: '#F5EDE4',
+      target: 'my_redemption' as Screen,
     },
   ];
 
@@ -579,8 +642,8 @@ export function WalletScreen({
     : 'Premium rewards dashboard for redemptions, transfers, and loyalty growth.';
   const quickActionTitle = isDealer ? 'Manage dealer payouts' : role === 'counterboy' ? 'Manage counter rewards' : 'Move your wallet faster';
   const filterTypes = (role === 'user' || role === 'counterboy')
-    ? (['all', 'wallet', 'redemption', 'transfer'] as const)
-    : (['all', 'wallet', 'scan', 'redemption', 'transfer'] as const);
+    ? (['all', 'redemption', 'transfer'] as const)
+    : (['all', 'scan', 'redemption', 'transfer'] as const);
 
   return (
     <ScrollView
@@ -709,9 +772,9 @@ export function WalletScreen({
               activeOpacity={0.84}
               onPress={() => setCalendarVisible(true)}
             >
-              <CalendarGlyph color={darkMode ? '#F8FAFC' : '#7A4A22'} />
+              <CalendarGlyph color={darkMode ? '#F8FAFC' : '#7A4A22'} size={22} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.datePickerLabel, { color: darkMode ? '#94A3B8' : '#887B74' }]}>{tx('Filter Date')}</Text>
+                <Text style={[styles.datePickerLabel, { color: darkMode ? '#94A3B8' : '#887B74' }]}>{tx('Select activity date')}</Text>
                 <Text style={[styles.datePickerValue, { color: darkMode ? '#F8FAFC' : '#221C1A' }]}>{selectedDateLabel}</Text>
               </View>
             </TouchableOpacity>
@@ -723,6 +786,21 @@ export function WalletScreen({
               >
                 <Text style={[styles.clearDateText, { color: darkMode ? '#F8FAFC' : '#7A4A22' }]}>{tx('Clear')}</Text>
               </TouchableOpacity>
+            ) : null}
+          </View>
+          <View style={[styles.balanceLookupCard, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderColor: darkMode ? '#243043' : t.cardBorder }]}>
+            <Text style={[styles.balanceLookupLabel, { color: darkMode ? '#94A3B8' : '#887B74' }]}>
+              {tx(activityDate ? 'Wallet balance on selected date' : 'Check wallet history by date')}
+            </Text>
+            <Text style={[styles.balanceLookupValue, { color: darkMode ? '#F8FAFC' : '#221C1A' }]}>
+              {activityDate && selectedDateBalance !== null
+                ? `${selectedDateBalance.toLocaleString('en-IN')} ${tx(isDealer ? 'Dealer Bonus Points' : 'Total Points')}`
+                : `${totalPoints.toLocaleString('en-IN')} ${tx(isDealer ? 'Dealer Bonus Points' : 'Total Points')}`}
+            </Text>
+            {activityDate ? (
+              <Text style={[styles.balanceLookupDate, { color: darkMode ? '#CBD5E1' : colors.mutedText }]}>
+                {selectedDateLabel}
+              </Text>
             ) : null}
           </View>
           <View style={styles.filterChips}>
@@ -866,9 +944,9 @@ const styles = StyleSheet.create({
   content: { padding: 18, gap: 18, paddingBottom: 120 },
   heroCard: {
     overflow: 'hidden',
-    borderRadius: 34,
+    borderRadius: 24,
     padding: 22,
-    minHeight: 245,
+    minHeight: 238,
   },
   heroGlow: {
     position: 'absolute',
@@ -878,6 +956,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
     top: -40,
     right: -20,
+    display: 'none',
   },
   heroHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: {
@@ -896,7 +975,7 @@ const styles = StyleSheet.create({
   storeButton: {
     width: 54,
     height: 54,
-    borderRadius: 20,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.16)',
@@ -917,7 +996,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
-  heroTitle: { marginTop: 10, fontSize: 38, fontWeight: '900', color: '#FFFFFF' },
+  heroTitle: { marginTop: 10, fontSize: 28, lineHeight: 34, fontWeight: '900', color: '#FFFFFF' },
   heroSub: {
     marginTop: 8,
     maxWidth: '88%',
@@ -928,7 +1007,7 @@ const styles = StyleSheet.create({
   heroStats: { marginTop: 22, flexDirection: 'row', gap: 12 },
   heroStatCard: {
     flex: 1,
-    borderRadius: 22,
+    borderRadius: 18,
     padding: 14,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
@@ -937,7 +1016,7 @@ const styles = StyleSheet.create({
   heroStatLabel: { fontSize: 12, color: 'rgba(255,255,255,0.74)' },
   heroStatValue: { marginTop: 8, fontSize: 28, fontWeight: '900', color: '#FFFFFF' },
   card: {
-    borderRadius: 30,
+    borderRadius: 20,
     backgroundColor: '#FFFDFC',
     padding: 18,
     borderWidth: 1,
@@ -958,53 +1037,76 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionGrid: { marginTop: 18, flexDirection: 'row', gap: 12 },
+  actionGrid: { marginTop: 18, gap: 12 },
   actionTile: {
-    flex: 1,
-    borderRadius: 24,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 10,
-    minHeight: 150,
+    flexDirection: 'row',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    minHeight: 76,
   },
   actionIconWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionTileText: {
-    marginTop: 12,
-    textAlign: 'center',
-    fontSize: 13,
+    marginLeft: 12,
+    flex: 1,
+    fontSize: 14,
     color: colors.text,
     fontWeight: '800',
   },
   actionTileSub: {
-    marginTop: 4,
-    textAlign: 'center',
+    marginLeft: 10,
+    maxWidth: 116,
+    textAlign: 'right',
     fontSize: 11,
     color: colors.mutedText,
-    lineHeight: 16,
+    lineHeight: 14,
   },
   actionTileTextDark: { color: '#F8FAFC' },
   actionTileSubDark: { color: '#94A3B8' },
   timeline: { marginTop: 18, gap: 14 },
   filterPanel: {
     marginTop: 18,
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 12,
     gap: 10,
   },
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  datePickerButton: { flex: 1, minHeight: 54, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  datePickerLabel: { fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
-  datePickerValue: { fontSize: 13, fontWeight: '900', marginTop: 2 },
-  clearDateButton: { minHeight: 54, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  clearDateText: { fontSize: 12, fontWeight: '900' },
+  datePickerButton: { flex: 1, minHeight: 64, borderWidth: 1, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  datePickerLabel: { fontSize: 11.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  datePickerValue: { fontSize: 15, fontWeight: '900', marginTop: 3 },
+  clearDateButton: { minHeight: 64, borderWidth: 1, borderRadius: 18, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  clearDateText: { fontSize: 13, fontWeight: '900' },
+  balanceLookupCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+  },
+  balanceLookupLabel: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  balanceLookupValue: {
+    marginTop: 6,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '900',
+  },
+  balanceLookupDate: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   filterChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filterChip: {
     borderRadius: 999,
@@ -1018,7 +1120,7 @@ const styles = StyleSheet.create({
   timelineDot: { marginTop: 12, width: 10, height: 10, borderRadius: 999 },
   timelineCard: {
     flex: 1,
-    borderRadius: 22,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 15,
   },
@@ -1035,7 +1137,7 @@ const styles = StyleSheet.create({
   timelineTimeDark: { color: '#94A3B8' },
   emptyState: {
     marginTop: 18,
-    borderRadius: 24,
+    borderRadius: 18,
     paddingVertical: 26,
     paddingHorizontal: 18,
     alignItems: 'center',
@@ -1090,7 +1192,7 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
   },
   calendarBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
-  calendarModal: { position: 'absolute', left: 18, right: 18, top: '24%', borderRadius: 22, borderWidth: 1, padding: 16 },
+  calendarModal: { position: 'absolute', left: 18, right: 18, top: '24%', borderRadius: 20, borderWidth: 1, padding: 16 },
   calendarHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   calendarTitle: { fontSize: 17, fontWeight: '900' },
   calendarNavBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },

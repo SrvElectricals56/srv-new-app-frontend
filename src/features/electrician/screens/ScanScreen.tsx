@@ -1087,7 +1087,7 @@ export function ScanScreen({
                 : hasScanFailure ? { color: '#991B1B' } : null,
             ]}>
               {scanErrorType === 'already_scanned'
-                ? tx('This QR code is already redeemed. First scanner details are shown below.')
+                ? tx('This QR code has already been redeemed. Original scan details are shown below.')
                 : scanErrorType === 'invalid'
                   ? tx('This QR is not registered with SRV products.')
                   : earnedPoints > 0
@@ -1097,7 +1097,7 @@ export function ScanScreen({
             {scanErrorType === 'already_scanned' ? (
               <View style={[styles.duplicateCard, isDark ? styles.duplicateCardDark : null]}>
                 <Text style={[styles.duplicateTitle, isDark ? styles.duplicateTitleDark : null]}>
-                  {tx('First scanner details')}
+                  {tx('Scanned By')}
                 </Text>
                 <View style={styles.duplicateRow}>
                   <Text style={[styles.duplicateLabel, isDark ? styles.duplicateLabelDark : null]}>{tx('Name')}</Text>
@@ -1110,7 +1110,7 @@ export function ScanScreen({
                   {duplicateScan?.phone ? (
                     <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.phone)} activeOpacity={0.8}>
                       <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
-                        +91 {duplicateScan.phone}  {tx('Call')}
+                        +91 {duplicateScan.phone}
                       </Text>
                     </TouchableOpacity>
                   ) : (
@@ -1128,7 +1128,7 @@ export function ScanScreen({
                   {duplicateScan?.dealerPhone ? (
                     <TouchableOpacity onPress={() => callPhoneNumber(duplicateScan.dealerPhone)} activeOpacity={0.8}>
                       <Text style={[styles.duplicateValue, styles.duplicateCallValue, isDark ? styles.duplicateValueDark : null]}>
-                        +91 {duplicateScan.dealerPhone}  {tx('Call')}
+                        +91 {duplicateScan.dealerPhone}
                       </Text>
                     </TouchableOpacity>
                   ) : (
@@ -1310,7 +1310,7 @@ export function ScanScreen({
               text:
                 scanMode === 'multi'
                   ? 'Select Multi mode and scan products one by one'
-                  : 'Select Single mode for instant point credit',
+                  : 'Single and multiple scan mode for instant credit',
               color: Colors.primary,
             },
             {

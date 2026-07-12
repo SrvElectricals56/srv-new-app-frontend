@@ -563,6 +563,13 @@ function AppContent() {
         return;
       }
 
+      if (screen === 'my_redemption') {
+        setProfileInitialSubPage('My Redemption');
+        showRouteLoader();
+        setCurrentScreen('profile');
+        return;
+      }
+
       // If auth landing is open (guestAuthRole set) and user taps a non-blocked screen,
       // dismiss the auth flow and navigate normally
       if (guestAuthRole && screen !== 'wallet' && screen !== 'profile') {
@@ -667,6 +674,15 @@ function AppContent() {
       image: first.image,
       price: first.price,
       qty: first.qty,
+      items: userCartItems.map((cartItem) => ({
+        id: cartItem.id,
+        name: cartItem.name,
+        desc: cartItem.desc,
+        image: cartItem.image,
+        price: cartItem.price,
+        qty: cartItem.qty,
+      })),
+      source: 'cart',
     });
     setCurrentScreen('checkout');
   }, [userCartItems]);
@@ -707,6 +723,15 @@ function AppContent() {
       image: first.image,
       price: first.price,
       qty: first.qty,
+      items: electricianCartItems.map((cartItem) => ({
+        id: cartItem.id,
+        name: cartItem.name,
+        desc: cartItem.desc,
+        image: cartItem.image,
+        price: cartItem.price,
+        qty: cartItem.qty,
+      })),
+      source: 'cart',
     });
     setCurrentScreen('checkout');
   }, [electricianCartItems]);
@@ -721,6 +746,15 @@ function AppContent() {
       image: first.image,
       price: first.price,
       qty: first.qty,
+      items: dealerCartItems.map((cartItem) => ({
+        id: cartItem.id,
+        name: cartItem.name,
+        desc: cartItem.desc,
+        image: cartItem.image,
+        price: cartItem.price,
+        qty: cartItem.qty,
+      })),
+      source: 'cart',
     });
     setCurrentScreen('checkout');
   }, [dealerCartItems]);
@@ -743,18 +777,44 @@ function AppContent() {
       image: first.image,
       price: first.price,
       qty: first.qty,
+      items: counterboyCartItems.map((cartItem) => ({
+        id: cartItem.id,
+        name: cartItem.name,
+        desc: cartItem.desc,
+        image: cartItem.image,
+        price: cartItem.price,
+        qty: cartItem.qty,
+      })),
+      source: 'cart',
     });
     setCurrentScreen('checkout');
   }, [counterboyCartItems]);
 
   const handleCheckoutUpdateQty = useCallback((id: string, qty: number) => {
-    setCheckoutItem((prev) => prev ? { ...prev, qty } : prev);
+    setCheckoutItem((prev) => prev
+      ? {
+          ...prev,
+          qty: prev.id === id ? qty : prev.qty,
+          items: prev.items?.map((cartItem) => cartItem.id === id ? { ...cartItem, qty } : cartItem),
+        }
+      : prev);
   }, []);
 
   const handleOrderPlaced = useCallback(() => {
+    if (checkoutItem?.source === 'cart') {
+      if (currentRole === 'dealer') {
+        setDealerCartItems([]);
+      } else if (currentRole === 'counterboy') {
+        setCounterboyCartItems([]);
+      } else if (currentRole === 'electrician') {
+        setElectricianCartItems([]);
+      } else {
+        setUserCartItems([]);
+      }
+    }
     setCheckoutItem(null);
     setCurrentScreen('home');
-  }, []);
+  }, [checkoutItem?.source, currentRole]);
 
   const handleSignOut = useCallback(() => {
     if (isPreviewMode) {
@@ -1086,6 +1146,7 @@ function AppContent() {
               initialSubPage={profileInitialSubPage}
               onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
               profileResetKey={profileResetKey}
+              cartCount={dealerCartCount}
             />
           );
         case 'dealer_tier':
@@ -1222,6 +1283,7 @@ function AppContent() {
               initialSubPage={profileInitialSubPage}
               onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
               profileResetKey={profileResetKey}
+              cartCount={userCartCount}
             />
           );
         case 'wallet':
@@ -1357,6 +1419,7 @@ function AppContent() {
               initialSubPage={profileInitialSubPage}
               onInitialSubPageConsumed={() => setProfileInitialSubPage(null)}
               profileResetKey={profileResetKey}
+              cartCount={counterboyCartCount}
             />
           );
         case 'bank_details':

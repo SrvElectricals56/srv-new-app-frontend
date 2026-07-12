@@ -158,15 +158,15 @@ export function TransferPointsPage({
 
         {/* Search user */}
         <View style={[styles.searchCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>{pageContent.inputLabel || tx(`${targetRoleLabel} Mobile Number`)}</Text>
-          <Text style={[styles.ruleText, { color: theme.textSecondary }]}>
+          <Text style={[styles.sectionLabel, { color: theme.textPrimary }]}>{pageContent.inputLabel || tx(`${targetRoleLabel} Mobile Number`)}</Text>
+          <Text style={[styles.ruleText, { color: theme.textPrimary }]}>
             {tx(`Points transfer is available only from ${targetRoleLabel} to ${targetRoleLabel}.`)}
           </Text>
           <View style={styles.searchRow}>
             <TextInput
               style={[styles.searchInput, { backgroundColor: theme.bg, borderColor: theme.border, color: theme.textPrimary }]}
               placeholder={pageContent.searchPlaceholder || tx(`Enter ${targetRoleLabel} 10-digit mobile number`)}
-              placeholderTextColor={theme.textMuted}
+              placeholderTextColor={theme.textSecondary}
               value={mobile}
               onChangeText={(v) => { setMobile(v.replace(/\D/g, '').slice(0, 10)); setFoundUser(null); setSearchError(''); }}
               keyboardType="phone-pad"
@@ -209,11 +209,11 @@ export function TransferPointsPage({
         {/* Points input */}
         {foundUser && (
           <View style={[styles.searchCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>{tx('Points to Transfer')}</Text>
+            <Text style={[styles.sectionLabel, { color: theme.textPrimary }]}>{tx('Points to Transfer')}</Text>
             <TextInput
               style={[styles.searchInput, { backgroundColor: theme.bg, borderColor: theme.border, color: theme.textPrimary, width: '100%' }]}
               placeholder={tx('Enter points amount')}
-              placeholderTextColor={theme.textMuted}
+              placeholderTextColor={theme.textSecondary}
               value={points}
               onChangeText={(v) => setPoints(v.replace(/\D/g, ''))}
               keyboardType="number-pad"

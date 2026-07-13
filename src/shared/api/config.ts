@@ -10,7 +10,7 @@ const DEFAULT_URL_BY_PLATFORM: Record<string, string> = {
 
 // Physical devices should set EXPO_PUBLIC_API_URL to your machine's LAN URL.
 const fallbackUrl = DEFAULT_URL_BY_PLATFORM[Platform.OS] ?? 'http://127.0.0.1:3001/api/v1';
-const devLanUrl = 'http://10.60.30.231:3001/api/v1';
+const devLanUrl = 'http://10.255.222.231:3001/api/v1';
 
 export const API_BASE_URL: string = ENV_URL && ENV_URL.length > 0 ? ENV_URL : fallbackUrl;
 export const API_BASE_URLS: string[] = Array.from(new Set([

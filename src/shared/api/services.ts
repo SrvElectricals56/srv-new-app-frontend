@@ -688,9 +688,75 @@ export const redemptionsApi = {
     ),
 };
 
+type OrdersApiResponse = UserOrder[] | { data?: UserOrder[]; orders?: UserOrder[] };
+
+function normalizeOrdersResponse(response: OrdersApiResponse | unknown): UserOrder[] {
+  if (Array.isArray(response)) return response;
+  if (response && typeof response === 'object') {
+    const data = (response as { data?: unknown }).data;
+    if (Array.isArray(data)) return data as UserOrder[];
+
+    const orders = (response as { orders?: unknown }).orders;
+    if (Array.isArray(orders)) return orders as UserOrder[];
+  }
+  return [];
+}
+
+function productOrderToUserOrder(order: ProductOrder): UserOrder {
+  const total = Number(order.price ?? 0) * Number(order.quantity ?? 1);
+  return {
+    id: order.id,
+    type: 'product',
+    status: order.status,
+    title: order.productName,
+    productName: order.productName,
+    productImage: order.productImage ?? null,
+    imageUrl: order.productImage ?? null,
+    quantity: Number(order.quantity ?? 1),
+    price: Number(order.price ?? 0),
+    total,
+    userId: order.userId,
+    userName: (order as any).userName ?? '',
+    points: total,
+    deliveredAt: order.deliveredAt ?? null,
+    orderedAt: order.orderedAt ?? null,
+    paidAt: order.paidAt ?? null,
+    estimatedDeliveryAt: order.estimatedDeliveryAt ?? null,
+    dispatchedAt: order.dispatchedAt ?? null,
+    rejectedAt: order.rejectedAt ?? null,
+    shippingAddress: order.shippingAddress ?? null,
+    trackingNumber: order.trackingNumber ?? null,
+    courierName: order.courierName ?? null,
+    paymentMethod: order.paymentMethod ?? null,
+    paymentStatus: order.paymentStatus ?? null,
+    refundStatus: order.refundStatus ?? null,
+    refundMessage: order.refundMessage ?? null,
+    rejectionReason: order.rejectionReason ?? null,
+    deliveryNotes: order.deliveryNotes ?? null,
+    createdAt: order.orderedAt,
+  };
+}
+
 export const ordersApi = {
-  getAll: () =>
-    api.get<UserOrder[]>('/mobile/profile/orders', undefined, true),
+  getAll: async () => {
+    try {
+      const response = await api.get<OrdersApiResponse>('/mobile/profile/orders', undefined, true);
+      const orders = normalizeOrdersResponse(response);
+      if (orders.length > 0) return orders;
+    } catch (error) {
+      console.warn('Unable to load combined order history, trying product orders.', error);
+    }
+
+    const response = await api.get<ProductOrder[] | { data?: ProductOrder[]; orders?: ProductOrder[] }>('/mobile/product-orders', undefined, true);
+    const productOrders = Array.isArray(response)
+      ? response
+      : Array.isArray(response?.orders)
+        ? response.orders
+        : Array.isArray(response?.data)
+          ? response.data
+          : [];
+    return productOrders.map(productOrderToUserOrder);
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

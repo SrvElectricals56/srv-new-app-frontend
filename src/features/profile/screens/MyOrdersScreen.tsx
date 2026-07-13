@@ -61,6 +61,28 @@ function normalizeName(value?: string | null) {
   return String(value ?? '').trim().toLowerCase();
 }
 
+function safeNumber(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs = 25000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Orders request timed out')), timeoutMs);
+    promise
+      .then(resolve)
+      .catch(reject)
+      .finally(() => clearTimeout(timer));
+  });
+}
+
+function getOrderAmountLabel(order: UserOrder) {
+  if (order.type === 'product') {
+    return `Rs.${safeNumber(order.total).toLocaleString('en-IN')}`;
+  }
+  return `${safeNumber(order.points ?? order.total).toLocaleString('en-IN')} pts`;
+}
+
 function getOrderImage(order: UserOrder, giftImageByName: Map<string, string | null>) {
   const directImage = resolveImageUrl(
     order.productImage ??
@@ -81,13 +103,57 @@ function getOrderImage(order: UserOrder, giftImageByName: Map<string, string | n
 
 function getTrackingSteps(order: UserOrder) {
   const status = String(order.status ?? '').toLowerCase();
-  const rejected = status === 'rejected';
+  const orderedAt = order.orderedAt ?? order.createdAt;
+  const shippedAt = order.dispatchedAt ?? addDays(orderedAt, 3);
+  const deliveryAt = order.deliveredAt ?? getExpectedDeliveryDate(order);
+  const shipped = Boolean(order.dispatchedAt) || ['shipped', 'delivered'].includes(status);
+  const delivered = Boolean(order.deliveredAt) || status === 'delivered';
+
   return [
-    { label: 'Order placed', value: formatDate(order.orderedAt ?? order.createdAt), done: true },
-    { label: 'Payment done', value: order.paidAt ? formatDate(order.paidAt) : toStatusLabel(order.paymentStatus), done: order.paymentStatus === 'paid' || order.type === 'gift' },
-    { label: 'Processing', value: rejected ? 'Rejected by admin' : 'Order confirmed', done: !rejected && ['pending', 'approved', 'shipped', 'delivered'].includes(status) },
-    { label: 'Dispatched', value: order.dispatchedAt ? formatDate(order.dispatchedAt) : (order.trackingNumber || 'Waiting for dispatch'), done: ['shipped', 'delivered'].includes(status) },
-    { label: rejected ? 'Refund' : 'Delivery', value: rejected ? (order.refundMessage || 'Refund will be processed within 2 business days.') : (order.deliveredAt ? formatDate(order.deliveredAt) : `Expected ${formatDate(getExpectedDeliveryDate(order))}`), done: rejected || status === 'delivered' },
+    {
+      label: 'Order Confirmed',
+      value: `Your Order has been placed.\n${formatDate(orderedAt)}\nSeller is processing your order.\nItem waiting to be picked up by delivery partner.\n${formatDate(addDays(orderedAt, 2))}`,
+      done: true,
+    },
+    {
+      label: `Shipped Expected By ${formatDate(shippedAt)}`,
+      value: shipped ? `Item shipped.\n${formatDate(shippedAt)}` : `Item yet to be shipped.\nExpected by ${formatDate(shippedAt)}`,
+      done: shipped,
+    },
+    {
+      label: 'Out For Delivery',
+      value: delivered ? 'Item is out for delivery.' : 'Item yet to be delivered.',
+      done: delivered,
+    },
+    {
+      label: `Delivery Expected By ${formatDate(deliveryAt)}`,
+      value: delivered ? `Item delivered.\n${formatDate(deliveryAt)}` : `Item yet to be delivered.\nExpected by ${formatDate(deliveryAt)}`,
+      done: delivered,
+    },
+  ];
+}
+
+function getOrderProgress(order: UserOrder) {
+  const status = String(order.status ?? '').toLowerCase();
+  const shipped = Boolean(order.dispatchedAt) || ['shipped', 'delivered'].includes(status);
+  const delivered = Boolean(order.deliveredAt) || status === 'delivered';
+  const expectedDeliveryAt = getExpectedDeliveryDate(order);
+  return [
+    {
+      label: 'Order Confirmed',
+      value: formatDate(order.orderedAt ?? order.createdAt),
+      done: true,
+    },
+    {
+      label: 'Shipped',
+      value: shipped ? formatDate(order.dispatchedAt ?? order.createdAt) : formatDate(addDays(order.orderedAt ?? order.createdAt, 3)),
+      done: shipped,
+    },
+    {
+      label: 'Delivery',
+      value: delivered ? formatDate(order.deliveredAt) : formatDate(expectedDeliveryAt),
+      done: delivered,
+    },
   ];
 }
 
@@ -98,14 +164,43 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'my_orders');
   const [orders, setOrders] = useState<UserOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<UserOrder | null>(null);
+  const [showAllUpdates, setShowAllUpdates] = useState(false);
 
   useEffect(() => {
-    ordersApi
-      .getAll()
-      .then((data) => setOrders(Array.isArray(data) ? data.filter((order) => order.type === 'product') : []))
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
+    let active = true;
+
+    setLoading(true);
+    setLoadError(null);
+    withTimeout(ordersApi.getAll())
+      .then((data) => {
+        if (!active) return;
+        setOrders(
+          Array.isArray(data)
+            ? data.map((order) => ({
+                ...order,
+                quantity: safeNumber(order.quantity) || 1,
+                price: safeNumber(order.price),
+                total: safeNumber(order.total),
+                points: safeNumber(order.points ?? order.total),
+              }))
+            : [],
+        );
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.warn('Unable to load orders.', error);
+        setOrders([]);
+        setLoadError('Unable to load orders. Please try again later.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const activeOrders = useMemo(
@@ -132,6 +227,117 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
     });
     return map;
   }, [giftProducts]);
+
+  if (selectedOrder && showAllUpdates) {
+    const trackingSteps = getTrackingSteps(selectedOrder);
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <PageHeader title={tx('Order Updates')} onBack={() => setShowAllUpdates(false)} />
+        <ScrollView contentContainerStyle={styles.timelineContent} showsVerticalScrollIndicator={false}>
+          {trackingSteps.map((step, index) => {
+            const isLast = index === trackingSteps.length - 1;
+            return (
+              <View key={`${step.label}-${index}`} style={styles.timelineRow}>
+                <View style={styles.timelineRail}>
+                  <View style={[styles.timelineDot, { backgroundColor: step.done ? '#16A34A' : '#FFFFFF', borderColor: step.done ? '#16A34A' : '#D1D5DB' }]} />
+                  {!isLast ? <View style={[styles.timelineLine, { backgroundColor: '#E5E7EB' }]} /> : null}
+                </View>
+                <View style={styles.timelineCopy}>
+                  <Text style={[styles.timelineTitle, { color: step.done ? theme.textPrimary : theme.textMuted }]}>
+                    {tx(step.label)} {index === 0 ? formatDate(selectedOrder.orderedAt ?? selectedOrder.createdAt) : ''}
+                  </Text>
+                  <Text style={[styles.timelineText, { color: step.done ? theme.textPrimary : theme.textMuted }]}>
+                    {step.value}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (selectedOrder) {
+    const progress = getOrderProgress(selectedOrder);
+    const orderImage = getOrderImage(selectedOrder, giftImageByName);
+    const isGift = selectedOrder.type === 'gift';
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <PageHeader title={tx('Order Details')} onBack={() => setSelectedOrder(null)} />
+        <ScrollView contentContainerStyle={styles.detailContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.detailProductRow}>
+            <View style={[styles.detailImageWrap, { backgroundColor: isGift ? C.purpleLight : '#DBEAFE' }]}>
+              {orderImage ? (
+                <Image source={{ uri: orderImage }} style={styles.detailImage} resizeMode="cover" />
+              ) : (
+                <AppIcon name={isGift ? 'redeem' : 'order'} size={24} color={isGift ? C.purple : '#1D4ED8'} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailProductTitle, { color: theme.textPrimary }]} numberOfLines={2}>
+                {selectedOrder.title || selectedOrder.productName || tx('Order')}
+              </Text>
+              <Text style={[styles.detailProductMeta, { color: theme.textMuted }]}>
+                {isGift ? tx('Gift') : `${tx('Product')} | ${tx('Qty')}: ${selectedOrder.quantity}`}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[styles.detailOrderId, { color: theme.textMuted }]}>Order #{selectedOrder.id}</Text>
+
+          <View style={[styles.progressCard, { borderColor: '#1D4ED8', backgroundColor: theme.surface }]}>
+            <Text style={[styles.progressTitle, { color: theme.textPrimary }]}>
+              {tx(toStatusLabel(selectedOrder.status, selectedOrder.type))}
+            </Text>
+            <Text style={[styles.progressSubtitle, { color: theme.textSecondary }]}>
+              {tx('Your Order has been placed.')}
+            </Text>
+            <View style={styles.progressTrack}>
+              {progress.map((step, index) => (
+                <React.Fragment key={step.label}>
+                  <View style={styles.progressStep}>
+                    <View style={[styles.progressDot, { backgroundColor: step.done ? '#16A34A' : '#FFFFFF', borderColor: step.done ? '#16A34A' : '#D1D5DB' }]}>
+                      {step.done ? <Text style={styles.progressCheck}>✓</Text> : null}
+                    </View>
+                    <Text style={[styles.progressLabel, { color: theme.textSecondary }]}>{tx(step.label)}</Text>
+                    <Text style={[styles.progressDate, { color: theme.textMuted }]}>{step.value}</Text>
+                  </View>
+                  {index < progress.length - 1 ? <View style={styles.progressConnector} /> : null}
+                </React.Fragment>
+              ))}
+            </View>
+            <View style={[styles.infoBox, { backgroundColor: theme.soft }]}>
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+                {selectedOrder.trackingNumber
+                  ? `${tx('Tracking ID')}: ${selectedOrder.trackingNumber}`
+                  : tx('Delivery Executive details will be available once the order is out for delivery')}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.seeUpdatesButton} activeOpacity={0.8} onPress={() => setShowAllUpdates(true)}>
+              <Text style={styles.seeUpdatesText}>{tx('See all updates')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.promiseTitle, { color: theme.textPrimary }]}>{tx("SRV's promise")}</Text>
+          <View style={[styles.promiseCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <AppIcon name="redeem" size={22} color={C.teal} />
+            <View>
+              <Text style={[styles.promiseMain, { color: theme.textPrimary }]}>{tx('Easy Returns')}</Text>
+              <Text style={[styles.promiseSub, { color: theme.textMuted }]}>{tx('Available after delivery')}</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.promiseTitle, { color: theme.textPrimary }]}>{tx('Rate your experience')}</Text>
+          <View style={[styles.promiseCard, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+            <AppIcon name="help" size={22} color={theme.textMuted} />
+            <Text style={[styles.promiseMain, { color: theme.textPrimary, flex: 1 }]}>{tx('Did you find this page helpful?')}</Text>
+            <AppIcon name="chevronRight" size={16} color={theme.textMuted} />
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -176,100 +382,70 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             ]}
           >
             <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-              {pageContent.emptyStateTitle || tx('No product orders found yet.')}
+              {loadError ? tx(loadError) : pageContent.emptyStateTitle || tx('No product orders found yet.')}
             </Text>
           </View>
         ) : (
           orders.map((order) => {
-            const expanded = expandedOrderId === order.id;
-            const trackingSteps = getTrackingSteps(order);
             const statusColors = getOrderStatusColors(order.status, order.paymentStatus);
             const orderImage = getOrderImage(order, giftImageByName);
             const expectedDeliveryAt = getExpectedDeliveryDate(order);
             const showExpectedDelivery = !['delivered', 'rejected', 'cancelled'].includes(String(order.status).toLowerCase());
+
             return (
-            <TouchableOpacity
-              key={order.id}
-              activeOpacity={0.9}
-              onPress={() => setExpandedOrderId(expanded ? null : order.id)}
-              style={[
-                styles.orderCard,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-              ]}
-            >
-              <View style={styles.orderHead}>
-                <View style={[styles.orderImageWrap, { backgroundColor: order.type === 'product' ? '#DBEAFE' : C.purpleLight }]}>
-                  {orderImage ? (
-                    <Image source={{ uri: orderImage }} style={styles.orderImage} resizeMode="contain" />
-                  ) : (
-                    <AppIcon name={order.type === 'product' ? 'order' : 'redeem'} size={20} color={order.type === 'product' ? '#1D4ED8' : C.purple} />
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.orderTitle, { color: theme.textPrimary }]}>
-                    {order.title || tx('Reward redemption')}
-                  </Text>
-                  <Text style={[styles.orderType, { color: order.type === 'product' ? '#1D4ED8' : C.purple }]}>
-                    {order.type === 'product' ? `${tx('Product')} · ${tx('Qty')}: ${order.quantity}` : tx('Gift')}
-                  </Text>
-                  <Text style={[styles.orderMeta, { color: theme.textMuted }]}>{order.id}</Text>
-                </View>
-                <View style={[styles.statusChip, { backgroundColor: statusColors.background }]}>
-                  <Text style={[styles.statusText, { color: statusColors.text }]}>{toStatusLabel(order.status, order.type)}</Text>
-                </View>
-              </View>
-              <View style={[styles.detailStrip, { backgroundColor: theme.soft }]}>
-                <Text style={[styles.detailText, { color: theme.textSecondary }]}>
-                  {formatDate(order.deliveredAt ?? order.createdAt)}
-                </Text>
-                <Text style={[styles.dot, { color: theme.textMuted }]}>•</Text>
-                <Text style={[styles.detailText, { color: theme.textSecondary }]}>
-                  {order.type === 'product'
-                    ? `₹${order.total.toLocaleString('en-IN')}`
-                    : `${order.points.toLocaleString('en-IN')} pts`}</Text>
-              </View>
-              {showExpectedDelivery && (
-                <View style={[styles.expectedBox, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}>
-                  <Text style={styles.expectedLabel}>{tx('Expected Delivery')}</Text>
-                  <Text style={styles.expectedValue}>{formatDate(expectedDeliveryAt)}</Text>
-                </View>
-              )}
-              {expanded && (
-                <View style={[styles.trackingBox, { backgroundColor: theme.soft, borderColor: theme.border }]}>
-                  <Text style={[styles.trackingTitle, { color: theme.textPrimary }]}>{tx('Shipping Details')}</Text>
-                  {trackingSteps.map((step, index) => (
-                    <View key={`${step.label}-${index}`} style={styles.trackingStep}>
-                      <View style={[styles.trackingDot, { backgroundColor: step.done ? '#16A34A' : theme.border }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.trackingLabel, { color: theme.textPrimary }]}>{tx(step.label)}</Text>
-                        <Text style={[styles.trackingValue, { color: theme.textMuted }]}>{step.value}</Text>
-                      </View>
-                    </View>
-                  ))}
-                  <View style={[styles.shipInfo, { borderTopColor: theme.border }]}>
-                    <Text style={[styles.shipInfoText, { color: theme.textSecondary }]}>
-                      {tx('Delivery Address')}: {order.shippingAddress || tx('Address saved with order')}
-                    </Text>
-                    {!!order.trackingNumber && (
-                      <Text style={[styles.shipInfoText, { color: theme.textSecondary }]}>
-                        {tx('Tracking ID')}: {order.trackingNumber}
-                      </Text>
-                    )}
-                    {!!order.courierName && (
-                      <Text style={[styles.shipInfoText, { color: theme.textSecondary }]}>
-                        {tx('Courier Partner')}: {order.courierName}
-                      </Text>
-                    )}
-                    {!!order.deliveryNotes && (
-                      <Text style={[styles.shipInfoText, { color: String(order.status).toLowerCase() === 'rejected' ? '#B91C1C' : '#166534' }]}>
-                        {order.deliveryNotes}
-                      </Text>
+              <TouchableOpacity
+                key={order.id}
+                activeOpacity={0.9}
+                onPress={() => {
+                  setSelectedOrder(order);
+                  setShowAllUpdates(false);
+                }}
+                style={[
+                  styles.orderCard,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
+              >
+                <View style={styles.orderHead}>
+                  <View style={[styles.orderImageWrap, { backgroundColor: order.type === 'product' ? '#DBEAFE' : C.purpleLight }]}>
+                    {orderImage ? (
+                      <Image source={{ uri: orderImage }} style={styles.orderImage} resizeMode="contain" />
+                    ) : (
+                      <AppIcon name={order.type === 'product' ? 'order' : 'redeem'} size={20} color={order.type === 'product' ? '#1D4ED8' : C.purple} />
                     )}
                   </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.orderTitle, { color: theme.textPrimary }]}>
+                      {order.title || tx('Reward redemption')}
+                    </Text>
+                    <Text style={[styles.orderType, { color: order.type === 'product' ? '#1D4ED8' : C.purple }]}>
+                      {order.type === 'product' ? `${tx('Product')} | ${tx('Qty')}: ${order.quantity}` : tx('Gift')}
+                    </Text>
+                    <Text style={[styles.orderMeta, { color: theme.textMuted }]}>{order.id}</Text>
+                  </View>
+                  <View style={[styles.statusChip, { backgroundColor: statusColors.background }]}>
+                    <Text style={[styles.statusText, { color: statusColors.text }]}>{toStatusLabel(order.status, order.type)}</Text>
+                  </View>
                 </View>
-              )}
-            </TouchableOpacity>
-          );})
+
+                <View style={[styles.detailStrip, { backgroundColor: theme.soft }]}>
+                  <Text style={[styles.detailText, { color: theme.textSecondary }]}>
+                    {formatDate(order.deliveredAt ?? order.createdAt)}
+                  </Text>
+                  <Text style={[styles.dot, { color: theme.textMuted }]}>|</Text>
+                  <Text style={[styles.detailText, { color: theme.textSecondary }]}>
+                    {getOrderAmountLabel(order)}
+                  </Text>
+                </View>
+
+                {showExpectedDelivery && (
+                  <View style={[styles.expectedBox, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}>
+                    <Text style={styles.expectedLabel}>{tx('Expected Delivery')}</Text>
+                    <Text style={styles.expectedValue}>{formatDate(expectedDeliveryAt)}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -278,6 +454,46 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 14, paddingBottom: 32 },
+  detailContent: { padding: 18, gap: 18, paddingBottom: 36 },
+  timelineContent: { paddingHorizontal: 24, paddingTop: 36, paddingBottom: 48 },
+  timelineRow: { flexDirection: 'row', minHeight: 118 },
+  timelineRail: { width: 36, alignItems: 'center' },
+  timelineDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2 },
+  timelineLine: { width: 2, flex: 1, marginTop: 3 },
+  timelineCopy: { flex: 1, paddingBottom: 24 },
+  timelineTitle: { fontSize: 18, fontWeight: '800', lineHeight: 25 },
+  timelineText: { fontSize: 15, lineHeight: 23, marginTop: 8 },
+  detailProductRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  detailImageWrap: {
+    width: 82,
+    height: 82,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  detailImage: { width: '100%', height: '100%' },
+  detailProductTitle: { fontSize: 17, fontWeight: '800', lineHeight: 23 },
+  detailProductMeta: { fontSize: 13, fontWeight: '700', marginTop: 4 },
+  detailOrderId: { fontSize: 14, fontWeight: '700' },
+  progressCard: { borderRadius: 22, borderWidth: 1, padding: 18, gap: 16 },
+  progressTitle: { fontSize: 22, fontWeight: '900' },
+  progressSubtitle: { fontSize: 15, fontWeight: '600', lineHeight: 21 },
+  progressTrack: { flexDirection: 'row', alignItems: 'flex-start', paddingTop: 8 },
+  progressStep: { width: 86, alignItems: 'center', gap: 8 },
+  progressDot: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  progressCheck: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', lineHeight: 16 },
+  progressLabel: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  progressDate: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  progressConnector: { height: 2, flex: 1, marginTop: 11 },
+  infoBox: { borderRadius: 14, padding: 14 },
+  infoText: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  seeUpdatesButton: { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 14, alignItems: 'center' },
+  seeUpdatesText: { color: '#1D4ED8', fontSize: 16, fontWeight: '900' },
+  promiseTitle: { fontSize: 21, fontWeight: '900', marginTop: 4 },
+  promiseCard: { borderRadius: 18, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  promiseMain: { fontSize: 16, fontWeight: '900' },
+  promiseSub: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   summaryRow: { flexDirection: 'row', gap: 12 },
   summaryCard: { flex: 1, borderRadius: 22, borderWidth: 1, padding: 16 },
   summaryLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },

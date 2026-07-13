@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAppPageContent } from '@/shared/hooks';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -144,12 +144,13 @@ export function NotificationScreen({
   const [selectedNotification, setSelectedNotification] = useState<NotifItem | null>(null);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const notifScope = `${role}:${user?.id ?? 'guest'}`;
 
-  const loadAndMarkSeen = useCallback(async () => {
-    setLoading(true);
+  const loadAndMarkSeen = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const [res, seenIds, clearedIds] = await Promise.all([
         notificationsApi.getAll(role, user?.id),
@@ -178,11 +179,20 @@ export function NotificationScreen({
         setNotifItems([]);
       }
     } catch {
-      setNotifItems([]);
+      if (showLoading) setNotifItems([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [notifScope, role, roleTheme.cycle, user?.id]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadAndMarkSeen(false);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadAndMarkSeen]);
 
   const handleClearNotification = useCallback(async (id: string) => {
     await storage.clearNotifications([id], notifScope);
@@ -216,7 +226,7 @@ export function NotificationScreen({
   }, [notifItems, notifScope, onNotificationsSeen, tx]);
 
   useEffect(() => {
-    loadAndMarkSeen();
+    void loadAndMarkSeen();
   }, [loadAndMarkSeen]);
 
   const displayedNotifications = showAllNotifications ? notifItems : notifItems.slice(0, 5);
@@ -289,6 +299,15 @@ export function NotificationScreen({
       style={[styles.screen, darkMode ? styles.screenDark : null]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor="#173E80"
+          colors={['#173E80']}
+          progressBackgroundColor={darkMode ? '#111827' : roleTheme.screen}
+        />
+      }
     >
       <LinearGradient
         colors={roleTheme.hero}

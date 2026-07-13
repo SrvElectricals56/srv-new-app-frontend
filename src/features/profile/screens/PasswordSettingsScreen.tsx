@@ -127,7 +127,8 @@ type StrengthRule = {
 };
 
 const strengthRules: StrengthRule[] = [
-  { label: 'Exactly 8 characters', test: (p) => p.length === 8 },
+  { label: 'At least 8 characters', test: (p) => p.length >= 8 },
+  { label: 'Contains one capital letter', test: (p) => /[A-Z]/.test(p) },
   {
     label: 'Contains special character (!@#$%)',
     test: (p) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p),
@@ -135,10 +136,9 @@ const strengthRules: StrengthRule[] = [
   { label: 'No spaces allowed', test: (p) => !/\s/.test(p) },
 ];
 
-const PASSWORD_MAX_LENGTH = 8;
-const PASSWORD_RULE_MESSAGE = 'Password must be exactly 8 characters long and include one special character.';
-const isStrongPassword = (value: string) => /^(?=.*[^A-Za-z0-9])\S{8}$/.test(value);
-const cleanPasswordInput = (value: string) => value.replace(/\s/g, '').slice(0, PASSWORD_MAX_LENGTH);
+const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long and include one capital letter and one special character.';
+const isStrongPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
+const cleanPasswordInput = (value: string) => value.replace(/\s/g, '');
 
 function getStrengthLevel(password: string): { level: number; color: string } {
   if (!password) return { level: 0, color: C.muted };
@@ -237,14 +237,14 @@ export function PasswordSettingsPage({
     mode === 'set' &&
     !hasPasswordConfigured &&
     isStrongPassword(setPassword) &&
-    confirmSetPassword.length === PASSWORD_MAX_LENGTH &&
+    confirmSetPassword.length >= 8 &&
     setPassword === confirmSetPassword;
   const canSaveChange =
     mode === 'change' &&
     hasPasswordConfigured &&
     currentPassword.length > 0 &&
     isStrongPassword(newPassword) &&
-    confirmNewPassword.length === PASSWORD_MAX_LENGTH &&
+    confirmNewPassword.length >= 8 &&
     newPassword === confirmNewPassword;
   const canSaveReset =
     mode === 'reset' &&
@@ -532,7 +532,7 @@ export function PasswordSettingsPage({
         return;
       }
 
-      if (trimmedSetPassword.length !== PASSWORD_MAX_LENGTH) {
+      if (trimmedSetPassword.length < 8) {
         nextErrors.setPassword = tx(PASSWORD_RULE_MESSAGE);
       } else if (!isStrongPassword(trimmedSetPassword)) {
         nextErrors.setPassword = tx(PASSWORD_RULE_MESSAGE);
@@ -846,7 +846,7 @@ export function PasswordSettingsPage({
                   ? tx(
                       'A password is already active for this account. Use Change Password to update it.'
                     )
-                  : tx('Use exactly 8 characters with at least one special character.')
+                  : tx('Use at least 8 characters with one capital letter and one special character.')
                 : mode === 'reset'
                   ? tx('Verify OTP sent to your phone, then create a new password.')
                 : hasPasswordConfigured
@@ -867,10 +867,9 @@ export function PasswordSettingsPage({
                     clearFieldError('setPassword');
                   }}
                   secureTextEntry={!showSetPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowSetPassword((current) => !current)}
                   error={errors.setPassword}
-                  placeholder={tx('Enter exactly 8 characters')}
+                  placeholder={tx('Enter at least 8 characters')}
                   inputRef={setPasswordRef}
                   returnKeyType="next"
                   onSubmitEditing={() => confirmSetPasswordRef.current?.focus()}
@@ -887,10 +886,9 @@ export function PasswordSettingsPage({
                     clearFieldError('confirmSetPassword');
                   }}
                   secureTextEntry={!showConfirmSetPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowConfirmSetPassword((current) => !current)}
                   error={errors.confirmSetPassword}
-                  placeholder={tx('Re-enter exactly 8 characters')}
+                  placeholder={tx('Re-enter the same password')}
                   inputRef={confirmSetPasswordRef}
                   returnKeyType="done"
                   onSubmitEditing={handleSave}
@@ -959,10 +957,9 @@ export function PasswordSettingsPage({
                         clearFieldError('resetPassword');
                       }}
                       secureTextEntry={!showNewPassword}
-                      maxLength={PASSWORD_MAX_LENGTH}
                       onToggle={() => setShowNewPassword((current) => !current)}
                       error={errors.resetPassword}
-                      placeholder={tx('Enter exactly 8 characters')}
+                      placeholder={tx('Enter at least 8 characters')}
                       inputRef={resetPasswordRef}
                       returnKeyType="next"
                       onSubmitEditing={() => confirmResetPasswordRef.current?.focus()}
@@ -979,10 +976,9 @@ export function PasswordSettingsPage({
                         clearFieldError('confirmResetPassword');
                       }}
                       secureTextEntry={!showConfirmNewPassword}
-                      maxLength={PASSWORD_MAX_LENGTH}
                       onToggle={() => setShowConfirmNewPassword((current) => !current)}
                       error={errors.confirmResetPassword}
-                      placeholder={tx('Re-enter exactly 8 characters')}
+                      placeholder={tx('Re-enter the same password')}
                       inputRef={confirmResetPasswordRef}
                       returnKeyType="done"
                       onSubmitEditing={handleSave}
@@ -1010,10 +1006,9 @@ export function PasswordSettingsPage({
                     clearFieldError('currentPassword');
                   }}
                   secureTextEntry={!showCurrentPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowCurrentPassword((current) => !current)}
                   error={errors.currentPassword}
-                  placeholder={tx('Enter current 8 character password')}
+                  placeholder={tx('Enter current password')}
                   inputRef={currentPasswordRef}
                   returnKeyType="next"
                   onSubmitEditing={() => newPasswordRef.current?.focus()}
@@ -1030,10 +1025,9 @@ export function PasswordSettingsPage({
                     clearFieldError('newPassword');
                   }}
                   secureTextEntry={!showNewPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowNewPassword((current) => !current)}
                   error={errors.newPassword}
-                  placeholder={tx('Enter exactly 8 characters')}
+                  placeholder={tx('Enter at least 8 characters')}
                   inputRef={newPasswordRef}
                   returnKeyType="next"
                   onSubmitEditing={() => confirmNewPasswordRef.current?.focus()}
@@ -1050,10 +1044,9 @@ export function PasswordSettingsPage({
                     clearFieldError('confirmNewPassword');
                   }}
                   secureTextEntry={!showConfirmNewPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowConfirmNewPassword((current) => !current)}
                   error={errors.confirmNewPassword}
-                  placeholder={tx('Re-enter exactly 8 characters')}
+                  placeholder={tx('Re-enter the same password')}
                   inputRef={confirmNewPasswordRef}
                   returnKeyType="done"
                   onSubmitEditing={handleSave}

@@ -21,6 +21,9 @@ const THEMES = {
   counterboy:  { p1: '#8B3C2A', p2: '#6F4E37', soft: '#F5EDE4', orb: '#EDE0D4' },
 };
 
+const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long and include one capital letter and one special character.';
+const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
+
 
 // â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const UserIcon  = ({ c = '#6A2F12', s = 20 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Circle cx="12" cy="8" r="4" stroke={c} strokeWidth={1.8}/><Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={c} strokeWidth={1.8} strokeLinecap="round"/></Svg>;
@@ -112,7 +115,7 @@ export function UserAuthScreen({
 }) {
   const { tx, darkMode } = usePreferenceContext();
   const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<'landing' | 'login' | 'signup'>('landing');
+  const [mode, setMode] = useState<'landing' | 'login' | 'signup' | 'forgot'>('landing');
   const [loading, setLoading] = useState(false);
 
   const theme = THEMES[role];
@@ -139,6 +142,18 @@ export function UserAuthScreen({
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
   const lPwdRef = useRef<TextInput>(null);
   const lOtpRef = useRef<TextInput>(null);
+  const [fStep, setFStep] = useState<'phone' | 'otp' | 'password'>('phone');
+  const [fPhone, setFPhone] = useState('');
+  const [fOtp, setFOtp] = useState('');
+  const [fOtpVerified, setFOtpVerified] = useState(false);
+  const [fPwd, setFPwd] = useState('');
+  const [fConfirmPwd, setFConfirmPwd] = useState('');
+  const [fDevOtp, setFDevOtp] = useState('');
+  const [showFP, setShowFP] = useState(false);
+  const [showFCP, setShowFCP] = useState(false);
+  const fOtpRef = useRef<TextInput>(null);
+  const fPwdRef = useRef<TextInput>(null);
+  const fConfirmPwdRef = useRef<TextInput>(null);
 
   const [sName,  setSName]  = useState('');
   const [sPhone, setSPhone] = useState('');
@@ -338,6 +353,91 @@ export function UserAuthScreen({
     }
   };
 
+  const openForgotPassword = () => {
+    const cleanPhone = normalizePhone(lPhone);
+    setFPhone(cleanPhone.length === 10 ? cleanPhone : '');
+    setFOtp('');
+    setFOtpVerified(false);
+    setFPwd('');
+    setFConfirmPwd('');
+    setFDevOtp('');
+    setShowFP(false);
+    setShowFCP(false);
+    setFStep('phone');
+    setMode('forgot');
+  };
+
+  const sendForgotOtp = async () => {
+    const cleanPhone = normalizePhone(fPhone);
+    if (cleanPhone.length !== 10) {
+      setDialog({ visible: true, variant: 'info', title: tx('Invalid Mobile Number'), message: tx('Please enter a valid 10-digit mobile number.') });
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await authApi.sendPasswordResetOtp(cleanPhone, role);
+      setFPhone(cleanPhone);
+      setFOtp('');
+      setFOtpVerified(false);
+      setFPwd('');
+      setFConfirmPwd('');
+      setFDevOtp(data.devOtp ? `Dev OTP: ${data.devOtp}` : '');
+      setFStep('otp');
+      setDialog({ visible: true, variant: 'success', title: tx('OTP Sent'), message: data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP') });
+    } catch (e: any) {
+      setDialog({ visible: true, variant: 'error', title: tx('Could not send OTP'), message: e?.message || tx('Please try again.') });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyForgotOtp = async () => {
+    if (fOtp.trim().length < 4) {
+      setDialog({ visible: true, variant: 'info', title: tx('OTP Required'), message: tx('Enter the OTP sent to your mobile number.') });
+      return;
+    }
+    setLoading(true);
+    try {
+      await authApi.verifyPasswordResetOtp(fPhone, role, fOtp.trim());
+      setFOtpVerified(true);
+      setFStep('password');
+      setDialog({ visible: true, variant: 'success', title: tx('OTP Verified'), message: tx('Now create your new password.') });
+    } catch (e: any) {
+      setDialog({ visible: true, variant: 'error', title: tx('Invalid OTP'), message: e?.message || tx('Please try again.') });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmForgotPassword = async () => {
+    if (!fOtpVerified) {
+      setDialog({ visible: true, variant: 'info', title: tx('OTP Verification Required'), message: tx('Please verify OTP before updating password.') });
+      setFStep('otp');
+      return;
+    }
+    if (!isValidPassword(fPwd.trim())) {
+      setDialog({ visible: true, variant: 'info', title: tx('Password Required'), message: tx(PASSWORD_RULE_MESSAGE) });
+      return;
+    }
+    if (fPwd.trim() !== fConfirmPwd.trim()) {
+      setDialog({ visible: true, variant: 'info', title: tx('Password Mismatch'), message: tx('Passwords do not match. Please re-enter the same password.') });
+      return;
+    }
+    setLoading(true);
+    try {
+      await authApi.resetPasswordWithOtp(fPhone, role, fOtp.trim(), fPwd.trim());
+      setLPhone(fPhone);
+      setLPwd(fPwd.trim());
+      setUseOtpLogin(false);
+      setMode('login');
+      setDialog({ visible: true, variant: 'success', title: tx('Password Updated'), message: tx('You can now login with your new password.') });
+    } catch (e: any) {
+      setDialog({ visible: true, variant: 'error', title: tx('Could not reset password'), message: e?.message || tx('Please try again.') });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const verifySignup = async () => {
     if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
     if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
@@ -494,9 +594,138 @@ export function UserAuthScreen({
     );
   }
 
+  if (mode === 'forgot') {
+    return (
+      <KeyboardAvoidingView style={[S.screen, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}>
+        <LinearGradient colors={[P1, P2]} style={[S.formHeader, { paddingTop: insets.top }]}>
+          <View style={S.formHeaderLogoWrap}>
+            <Image source={SRV_LOGO} style={S.formHeaderLogo} resizeMode="contain" />
+          </View>
+          <Text style={S.formHeaderTitle}>{tx('Forgot Password')}</Text>
+          <Text style={S.formHeaderSub}>{tx('Verify OTP first, then create your new password')}</Text>
+        </LinearGradient>
+
+        <ScrollView contentContainerStyle={[S.formBody, { paddingBottom: insets.bottom + 120 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Animated.View style={{ transform: [{ translateY: slideY }], opacity: fadeO }}>
+            <View style={[S.formCard, { backgroundColor: card, borderColor: bdr }]}>
+              {fStep === 'phone' ? (
+                <>
+                  <Input
+                    label={tx('Phone Number')}
+                    value={fPhone}
+                    onChange={(v) => setFPhone(normalizePhone(v))}
+                    placeholder={tx('10-digit mobile number')}
+                    icon={<PhoneIcon c={P1} />}
+                    keyboard="phone-pad"
+                    maxLength={10}
+                    onSubmit={sendForgotOtp}
+                    returnKey="done"
+                    darkMode={darkMode}
+                    accentColor={P1}
+                  />
+                  <Pressable onPress={sendForgotOtp} disabled={loading || normalizePhone(fPhone).length !== 10} style={[S.btnShell, (loading || normalizePhone(fPhone).length !== 10) && { opacity: 0.55 }]}>
+                    <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
+                      <Text style={S.btnPrimaryText}>{loading ? tx('Sending...') : tx('Send OTP')}</Text>
+                      {!loading && <ArrowRight s={18} />}
+                    </LinearGradient>
+                  </Pressable>
+                </>
+              ) : null}
+
+              {fStep === 'otp' ? (
+                <>
+                  <View style={[S.infoBox, { backgroundColor: SOFT, borderColor: `${P1}25` }]}>
+                    <Text style={[S.switchText, { color: P1, fontWeight: '800' }]}>{tx('OTP sent to')} +91 {fPhone}</Text>
+                    {fDevOtp ? <Text style={[S.switchText, { color: P1, marginTop: 4 }]}>{fDevOtp}</Text> : null}
+                  </View>
+                  <Input
+                    label={tx('Enter OTP')}
+                    value={fOtp}
+                    onChange={(v) => setFOtp(v.replace(/\D/g, '').slice(0, 6))}
+                    placeholder={tx('6-digit OTP')}
+                    icon={<LockIcon c={P1} />}
+                    keyboard="number-pad"
+                    maxLength={6}
+                    ref={fOtpRef}
+                    onSubmit={verifyForgotOtp}
+                    returnKey="done"
+                    darkMode={darkMode}
+                    accentColor={P1}
+                  />
+                  <Pressable onPress={verifyForgotOtp} disabled={loading || fOtp.trim().length < 4} style={[S.btnShell, (loading || fOtp.trim().length < 4) && { opacity: 0.55 }]}>
+                    <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
+                      <Text style={S.btnPrimaryText}>{loading ? tx('Verifying...') : tx('Verify OTP')}</Text>
+                      {!loading && <ArrowRight s={18} />}
+                    </LinearGradient>
+                  </Pressable>
+                  <Pressable onPress={sendForgotOtp} style={{ alignSelf: 'flex-end' }}>
+                    <Text style={[S.switchText, { color: P1, fontWeight: '800' }]}>{tx('Resend OTP')}</Text>
+                  </Pressable>
+                </>
+              ) : null}
+
+              {fStep === 'password' ? (
+                <>
+                  <Input
+                    label={tx('New Password')}
+                    value={fPwd}
+                    onChange={(v) => setFPwd(v.replace(/\s/g, ''))}
+                    placeholder={tx('Enter at least 8 characters')}
+                    icon={<LockIcon c={P1} />}
+                    secure={!showFP}
+                    toggleSecure={() => setShowFP((v) => !v)}
+                    ref={fPwdRef}
+                    onSubmit={() => fConfirmPwdRef.current?.focus()}
+                    darkMode={darkMode}
+                    accentColor={P1}
+                  />
+                  <Text style={[S.switchText, { color: tm, marginTop: -8 }]}>{tx(PASSWORD_RULE_MESSAGE)}</Text>
+                  <Input
+                    label={tx('Confirm New Password')}
+                    value={fConfirmPwd}
+                    onChange={(v) => setFConfirmPwd(v.replace(/\s/g, ''))}
+                    placeholder={tx('Re-enter the same password')}
+                    icon={<LockIcon c={P1} />}
+                    secure={!showFCP}
+                    toggleSecure={() => setShowFCP((v) => !v)}
+                    ref={fConfirmPwdRef}
+                    onSubmit={confirmForgotPassword}
+                    returnKey="done"
+                    darkMode={darkMode}
+                    accentColor={P1}
+                  />
+                  <Pressable onPress={confirmForgotPassword} disabled={loading} style={[S.btnShell, loading && { opacity: 0.7 }]}>
+                    <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
+                      <Text style={S.btnPrimaryText}>{loading ? tx('Updating...') : tx('Update Password')}</Text>
+                      {!loading && <ArrowRight s={18} />}
+                    </LinearGradient>
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
+
+            <Pressable onPress={() => setMode('login')} style={S.switchRow}>
+              <Text style={[S.switchText, { color: tm }]}>
+                {tx('Back to Login')}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </ScrollView>
+        <Dialog
+          visible={dialog.visible}
+          variant={dialog.variant}
+          title={dialog.title}
+          message={dialog.message}
+          onClose={closeDialog}
+        />
+      </KeyboardAvoidingView>
+    );
+  }
+
   const isLogin = mode === 'login';
-  const isSignupOtpStep = !isLogin && signupStep === 'otp';
-  const isSignupDetailsStep = !isLogin && signupStep === 'details';
+  const isSignup = mode === 'signup';
+  const isSignupOtpStep = isSignup && signupStep === 'otp';
+  const isSignupDetailsStep = isSignup && signupStep === 'details';
 
   // â”€â”€ LOGIN / SIGNUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
@@ -515,7 +744,7 @@ export function UserAuthScreen({
 
           {/* Card */}
           <View style={[S.formCard, { backgroundColor: card, borderColor: bdr }]}>
-            {!isLogin && !isSignupDetailsStep && (
+            {isSignup && !isSignupDetailsStep && (
               <Input label={tx('Full Name')} value={sName} onChange={setSName}
                 placeholder={tx('Your full name')} icon={<UserIcon c={P1} />}
                 autoCap="words" onSubmit={() => sPhoneRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
@@ -533,7 +762,7 @@ export function UserAuthScreen({
             )}
             
             {/* Signup: Send OTP Button */}
-            {!isLogin && !otpSentSignup && (
+            {isSignup && !otpSentSignup && (
               <Pressable onPress={sendOtpSignup} disabled={loading || !sPhone.trim()}
                 android_ripple={{ color: 'rgba(255,255,255,0.2)' }} 
                 style={[S.btnShell, { marginTop: 8 }, (loading || !sPhone.trim()) && { opacity: 0.5 }]}>
@@ -565,7 +794,7 @@ export function UserAuthScreen({
               </View>
             )}
 
-            {!isLogin && otpSentSignup && signupStep !== 'details' && (
+            {isSignup && otpSentSignup && signupStep !== 'details' && (
               <Pressable onPress={sendOtpSignup} style={{ alignSelf: 'flex-end', marginTop: -4 }}>
                 <Text style={{ color: P1, fontSize: 12, fontWeight: '700' }}>{loading ? tx('Sending...') : tx('Resend OTP')}</Text>
               </Pressable>
@@ -671,17 +900,22 @@ export function UserAuthScreen({
             
             {/* Login: Password Input */}
             {isLogin && !useOtpLogin && (
-              <Input
-                label={tx('Password')}
-                value={lPwd}
-                onChange={setLPwd}
-                placeholder={tx('Enter password')}
-                icon={<LockIcon c={P1} />}
-                secure={!showLP}
-                toggleSecure={() => setShowLP(v => !v)}
-                ref={lPwdRef}
-                onSubmit={login}
-                returnKey="done" darkMode={darkMode} accentColor={P1} />
+              <>
+                <Input
+                  label={tx('Password')}
+                  value={lPwd}
+                  onChange={setLPwd}
+                  placeholder={tx('Enter password')}
+                  icon={<LockIcon c={P1} />}
+                  secure={!showLP}
+                  toggleSecure={() => setShowLP(v => !v)}
+                  ref={lPwdRef}
+                  onSubmit={login}
+                  returnKey="done" darkMode={darkMode} accentColor={P1} />
+                <Pressable onPress={openForgotPassword} style={{ alignSelf: 'flex-end', marginTop: -8 }}>
+                  <Text style={[S.switchText, { color: P1, fontSize: 12, fontWeight: '800' }]}>{tx('Forgot Password?')}</Text>
+                </Pressable>
+              </>
             )}
             
             {/* Login: OTP Section */}
@@ -932,4 +1166,3 @@ const S = StyleSheet.create({
     paddingVertical: 7,
   },
 });
-

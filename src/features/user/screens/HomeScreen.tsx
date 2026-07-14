@@ -399,6 +399,20 @@ function WhatsAppIcon({ color = CUSTOMER_THEME.ink, size = 22 }: { color?: strin
   );
 }
 
+function PlayZoneIcon({ color = CUSTOMER_THEME.ink, size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 5.5v13l10-6.5-10-6.5z" fill={color} />
+      <Path
+        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 function HelpIcon({ color = CUSTOMER_THEME.ink, size = 22 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -509,6 +523,7 @@ export function HomeScreen({
   const showCatalog = isRoleFeatureEnabled(rolePageControls, 'user', 'catalog_pdf');
   const showRewards = isRoleFeatureEnabled(rolePageControls, 'user', 'rewards');
   const showWhatsapp = isRoleFeatureEnabled(rolePageControls, 'user', 'whatsapp_support');
+  const showPlay = isRoleFeatureEnabled(rolePageControls, 'user', 'play');
   const showNeedHelp = isRoleFeatureEnabled(rolePageControls, 'user', 'need_help');
   const showCart = isRoleFeatureEnabled(rolePageControls, 'user', 'cart');
   const showProduct = isRoleFeatureEnabled(rolePageControls, 'user', 'product');
@@ -719,8 +734,19 @@ export function HomeScreen({
       },
       hidden: !showWhatsapp,
     },
+    {
+      testID: 'user-home-action-play-zone',
+      accessibilityLabel: 'User home quick action play zone',
+      title: tx('Play Zone'),
+      sub: tx('Watch videos and guides'),
+      icon: PlayZoneIcon,
+      iconColors: ['#F3E8FF', '#DDD6FE'] as const,
+      iconTint: '#7C3AED',
+      onPress: () => onNavigate('play'),
+      hidden: !showPlay,
+    },
   ].filter((item) => !item.hidden), [
-    tx, pageContent, showCategories, showCatalog, showRewards, showWhatsapp,
+    tx, pageContent, showCategories, showCatalog, showRewards, showWhatsapp, showPlay,
     onNavigate, openCatalog, catalogPdfUrl, appSettings?.whatsappNumber,
   ]);
 

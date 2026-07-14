@@ -274,6 +274,11 @@ export const api = {
     return request<T>(path, { method: 'PATCH', body, auth });
   },
 
+  put: <T>(path: string, body: object, auth = false) => {
+    clearCache(path);
+    return request<T>(path, { method: 'PUT', body, auth });
+  },
+
   delete: <T>(path: string, auth = false) => {
     clearCache(path);
     return request<T>(path, { method: 'DELETE', auth });

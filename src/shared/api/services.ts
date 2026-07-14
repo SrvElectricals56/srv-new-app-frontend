@@ -278,6 +278,17 @@ export const authApi = {
     return res;
   },
 
+  loginWithGoogleCustomer: async (idToken: string) => {
+    const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
+      '/mobile/auth/google/user',
+      { idToken },
+    );
+    await storage.setTokens(res.accessToken, res.refreshToken);
+    await storage.setUserProfile(res.user);
+    await storage.setUserRole('user');
+    return res;
+  },
+
   sendPasswordResetOtp: (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy') =>
     api.post<{ success: boolean; message: string; devOtp?: string }>(
       '/mobile/auth/password-reset/send-otp',
@@ -724,6 +735,7 @@ function productOrderToUserOrder(order: ProductOrder): UserOrder {
     estimatedDeliveryAt: order.estimatedDeliveryAt ?? null,
     dispatchedAt: order.dispatchedAt ?? null,
     rejectedAt: order.rejectedAt ?? null,
+    updatedAt: (order as any).updatedAt ?? null,
     shippingAddress: order.shippingAddress ?? null,
     trackingNumber: order.trackingNumber ?? null,
     courierName: order.courierName ?? null,
@@ -733,6 +745,9 @@ function productOrderToUserOrder(order: ProductOrder): UserOrder {
     refundMessage: order.refundMessage ?? null,
     rejectionReason: order.rejectionReason ?? null,
     deliveryNotes: order.deliveryNotes ?? null,
+    canCancel: (order as any).canCancel ?? null,
+    canReturn: (order as any).canReturn ?? null,
+    canRefund: (order as any).canRefund ?? null,
     createdAt: order.orderedAt,
   };
 }
@@ -757,6 +772,12 @@ export const ordersApi = {
           : [];
     return productOrders.map(productOrderToUserOrder);
   },
+  cancel: (id: string, reason?: string) =>
+    api.put<{ message: string }>(`/mobile/product-orders/${id}/cancel`, { reason }, true),
+  returnOrder: (id: string, reason?: string) =>
+    api.put<{ message: string }>(`/mobile/product-orders/${id}/return`, { reason }, true),
+  refund: (id: string, reason?: string) =>
+    api.put<{ message: string }>(`/mobile/product-orders/${id}/refund`, { reason }, true),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -999,6 +1020,7 @@ export type ProductOrder = {
   dispatchedAt?: string | null;
   deliveredAt?: string | null;
   rejectedAt?: string | null;
+  updatedAt?: string | null;
   refundStatus?: string | null;
   refundMessage?: string | null;
   rejectionReason?: string | null;
@@ -1271,6 +1293,9 @@ export type UserOrder = {
   refundMessage?: string | null;
   rejectionReason?: string | null;
   deliveryNotes?: string | null;
+  canCancel?: boolean | null;
+  canReturn?: boolean | null;
+  canRefund?: boolean | null;
   createdAt: string;
 };
 

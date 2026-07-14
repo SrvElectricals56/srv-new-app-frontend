@@ -5,6 +5,8 @@ import {
    Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -23,6 +25,8 @@ const THEMES = {
 
 const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long and include one capital letter and one special character.';
 const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '';
+WebBrowser.maybeCompleteAuthSession();
 
 
 // â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -35,6 +39,20 @@ const EyeOffIcon= ({ c = '#9CA3AF', s = 18 }) => <Svg width={s} height={s} viewB
 const SwitchRoleIcon = ({ c = '#fff', s = 16 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M7 16H3m0 0l3-3m-3 3l3 3" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><Path d="M17 8h4m0 0l-3-3m3 3l-3 3" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><Path d="M3 8h10M11 16h10" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2"/></Svg>;
 const ArrowLeft = ({ c = '#6A2F12', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M19 12H5M11 18l-6-6 6-6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 const ArrowRight  = ({ c = '#fff', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M5 12h14M13 6l6 6-6 6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
+const GoogleIcon = ({ s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24"><Path fill="#4285F4" d="M21.6 12.23c0-.77-.07-1.51-.2-2.23H12v4.22h5.38a4.6 4.6 0 0 1-1.99 3.02v2.51h3.23c1.89-1.74 2.98-4.3 2.98-7.52z"/><Path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.43l-3.23-2.51c-.9.6-2.04.95-3.39.95-2.6 0-4.8-1.76-5.59-4.12H3.07v2.59A10 10 0 0 0 12 22z"/><Path fill="#FBBC05" d="M6.41 13.89A6.01 6.01 0 0 1 6.1 12c0-.66.11-1.3.31-1.89V7.52H3.07A10 10 0 0 0 2 12c0 1.61.39 3.14 1.07 4.48l3.34-2.59z"/><Path fill="#EA4335" d="M12 5.99c1.47 0 2.79.51 3.83 1.5l2.87-2.87C16.96 3.01 14.7 2 12 2a10 10 0 0 0-8.93 5.52l3.34 2.59C7.2 7.75 9.4 5.99 12 5.99z"/></Svg>;
+
+function randomOAuthValue() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function readOAuthParam(url: string, key: string) {
+  const parts = url.split(/[?#]/).slice(1).join('&').split('&');
+  for (const part of parts) {
+    const [rawKey, rawValue = ''] = part.split('=');
+    if (decodeURIComponent(rawKey) === key) return decodeURIComponent(rawValue.replace(/\+/g, ' '));
+  }
+  return null;
+}
 
 // â”€â”€ Floating orbs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Orbs({ color }: { color: string }) {
@@ -353,6 +371,55 @@ export function UserAuthScreen({
     }
   };
 
+  const continueWithGoogle = async () => {
+    if (role !== 'user') {
+      setDialog({ visible: true, variant: 'info', title: tx('Customer only'), message: tx('Google signup is available for customer accounts only.') });
+      return;
+    }
+    if (!GOOGLE_WEB_CLIENT_ID) {
+      setDialog({ visible: true, variant: 'error', title: tx('Google not configured'), message: tx('Please set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in the app environment.') });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const redirectUri = Linking.createURL('google-auth');
+      const nonce = randomOAuthValue();
+      const state = randomOAuthValue();
+      const params = new URLSearchParams({
+        client_id: GOOGLE_WEB_CLIENT_ID,
+        redirect_uri: redirectUri,
+        response_type: 'id_token',
+        scope: 'openid email profile',
+        nonce,
+        state,
+        prompt: 'select_account',
+      });
+      const result = await WebBrowser.openAuthSessionAsync(
+        `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+        redirectUri,
+      );
+
+      if (result.type !== 'success') {
+        setLoading(false);
+        return;
+      }
+      if (readOAuthParam(result.url, 'state') !== state) {
+        throw new Error('Google sign-in security check failed.');
+      }
+      const idToken = readOAuthParam(result.url, 'id_token');
+      if (!idToken) throw new Error('Google did not return a sign-in token.');
+
+      const res = await authApi.loginWithGoogleCustomer(idToken);
+      (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = res.user;
+      onAuthenticated('user', { passwordConfigured: Boolean(res.user?.hasPassword), passwordValue: '' });
+    } catch (e: any) {
+      setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message: e?.message || tx('Please try again.') });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const openForgotPassword = () => {
     const cleanPhone = normalizePhone(lPhone);
     setFPhone(cleanPhone.length === 10 ? cleanPhone : '');
@@ -526,17 +593,18 @@ export function UserAuthScreen({
   if (mode === 'landing') {
     return (
       <View style={[S.screen, { backgroundColor: bg }]}>
-          <LinearGradient colors={[P1, P2, theme.orb]} style={[S.hero, { paddingTop: insets.top + 12 }]}>
-          <Orbs color={theme.orb} />
-          <Animated.View style={[S.heroContent, { transform: [{ translateY: slideY }], opacity: fadeO }]}>
-            <View style={S.logoWrap}>
-              <Image source={SRV_LOGO} style={S.logoImg} resizeMode="contain" />
-            </View>
-            <Text style={S.heroTag}>SRV ELECTRICALS</Text>
-            <Text style={S.heroTitle}>{tx('Welcome Back')}</Text>
-            <Text style={S.heroSub}>{tx('Trusted electrical products since 2000')}</Text>
-          </Animated.View>
-        </LinearGradient>
+        <View style={[S.landingScroll, { paddingBottom: insets.bottom + 104 }]}>
+          <LinearGradient colors={[P1, P2, theme.orb]} style={[S.hero, { paddingTop: insets.top + 6 }]}>
+            <Orbs color={theme.orb} />
+            <Animated.View style={[S.heroContent, { transform: [{ translateY: slideY }], opacity: fadeO }]}>
+              <View style={S.logoWrap}>
+                <Image source={SRV_LOGO} style={S.logoImg} resizeMode="contain" />
+              </View>
+              <Text style={S.heroTag}>SRV ELECTRICALS</Text>
+              <Text style={S.heroTitle}>{tx('Welcome Back')}</Text>
+              <Text style={S.heroSub}>{tx('Trusted electrical products since 2000')}</Text>
+            </Animated.View>
+          </LinearGradient>
 
         <Animated.View style={[S.landCard, { backgroundColor: card, borderColor: bdr, transform: [{ translateY: slideY }], opacity: fadeO }]}>
           <Text style={[S.landTitle, { color: tp }]}>{tx('Get Started')}</Text>
@@ -556,6 +624,18 @@ export function UserAuthScreen({
           >
             <Text style={[S.btnOutlineText, { color: P1 }]}>{tx('Create New Account')}</Text>
           </Pressable>
+
+          {role === 'user' ? (
+            <Pressable
+              onPress={continueWithGoogle}
+              disabled={loading}
+              style={[S.googleButton, { borderColor: `${P1}24`, backgroundColor: card }, loading && { opacity: 0.7 }]}
+              android_ripple={{ color: `${P1}12` }}
+            >
+              <GoogleIcon />
+              <Text style={[S.googleButtonText, { color: tp }]}>{tx('Continue with Google')}</Text>
+            </Pressable>
+          ) : null}
 
           <View style={[S.statsRow, { borderTopColor: `${P1}22` }]}>
             {[['25+', tx('Years')], ['250+', tx('Products')], ['50K+', tx('Customers')]].map(([n, l], i) => (
@@ -583,6 +663,7 @@ export function UserAuthScreen({
             </LinearGradient>
           </Pressable>
         )}
+        </View>
         <Dialog
           visible={dialog.visible}
           variant={dialog.variant}
@@ -946,7 +1027,7 @@ export function UserAuthScreen({
           {/* Submit - Only show when ready */}
           {((isLogin && (!useOtpLogin || otpSentLogin)) || isSignupDetailsStep) && (
             <Pressable onPress={isLogin ? login : signup} disabled={loading}
-              android_ripple={{ color: 'rgba(255,255,255,0.2)' }} style={[S.btnShell, loading && { opacity: 0.7 }]}>
+              android_ripple={{ color: 'rgba(255,255,255,0.2)' }} style={[S.btnShell, S.formActionButton, loading && { opacity: 0.7 }]}>
               <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
                 <Text style={S.btnPrimaryText}>
                   {loading ? (isLogin ? tx('Logging in...') : tx('Creating...')) : (isLogin ? tx('Login') : tx('Create Account'))}
@@ -955,6 +1036,18 @@ export function UserAuthScreen({
               </LinearGradient>
             </Pressable>
           )}
+
+          {role === 'user' && (isLogin || isSignup) ? (
+            <Pressable
+              onPress={continueWithGoogle}
+              disabled={loading}
+              style={[S.googleButton, S.googleAuthButton, { borderColor: `${P1}24`, backgroundColor: card }, loading && { opacity: 0.7 }]}
+              android_ripple={{ color: `${P1}12` }}
+            >
+              <GoogleIcon />
+              <Text style={[S.googleButtonText, { color: tp }]}>{tx('Continue with Google')}</Text>
+            </Pressable>
+          ) : null}
 
           {/* Switch */}
           <Pressable onPress={() => setMode(isLogin ? 'signup' : 'login')} style={S.switchRow}>
@@ -984,9 +1077,12 @@ const S = StyleSheet.create({
   orb: { position: 'absolute', borderRadius: 999, opacity: 0.2 },
 
   // Hero (landing)
+  landingScroll: {
+    flexGrow: 1,
+  },
   hero: {
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 18,
     overflow: 'hidden',
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
@@ -1002,24 +1098,24 @@ const S = StyleSheet.create({
   backText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   heroContent: { alignItems: 'center' },
   logoWrap: {
-    width: 80, height: 80, borderRadius: 22,
+    width: 70, height: 70, borderRadius: 20,
     backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     elevation: 5,
   },
-  logoImg: { width: 64, height: 64 },
-  heroTag: { fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: 3, marginBottom: 6 },
-  heroTitle: { fontSize: 28, fontWeight: '900', color: '#FFFFFF', marginBottom: 6 },
+  logoImg: { width: 56, height: 56 },
+  heroTag: { fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: 3, marginBottom: 4 },
+  heroTitle: { fontSize: 26, fontWeight: '900', color: '#FFFFFF', marginBottom: 4 },
   heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
 
   // Landing card
   landCard: {
-    margin: 14,
+    margin: 10,
     borderRadius: 22,
     borderWidth: 1,
-    padding: 20,
-    gap: 10,
+    padding: 16,
+    gap: 8,
     elevation: 5,
     shadowColor: '#734E2A',
     shadowOpacity: 0.08,
@@ -1028,11 +1124,11 @@ const S = StyleSheet.create({
   },
   landTitle: { fontSize: 20, fontWeight: '900' },
   landSub: { fontSize: 13, lineHeight: 18, marginBottom: 4 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingTop: 14, borderTopWidth: 1, marginTop: 6 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingTop: 10, borderTopWidth: 1, marginTop: 4 },
   statItem: {
     alignItems: 'center',
     gap: 2,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 16,
     minWidth: 84,
@@ -1063,12 +1159,12 @@ const S = StyleSheet.create({
   formHeaderSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', textAlign: 'center', marginTop: 2 },
 
   // Form body
-  formBody: { padding: 16, paddingTop: 22, gap: 14 },
+  formBody: { padding: 16, paddingTop: 22, gap: 18 },
   formWelcome: { gap: 4, alignItems: 'center' },
   formWelcomeTitle: { fontSize: 22, fontWeight: '900', textAlign: 'center' },
   formWelcomeSub: { fontSize: 13, lineHeight: 18, textAlign: 'center' },
   formCard: {
-    borderRadius: 20, borderWidth: 1, padding: 18, gap: 14,
+    borderRadius: 20, borderWidth: 1, padding: 18, gap: 18,
     elevation: 3,
     shadowColor: '#734E2A',
     shadowOpacity: 0.07,
@@ -1114,6 +1210,9 @@ const S = StyleSheet.create({
     borderRadius: 14, overflow: 'hidden',
     elevation: 5,
   },
+  formActionButton: {
+    marginTop: 16,
+  },
   btnPrimary: {
     height: 52, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8, borderRadius: 14,
@@ -1124,14 +1223,28 @@ const S = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   btnOutlineText: { fontSize: 15, fontWeight: '900' },
-  switchRow: { alignItems: 'center', paddingVertical: 8 },
+  googleButton: {
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  googleAuthButton: {
+    marginTop: 18,
+    marginBottom: 8,
+  },
+  googleButtonText: { fontSize: 15, fontWeight: '900' },
+  switchRow: { alignItems: 'center', paddingVertical: 14 },
   switchText: { fontSize: 13, color: '#7D6B5D' },
 
   // Back to onboarding â€” landing bottom
   backToOnboarding: {
     alignSelf: 'center',
-    marginTop: 6,
-    marginBottom: 8,
+    marginTop: 2,
+    marginBottom: 12,
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 3,

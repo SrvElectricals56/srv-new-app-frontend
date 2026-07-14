@@ -1284,6 +1284,7 @@ export type UserOrder = {
   estimatedDeliveryAt?: string | null;
   dispatchedAt?: string | null;
   rejectedAt?: string | null;
+  updatedAt?: string | null;
   shippingAddress?: string | null;
   trackingNumber?: string | null;
   courierName?: string | null;

@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import type { Screen, UserRole } from '@/shared/types/navigation';
 import {
@@ -173,6 +174,7 @@ export function ProfileScreen({
   profileResetKey?: number;
   cartCount?: number;
 }) {
+  const insets = useSafeAreaInsets();
   // Real user from auth context
   const { user: authUser, updateUser, refreshProfile } = useAuth();
   const {
@@ -1435,15 +1437,16 @@ export function ProfileScreen({
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.editOverlay}
           >
-            <TouchableOpacity
-              style={styles.editBackdrop}
-              activeOpacity={1}
-              onPress={Keyboard.dismiss}
+            <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} />
+            <View
+              style={[
+                styles.editSheet,
+                {
+                  backgroundColor: theme.surface,
+                  paddingBottom: Math.max(insets.bottom, 12),
+                },
+              ]}
             >
-              <TouchableOpacity
-                activeOpacity={1}
-                style={[styles.editSheet, { backgroundColor: theme.surface }]}
-              >
 
                 <View style={styles.handle} />
                 <View style={styles.editHeader}>
@@ -1458,10 +1461,11 @@ export function ProfileScreen({
                   </TouchableOpacity>
                 </View>
                 <ScrollView
+                  style={styles.editScroll}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   keyboardDismissMode="interactive"
-                  contentContainerStyle={{ paddingBottom: 20 }}
+                  contentContainerStyle={styles.editScrollContent}
                 >
                   <View style={styles.avatarSection}>
                     <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>
@@ -1609,7 +1613,12 @@ export function ProfileScreen({
                     </View>
                   </View>
                 </ScrollView>
-                <View style={styles.editActions}>
+                <View
+                  style={[
+                    styles.editActions,
+                    { paddingBottom: Math.max(insets.bottom, 12) },
+                  ]}
+                >
                   <Pressable
                     onPress={closeEdit}
                     style={[
@@ -1625,8 +1634,7 @@ export function ProfileScreen({
                     <Text style={styles.saveTxt}>{isSaving ? tx('Saving...') : t('saveChanges')}</Text>
                   </Pressable>
                 </View>
-              </TouchableOpacity>
-            </TouchableOpacity>
+            </View>
           </KeyboardAvoidingView>
         </Modal>
 
@@ -2075,7 +2083,6 @@ const styles = StyleSheet.create({
   },
   pickerCancelTxt: { fontSize: 15, fontWeight: '700', color: C.mid },
   editOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,17,32,0.45)' },
-  editBackdrop: { flex: 1, justifyContent: 'flex-end' },
   editSheet: {
     maxHeight: '92%',
     borderTopLeftRadius: 32,
@@ -2090,6 +2097,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   editTitle: { fontSize: 20, fontWeight: '900' },
+  editScroll: { flexShrink: 1 },
+  editScrollContent: { paddingBottom: 18 },
   closeBtn: {
     width: 38,
     height: 38,

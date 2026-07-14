@@ -4,7 +4,8 @@
     "slug": "srv-electricals",
     "scheme": "srv-electricals",
     "version": "2.0.0",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
+    "icon": "./assets/app-icon.png",
     "plugins": [
       "expo-router",
       [
@@ -34,15 +35,17 @@
       "**/*"
     ],
     "splash": {
+      "image": "./assets/app-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#F5F0E8"
     },
     "ios": {
       "supportsTablet": true,
+      "buildNumber": "13",
       "bundleIdentifier": "com.srvelectricals.app"
     },
     "android": {
-      "versionCode": 12,
+      "versionCode": 13,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
@@ -54,6 +57,7 @@
         "android.permission.POST_NOTIFICATIONS"
       ],
       "adaptiveIcon": {
+        "foregroundImage": "./assets/app-icon.png",
         "backgroundColor": "#F5F0E8"
       },
       "package": "com.srvelectricals.app"

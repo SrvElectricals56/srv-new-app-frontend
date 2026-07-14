@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { notificationsApi, storage } from '@/shared/api';
@@ -14,6 +14,7 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'notifications');
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const notifScope = `${role ?? 'guest'}:${user?.id ?? 'guest'}`;
@@ -27,8 +28,8 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
     { id: string; title: string; body: string; time: string }[]
   >([]);
 
-  const fetchNotifications = useCallback(async () => {
-    setLoading(true);
+  const fetchNotifications = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const [res, seenIds, clearedIds] = await Promise.all([
         notificationsApi.getAll(role ?? undefined, user?.id),
@@ -46,11 +47,20 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
         }))
       );
     } catch {
-      setNotifData([]);
+      if (showLoading) setNotifData([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [notifScope, role, user?.id]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchNotifications(false);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchNotifications]);
 
   const handleClearNotification = useCallback(async (id: string) => {
     await storage.clearNotifications([id], notifScope);
@@ -72,7 +82,7 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
   }, [notifData, notifScope, tx]);
 
   useEffect(() => {
-    fetchNotifications();
+    void fetchNotifications();
   }, [fetchNotifications]);
 
   if (selectedNotification) {
@@ -115,7 +125,19 @@ export function NotificationsPage({ onBack }: { onBack: () => void }) {
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <PageHeader title={pageContent.pageTitle || t('notification')} onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.accent}
+            colors={[theme.accent]}
+            progressBackgroundColor={theme.surface}
+          />
+        }
+      >
         {notifData.length > 0 ? (
           <View style={styles.topActionRow}>
             <TouchableOpacity

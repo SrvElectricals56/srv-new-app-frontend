@@ -1,11 +1,12 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 type ExpoNotifications = typeof import('expo-notifications');
 
 let notificationsPromise: Promise<ExpoNotifications | null> | null = null;
 
 export function canUseNativeNotifications() {
-  return Platform.OS !== 'web';
+  return Platform.OS !== 'web' && Constants.appOwnership !== 'expo';
 }
 
 export async function getNativeNotifications() {

@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import type { Screen, UserRole } from '@/shared/types/navigation';
 import {
@@ -173,6 +174,7 @@ export function ProfileScreen({
   profileResetKey?: number;
   cartCount?: number;
 }) {
+  const insets = useSafeAreaInsets();
   // Real user from auth context
   const { user: authUser, updateUser, refreshProfile } = useAuth();
   const {
@@ -346,23 +348,27 @@ export function ProfileScreen({
           textMuted: '#A09088',
           heroSurface: cuTheme.surfaceDark,
           heroStrip: '#120A07',
+          accent: '#D6A06C',
+          accentSoft: cuTheme.softDark,
+          accentDeep: '#F4D8BC',
+          heroGradient: ['#2A1710', '#5B321D', '#9A5B2F'] as [string, string, string],
         };
       }
       return {
         ...base,
         bg: premium.bg,
         surface: premium.surface,
-        soft: premium.primarySoft,
-        border: premium.line,
+        soft: cuTheme.soft,
+        border: cuTheme.border,
         textPrimary: premium.ink,
-        textSecondary: premium.primaryDark,
+        textSecondary: cuTheme.primaryDeep,
         textMuted: premium.muted,
-        heroSurface: premium.primarySoft,
+        heroSurface: cuTheme.soft,
         heroStrip: premium.surface,
-        accent: premium.primary,
-        accentSoft: premium.primarySoft,
-        accentDeep: premium.primaryDark,
-        heroGradient: ['#D92D27', '#8F1F1B', '#173E80'] as [string, string, string],
+        accent: cuTheme.primary,
+        accentSoft: cuTheme.soft,
+        accentDeep: cuTheme.primaryDeep,
+        heroGradient: ['#FFF7EC', '#E8C6A8', '#9A5B2F'] as [string, string, string],
       };
     }
     return base;
@@ -840,12 +846,12 @@ export function ProfileScreen({
         activeOpacity={0.82}
         style={[
           styles.heroCartBtn,
-          { backgroundColor: darkMode ? '#1F2937' : '#FFFFFF', borderColor: darkMode ? '#374151' : '#FAD1D1' },
+          { backgroundColor: darkMode ? '#1F2937' : '#FFFFFF', borderColor: darkMode ? '#374151' : theme.accentSoft },
         ]}
       >
-        <CartShortcutIcon />
+        <CartShortcutIcon color={roleColor} />
         {cartCount && cartCount > 0 ? (
-          <View style={styles.heroCartBadge}>
+          <View style={[styles.heroCartBadge, { backgroundColor: roleColor }]}>
             <Text style={styles.heroCartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
           </View>
         ) : null}
@@ -897,8 +903,8 @@ export function ProfileScreen({
             )}
           </View>
         </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.heroName, { color: theme.textPrimary }]}>{profile.name}</Text>
+        <View style={styles.heroIdentityBlock}>
+          <Text style={[styles.heroName, { color: theme.textPrimary }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{profile.name}</Text>
           <Text style={[styles.heroPhone, { color: theme.textMuted }]}>
             +91 {profile.phone}
           </Text>
@@ -1431,15 +1437,16 @@ export function ProfileScreen({
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.editOverlay}
           >
-            <TouchableOpacity
-              style={styles.editBackdrop}
-              activeOpacity={1}
-              onPress={Keyboard.dismiss}
+            <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} />
+            <View
+              style={[
+                styles.editSheet,
+                {
+                  backgroundColor: theme.surface,
+                  paddingBottom: Math.max(insets.bottom, 12),
+                },
+              ]}
             >
-              <TouchableOpacity
-                activeOpacity={1}
-                style={[styles.editSheet, { backgroundColor: theme.surface }]}
-              >
 
                 <View style={styles.handle} />
                 <View style={styles.editHeader}>
@@ -1454,10 +1461,11 @@ export function ProfileScreen({
                   </TouchableOpacity>
                 </View>
                 <ScrollView
+                  style={styles.editScroll}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   keyboardDismissMode="interactive"
-                  contentContainerStyle={{ paddingBottom: 20 }}
+                  contentContainerStyle={styles.editScrollContent}
                 >
                   <View style={styles.avatarSection}>
                     <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>
@@ -1605,7 +1613,12 @@ export function ProfileScreen({
                     </View>
                   </View>
                 </ScrollView>
-                <View style={styles.editActions}>
+                <View
+                  style={[
+                    styles.editActions,
+                    { paddingBottom: Math.max(insets.bottom, 12) },
+                  ]}
+                >
                   <Pressable
                     onPress={closeEdit}
                     style={[
@@ -1621,8 +1634,7 @@ export function ProfileScreen({
                     <Text style={styles.saveTxt}>{isSaving ? tx('Saving...') : t('saveChanges')}</Text>
                   </Pressable>
                 </View>
-              </TouchableOpacity>
-            </TouchableOpacity>
+            </View>
           </KeyboardAvoidingView>
         </Modal>
 
@@ -1725,7 +1737,7 @@ const styles = StyleSheet.create({
     borderRadius: 55,
     display: 'none',
   },
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 20 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 20, paddingRight: 66 },
   heroCartBtn: {
     position: 'absolute',
     top: 14,
@@ -1778,7 +1790,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroName: { fontSize: 20, fontWeight: '900', marginBottom: 3 },
+  heroIdentityBlock: { flex: 1, minWidth: 0 },
+  heroName: { fontSize: 20, lineHeight: 24, fontWeight: '900', marginBottom: 3, flexShrink: 1 },
   heroPhone: { fontSize: 13, marginBottom: 10 },
   tagRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   tag: {
@@ -2070,7 +2083,6 @@ const styles = StyleSheet.create({
   },
   pickerCancelTxt: { fontSize: 15, fontWeight: '700', color: C.mid },
   editOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,17,32,0.45)' },
-  editBackdrop: { flex: 1, justifyContent: 'flex-end' },
   editSheet: {
     maxHeight: '92%',
     borderTopLeftRadius: 32,
@@ -2085,6 +2097,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   editTitle: { fontSize: 20, fontWeight: '900' },
+  editScroll: { flexShrink: 1 },
+  editScrollContent: { paddingBottom: 18 },
   closeBtn: {
     width: 38,
     height: 38,

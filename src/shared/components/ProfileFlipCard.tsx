@@ -13,15 +13,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { counterboyTheme as cb } from '@/features/counterboy/theme';
 import { useAppPageContent } from '@/shared/hooks/useAppPageContent';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import { Dialog } from '@/shared/components/Dialog';
-
-const logoImage = require('../../../assets/srv logo white.jpeg');
 
 interface Profile {
   name?: string;
@@ -102,6 +100,46 @@ function TapClickIcon({ color = '#FFFFFF', size = 15 }: { color?: string; size?:
   );
 }
 
+function RoleBoltIcon({ color = '#F4DFC0', size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M13 2L5 13h6l-1 9 9-13h-6l1-7z" fill={color} />
+    </Svg>
+  );
+}
+
+function VerifiedSealIcon({ size = 34 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+      <Path
+        d="M24 3.5l4.2 3.2 5.2-.6 2.5 4.6 4.9 1.9.1 5.3 3.1 4.2-2.4 4.7.9 5.2-4.5 2.8-1.7 5-5.3.4-4 3.4-4.8-2.2-5.1 1.2-3-4.3-5.1-1.4-.7-5.2-3.6-3.8 1.9-4.9-1.6-5 3.9-3.5 1-5.2 5.1-1.1 3.3-4.1 5 1.6z"
+        fill="#F2D9AE"
+      />
+      <Path d="M16.3 24.1l5.1 5.1 10.9-11.4" stroke="#123C42" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function ProfileLineIcon({ color = '#F4DFC0', size = 26 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth={2} />
+      <Path d="M4.5 20c0-4 3.3-7 7.5-7s7.5 3 7.5 7" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PathPhoneIcon({ color = '#F4DFC0', size = 18 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M7.1 4.8h2.5l1.2 3.6-1.6 1.5a14 14 0 004.9 4.9l1.5-1.6 3.6 1.2v2.5a1.7 1.7 0 01-1.7 1.7A14.1 14.1 0 015.4 6.5a1.7 1.7 0 011.7-1.7z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -111,17 +149,6 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;');
 }
 
-async function getLogoDataUri() {
-  try {
-    const assetUri = Image.resolveAssetSource(logoImage).uri;
-    const base64 = await LegacyFileSystem.readAsStringAsync(assetUri, {
-      encoding: LegacyFileSystem.EncodingType.Base64,
-    });
-    return `data:image/jpeg;base64,${base64}`;
-  } catch {
-    return null;
-  }
-}
 function DetailPill({
   label,
   value,
@@ -180,7 +207,7 @@ function DetailPill({
 }
 
 export default function ProfileFlipCard({ profile, role = 'electrician', photoUri, apiPhotoUri, onOpenProfileEdit }: Props) {
-  const { darkMode, tx, t } = usePreferenceContext();
+  const { darkMode, tx } = usePreferenceContext();
   const pageContent = useAppPageContent(role, 'profile');
   // Use local photo first, then API photo from backend (set by admin)
   const effectivePhotoUri = photoUri ?? apiPhotoUri ?? null;
@@ -201,7 +228,6 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
   const isDealer = role === 'dealer';
   const isUser = role === 'user';
   const isCounterboy = role === 'counterboy';
-  const counterboyLightCard = isCounterboy && !darkMode;
   const usesOwnAccountDetails = isDealer || isUser || isCounterboy;
   const code = isDealer
     ? profile?.dealer_code
@@ -295,27 +321,59 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
     : tx('Electrician Code');
   const backThirdLabel = usesOwnAccountDetails ? tx('Address') : tx('Phone Number');
   const backThirdValue = usesOwnAccountDetails ? detailAddress : detailPhone;
-  const frontEyebrowText =
+  const premiumRoleTitle =
     pageContent.eyebrowText ||
     (role === 'dealer'
-      ? t('dealerPartner')
+      ? tx('Dealer Partner')
       : role === 'user'
-      ? tx('Customer Account')
-      : role === 'counterboy'
-      ? tx('Counter Boy Account')
-      : t('electricianPartner'));
+        ? tx('Customer Account')
+        : role === 'counterboy'
+          ? tx('Counter Boy Account')
+          : tx('Electrician Partner'));
+  const premiumTheme =
+    role === 'user'
+      ? {
+          gradient: darkMode ? (['#27170F', '#5B321D', '#9A6134'] as const) : (['#FFF7EC', '#E9D1B7', '#C98A58'] as const),
+          accent: '#9A5B2F',
+          accent2: '#D78B3B',
+          title: '#3B2115',
+          text: '#4A2A18',
+          softText: '#6A3E24',
+          light: '#F8EADB',
+          panel: 'rgba(255,255,255,0.56)',
+          panelBorder: 'rgba(154,91,47,0.22)',
+          strip: 'rgba(106,62,36,0.08)',
+        }
+      : role === 'dealer'
+        ? {
+            gradient: darkMode ? (['#071527', '#0E335A', '#174A7C'] as const) : (['#092345', '#0B3E73', '#155C96'] as const),
+            accent: '#7CC9FF',
+            accent2: '#2EA8FF',
+            title: '#FFFFFF',
+            text: '#EAF6FF',
+            softText: '#CFEAFF',
+            light: '#E8F5FF',
+            panel: 'rgba(31,111,179,0.28)',
+            panelBorder: 'rgba(124,201,255,0.34)',
+            strip: 'rgba(124,201,255,0.12)',
+          }
+        : {
+            gradient: darkMode ? (['#020B18', '#082A53', '#0B477F'] as const) : (['#03152F', '#052E63', '#084F91'] as const),
+            accent: '#22D3EE',
+            accent2: '#0EA5E9',
+            title: '#FFFFFF',
+            text: '#EAFBFF',
+            softText: '#BDEFFF',
+            light: '#E6FBFF',
+            panel: 'rgba(14,165,233,0.24)',
+            panelBorder: 'rgba(34,211,238,0.38)',
+            strip: 'rgba(34,211,238,0.12)',
+          };
+  const premiumTapTextColor = role === 'user' ? premiumTheme.title : '#082A53';
   const flipHintText =
     (flipped
       ? tx('Tap to return to profile card')
       : tx('Tap to view your details'));
-  const tapHintIconColor =
-    role === 'user'
-      ? '#6A2F12'
-      : counterboyLightCard
-        ? '#2D1A10'
-        : isCounterboy
-          ? '#F5EDE4'
-          : '#FFFFFF';
   const codeLabelText = pageContent.codeLabel || codeLabel;
   const locationLabelText = pageContent.locationLabel || tx('Location');
   const detailHeadingText =
@@ -329,7 +387,7 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '') || 'srv-profile-card';
 
-  const buildPdfHtml = (logoDataUri: string | null) => {
+  const buildPdfHtml = () => {
     const profileName = escapeHtml(profile?.name || fallbackText);
     const profilePhone = escapeHtml(profile?.phone ? '+91 ' + profile.phone : fallbackText);
     const location = escapeHtml(frontLocation);
@@ -372,7 +430,6 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
             .name { font-size: 22px; font-weight: 800; margin-bottom: 4px; color: ${role === 'counterboy' ? '#2D1A10' : 'inherit'}; }
             .phone { font-size: 13px; color: ${role === 'counterboy' ? '#5C3D2E' : '#d8e3f8'}; }
             .logo { width: 54px; height: 54px; border-radius: 18px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; overflow: hidden; }
-            .logo img { width: 100%; height: 100%; object-fit: contain; background: white; }
             .pill-row { display: flex; gap: 12px; margin-top: 20px; }
             .pill { flex: 1; background: ${role === 'counterboy' ? 'rgba(107,45,29,0.08)' : 'rgba(255,255,255,0.12)'}; border: 1px solid ${role === 'counterboy' ? 'rgba(107,45,29,0.12)' : 'rgba(255,255,255,0.08)'}; border-radius: 18px; padding: 12px; }
             .pill-label { color: ${role === 'counterboy' ? '#7A4A38' : '#96a7c5'}; font-size: 10px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.8px; }
@@ -398,7 +455,7 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
                   <div class="phone">${profilePhone}</div>
                 </div>
               </div>
-              <div class="logo">${logoDataUri ? `<img src="${logoDataUri}" />` : 'SRV'}</div>
+              <div class="logo">${escapeHtml(initials)}</div>
             </div>
             <div class="pill-row">
               <div class="pill">
@@ -435,9 +492,8 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
   const handleDownloadPdf = async () => {
     try {
       setIsDownloading(true);
-      const logoDataUri = await getLogoDataUri();
       const { uri } = await Print.printToFileAsync({
-        html: buildPdfHtml(logoDataUri),
+        html: buildPdfHtml(),
         base64: false,
       });
       const fileName = `${exportName}-srv-card.pdf`;
@@ -498,130 +554,95 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
             ]}
           >
             <LinearGradient
-              colors={
-                darkMode
-                  ? isCounterboy
-                    ? ([...cb.flipCardFrontDark] as const)
-                    : (['#0F172A', '#16233B', '#1E3A5F'] as const)
-                  : isDealer
-                    ? ['#173E80', '#355C95', '#88AEEA']
-                    : role === 'user'
-                      ? ['#F0D2B6', '#E4BC98', '#CB8A57']
-                      : isCounterboy
-                        ? ([...cb.flipCardFrontLight] as const)
-                        : ['#587AC7', '#4768B7', '#38549B']
-              }
+              colors={premiumTheme.gradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.gradientFill}
             >
-              <View style={[styles.textureOne, darkMode ? styles.textureOneDark : null, isCounterboy ? (counterboyLightCard ? styles.textureOneCounterboyLight : styles.textureOneCounterboy) : null]} />
-              <View
-                style={[
-                  styles.textureTwo,
-                  isDealer ? styles.textureTwoDealer : null,
-                  role === 'user' ? styles.textureTwoUser : null,
-                  isCounterboy ? (counterboyLightCard ? styles.textureTwoCounterboyLight : styles.textureTwoCounterboy) : null,
-                  darkMode ? styles.textureTwoDark : null,
-                ]}
-              />
+              <View style={[styles.premiumGlowTop, { backgroundColor: premiumTheme.strip }]} />
+              <View style={[styles.premiumGlowBottom, { backgroundColor: premiumTheme.strip }]} />
+              <View style={[styles.premiumWaveTop, { backgroundColor: premiumTheme.panelBorder, shadowColor: premiumTheme.accent }]} />
+              <View style={styles.premiumDotField}>
+                {Array.from({ length: 20 }).map((_, index) => (
+                  <View key={index} style={[styles.premiumDot, { backgroundColor: premiumTheme.accent }]} />
+                ))}
+              </View>
 
-              <View style={styles.frontTopRow}>
-                <View style={styles.identityWrap}>
-                  <View style={styles.avatarWrap}>
-                    {effectivePhotoUri ? (
-                      <Image source={{ uri: effectivePhotoUri }} style={styles.avatarImage} />
-                    ) : (
-                      <Text
-                        style={[
-                          styles.avatarText,
-                          role === 'user' ? styles.avatarTextUser : null,
-                          isCounterboy ? styles.avatarTextCounterboy : null,
-                          counterboyLightCard ? styles.avatarTextCounterboyOnLight : null,
-                        ]}
-                      >
-                        {initials}
-                      </Text>
-                    )}
+              <View style={styles.premiumTopRow}>
+                <Pressable style={[styles.premiumLogoMedallion, { borderColor: premiumTheme.accent, backgroundColor: premiumTheme.strip }]} onPress={onOpenProfileEdit}>
+                  <View style={styles.premiumLogoRing}>
+                    <View style={styles.premiumLogoInner}>
+                      {effectivePhotoUri ? (
+                        <Image source={{ uri: effectivePhotoUri }} style={styles.premiumLogoImage} />
+                      ) : (
+                        <Text style={[styles.premiumInitialsText, { color: premiumTheme.title }]}>{initials}</Text>
+                      )}
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        styles.roleText,
-                        role === 'user' ? styles.roleTextUser : null,
-                        isCounterboy ? styles.roleTextCounterboy : null,
-                        counterboyLightCard ? styles.roleTextCounterboyOnLight : null,
-                        darkMode && !isCounterboy ? styles.roleTextDark : null,
-                        darkMode && isCounterboy ? styles.roleTextCounterboyDark : null,
-                      ]}
-                    >
-                      {frontEyebrowText}
-                    </Text>
-                    <Text style={[styles.nameText, role === 'user' ? styles.nameTextUser : null, isCounterboy ? styles.nameTextCounterboy : null, counterboyLightCard ? styles.nameTextCounterboyOnLight : null]}>
+                </Pressable>
+
+                <View style={styles.premiumIdentity}>
+                  <View style={styles.premiumRoleRow}>
+                    <View style={[styles.premiumRoleBadge, { borderColor: premiumTheme.accent, backgroundColor: premiumTheme.strip }]}>
+                      <RoleBoltIcon size={15} color={premiumTheme.accent} />
+                    </View>
+                    <Text style={[styles.premiumRoleText, { color: premiumTheme.accent }]} numberOfLines={1}>{premiumRoleTitle}</Text>
+                  </View>
+                  <View style={styles.premiumNameRow}>
+                    <Text style={[styles.premiumNameText, { color: premiumTheme.title }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.68}>
                       {profile?.name || fallbackText}
                     </Text>
-                    <Text
-                      style={[
-                        styles.phoneText,
-                        role === 'user' ? styles.phoneTextUser : null,
-                        isCounterboy ? styles.phoneTextCounterboy : null,
-                        counterboyLightCard ? styles.phoneTextCounterboyOnLight : null,
-                        darkMode && !isCounterboy ? styles.phoneTextDark : null,
-                        darkMode && isCounterboy ? styles.phoneTextCounterboyDark : null,
-                      ]}
-                    >
+                    <VerifiedSealIcon size={24} />
+                  </View>
+                  <View style={styles.premiumPhoneRow}>
+                    <View style={[styles.premiumPhoneBubble, { backgroundColor: premiumTheme.panel, borderColor: premiumTheme.panelBorder }]}>
+                      <PathPhoneIcon color={premiumTheme.accent} />
+                    </View>
+                    <Text style={[styles.premiumPhoneText, { color: premiumTheme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
                       {profile?.phone ? '+91 ' + profile.phone : fallbackText}
                     </Text>
-                    <Animated.View
-                      style={[
-                        styles.inlineTapHintWrap,
-                        { transform: [{ scale: hintPulse }] },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.inlineTapHint,
-                          role === 'user' ? styles.inlineTapHintUser : null,
-                          isCounterboy ? styles.inlineTapHintCounterboy : null,
-                          counterboyLightCard ? styles.inlineTapHintCounterboyOnLight : null,
-                          darkMode && !isCounterboy ? styles.inlineTapHintDark : null,
-                          darkMode && isCounterboy ? styles.inlineTapHintCounterboyDark : null,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {flipHintText}
-                      </Text>
-                      <View style={[styles.inlineTapIcon, counterboyLightCard || role === 'user' ? styles.inlineTapIconLight : null]}>
-                        <View style={styles.inlineTapIconGlow} />
-                        <TapClickIcon color={tapHintIconColor} size={18} />
-                      </View>
-                    </Animated.View>
                   </View>
                 </View>
               </View>
 
-              <View style={styles.frontBottomRow}>
-                <DetailPill
-                  label={codeLabelText}
-                  value={code || fallbackText}
-                  isUser={role === 'user'}
-                  isCounterboy={isCounterboy}
-                  counterboyLight={counterboyLightCard}
-                />
-                <DetailPill
-                  label={locationLabelText}
-                  value={frontLocation}
-                  isUser={role === 'user'}
-                  isCounterboy={isCounterboy}
-                  counterboyLight={counterboyLightCard}
-                  icon={
-                    <LocationIcon
-                      color={
-                        role === 'user' ? '#8D4A1E' : counterboyLightCard ? cb.primaryDeep : '#FFFFFF'
-                      }
-                    />
-                  }
-                />
+              <Animated.View style={[styles.premiumTapPill, { transform: [{ scale: hintPulse }] }]}>
+                <Text style={[styles.premiumTapText, { color: premiumTapTextColor }]} numberOfLines={1}>{flipHintText}</Text>
+                <View style={[styles.premiumTapIcon, { backgroundColor: premiumTheme.title === '#FFFFFF' ? '#082A53' : '#6A3E24', borderColor: premiumTheme.panelBorder }]}>
+                  <TapClickIcon color={premiumTheme.accent} size={24} />
+                </View>
+              </Animated.View>
+
+              <View style={styles.premiumInfoRow}>
+                <View style={[styles.premiumCodeCard, { backgroundColor: premiumTheme.light, borderColor: premiumTheme.panelBorder }]}>
+                  <View style={[styles.premiumInfoIconBox, { backgroundColor: premiumTheme.title === '#FFFFFF' ? '#082A53' : '#6A3E24', borderColor: premiumTheme.panelBorder }]}>
+                    <ProfileLineIcon color={premiumTheme.accent} size={22} />
+                  </View>
+                  <View style={styles.premiumInfoTextWrap}>
+                    <Text style={[styles.premiumInfoLabel, { color: premiumTheme.accent2 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}>{codeLabelText}</Text>
+                    <View style={[styles.premiumLabelRule, { backgroundColor: premiumTheme.panelBorder }]} />
+                    <Text style={[styles.premiumInfoValue, { color: premiumTheme.title === '#FFFFFF' ? '#082A53' : premiumTheme.title }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.68}>
+                      {code || fallbackText}
+                    </Text>
+                  </View>
+                  <View style={styles.premiumMicroDots} pointerEvents="none">
+                    {Array.from({ length: 9 }).map((_, index) => (
+                      <View key={index} style={[styles.premiumMicroDot, { backgroundColor: premiumTheme.title === '#FFFFFF' ? '#082A53' : premiumTheme.title }]} />
+                    ))}
+                  </View>
+                </View>
+
+                <View style={[styles.premiumLocationCard, { backgroundColor: premiumTheme.panel, borderColor: premiumTheme.panelBorder }]}>
+                  <View style={[styles.premiumInfoIconBox, { backgroundColor: premiumTheme.title === '#FFFFFF' ? '#082A53' : '#6A3E24', borderColor: premiumTheme.panelBorder }]}>
+                    <LocationIcon color={premiumTheme.accent} size={22} />
+                  </View>
+                  <View style={styles.premiumInfoTextWrap}>
+                    <Text style={[styles.premiumInfoLabel, { color: premiumTheme.accent }]} numberOfLines={1}>{locationLabelText}</Text>
+                    <View style={[styles.premiumLabelRule, { backgroundColor: premiumTheme.panelBorder }]} />
+                    <Text style={[styles.premiumLocationValue, { color: premiumTheme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.68}>
+                      {frontLocation}
+                    </Text>
+                  </View>
+                </View>
               </View>
             </LinearGradient>
           </Animated.View>
@@ -634,19 +655,7 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
             ]}
           >
             <LinearGradient
-              colors={
-                darkMode
-                  ? isCounterboy
-                    ? ([...cb.flipCardBackDark] as const)
-                    : (['#111827', '#172033', '#243B53'] as const)
-                  : isDealer
-                    ? ['#214D99', '#355C95', '#6F96D8']
-                    : role === 'user'
-                      ? ['#F5DFC9', '#EFCFAC', '#DDA373']
-                      : isCounterboy
-                        ? ([...cb.flipCardBackLight] as const)
-                        : ['#6284C9', '#4B6DB4', '#35518C']
-              }
+              colors={premiumTheme.gradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.gradientFill}
@@ -654,17 +663,13 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
               <View
                 style={[
                   styles.backGlowOne,
-                  role === 'user' ? styles.backGlowOneUser : null,
-                  isCounterboy ? styles.backGlowOneCounterboy : null,
-                  darkMode ? styles.backGlowOneDark : null,
+                  { backgroundColor: premiumTheme.strip },
                 ]}
               />
               <View
                 style={[
                   styles.backGlowTwo,
-                  role === 'user' ? styles.backGlowTwoUser : null,
-                  isCounterboy ? styles.backGlowTwoCounterboy : null,
-                  darkMode ? styles.backGlowTwoDark : null,
+                  { backgroundColor: premiumTheme.strip },
                 ]}
               />
               <View style={styles.backContent}>
@@ -672,10 +677,7 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
                   <Text
                     style={[
                       styles.backHeading,
-                      role === 'user' ? styles.backHeadingUser : null,
-                      isCounterboy ? styles.backHeadingCounterboy : null,
-                      darkMode && !isCounterboy ? styles.backHeadingDark : null,
-                      darkMode && isCounterboy ? styles.backHeadingCounterboyDark : null,
+                      { color: premiumTheme.text },
                     ]}
                   >
                     {detailHeadingText}
@@ -738,18 +740,18 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    height: 208,
+    aspectRatio: 498 / 332,
     position: 'relative',
   },
   face: {
     position: 'absolute',
     width: '100%',
-    height: 208,
-    borderRadius: 28,
+    height: '100%',
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.38)',
-    ...createShadow({ color: '#020617', offsetY: 10, blur: 20, opacity: 0.22, elevation: 9 }),
+    borderColor: 'rgba(244,223,192,0.72)',
+    ...createShadow({ color: '#020617', offsetY: 14, blur: 28, opacity: 0.26, elevation: 11 }),
   },
   pressArea: {
     width: '100%',
@@ -757,7 +759,283 @@ const styles = StyleSheet.create({
   },
   gradientFill: {
     flex: 1,
-    padding: 15,
+    padding: 12,
+  },
+  premiumGlowTop: {
+    position: 'absolute',
+    top: -58,
+    right: -24,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  premiumGlowBottom: {
+    position: 'absolute',
+    bottom: -70,
+    left: -34,
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: 'rgba(244,223,192,0.09)',
+  },
+  premiumWaveTop: {
+    position: 'absolute',
+    right: 14,
+    top: 18,
+    width: 118,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(244,223,192,0.2)',
+    shadowColor: '#F4DFC0',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+  },
+  premiumDotField: {
+    position: 'absolute',
+    left: 13,
+    bottom: 78,
+    width: 84,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    opacity: 0.58,
+  },
+  premiumDot: {
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: '#F4DFC0',
+  },
+  premiumTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    minHeight: 88,
+  },
+  premiumLogoMedallion: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2.5,
+    borderColor: 'rgba(244,223,192,0.9)',
+    padding: 5,
+    backgroundColor: 'rgba(244,223,192,0.08)',
+    ...createShadow({ color: '#000000', offsetY: 8, blur: 14, opacity: 0.26, elevation: 8 }),
+  },
+  premiumLogoRing: {
+    flex: 1,
+    borderRadius: 40,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    padding: 3,
+  },
+  premiumLogoInner: {
+    flex: 1,
+    borderRadius: 36,
+    backgroundColor: '#F4E8D4',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumLogoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  premiumInitialsText: {
+    fontSize: 26,
+    lineHeight: 30,
+    fontWeight: '900',
+  },
+  premiumIdentity: {
+    flex: 1,
+    minWidth: 0,
+    paddingTop: 2,
+  },
+  premiumRoleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 5,
+  },
+  premiumRoleBadge: {
+    width: 25,
+    height: 25,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: '#F4DFC0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumRoleText: {
+    color: '#F4DFC0',
+    fontSize: 9.5,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    flexShrink: 1,
+  },
+  premiumNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  premiumNameText: {
+    color: '#F8FAFC',
+    fontSize: 22,
+    lineHeight: 25,
+    fontWeight: '900',
+    flexShrink: 1,
+    textShadowColor: 'rgba(0,0,0,0.22)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  premiumPhoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 7,
+  },
+  premiumPhoneBubble: {
+    width: 29,
+    height: 29,
+    borderRadius: 15,
+    backgroundColor: 'rgba(244,223,192,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(244,223,192,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumPhoneText: {
+    color: '#F8FAFC',
+    fontSize: 13,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  premiumSideLogo: {
+    width: 58,
+    height: 58,
+    opacity: 0.95,
+  },
+  premiumTapPill: {
+    alignSelf: 'center',
+    marginTop: 4,
+    height: 38,
+    minWidth: 190,
+    maxWidth: '88%',
+    paddingLeft: 18,
+    paddingRight: 42,
+    borderRadius: 20,
+    backgroundColor: '#F1E9DC',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.78)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...createShadow({ color: '#000000', offsetY: 5, blur: 10, opacity: 0.22, elevation: 6 }),
+  },
+  premiumTapText: {
+    color: '#173F45',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  premiumTapIcon: {
+    position: 'absolute',
+    right: -2,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#123C42',
+    borderWidth: 2,
+    borderColor: 'rgba(244,223,192,0.48)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumInfoRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  premiumCodeCard: {
+    flex: 1.14,
+    minHeight: 58,
+    borderRadius: 16,
+    backgroundColor: '#F1E9DC',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    overflow: 'hidden',
+  },
+  premiumLocationCard: {
+    flex: 0.96,
+    minHeight: 58,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(244,223,192,0.38)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    overflow: 'hidden',
+  },
+  premiumInfoIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: '#173F45',
+    borderWidth: 1,
+    borderColor: 'rgba(244,223,192,0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  premiumInfoTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  premiumInfoLabel: {
+    color: '#F4DFC0',
+    fontSize: 8.2,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.2,
+    flexShrink: 1,
+    includeFontPadding: false,
+  },
+  premiumLabelRule: {
+    width: 28,
+    height: 2.5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(244,223,192,0.45)',
+    marginTop: 3,
+    marginBottom: 4,
+  },
+  premiumInfoValue: {
+    color: '#173F45',
+    fontSize: 13.5,
+    fontWeight: '900',
+    flexShrink: 1,
+  },
+  premiumLocationValue: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '900',
+  },
+  premiumMicroDots: {
+    width: 17,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 3,
+    opacity: 0.32,
+  },
+  premiumMicroDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#173F45',
   },
   textureOne: {
     position: 'absolute',
@@ -797,11 +1075,11 @@ const styles = StyleSheet.create({
   },
   downloadMiniBtn: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: 9,
+    right: 9,
+    width: 29,
+    height: 29,
+    borderRadius: 15,
     backgroundColor: 'rgba(255,255,255,0.18)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
@@ -815,11 +1093,11 @@ const styles = StyleSheet.create({
   },
   profileEditTapArea: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    width: 76,
-    height: 88,
-    borderRadius: 24,
+    top: 10,
+    left: 10,
+    width: 94,
+    height: 94,
+    borderRadius: 47,
     alignItems: 'center',
     justifyContent: 'flex-end',
     paddingBottom: 4,

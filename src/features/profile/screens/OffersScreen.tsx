@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { offersApi } from '@/shared/api';
@@ -43,6 +43,7 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'offers');
   const fireworkAnim = useRef(new Animated.Value(0)).current;
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [offers, setOffers] = useState<
     {
       id: string;
@@ -64,23 +65,10 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
     setSelectedOffer(offer);
   };
 
-  useEffect(() => {
-    if (!selectedOffer) return;
-    fireworkAnim.stopAnimation();
-    fireworkAnim.setValue(0);
-    Animated.sequence([
-      Animated.delay(80),
-      Animated.timing(fireworkAnim, {
-        toValue: 1,
-        duration: 2800,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fireworkAnim, selectedOffer]);
-
-  useEffect(() => {
-    offersApi.getAll().then((res) => {
+  const loadOffers = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    try {
+      const res = await offersApi.getAll(role ?? undefined);
       const data = res.data ?? [];
       setOffers(
         data.map((o: any) => ({
@@ -97,8 +85,40 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
           productCategory: o.productCategory,
         }))
       );
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    } catch {
+      if (showLoading) setOffers([]);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, [role]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadOffers(false);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadOffers]);
+
+  useEffect(() => {
+    if (!selectedOffer) return;
+    fireworkAnim.stopAnimation();
+    fireworkAnim.setValue(0);
+    Animated.sequence([
+      Animated.delay(80),
+      Animated.timing(fireworkAnim, {
+        toValue: 1,
+        duration: 2800,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fireworkAnim, selectedOffer]);
+
+  useEffect(() => {
+    void loadOffers();
+  }, [loadOffers]);
 
   if (selectedOffer) {
     return (
@@ -326,7 +346,19 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <PageHeader title={pageContent.pageTitle || t('offer')} onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={C.primary}
+            colors={[C.primary]}
+            progressBackgroundColor={theme.surface}
+          />
+        }
+      >
         {loading ? (
           <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
         ) : offers.length === 0 ? (
@@ -378,7 +410,6 @@ export function OffersPage({ onBack }: { onBack: () => void }) {
                   <Text style={styles.offerTagText}>{tx(offer.tag)}</Text>
                 </View>
               </View>
-              <Text style={[styles.offerBody, { color: theme.textSecondary }]}>{tx(offer.body)}</Text>
               <View style={styles.cardFooter}>
                 <Text style={[styles.viewDetailsText, { color: C.primary }]}>{tx('View details')}</Text>
                 <AppIcon name="chevronRight" size={14} color={C.primary} />

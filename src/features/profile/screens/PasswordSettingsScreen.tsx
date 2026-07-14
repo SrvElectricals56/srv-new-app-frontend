@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { authApi, profileApi, storage } from '@/shared/api';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -127,18 +129,13 @@ type StrengthRule = {
 };
 
 const strengthRules: StrengthRule[] = [
-  { label: 'Exactly 8 characters', test: (p) => p.length === 8 },
-  {
-    label: 'Contains special character (!@#$%)',
-    test: (p) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p),
-  },
+  { label: 'At least 8 characters', test: (p) => p.length >= 8 },
   { label: 'No spaces allowed', test: (p) => !/\s/.test(p) },
 ];
 
-const PASSWORD_MAX_LENGTH = 8;
-const PASSWORD_RULE_MESSAGE = 'Password must be exactly 8 characters long and include one special character.';
-const isStrongPassword = (value: string) => /^(?=.*[^A-Za-z0-9])\S{8}$/.test(value);
-const cleanPasswordInput = (value: string) => value.replace(/\s/g, '').slice(0, PASSWORD_MAX_LENGTH);
+const PASSWORD_RULE_MESSAGE = 'Please enter a minimum 8 character password.';
+const isStrongPassword = (value: string) => /^\S{8,}$/.test(value);
+const cleanPasswordInput = (value: string) => value.replace(/\s/g, '');
 
 function getStrengthLevel(password: string): { level: number; color: string } {
   if (!password) return { level: 0, color: C.muted };
@@ -195,9 +192,10 @@ export function PasswordSettingsPage({
   const { tx, theme, darkMode } = usePreferenceContext();
   const { role, user, login, refreshProfile } = useAuth();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'password');
-  const glassSurface = darkMode ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.72)';
   const glassBorder = darkMode ? 'rgba(148,163,184,0.22)' : 'rgba(255,255,255,0.72)';
   const [mode, setMode] = useState<PasswordMode>(hasPasswordConfigured ? 'change' : 'set');
+  const [showChooser, setShowChooser] = useState(true);
+  const cardAnimations = useRef([new Animated.Value(0), new Animated.Value(0)]).current;
   const [setPassword, setSetPassword] = useState('');
   const [confirmSetPassword, setConfirmSetPassword] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -237,14 +235,14 @@ export function PasswordSettingsPage({
     mode === 'set' &&
     !hasPasswordConfigured &&
     isStrongPassword(setPassword) &&
-    confirmSetPassword.length === PASSWORD_MAX_LENGTH &&
+    confirmSetPassword.length > 0 &&
     setPassword === confirmSetPassword;
   const canSaveChange =
     mode === 'change' &&
     hasPasswordConfigured &&
     currentPassword.length > 0 &&
     isStrongPassword(newPassword) &&
-    confirmNewPassword.length === PASSWORD_MAX_LENGTH &&
+    confirmNewPassword.length > 0 &&
     newPassword === confirmNewPassword;
   const canSaveReset =
     mode === 'reset' &&
@@ -252,7 +250,8 @@ export function PasswordSettingsPage({
     resetOtpVerified &&
     isStrongPassword(resetPassword) &&
     confirmResetPassword === resetPassword;
-  const isSaveDisabled = isSaving || (mode === 'set' ? !canSaveSet : mode === 'change' ? !canSaveChange : !canSaveReset);
+  const isFormIncomplete = mode === 'set' ? !canSaveSet : mode === 'change' ? !canSaveChange : !canSaveReset;
+  const isSaveDisabled = isSaving;
 
   useEffect(() => {
     setMode(hasPasswordConfigured ? 'change' : 'set');
@@ -269,6 +268,22 @@ export function PasswordSettingsPage({
     setErrors({});
     setSuccessMessage('');
   }, [hasPasswordConfigured, storedPassword]);
+
+  useEffect(() => {
+    if (!showChooser) return;
+    cardAnimations.forEach((animation) => animation.setValue(0));
+    Animated.stagger(
+      95,
+      cardAnimations.map((animation) =>
+        Animated.spring(animation, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 8,
+          tension: 70,
+        })
+      )
+    ).start();
+  }, [cardAnimations, showChooser]);
 
   useEffect(() => {
     setErrors((current) => {
@@ -368,6 +383,7 @@ export function PasswordSettingsPage({
       redirectTimerRef.current = null;
     }
     setMode(nextMode);
+    setShowChooser(false);
     setErrors({});
     setSuccessMessage('');
     if (nextMode === 'reset') {
@@ -377,6 +393,13 @@ export function PasswordSettingsPage({
       setResetOtpSent(false);
       setResetOtpVerified(false);
     }
+  };
+
+  const returnToChooser = () => {
+    Keyboard.dismiss();
+    setErrors({});
+    setSuccessMessage('');
+    setShowChooser(true);
   };
 
   const sendResetOtp = async () => {
@@ -532,7 +555,7 @@ export function PasswordSettingsPage({
         return;
       }
 
-      if (trimmedSetPassword.length !== PASSWORD_MAX_LENGTH) {
+      if (trimmedSetPassword.length < 8) {
         nextErrors.setPassword = tx(PASSWORD_RULE_MESSAGE);
       } else if (!isStrongPassword(trimmedSetPassword)) {
         nextErrors.setPassword = tx(PASSWORD_RULE_MESSAGE);
@@ -547,6 +570,9 @@ export function PasswordSettingsPage({
       setErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0) {
         setSuccessMessage('');
+        if (nextErrors.setPassword) {
+          setDialog({ visible: true, variant: 'info', title: tx('Password Required'), message: tx(PASSWORD_RULE_MESSAGE) });
+        }
         return;
       }
 
@@ -666,6 +692,9 @@ export function PasswordSettingsPage({
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       setSuccessMessage('');
+      if (nextErrors.newPassword) {
+        setDialog({ visible: true, variant: 'info', title: tx('Password Required'), message: tx(PASSWORD_RULE_MESSAGE) });
+      }
       return;
     }
 
@@ -732,7 +761,10 @@ export function PasswordSettingsPage({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
       >
-        <PageHeader title={pageContent.pageTitle || tx('Password')} onBack={onBack} />
+        <PageHeader
+          title={showChooser ? pageContent.pageTitle || tx('Password') : tx(mode === 'reset' ? 'Forgot Password' : mode === 'set' ? 'Set Password' : 'Change Password')}
+          onBack={showChooser ? onBack : returnToChooser}
+        />
         <ScrollView
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
@@ -741,18 +773,28 @@ export function PasswordSettingsPage({
           contentInset={{ bottom: keyboardHeight }}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: keyboardHeight + 32 }]}
         >
-          <View
-            style={[styles.heroCard, { backgroundColor: glassSurface, borderColor: glassBorder }]}
+          {showChooser ? (
+            <View style={[styles.chooserIntro, { backgroundColor: darkMode ? 'rgba(59,130,246,0.16)' : '#EEF5FF', borderColor: glassBorder }]}>
+              <View style={styles.chooserOrb}><AppIcon name="lock" size={24} color="#fff" /></View>
+              <Text style={[styles.chooserEyebrow, { color: theme.accent }]}>{tx('ACCOUNT SECURITY')}</Text>
+              <Text style={[styles.chooserTitle, { color: theme.textPrimary }]}>{tx('Password center')}</Text>
+              <Text style={[styles.chooserSub, { color: theme.textMuted }]}>{tx('Choose what you would like to do. Your account stays protected at every step.')}</Text>
+            </View>
+          ) : null}
+          {!showChooser ? <LinearGradient
+            colors={mode === 'reset' ? (darkMode ? ['#5B1745', '#8A2C66'] : ['#FFE7F2', '#F8B7D8']) : mode === 'change' ? (darkMode ? ['#30204D', '#5C3A92'] : ['#EEE8FF', '#D6C6FF']) : (darkMode ? ['#123A6A', '#245DA8'] : ['#E4F1FF', '#B8DFFF'])}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={[styles.heroCard, { borderColor: glassBorder }]}
           >
             <View style={styles.heroIconWrap}>
               <AppIcon name="lock" size={22} color={C.blue} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.heroTitle, { color: theme.textPrimary }]}>
-                {tx('Manage your password')}
+              <Text style={[styles.heroTitle, { color: darkMode ? '#FFFFFF' : '#172554' }]}>
+                {tx(mode === 'set' ? 'Create a secure password' : mode === 'reset' ? 'Recover your access' : 'Update your sign-in password')}
               </Text>
-              <Text style={[styles.heroSub, { color: theme.textMuted }]}>
-                {tx('Set a password if you skipped it earlier, or change it anytime from here.')}
+              <Text style={[styles.heroSub, { color: darkMode ? 'rgba(255,255,255,0.82)' : '#334155' }]}>
+                {tx(mode === 'set' ? 'Choose a password that protects your account.' : mode === 'reset' ? 'Confirm your identity securely with a one-time code.' : 'Use your current password to create a fresh one.')}
               </Text>
               <View style={[styles.passwordStatusPill, { backgroundColor: hasPasswordConfigured ? C.successLight : C.primaryLight }]}>
                 <AppIcon name={hasPasswordConfigured ? 'check' : 'lock'} size={13} color={hasPasswordConfigured ? C.success : C.primary} />
@@ -761,81 +803,71 @@ export function PasswordSettingsPage({
                 </Text>
               </View>
             </View>
-          </View>
+          </LinearGradient> : null}
 
-          <View style={styles.optionsRow}>
+          {showChooser ? <View style={styles.optionsRow}>
+            <Animated.View style={{ opacity: cardAnimations[0], transform: [{ translateY: cardAnimations[0].interpolate({ inputRange: [0, 1], outputRange: [26, 0] }) }] }}>
             <TouchableOpacity
               style={[
                 styles.optionCard,
                 {
-                  backgroundColor: glassSurface,
-                  borderColor: mode === 'set' ? C.blue : theme.border,
+                  borderColor: '#8DC2FF',
                 },
                 mode === 'set' ? styles.optionCardActive : null,
               ]}
               onPress={() => selectMode('set')}
               activeOpacity={0.85}
             >
-              <View style={[styles.optionIconWrap, { backgroundColor: C.blueLight }]}>
+              <LinearGradient colors={darkMode ? ['#123A6A', '#245DA8'] : ['#EAF4FF', '#B8DBFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.optionGradient}>
+              <View pointerEvents="none" style={styles.cardGlow} />
+              <Animated.View style={[styles.optionIconWrap, { backgroundColor: '#FFFFFF', transform: [{ scale: cardAnimations[0].interpolate({ inputRange: [0, 1], outputRange: [0.65, 1] }) }] }]}>
                 <AppIcon name="lock" size={18} color={C.blue} />
-              </View>
+              </Animated.View>
               <Text style={[styles.optionTitle, { color: theme.textPrimary }]}>
                 {tx('Set Password')}
               </Text>
               <Text style={[styles.optionSub, { color: theme.textMuted }]}>
                 {tx('Create a password for future login access.')}
               </Text>
+              <Text style={[styles.cardAction, { color: C.blue }]}>{tx('CREATE ACCESS  ->')}</Text>
+              </LinearGradient>
             </TouchableOpacity>
+            </Animated.View>
 
+            <Animated.View style={{ opacity: cardAnimations[1], transform: [{ translateY: cardAnimations[1].interpolate({ inputRange: [0, 1], outputRange: [26, 0] }) }] }}>
             <TouchableOpacity
               style={[
                 styles.optionCard,
                 {
-                  backgroundColor: glassSurface,
-                  borderColor: mode === 'change' ? C.primary : theme.border,
+                  borderColor: '#D1AEF6',
                 },
                 mode === 'change' ? styles.optionCardActive : null,
               ]}
               onPress={() => selectMode('change')}
               activeOpacity={0.85}
             >
-              <View style={[styles.optionIconWrap, { backgroundColor: C.primaryLight }]}>
+              <LinearGradient colors={darkMode ? ['#40265F', '#7746A8'] : ['#F6ECFF', '#DDBDFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.optionGradient}>
+              <View pointerEvents="none" style={styles.cardGlow} />
+              <Animated.View style={[styles.optionIconWrap, { backgroundColor: '#FFFFFF', transform: [{ scale: cardAnimations[1].interpolate({ inputRange: [0, 1], outputRange: [0.65, 1] }) }] }]}>
                 <AppIcon name="edit" size={18} color={C.primary} />
-              </View>
+              </Animated.View>
               <Text style={[styles.optionTitle, { color: theme.textPrimary }]}>
                 {tx('Change Password')}
               </Text>
               <Text style={[styles.optionSub, { color: theme.textMuted }]}>
                 {tx('Update your current password whenever needed.')}
               </Text>
+              <Text style={[styles.cardAction, { color: C.primary }]}>{tx('UPDATE SECURITY  ->')}</Text>
+              </LinearGradient>
             </TouchableOpacity>
+            </Animated.View>
 
-            <TouchableOpacity
-              style={[
-                styles.optionCard,
-                {
-                  backgroundColor: glassSurface,
-                  borderColor: mode === 'reset' ? C.primary : theme.border,
-                },
-                mode === 'reset' ? styles.optionCardActive : null,
-              ]}
-              onPress={() => selectMode('reset')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.optionIconWrap, { backgroundColor: C.primaryLight }]}>
-                <AppIcon name="lock" size={18} color={C.primary} />
-              </View>
-              <Text style={[styles.optionTitle, { color: theme.textPrimary }]}>
-                {tx('Forgot Password')}
-              </Text>
-              <Text style={[styles.optionSub, { color: theme.textMuted }]}>
-                {tx('Reset with OTP if you forgot the current password.')}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </View> : null}
 
-          <View
-            style={[styles.card, { backgroundColor: glassSurface, borderColor: glassBorder }]}
+          {!showChooser ? <LinearGradient
+            colors={darkMode ? ['#101C33', '#172440'] : ['#F2F6FF', '#E6EEFF']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={[styles.card, { borderColor: darkMode ? '#30466E' : '#C9D8F6' }]}
           >
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
               {mode === 'set' ? tx('Set Password') : mode === 'reset' ? tx('Forgot Password') : tx('Change Password')}
@@ -846,7 +878,7 @@ export function PasswordSettingsPage({
                   ? tx(
                       'A password is already active for this account. Use Change Password to update it.'
                     )
-                  : tx('Use exactly 8 characters with at least one special character.')
+                  : tx('Use at least 8 characters for a secure password.')
                 : mode === 'reset'
                   ? tx('Verify OTP sent to your phone, then create a new password.')
                 : hasPasswordConfigured
@@ -855,6 +887,19 @@ export function PasswordSettingsPage({
                       'You can change a password after you create one from the Set Password option.'
                     )}
             </Text>
+            {mode === 'reset' ? (
+              <View style={styles.resetSteps}>
+                {['1', '2', '3'].map((step, index) => {
+                  const active = index === 0 || (index === 1 && resetOtpSent) || (index === 2 && resetOtpVerified);
+                  return (
+                    <React.Fragment key={step}>
+                      <View style={[styles.stepBadge, { backgroundColor: active ? '#DB2777' : theme.border }]}><Text style={styles.stepNumber}>{step}</Text></View>
+                      {index < 2 ? <View style={[styles.stepLine, { backgroundColor: active && (index === 0 ? resetOtpSent : resetOtpVerified) ? '#DB2777' : theme.border }]} /> : null}
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+            ) : null}
 
             {mode === 'set' ? (
               <>
@@ -867,10 +912,9 @@ export function PasswordSettingsPage({
                     clearFieldError('setPassword');
                   }}
                   secureTextEntry={!showSetPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowSetPassword((current) => !current)}
                   error={errors.setPassword}
-                  placeholder={tx('Enter exactly 8 characters')}
+                  placeholder={tx('Enter at least 8 characters')}
                   inputRef={setPasswordRef}
                   returnKeyType="next"
                   onSubmitEditing={() => confirmSetPasswordRef.current?.focus()}
@@ -887,10 +931,9 @@ export function PasswordSettingsPage({
                     clearFieldError('confirmSetPassword');
                   }}
                   secureTextEntry={!showConfirmSetPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowConfirmSetPassword((current) => !current)}
                   error={errors.confirmSetPassword}
-                  placeholder={tx('Re-enter exactly 8 characters')}
+                  placeholder={tx('Re-enter your password')}
                   inputRef={confirmSetPasswordRef}
                   returnKeyType="done"
                   onSubmitEditing={handleSave}
@@ -959,10 +1002,9 @@ export function PasswordSettingsPage({
                         clearFieldError('resetPassword');
                       }}
                       secureTextEntry={!showNewPassword}
-                      maxLength={PASSWORD_MAX_LENGTH}
                       onToggle={() => setShowNewPassword((current) => !current)}
                       error={errors.resetPassword}
-                      placeholder={tx('Enter exactly 8 characters')}
+                      placeholder={tx('Enter at least 8 characters')}
                       inputRef={resetPasswordRef}
                       returnKeyType="next"
                       onSubmitEditing={() => confirmResetPasswordRef.current?.focus()}
@@ -979,10 +1021,9 @@ export function PasswordSettingsPage({
                         clearFieldError('confirmResetPassword');
                       }}
                       secureTextEntry={!showConfirmNewPassword}
-                      maxLength={PASSWORD_MAX_LENGTH}
                       onToggle={() => setShowConfirmNewPassword((current) => !current)}
                       error={errors.confirmResetPassword}
-                      placeholder={tx('Re-enter exactly 8 characters')}
+                      placeholder={tx('Re-enter your password')}
                       inputRef={confirmResetPasswordRef}
                       returnKeyType="done"
                       onSubmitEditing={handleSave}
@@ -1010,10 +1051,9 @@ export function PasswordSettingsPage({
                     clearFieldError('currentPassword');
                   }}
                   secureTextEntry={!showCurrentPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowCurrentPassword((current) => !current)}
                   error={errors.currentPassword}
-                  placeholder={tx('Enter current 8 character password')}
+                  placeholder={tx('Enter your current password')}
                   inputRef={currentPasswordRef}
                   returnKeyType="next"
                   onSubmitEditing={() => newPasswordRef.current?.focus()}
@@ -1030,10 +1070,9 @@ export function PasswordSettingsPage({
                     clearFieldError('newPassword');
                   }}
                   secureTextEntry={!showNewPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowNewPassword((current) => !current)}
                   error={errors.newPassword}
-                  placeholder={tx('Enter exactly 8 characters')}
+                  placeholder={tx('Enter at least 8 characters')}
                   inputRef={newPasswordRef}
                   returnKeyType="next"
                   onSubmitEditing={() => confirmNewPasswordRef.current?.focus()}
@@ -1050,10 +1089,9 @@ export function PasswordSettingsPage({
                     clearFieldError('confirmNewPassword');
                   }}
                   secureTextEntry={!showConfirmNewPassword}
-                  maxLength={PASSWORD_MAX_LENGTH}
                   onToggle={() => setShowConfirmNewPassword((current) => !current)}
                   error={errors.confirmNewPassword}
-                  placeholder={tx('Re-enter exactly 8 characters')}
+                  placeholder={tx('Re-enter your password')}
                   inputRef={confirmNewPasswordRef}
                   returnKeyType="done"
                   onSubmitEditing={handleSave}
@@ -1074,7 +1112,7 @@ export function PasswordSettingsPage({
               style={[
                 styles.primaryBtn,
                 { backgroundColor: theme.accent },
-                isSetDisabled || isChangeDisabled || isSaveDisabled
+                isSetDisabled || isChangeDisabled || isFormIncomplete || isSaveDisabled
                   ? styles.primaryBtnDisabled
                   : null,
               ]}
@@ -1092,7 +1130,7 @@ export function PasswordSettingsPage({
                     : tx('Update Password')}
               </Text>
             </TouchableOpacity>
-          </View>
+          </LinearGradient> : null}
         </ScrollView>
       </KeyboardAvoidingView>
       <Dialog
@@ -1111,7 +1149,26 @@ export function PasswordSettingsPage({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scrollContent: { padding: 16, gap: 14, paddingBottom: 32 },
+  scrollContent: { padding: 18, gap: 18, paddingBottom: 40 },
+  chooserIntro: {
+    borderRadius: 32,
+    borderWidth: 1,
+    padding: 24,
+    overflow: 'hidden',
+    ...createShadow({ color: '#2563EB', offsetY: 14, blur: 28, opacity: 0.12, elevation: 5 }),
+  },
+  chooserOrb: {
+    width: 58,
+    height: 58,
+    borderRadius: 21,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  chooserEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  chooserTitle: { fontSize: 27, fontWeight: '900', marginTop: 5, letterSpacing: -0.6 },
+  chooserSub: { fontSize: 13, lineHeight: 20, marginTop: 7, maxWidth: '94%' },
   heroCard: {
     flexDirection: 'row',
     gap: 14,
@@ -1143,37 +1200,53 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   passwordStatusText: { fontSize: 11.5, fontWeight: '900' },
-  optionsRow: { gap: 10 },
+  optionsRow: { gap: 14 },
   optionCard: {
-    borderRadius: 22,
+    borderRadius: 26,
     borderWidth: 1.5,
-    padding: 15,
-    minHeight: 104,
+    padding: 0,
+    minHeight: 164,
     overflow: 'hidden',
+    ...createShadow({ color: '#0F172A', offsetY: 10, blur: 18, opacity: 0.08, elevation: 3 }),
+  },
+  optionGradient: { flex: 1, padding: 20, overflow: 'hidden' },
+  cardGlow: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    right: -36,
+    top: -48,
   },
   optionCardActive: {
     transform: [{ translateY: -2 }],
     ...createShadow({ color: '#0F1120', offsetY: 16, blur: 26, opacity: 0.13, elevation: 5 }),
   },
   optionIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  optionTitle: { fontSize: 14, fontWeight: '900' },
-  optionSub: { fontSize: 12, lineHeight: 18, marginTop: 4 },
+  optionTitle: { fontSize: 17, fontWeight: '900', letterSpacing: -0.2 },
+  optionSub: { fontSize: 12.5, lineHeight: 18, marginTop: 5, paddingRight: 12 },
+  cardAction: { fontSize: 10.5, letterSpacing: 0.7, fontWeight: '900', marginTop: 14 },
+  resetSteps: { flexDirection: 'row', alignItems: 'center', marginBottom: 22, paddingHorizontal: 4 },
+  stepBadge: { width: 25, height: 25, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  stepNumber: { color: '#fff', fontSize: 11, fontWeight: '900' },
+  stepLine: { flex: 1, height: 2, marginHorizontal: 7, borderRadius: 1 },
   card: {
-    borderRadius: 28,
+    borderRadius: 30,
     borderWidth: 1,
-    padding: 20,
+    padding: 22,
     overflow: 'hidden',
     ...createShadow({ color: '#0F172A', offsetY: 18, blur: 32, opacity: 0.1, elevation: 6 }),
   },
-  sectionTitle: { fontSize: 17, fontWeight: '900' },
-  sectionSub: { fontSize: 12, lineHeight: 18, marginTop: 4, marginBottom: 18 },
+  sectionTitle: { fontSize: 21, fontWeight: '900', letterSpacing: -0.4 },
+  sectionSub: { fontSize: 12.5, lineHeight: 19, marginTop: 6, marginBottom: 22 },
   field: { marginBottom: 16 },
   fieldLabel: {
     fontSize: 12,

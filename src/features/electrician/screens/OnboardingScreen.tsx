@@ -48,9 +48,9 @@ type SignupStep =
   | 'otp'
   | 'password';
 
-const PASSWORD_RULE_MESSAGE = 'Password must be exactly 8 characters long and include one special character.';
-const isValidPassword = (value: string) => /^(?=.*[^A-Za-z0-9])\S{8}$/.test(value);
-const cleanPasswordInput = (value: string) => value.replace(/\s/g, '').slice(0, 8);
+const PASSWORD_RULE_MESSAGE = 'Please enter a minimum 8 character password.';
+const isValidPassword = (value: string) => /^\S{8,}$/.test(value);
+const cleanPasswordInput = (value: string) => value.replace(/\s/g, '');
 const showPasswordRuleAlert = () => {
   Alert.alert('Password Required', PASSWORD_RULE_MESSAGE);
 };
@@ -2188,7 +2188,6 @@ export function OnboardingScreen({
                                     onChangeText={(value) => setLoginPass(cleanPasswordInput(value))}
                                     placeholder={tx('Enter 8 character password')}
                                     secureTextEntry={!showPassword}
-                                    maxLength={8}
                                     error={errors.loginPass}
                                     onFocus={scrollToForm}
                                     inputRef={loginPassRef}
@@ -2360,7 +2359,6 @@ export function OnboardingScreen({
                                     onChangeText={(value) => setLoginPass(cleanPasswordInput(value))}
                                     placeholder={tx('Enter 8 character password')}
                                     secureTextEntry={!showPassword}
-                                    maxLength={8}
                                     error={errors.loginPass}
                                     onFocus={scrollToForm}
                                     inputRef={loginPassRef}
@@ -2628,9 +2626,8 @@ export function OnboardingScreen({
                                     setSignupPass(nextPassword);
                                     setError('signupPass', getPasswordError(nextPassword));
                                   }}
-                                  placeholder={tx('Create 8 character password')}
+                                  placeholder={tx('Create a password (minimum 8 characters)')}
                                   secureTextEntry={!showPassword}
-                                  maxLength={8}
                                   error={getPasswordError(signupPass)}
                                   onFocus={scrollToForm}
                                   inputRef={signupPassRef}
@@ -2654,7 +2651,6 @@ export function OnboardingScreen({
                                   }}
                                   placeholder={tx('Re-enter password')}
                                   secureTextEntry={!showPassword}
-                                  maxLength={8}
                                   error={errors.signupConfirmPass}
                                   onFocus={scrollToForm}
                                   inputRef={signupConfirmPassRef}
@@ -2912,9 +2908,8 @@ export function OnboardingScreen({
                                     setSignupPass(nextPassword);
                                     setError('signupPass', getPasswordError(nextPassword));
                                   }}
-                                  placeholder={tx('Create 8 character password')}
+                                  placeholder={tx('Create a password (minimum 8 characters)')}
                                   secureTextEntry={!showPassword}
-                                  maxLength={8}
                                   error={getPasswordError(signupPass)}
                                   onFocus={scrollToForm}
                                   inputRef={signupPassRef}
@@ -2938,7 +2933,6 @@ export function OnboardingScreen({
                                   }}
                                   placeholder={tx('Re-enter password')}
                                   secureTextEntry={!showPassword}
-                                  maxLength={8}
                                   error={errors.signupConfirmPass}
                                   onFocus={scrollToForm}
                                   inputRef={signupConfirmPassRef}
@@ -3045,9 +3039,8 @@ export function OnboardingScreen({
                   label={tx('New Password')}
                   value={forgotPassword}
                   onChangeText={(value) => setForgotPassword(cleanPasswordInput(value))}
-                  placeholder={tx('Create 8 character password')}
+                  placeholder={tx('Create a password (minimum 8 characters)')}
                   secureTextEntry={!showForgotPassword}
-                  maxLength={8}
                   actionContent={<EyeIcon open={showForgotPassword} />}
                   onActionPress={() => setShowForgotPassword((current) => !current)}
                 />
@@ -3057,7 +3050,6 @@ export function OnboardingScreen({
                   onChangeText={(value) => setForgotConfirmPassword(cleanPasswordInput(value))}
                   placeholder={tx('Re-enter new password')}
                   secureTextEntry={!showForgotPassword}
-                  maxLength={8}
                 />
               </>
             ) : null}

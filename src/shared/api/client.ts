@@ -64,7 +64,7 @@ function logApiWarning(message: string, details?: unknown) {
 }
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: object;
   auth?: boolean;
   params?: Record<string, string | number | undefined>;

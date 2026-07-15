@@ -2159,7 +2159,7 @@ export function OnboardingScreen({
                                     label={tx('Password')}
                                     value={loginPass}
                                     onChangeText={(value) => setLoginPass(cleanPasswordInput(value))}
-                                    placeholder={tx('Enter 8 character password')}
+                                    placeholder={tx('Enter at least 8 characters')}
                                     secureTextEntry={!showPassword}
                                     error={errors.loginPass}
                                     onFocus={scrollToForm}
@@ -2329,7 +2329,7 @@ export function OnboardingScreen({
                                     label={tx('Password')}
                                     value={loginPass}
                                     onChangeText={(value) => setLoginPass(cleanPasswordInput(value))}
-                                    placeholder={tx('Enter 8 character password')}
+                                    placeholder={tx('Enter at least 8 characters')}
                                     secureTextEntry={!showPassword}
                                     error={errors.loginPass}
                                     onFocus={scrollToForm}

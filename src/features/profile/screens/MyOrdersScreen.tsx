@@ -1,13 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { ordersApi, type UserOrder } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
+import { SrvLogoLoader } from '@/shared/components/SrvLogoLoader';
 import { formatISTDate } from '@/shared/utils/dateIST';
 import { resolveImageUrl } from '@/shared/api/config';
+
+const ORDERS_LOGO_LOADER_MS = 900;
 
 function formatDate(value?: string | null) {
   if (!value) return 'Recent';
@@ -33,6 +36,7 @@ function getExpectedDeliveryDate(order: UserOrder) {
 function toStatusLabel(status?: string | null, type?: string | null) {
   const normalized = String(status ?? '').trim().toLowerCase();
   if (type === 'product' && normalized === 'pending') return 'Order Confirmed';
+  if (normalized === 'out_for_delivery') return 'Out For Delivery';
   if (!normalized) return 'Pending';
   return normalized
     .split(/[_\s-]+/)
@@ -43,7 +47,7 @@ function toStatusLabel(status?: string | null, type?: string | null) {
 
 function isClosedStatus(status?: string) {
   const normalized = String(status ?? '').trim().toLowerCase();
-  return ['approved', 'completed', 'delivered', 'rejected', 'cancelled'].includes(normalized);
+  return ['completed', 'delivered', 'rejected', 'cancelled', 'returned', 'refunded'].includes(normalized);
 }
 
 function getOrderStatusColors(status?: string | null, paymentStatus?: string | null) {
@@ -59,6 +63,113 @@ function getOrderStatusColors(status?: string | null, paymentStatus?: string | n
 
 function normalizeName(value?: string | null) {
   return String(value ?? '').trim().toLowerCase();
+}
+
+function safeNumber(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs = 25000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Orders request timed out')), timeoutMs);
+    promise
+      .then(resolve)
+      .catch(reject)
+      .finally(() => clearTimeout(timer));
+  });
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getOrderAmountLabel(order: UserOrder) {
+  if (order.type === 'product') {
+    return `Rs.${safeNumber(order.total).toLocaleString('en-IN')}`;
+  }
+  return `${safeNumber(order.points ?? order.total).toLocaleString('en-IN')} pts`;
+}
+
+function getNormalizedPaymentStatus(order: UserOrder) {
+  return String(order.paymentStatus ?? '').trim().toLowerCase();
+}
+
+function isOnlinePaymentOrder(order: UserOrder) {
+  const method = String(order.paymentMethod ?? '').trim().toLowerCase();
+  return method !== '' && method !== 'cod' && method !== 'cash_on_delivery';
+}
+
+function isPaymentDone(order: UserOrder) {
+  return ['paid', 'completed', 'success', 'successful'].includes(getNormalizedPaymentStatus(order));
+}
+
+function isPaymentFailed(order: UserOrder) {
+  return ['failed', 'failure', 'cancelled', 'canceled'].includes(getNormalizedPaymentStatus(order));
+}
+
+type OrderAction = 'cancel' | 'return' | 'refund';
+
+function getOrderActionConfig(action: OrderAction) {
+  if (action === 'cancel') {
+    return {
+      title: 'Cancel Order',
+      label: 'Cancel',
+      question: 'Do you really want to cancel your order?',
+      reason: 'Cancelled from app within 24 hours',
+      accent: '#DC2626',
+      soft: '#FEE2E2',
+      status: 'cancelled',
+    };
+  }
+  if (action === 'return') {
+    return {
+      title: 'Return Order',
+      label: 'Return',
+      question: 'Do you really want to return your order?',
+      reason: 'Return requested from app within 24 hours',
+      accent: '#2563EB',
+      soft: '#DBEAFE',
+      status: 'returned',
+    };
+  }
+  return {
+    title: 'Refund Order',
+    label: 'Refund',
+    question: 'Do you really want to request a refund for your order?',
+    reason: 'Refund requested from app within 24 hours',
+    accent: '#059669',
+    soft: '#D1FAE5',
+    status: 'refunded',
+  };
+}
+
+function getOrderActionAvailability(order: UserOrder, action: OrderAction) {
+  const flag = action === 'cancel' ? order.canCancel : action === 'return' ? order.canReturn : order.canRefund;
+  if (flag === true) return true;
+  const status = String(order.status ?? '').toLowerCase();
+  if (action === 'cancel') return ['pending', 'approved', 'out_for_delivery'].includes(status);
+  if (action === 'return') return status === 'delivered';
+  return isPaymentDone(order) && !['refunded', 'rejected'].includes(status);
+}
+
+function getOrderActionUnavailableMessage(action: OrderAction) {
+  if (action === 'cancel') return 'Cancellation is available only for active orders within the allowed time.';
+  if (action === 'return') return 'Return is available only after the order is delivered.';
+  return 'Refund is available only for paid product orders.';
+}
+
+function getStatusActionDate(order: UserOrder) {
+  return order.rejectedAt ?? order.updatedAt ?? order.deliveredAt ?? order.createdAt;
+}
+
+function getStoppedMessage(order: UserOrder) {
+  const status = String(order.status ?? '').toLowerCase();
+  const date = formatDate(getStatusActionDate(order));
+  if (status === 'cancelled') return `Your order has been cancelled on ${date}.`;
+  if (status === 'returned') return `Your return request was placed on ${date}.`;
+  if (status === 'refunded') return `Your refund request was placed on ${date}.`;
+  return `Your order has been rejected on ${date}.`;
 }
 
 function getOrderImage(order: UserOrder, giftImageByName: Map<string, string | null>) {
@@ -81,14 +192,114 @@ function getOrderImage(order: UserOrder, giftImageByName: Map<string, string | n
 
 function getTrackingSteps(order: UserOrder) {
   const status = String(order.status ?? '').toLowerCase();
-  const rejected = status === 'rejected';
-  return [
-    { label: 'Order placed', value: formatDate(order.orderedAt ?? order.createdAt), done: true },
-    { label: 'Payment done', value: order.paidAt ? formatDate(order.paidAt) : toStatusLabel(order.paymentStatus), done: order.paymentStatus === 'paid' || order.type === 'gift' },
-    { label: 'Processing', value: rejected ? 'Rejected by admin' : 'Order confirmed', done: !rejected && ['pending', 'approved', 'shipped', 'delivered'].includes(status) },
-    { label: 'Dispatched', value: order.dispatchedAt ? formatDate(order.dispatchedAt) : (order.trackingNumber || 'Waiting for dispatch'), done: ['shipped', 'delivered'].includes(status) },
-    { label: rejected ? 'Refund' : 'Delivery', value: rejected ? (order.refundMessage || 'Refund will be processed within 2 business days.') : (order.deliveredAt ? formatDate(order.deliveredAt) : `Expected ${formatDate(getExpectedDeliveryDate(order))}`), done: rejected || status === 'delivered' },
+  const rejected = ['rejected', 'cancelled', 'returned', 'refunded'].includes(status);
+  const orderedAt = order.orderedAt ?? order.createdAt;
+  const shippedAt = order.dispatchedAt ?? addDays(orderedAt, 3);
+  const deliveryAt = order.deliveredAt ?? getExpectedDeliveryDate(order);
+  const shipped = ['shipped', 'out_for_delivery', 'delivered'].includes(status);
+  const outForDelivery = status === 'out_for_delivery' || status === 'delivered';
+  const delivered = Boolean(order.deliveredAt) || status === 'delivered';
+
+  if (rejected) {
+    return [
+      {
+        label: status === 'cancelled' ? 'Order Cancelled' : status === 'returned' ? 'Return Requested' : status === 'refunded' ? 'Refund Requested' : 'Order Rejected',
+        value: `${getStoppedMessage(order)}\n${order.rejectionReason ? `Reason: ${order.rejectionReason}` : ''}\n${order.refundMessage || order.deliveryNotes || ''}`,
+        done: true,
+      },
+    ];
+  }
+
+  const steps = [
+    {
+      label: 'Order Confirmed',
+      value: `Your Order has been placed.\n${formatDate(orderedAt)}\nSeller is processing your order.\nItem waiting to be picked up by delivery partner.\n${formatDate(addDays(orderedAt, 2))}`,
+      done: true,
+    },
+    ...(isOnlinePaymentOrder(order)
+      ? [{
+          label: isPaymentFailed(order) ? 'Payment Failed' : 'Payment Done',
+          value: isPaymentFailed(order)
+            ? `Payment failed.\n${formatDate(order.updatedAt ?? order.createdAt)}`
+            : isPaymentDone(order)
+              ? `Payment completed.\n${formatDate(order.paidAt ?? order.updatedAt ?? order.createdAt)}`
+              : `Payment is pending.\n${formatDate(order.createdAt)}`,
+          done: isPaymentDone(order),
+          failed: isPaymentFailed(order),
+        }]
+      : []),
+    {
+      label: `Shipped Expected By ${formatDate(shippedAt)}`,
+      value: shipped ? `Item shipped.\n${formatDate(shippedAt)}` : `Item yet to be shipped.\nExpected by ${formatDate(shippedAt)}`,
+      done: shipped,
+    },
+    {
+      label: 'Out For Delivery',
+      value: outForDelivery ? 'Item is out for delivery.' : 'Item yet to be out for delivery.',
+      done: outForDelivery,
+    },
+    {
+      label: `Delivery Expected By ${formatDate(deliveryAt)}`,
+      value: delivered ? `Item delivered.\n${formatDate(deliveryAt)}` : `Item yet to be delivered.\nExpected by ${formatDate(deliveryAt)}`,
+      done: delivered,
+    },
   ];
+
+  return steps;
+}
+
+function getOrderProgress(order: UserOrder) {
+  const status = String(order.status ?? '').toLowerCase();
+  const stopped = ['rejected', 'cancelled', 'returned', 'refunded'].includes(status);
+  const shipped = ['shipped', 'out_for_delivery', 'delivered'].includes(status);
+  const delivered = Boolean(order.deliveredAt) || status === 'delivered';
+  const expectedDeliveryAt = getExpectedDeliveryDate(order);
+  if (stopped) {
+    return [
+      {
+        label: toStatusLabel(order.status, order.type),
+        value: formatDate(getStatusActionDate(order)),
+        done: true,
+      },
+    ];
+  }
+  return [
+    {
+      label: 'Order Confirmed',
+      value: formatDate(order.orderedAt ?? order.createdAt),
+      done: true,
+    },
+    {
+      label: 'Shipped',
+      value: shipped ? formatDate(order.dispatchedAt ?? order.createdAt) : formatDate(addDays(order.orderedAt ?? order.createdAt, 3)),
+      done: shipped,
+    },
+    {
+      label: 'Delivered',
+      value: delivered ? formatDate(order.deliveredAt) : formatDate(expectedDeliveryAt),
+      done: delivered,
+    },
+  ];
+}
+
+function getOrderProgressSubtitle(order: UserOrder) {
+  const status = String(order.status ?? '').toLowerCase();
+  if (['rejected', 'cancelled', 'returned', 'refunded'].includes(status)) {
+    return getStoppedMessage(order);
+  }
+  if (Boolean(order.deliveredAt) || status === 'delivered') return 'Your order has been delivered.';
+  if (['shipped', 'out_for_delivery'].includes(status)) return 'Your order has been shipped.';
+  return 'Your order has been placed.';
+}
+
+function normalizeOrder(order: UserOrder): UserOrder {
+  return {
+    ...order,
+    quantity: safeNumber(order.quantity) || 1,
+    price: safeNumber(order.price),
+    total: safeNumber(order.total),
+    points: safeNumber(order.points ?? order.total),
+  };
 }
 
 export function MyOrdersPage({ onBack }: { onBack: () => void }) {
@@ -97,16 +308,49 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
   const { giftProducts } = useAppData();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'my_orders');
   const [orders, setOrders] = useState<UserOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [hasLoadedOrders, setHasLoadedOrders] = useState(false);
+  const [logoLoading, setLogoLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<UserOrder | null>(null);
+  const [showAllUpdates, setShowAllUpdates] = useState(false);
+  const [orderFilter, setOrderFilter] = useState<'all' | 'active' | 'closed'>('all');
+  const [reloadKey, setReloadKey] = useState(0);
+  const [actionSubmitting, setActionSubmitting] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<OrderAction | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadOrders = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const data = await withTimeout(ordersApi.getAll());
+      setOrders(Array.isArray(data) ? data.map(normalizeOrder) : []);
+    } catch (error) {
+      console.warn('Unable to load orders.', error);
+      setOrders([]);
+      setLoadError('Unable to load orders. Please try again later.');
+    } finally {
+      setHasLoadedOrders(true);
+    }
+  }, []);
 
   useEffect(() => {
-    ordersApi
-      .getAll()
-      .then((data) => setOrders(Array.isArray(data) ? data.filter((order) => order.type === 'product') : []))
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
-  }, []);
+    setLogoLoading(true);
+    const timer = setTimeout(() => setLogoLoading(false), ORDERS_LOGO_LOADER_MS);
+    void loadOrders();
+    return () => clearTimeout(timer);
+  }, [loadOrders, reloadKey]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setLogoLoading(true);
+    void delay(ORDERS_LOGO_LOADER_MS).then(() => setLogoLoading(false));
+    try {
+      await loadOrders();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadOrders]);
 
   const activeOrders = useMemo(
     () => orders.filter((order) => !isClosedStatus(order.status)),
@@ -125,6 +369,12 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
     return delivered[0] ?? null;
   }, [orders]);
 
+  const displayedOrders = useMemo(() => {
+    if (orderFilter === 'active') return activeOrders;
+    if (orderFilter === 'closed') return orders.filter((order) => isClosedStatus(order.status));
+    return orders;
+  }, [activeOrders, orderFilter, orders]);
+
   const giftImageByName = useMemo(() => {
     const map = new Map<string, string | null>();
     giftProducts.forEach((gift) => {
@@ -133,10 +383,263 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
     return map;
   }, [giftProducts]);
 
+  const executeOrderAction = async (action: OrderAction) => {
+    if (!selectedOrder || selectedOrder.type !== 'product') return;
+    const orderSnapshot = selectedOrder;
+    const config = getOrderActionConfig(action);
+    setActionSubmitting(action);
+    setActionError(null);
+    try {
+      if (action === 'cancel') await ordersApi.cancel(orderSnapshot.id, config.reason);
+      if (action === 'return') await ordersApi.returnOrder(orderSnapshot.id, config.reason);
+      if (action === 'refund') await ordersApi.refund(orderSnapshot.id, config.reason);
+      const actionDate = new Date().toISOString();
+      const nextStatus = config.status;
+      const actionMessage =
+        action === 'cancel'
+          ? `Your order has been cancelled on ${formatDate(actionDate)}.`
+          : action === 'return'
+            ? `Your return request was placed on ${formatDate(actionDate)}.`
+            : `Your refund request was placed on ${formatDate(actionDate)}.`;
+      setSelectedOrder((current) =>
+        current && current.id === orderSnapshot.id
+          ? {
+              ...current,
+              status: nextStatus,
+              updatedAt: actionDate,
+              refundStatus: action === 'cancel' && current.paymentStatus !== 'paid' ? current.refundStatus : 'requested',
+              refundMessage: actionMessage,
+              deliveryNotes: actionMessage,
+              canCancel: false,
+              canReturn: false,
+              canRefund: false,
+            }
+          : current,
+      );
+      setConfirmAction(null);
+      setShowAllUpdates(true);
+      setReloadKey((value) => value + 1);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : tx('Please try again later.'));
+    } finally {
+      setActionSubmitting(null);
+    }
+  };
+
+  const handleOrderAction = (action: OrderAction) => {
+    setActionError(null);
+    setConfirmAction(action);
+  };
+
+  if (selectedOrder && showAllUpdates) {
+    const trackingSteps = getTrackingSteps(selectedOrder);
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <PageHeader title={tx('Order Updates')} onBack={() => setShowAllUpdates(false)} />
+        <ScrollView contentContainerStyle={styles.timelineContent} showsVerticalScrollIndicator={false}>
+          {trackingSteps.map((step, index) => {
+            const isLast = index === trackingSteps.length - 1;
+            const isFailed = Boolean(step.failed);
+            const dotColor = isFailed ? '#DC2626' : step.done ? '#16A34A' : '#FFFFFF';
+            const dotBorderColor = isFailed ? '#DC2626' : step.done ? '#16A34A' : '#D1D5DB';
+            const textColor = isFailed ? '#B91C1C' : step.done ? theme.textPrimary : theme.textMuted;
+            return (
+              <View key={`${step.label}-${index}`} style={styles.timelineRow}>
+                <View style={styles.timelineRail}>
+                  <View style={[styles.timelineDot, { backgroundColor: dotColor, borderColor: dotBorderColor }]} />
+                  {!isLast ? <View style={[styles.timelineLine, { backgroundColor: '#E5E7EB' }]} /> : null}
+                </View>
+                <View style={styles.timelineCopy}>
+                  <Text style={[styles.timelineTitle, { color: textColor }]}>
+                    {tx(step.label)} {index === 0 ? formatDate(selectedOrder.orderedAt ?? selectedOrder.createdAt) : ''}
+                  </Text>
+                  <Text style={[styles.timelineText, { color: textColor }]}>
+                    {step.value}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (selectedOrder) {
+    const progress = getOrderProgress(selectedOrder);
+    const orderImage = getOrderImage(selectedOrder, giftImageByName);
+    const isGift = selectedOrder.type === 'gift';
+    const status = String(selectedOrder.status ?? '').toLowerCase();
+    const isStopped = ['rejected', 'cancelled', 'returned', 'refunded'].includes(status);
+    const activeActionConfig = confirmAction ? getOrderActionConfig(confirmAction) : null;
+    const activeActionAvailable = Boolean(
+      selectedOrder.type === 'product' &&
+      confirmAction &&
+      getOrderActionAvailability(selectedOrder, confirmAction),
+    );
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <PageHeader title={tx('Order Details')} onBack={() => setSelectedOrder(null)} />
+        <ScrollView contentContainerStyle={styles.detailContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.detailProductRow}>
+            <View style={[styles.detailImageWrap, { backgroundColor: isGift ? C.purpleLight : '#DBEAFE' }]}>
+              {orderImage ? (
+                <Image source={{ uri: orderImage }} style={styles.detailImage} resizeMode="cover" />
+              ) : (
+                <AppIcon name={isGift ? 'redeem' : 'order'} size={24} color={isGift ? C.purple : '#1D4ED8'} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailProductTitle, { color: theme.textPrimary }]} numberOfLines={2}>
+                {selectedOrder.title || selectedOrder.productName || tx('Order')}
+              </Text>
+              <Text style={[styles.detailProductMeta, { color: theme.textMuted }]}>
+                {isGift ? tx('Gift') : `${tx('Product')} | ${tx('Qty')}: ${selectedOrder.quantity}`}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[styles.detailOrderId, { color: theme.textMuted }]}>Order #{selectedOrder.id}</Text>
+
+          <View style={[styles.progressCard, { borderColor: '#1D4ED8', backgroundColor: theme.surface }]}>
+            <Text style={[styles.progressTitle, { color: theme.textPrimary }]}>
+              {tx(toStatusLabel(selectedOrder.status, selectedOrder.type))}
+            </Text>
+            <Text style={[styles.progressSubtitle, { color: theme.textSecondary }]}>
+              {tx(getOrderProgressSubtitle(selectedOrder))}
+            </Text>
+            <View style={styles.progressTrack}>
+              {progress.map((step, index) => (
+                <React.Fragment key={step.label}>
+                  <View style={styles.progressStep}>
+                    <View style={[styles.progressDot, { backgroundColor: step.done ? '#16A34A' : '#FFFFFF', borderColor: step.done ? '#16A34A' : '#D1D5DB' }]}>
+                      {step.done ? <Text style={styles.progressCheck}>✓</Text> : null}
+                    </View>
+                    <Text style={[styles.progressLabel, { color: theme.textSecondary }]}>{tx(step.label)}</Text>
+                    <Text style={[styles.progressDate, { color: theme.textMuted }]}>{step.value}</Text>
+                  </View>
+                  {index < progress.length - 1 ? <View style={styles.progressConnector} /> : null}
+                </React.Fragment>
+              ))}
+            </View>
+            <View style={[styles.infoBox, { backgroundColor: theme.soft }]}>
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+                {isStopped
+                  ? `${selectedOrder.rejectionReason ? `${tx('Reason')}: ${selectedOrder.rejectionReason}\n` : ''}${selectedOrder.refundMessage || selectedOrder.deliveryNotes || ''}`
+                  : selectedOrder.trackingNumber
+                  ? `${tx('Tracking ID')}: ${selectedOrder.trackingNumber}`
+                  : tx('Delivery Executive details will be available once the order is out for delivery')}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.seeUpdatesButton} activeOpacity={0.8} onPress={() => setShowAllUpdates(true)}>
+              <Text style={styles.seeUpdatesText}>{tx('See all updates')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.promiseTitle, { color: theme.textPrimary }]}>{tx("SRV's promises")}</Text>
+          <View style={[styles.promiseCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <AppIcon name="redeem" size={22} color={C.teal} />
+            <View style={{ flex: 1, gap: 10 }}>
+              <Text style={[styles.promiseMain, { color: theme.textPrimary }]}>{tx('Return, refund or cancel within 24 hours')}</Text>
+              <View style={styles.actionRow}>
+                {(['cancel', 'return', 'refund'] as OrderAction[]).map((action) => {
+                  const config = getOrderActionConfig(action);
+                  const available = selectedOrder.type === 'product' && getOrderActionAvailability(selectedOrder, action);
+                  return (
+                    <TouchableOpacity
+                      key={action}
+                      disabled={actionSubmitting !== null}
+                      activeOpacity={0.86}
+                      onPress={() => handleOrderAction(action)}
+                      style={[
+                        styles.actionButton,
+                        {
+                          backgroundColor: available ? config.soft : theme.soft,
+                          borderColor: available ? config.accent : theme.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.actionText, { color: available ? config.accent : theme.textSecondary }]}>
+                        {actionSubmitting === action ? tx('Sending') : tx(config.label)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+        <Modal transparent visible={confirmAction !== null} animationType="fade" onRequestClose={() => setConfirmAction(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.confirmCard, { backgroundColor: theme.surface }]}>
+              <View style={[styles.confirmIcon, { backgroundColor: activeActionConfig?.soft ?? theme.soft }]}>
+                <AppIcon name="order" size={24} color={activeActionConfig?.accent ?? C.primary} />
+              </View>
+              <Text style={[styles.confirmTitle, { color: theme.textPrimary }]}>{tx(activeActionConfig?.title ?? 'Confirm')}</Text>
+              <Text style={[styles.confirmText, { color: theme.textSecondary }]}>
+                {tx(activeActionConfig?.question ?? 'Do you want to continue?')}
+              </Text>
+              {!activeActionAvailable ? (
+                <View style={[styles.confirmNotice, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                  <Text style={[styles.confirmNoticeText, { color: theme.textSecondary }]}>
+                    {tx(confirmAction ? getOrderActionUnavailableMessage(confirmAction) : 'This action is not available.')}
+                  </Text>
+                </View>
+              ) : null}
+              {actionError ? (
+                <View style={[styles.confirmNotice, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+                  <Text style={[styles.confirmNoticeText, { color: '#B91C1C' }]}>{tx(actionError)}</Text>
+                </View>
+              ) : null}
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  onPress={() => {
+                    if (actionSubmitting === null) {
+                      setConfirmAction(null);
+                      setActionError(null);
+                    }
+                  }}
+                  style={[styles.confirmButton, styles.confirmSecondary, { borderColor: theme.border }]}
+                >
+                  <Text style={[styles.confirmSecondaryText, { color: theme.textPrimary }]}>{tx(activeActionAvailable ? 'No' : 'Close')}</Text>
+                </TouchableOpacity>
+                {activeActionAvailable ? (
+                  <TouchableOpacity
+                    activeOpacity={0.86}
+                    disabled={actionSubmitting !== null}
+                    onPress={() => confirmAction && void executeOrderAction(confirmAction)}
+                    style={[
+                      styles.confirmButton,
+                      { backgroundColor: activeActionConfig?.accent ?? C.primary, opacity: actionSubmitting !== null ? 0.72 : 1 },
+                    ]}
+                  >
+                    <Text style={styles.confirmPrimaryText}>{tx(actionSubmitting ? 'Sending' : 'Yes')}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <PageHeader title={pageContent.pageTitle || t('myOrders')} onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={C.primary}
+            colors={[C.primary]}
+          />
+        }
+      >
         <View style={styles.summaryRow}>
           <View
             style={[
@@ -148,7 +651,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
               {tx('Active Orders')}
             </Text>
             <Text style={[styles.summaryValue, { color: theme.textPrimary }]}>
-              {loading ? '...' : String(activeOrders.length).padStart(2, '0')}
+              {String(activeOrders.length).padStart(2, '0')}
             </Text>
           </View>
           <View
@@ -161,14 +664,35 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
               {tx('Last Delivery')}
             </Text>
             <Text style={[styles.summaryValue, { color: C.teal }]}>
-              {loading ? '...' : formatDate(lastDeliveredOrder?.deliveredAt ?? lastDeliveredOrder?.createdAt).slice(0, 6)}
+              {formatDate(lastDeliveredOrder?.deliveredAt ?? lastDeliveredOrder?.createdAt).slice(0, 6)}
             </Text>
           </View>
         </View>
 
-        {loading ? (
-          <ActivityIndicator color={C.primary} style={{ marginTop: 32 }} />
-        ) : orders.length === 0 ? (
+        <View style={styles.filterRow}>
+          {[
+            ['all', 'All'],
+            ['active', 'Active'],
+            ['closed', 'Closed'],
+          ].map(([id, label]) => (
+            <TouchableOpacity
+              key={id}
+              activeOpacity={0.85}
+              onPress={() => setOrderFilter(id as any)}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor: orderFilter === id ? C.primary : theme.surface,
+                  borderColor: orderFilter === id ? C.primary : theme.border,
+                },
+              ]}
+            >
+              <Text style={[styles.filterText, { color: orderFilter === id ? '#FFFFFF' : theme.textSecondary }]}>{tx(label)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {orders.length === 0 && hasLoadedOrders ? (
           <View
             style={[
               styles.emptyCard,
@@ -176,108 +700,154 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             ]}
           >
             <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-              {pageContent.emptyStateTitle || tx('No product orders found yet.')}
+              {loadError ? tx(loadError) : pageContent.emptyStateTitle || tx('No product orders found yet.')}
+            </Text>
+          </View>
+        ) : displayedOrders.length === 0 && hasLoadedOrders ? (
+          <View
+            style={[
+              styles.emptyCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+              {tx('No orders found for this filter.')}
             </Text>
           </View>
         ) : (
-          orders.map((order) => {
-            const expanded = expandedOrderId === order.id;
-            const trackingSteps = getTrackingSteps(order);
+          displayedOrders.map((order) => {
             const statusColors = getOrderStatusColors(order.status, order.paymentStatus);
             const orderImage = getOrderImage(order, giftImageByName);
             const expectedDeliveryAt = getExpectedDeliveryDate(order);
-            const showExpectedDelivery = !['delivered', 'rejected', 'cancelled'].includes(String(order.status).toLowerCase());
+            const showExpectedDelivery = !['delivered', 'rejected', 'cancelled', 'returned', 'refunded'].includes(String(order.status).toLowerCase());
+
             return (
-            <TouchableOpacity
-              key={order.id}
-              activeOpacity={0.9}
-              onPress={() => setExpandedOrderId(expanded ? null : order.id)}
-              style={[
-                styles.orderCard,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-              ]}
-            >
-              <View style={styles.orderHead}>
-                <View style={[styles.orderImageWrap, { backgroundColor: order.type === 'product' ? '#DBEAFE' : C.purpleLight }]}>
-                  {orderImage ? (
-                    <Image source={{ uri: orderImage }} style={styles.orderImage} resizeMode="contain" />
-                  ) : (
-                    <AppIcon name={order.type === 'product' ? 'order' : 'redeem'} size={20} color={order.type === 'product' ? '#1D4ED8' : C.purple} />
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.orderTitle, { color: theme.textPrimary }]}>
-                    {order.title || tx('Reward redemption')}
-                  </Text>
-                  <Text style={[styles.orderType, { color: order.type === 'product' ? '#1D4ED8' : C.purple }]}>
-                    {order.type === 'product' ? `${tx('Product')} · ${tx('Qty')}: ${order.quantity}` : tx('Gift')}
-                  </Text>
-                  <Text style={[styles.orderMeta, { color: theme.textMuted }]}>{order.id}</Text>
-                </View>
-                <View style={[styles.statusChip, { backgroundColor: statusColors.background }]}>
-                  <Text style={[styles.statusText, { color: statusColors.text }]}>{toStatusLabel(order.status, order.type)}</Text>
-                </View>
-              </View>
-              <View style={[styles.detailStrip, { backgroundColor: theme.soft }]}>
-                <Text style={[styles.detailText, { color: theme.textSecondary }]}>
-                  {formatDate(order.deliveredAt ?? order.createdAt)}
-                </Text>
-                <Text style={[styles.dot, { color: theme.textMuted }]}>•</Text>
-                <Text style={[styles.detailText, { color: theme.textSecondary }]}>
-                  {order.type === 'product'
-                    ? `₹${order.total.toLocaleString('en-IN')}`
-                    : `${order.points.toLocaleString('en-IN')} pts`}</Text>
-              </View>
-              {showExpectedDelivery && (
-                <View style={[styles.expectedBox, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}>
-                  <Text style={styles.expectedLabel}>{tx('Expected Delivery')}</Text>
-                  <Text style={styles.expectedValue}>{formatDate(expectedDeliveryAt)}</Text>
-                </View>
-              )}
-              {expanded && (
-                <View style={[styles.trackingBox, { backgroundColor: theme.soft, borderColor: theme.border }]}>
-                  <Text style={[styles.trackingTitle, { color: theme.textPrimary }]}>{tx('Shipping Details')}</Text>
-                  {trackingSteps.map((step, index) => (
-                    <View key={`${step.label}-${index}`} style={styles.trackingStep}>
-                      <View style={[styles.trackingDot, { backgroundColor: step.done ? '#16A34A' : theme.border }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.trackingLabel, { color: theme.textPrimary }]}>{tx(step.label)}</Text>
-                        <Text style={[styles.trackingValue, { color: theme.textMuted }]}>{step.value}</Text>
-                      </View>
-                    </View>
-                  ))}
-                  <View style={[styles.shipInfo, { borderTopColor: theme.border }]}>
-                    <Text style={[styles.shipInfoText, { color: theme.textSecondary }]}>
-                      {tx('Delivery Address')}: {order.shippingAddress || tx('Address saved with order')}
-                    </Text>
-                    {!!order.trackingNumber && (
-                      <Text style={[styles.shipInfoText, { color: theme.textSecondary }]}>
-                        {tx('Tracking ID')}: {order.trackingNumber}
-                      </Text>
-                    )}
-                    {!!order.courierName && (
-                      <Text style={[styles.shipInfoText, { color: theme.textSecondary }]}>
-                        {tx('Courier Partner')}: {order.courierName}
-                      </Text>
-                    )}
-                    {!!order.deliveryNotes && (
-                      <Text style={[styles.shipInfoText, { color: String(order.status).toLowerCase() === 'rejected' ? '#B91C1C' : '#166534' }]}>
-                        {order.deliveryNotes}
-                      </Text>
+              <TouchableOpacity
+                key={order.id}
+                activeOpacity={0.9}
+                onPress={() => {
+                  setSelectedOrder(order);
+                  setShowAllUpdates(false);
+                }}
+                style={[
+                  styles.orderCard,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
+              >
+                <View style={styles.orderHead}>
+                  <View style={[styles.orderImageWrap, { backgroundColor: order.type === 'product' ? '#DBEAFE' : C.purpleLight }]}>
+                    {orderImage ? (
+                      <Image source={{ uri: orderImage }} style={styles.orderImage} resizeMode="contain" />
+                    ) : (
+                      <AppIcon name={order.type === 'product' ? 'order' : 'redeem'} size={20} color={order.type === 'product' ? '#1D4ED8' : C.purple} />
                     )}
                   </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.orderTitle, { color: theme.textPrimary }]}>
+                      {order.title || tx('Reward redemption')}
+                    </Text>
+                    <Text style={[styles.orderType, { color: order.type === 'product' ? '#1D4ED8' : C.purple }]}>
+                      {order.type === 'product' ? `${tx('Product')} | ${tx('Qty')}: ${order.quantity}` : tx('Gift')}
+                    </Text>
+                    <Text style={[styles.orderMeta, { color: theme.textMuted }]}>{order.id}</Text>
+                  </View>
+                  <View style={[styles.statusChip, { backgroundColor: statusColors.background }]}>
+                    <Text style={[styles.statusText, { color: statusColors.text }]}>{toStatusLabel(order.status, order.type)}</Text>
+                  </View>
                 </View>
-              )}
-            </TouchableOpacity>
-          );})
+
+                <View style={[styles.detailStrip, { backgroundColor: theme.soft }]}>
+                  <Text style={[styles.detailText, { color: theme.textSecondary }]}>
+                    {formatDate(order.deliveredAt ?? order.createdAt)}
+                  </Text>
+                  <Text style={[styles.dot, { color: theme.textMuted }]}>|</Text>
+                  <Text style={[styles.detailText, { color: theme.textSecondary }]}>
+                    {getOrderAmountLabel(order)}
+                  </Text>
+                </View>
+
+                {showExpectedDelivery && (
+                  <View style={[styles.expectedBox, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}>
+                    <Text style={styles.expectedLabel}>{tx('Expected Delivery')}</Text>
+                    <Text style={styles.expectedValue}>{formatDate(expectedDeliveryAt)}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
+      <SrvLogoLoader visible={logoLoading} label={tx('Loading your orders...')} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 14, paddingBottom: 32 },
+  detailContent: { padding: 18, gap: 18, paddingBottom: 36 },
+  timelineContent: { paddingHorizontal: 24, paddingTop: 36, paddingBottom: 48 },
+  timelineRow: { flexDirection: 'row', minHeight: 118 },
+  timelineRail: { width: 36, alignItems: 'center' },
+  timelineDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2 },
+  timelineLine: { width: 2, flex: 1, marginTop: 3 },
+  timelineCopy: { flex: 1, paddingBottom: 24 },
+  timelineTitle: { fontSize: 18, fontWeight: '800', lineHeight: 25 },
+  timelineText: { fontSize: 15, lineHeight: 23, marginTop: 8 },
+  detailProductRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  detailImageWrap: {
+    width: 82,
+    height: 82,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  detailImage: { width: '100%', height: '100%' },
+  detailProductTitle: { fontSize: 17, fontWeight: '800', lineHeight: 23 },
+  detailProductMeta: { fontSize: 13, fontWeight: '700', marginTop: 4 },
+  detailOrderId: { fontSize: 14, fontWeight: '700' },
+  progressCard: { borderRadius: 22, borderWidth: 1, padding: 18, gap: 16 },
+  progressTitle: { fontSize: 22, fontWeight: '900' },
+  progressSubtitle: { fontSize: 15, fontWeight: '600', lineHeight: 21 },
+  progressTrack: { flexDirection: 'row', alignItems: 'flex-start', paddingTop: 8 },
+  progressStep: { width: 86, alignItems: 'center', gap: 8 },
+  progressDot: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  progressCheck: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', lineHeight: 16 },
+  progressLabel: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  progressDate: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  progressConnector: { height: 2, flex: 1, marginTop: 11 },
+  infoBox: { borderRadius: 14, padding: 14 },
+  infoText: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  seeUpdatesButton: { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 14, alignItems: 'center' },
+  seeUpdatesText: { color: '#1D4ED8', fontSize: 16, fontWeight: '900' },
+  promiseTitle: { fontSize: 21, fontWeight: '900', marginTop: 4 },
+  promiseCard: { borderRadius: 18, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  promiseMain: { fontSize: 16, fontWeight: '900' },
+  promiseSub: { fontSize: 13, fontWeight: '600', marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  actionButton: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
+  actionText: { fontSize: 12, fontWeight: '900' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  confirmCard: { width: '100%', maxWidth: 360, borderRadius: 24, padding: 22, alignItems: 'center', gap: 12 },
+  confirmIcon: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
+  confirmTitle: { fontSize: 21, fontWeight: '900', textAlign: 'center' },
+  confirmText: { fontSize: 15, fontWeight: '700', lineHeight: 22, textAlign: 'center' },
+  confirmNotice: { width: '100%', borderRadius: 14, borderWidth: 1, padding: 12 },
+  confirmNoticeText: { fontSize: 13, fontWeight: '700', lineHeight: 19, textAlign: 'center' },
+  confirmActions: { width: '100%', flexDirection: 'row', gap: 10, marginTop: 4 },
+  confirmButton: { flex: 1, borderRadius: 14, paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
+  confirmSecondary: { borderWidth: 1, backgroundColor: 'transparent' },
+  confirmSecondaryText: { fontSize: 14, fontWeight: '900' },
+  confirmPrimaryText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  filterRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  filterChip: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 9 },
+  filterText: { fontSize: 12, fontWeight: '900' },
   summaryRow: { flexDirection: 'row', gap: 12 },
   summaryCard: { flex: 1, borderRadius: 22, borderWidth: 1, padding: 16 },
   summaryLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },

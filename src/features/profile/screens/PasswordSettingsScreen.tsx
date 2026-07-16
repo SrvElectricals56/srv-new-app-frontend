@@ -707,6 +707,13 @@ export function PasswordSettingsPage({
       onPasswordConfiguredChange(true);
       setErrors({});
       setSuccessMessage(tx('Password updated successfully.'));
+      setDialog({
+        visible: true,
+        variant: 'success',
+        title: tx('Password Changed'),
+        message: tx('You successfully changed your password.'),
+        icon: '✓',
+      });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
@@ -902,6 +909,19 @@ export function PasswordSettingsPage({
             ) : null}
 
             {mode === 'set' ? (
+              hasPasswordConfigured ? (
+                <View style={[styles.passwordConfiguredNotice, { backgroundColor: darkMode ? 'rgba(34,197,94,0.16)' : '#DCFCE7', borderColor: darkMode ? 'rgba(74,222,128,0.42)' : '#86EFAC' }]}>
+                  <View style={styles.passwordConfiguredIcon}>
+                    <AppIcon name="check" size={17} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.passwordConfiguredTitle, { color: darkMode ? '#BBF7D0' : '#166534' }]}>{tx('Password already set')}</Text>
+                    <Text style={[styles.passwordConfiguredText, { color: darkMode ? '#DCFCE7' : '#166534' }]}>
+                      {tx('You have already set a password for your account. Use Change Password to update it, or use Forgot Password from the login screen.')}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
               <>
                 <PasswordField
                   theme={theme}
@@ -941,6 +961,7 @@ export function PasswordSettingsPage({
                   onFocusField={() => focusField('confirmSetPassword')}
                 />
               </>
+              )
             ) : mode === 'reset' ? (
               <>
                 <PasswordField
@@ -1108,7 +1129,7 @@ export function PasswordSettingsPage({
               </View>
             ) : null}
 
-            <TouchableOpacity
+            {!(mode === 'set' && hasPasswordConfigured) ? <TouchableOpacity
               style={[
                 styles.primaryBtn,
                 { backgroundColor: theme.accent },
@@ -1129,7 +1150,7 @@ export function PasswordSettingsPage({
                       ? tx('Reset Password')
                     : tx('Update Password')}
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> : null}
           </LinearGradient> : null}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -1283,6 +1304,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   successText: { color: C.success, fontSize: 13, fontWeight: '700', flex: 1 },
+  passwordConfiguredNotice: { flexDirection: 'row', gap: 12, borderRadius: 18, borderWidth: 1, padding: 16, marginTop: 4 },
+  passwordConfiguredIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#16A34A', alignItems: 'center', justifyContent: 'center' },
+  passwordConfiguredTitle: { fontSize: 15, fontWeight: '900', marginBottom: 4 },
+  passwordConfiguredText: { fontSize: 12.5, lineHeight: 18, fontWeight: '700' },
   primaryBtn: {
     height: 56,
     borderRadius: 18,

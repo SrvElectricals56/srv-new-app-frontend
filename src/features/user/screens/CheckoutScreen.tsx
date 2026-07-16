@@ -9,6 +9,7 @@ import {
   Pressable,
   ActivityIndicator,
   Image,
+  Modal,
   Platform,
 } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';
@@ -149,7 +150,8 @@ export function CheckoutScreen({
 
   const [address, setAddress] = useState((user as any)?.address ?? '');
   const [addressEditing, setAddressEditing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('online');
+  const [paymentSheetVisible, setPaymentSheetVisible] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string; completeOnClose?: boolean }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => {
@@ -191,6 +193,17 @@ export function CheckoutScreen({
     Number((user as any)?.walletBalance ?? (user as any)?.totalPoints ?? 0)
   );
   const canPayWithPoints = availablePoints >= totalPrice;
+  const paymentSummary = paymentMethod === 'online'
+    ? { title: tx('Razorpay secure payment'), detail: tx('UPI, cards & wallets') }
+    : paymentMethod === 'points'
+      ? { title: tx('Pay with Points'), detail: `${availablePoints.toLocaleString('en-IN')} ${tx('points available')}` }
+      : { title: tx('Cash on Delivery'), detail: tx('Pay when your order arrives') };
+
+  const selectPaymentMethod = (method: PaymentMethod) => {
+    if (method === 'points' && !canPayWithPoints) return;
+    setPaymentMethod(method);
+    setPaymentSheetVisible(false);
+  };
 
   const handleSaveAddress = useCallback(() => {
     const nextAddress = address.trim();
@@ -377,8 +390,18 @@ export function CheckoutScreen({
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 180 }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 310 }}
       >
+        <LinearGradient colors={gradient} style={styles.checkoutHero}>
+          <Text style={styles.checkoutEyebrow}>{tx('SECURE CHECKOUT')}</Text>
+          <Text style={styles.checkoutHeroTitle}>{tx('Review, choose payment, place order')}</Text>
+          <View style={styles.checkoutSteps}>
+            <Text style={styles.checkoutStep}>{tx('1. Review')}</Text>
+            <Text style={styles.checkoutStep}>{tx('2. Delivery')}</Text>
+            <Text style={styles.checkoutStep}>{tx('3. Pay')}</Text>
+          </View>
+        </LinearGradient>
         <View style={[styles.productCard, { backgroundColor: card, borderColor: border }]}>
           <View style={styles.productImageWrap}>
             {displayItem.image ? (
@@ -485,10 +508,11 @@ export function CheckoutScreen({
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.sectionCard, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.sectionTitle, { color: textPrimary }]}>{tx('Payment Method')}</Text>
+        <View style={[styles.sectionCard, { backgroundColor: card, borderColor: border }, { display: 'none' }]}>
+          <Text style={[styles.sectionKicker, { color: theme.primary }]}>{tx('PAYMENT')}</Text>
+          <Text style={[styles.sectionTitle, { color: textPrimary }]}>{tx('Choose how you want to pay')}</Text>
           <View style={styles.paymentList}>
-            <TouchableOpacity activeOpacity={0.82} onPress={() => setPaymentMethod('online')}>
+            <TouchableOpacity activeOpacity={0.82} onPress={() => selectPaymentMethod('online')}>
               <LinearGradient
                 colors={[paymentMethod === 'online' ? theme.primarySoft : inputBg, paymentMethod === 'online' ? theme.primarySoft : inputBg]}
                 style={[styles.paymentOption, { borderColor: paymentMethod === 'online' ? theme.primary : border }]}
@@ -498,9 +522,10 @@ export function CheckoutScreen({
                   <Text style={[styles.paymentText, { color: textPrimary }]}>{tx('Pay Online with Razorpay')}</Text>
                   <Text style={[styles.paymentHint, { color: textMuted }]}>{tx('UPI, cards, netbanking and wallets')}</Text>
                 </View>
+                <Text style={[styles.paymentTag, { color: paymentMethod === 'online' ? theme.primary : textMuted }]}>{tx('FAST')}</Text>
               </LinearGradient>
             </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.82} onPress={() => setPaymentMethod('cod')}>
+            <TouchableOpacity activeOpacity={1} disabled style={{ opacity: 0.55 }}>
               <LinearGradient
                 colors={[paymentMethod === 'cod' ? theme.primarySoft : inputBg, paymentMethod === 'cod' ? theme.primarySoft : inputBg]}
                 style={[styles.paymentOption, { borderColor: paymentMethod === 'cod' ? theme.primary : border }]}
@@ -508,13 +533,14 @@ export function CheckoutScreen({
                 <PaymentChoiceIcon color={theme.primary} selected={paymentMethod === 'cod'} />
                 <View style={styles.paymentCopy}>
                   <Text style={[styles.paymentText, { color: textPrimary }]}>{tx('Cash on Delivery')}</Text>
-                  <Text style={[styles.paymentHint, { color: textMuted }]}>{tx('Pay cash when your order is delivered')}</Text>
+                  <Text style={[styles.paymentHint, { color: '#DC2626', fontWeight: '800' }]}>{tx('Currently not supported')}</Text>
                 </View>
+                <Text style={[styles.paymentTag, { color: paymentMethod === 'cod' ? theme.primary : textMuted }]}>{tx('COD')}</Text>
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.82}
-              onPress={() => canPayWithPoints && setPaymentMethod('points')}
+              onPress={() => selectPaymentMethod('points')}
               disabled={!canPayWithPoints}
             >
               <LinearGradient
@@ -536,6 +562,7 @@ export function CheckoutScreen({
                     {canPayWithPoints ? tx('Enough for this order') : tx('Not enough points')}
                   </Text>
                 </View>
+                <Text style={[styles.paymentTag, { color: paymentMethod === 'points' ? theme.primary : textMuted }]}>{tx('POINTS')}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -543,6 +570,18 @@ export function CheckoutScreen({
       </ScrollView>
 
       <View style={[styles.footer, { backgroundColor: card, borderTopColor: border, paddingBottom: insets.bottom + 16 }]}>
+        <TouchableOpacity
+          activeOpacity={0.84}
+          onPress={() => setPaymentSheetVisible(true)}
+          style={[styles.paymentSelector, { backgroundColor: darkMode ? '#111827' : theme.primarySoft, borderColor: theme.primary }]}
+        >
+          <View style={styles.paymentSelectorCopy}>
+            <Text style={[styles.paymentSelectorLabel, { color: theme.primary }]}>{tx('PAYMENT METHOD')}</Text>
+            <Text style={[styles.paymentSelectorTitle, { color: textPrimary }]}>{paymentSummary.title}</Text>
+            <Text style={[styles.paymentSelectorDetail, { color: textMuted }]}>{paymentSummary.detail}</Text>
+          </View>
+          <Text style={[styles.paymentSelectorAction, { color: theme.primary }]}>{tx('Change')}</Text>
+        </TouchableOpacity>
         <View style={styles.summaryRow}>
           <Text style={[styles.summaryLabel, { color: textMuted }]}>{tx('Item Total')}</Text>
           <Text style={[styles.summaryValue, { color: textPrimary }]}>₹{totalPrice.toLocaleString('en-IN')}</Text>
@@ -588,12 +627,50 @@ export function CheckoutScreen({
         onConfirm={dialog.onConfirm}
         onClose={closeDialog}
       />
+      <Modal visible={paymentSheetVisible} transparent animationType="slide" onRequestClose={() => setPaymentSheetVisible(false)}>
+        <View style={styles.paymentSheetOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPaymentSheetVisible(false)} />
+          <View style={[styles.paymentSheet, { backgroundColor: card, borderColor: border, paddingBottom: insets.bottom + 18 }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: border }]} />
+            <Text style={[styles.sheetTitle, { color: textPrimary }]}>{tx('Choose payment method')}</Text>
+            <Text style={[styles.sheetSub, { color: textMuted }]}>{tx('Select a method before placing your order')}</Text>
+            {([
+              ['online', tx('Razorpay secure payment'), tx('UPI, cards, netbanking and wallets')],
+              ['cod', tx('Cash on Delivery'), tx('Currently not supported')],
+              ['points', tx('Pay with Points'), `${availablePoints.toLocaleString('en-IN')} ${tx('points available')}`],
+            ] as const).map(([method, title, detail]) => {
+              const disabled = method === 'cod' || (method === 'points' && !canPayWithPoints);
+              const selected = paymentMethod === method;
+              return <TouchableOpacity key={method} disabled={disabled} activeOpacity={0.82} onPress={() => selectPaymentMethod(method)} style={[styles.sheetPaymentOption, { borderColor: selected ? theme.primary : border, backgroundColor: selected ? theme.primarySoft : inputBg, opacity: disabled ? 0.5 : 1 }]}>
+                <PaymentChoiceIcon color={theme.primary} selected={selected} />
+                <View style={styles.paymentCopy}>
+                  <Text style={[styles.paymentText, { color: textPrimary }]}>{title}</Text>
+                  <Text style={[styles.paymentHint, { color: method === 'cod' ? '#DC2626' : textMuted, fontWeight: method === 'cod' ? '800' : '400' }]}>{detail}{method === 'points' && disabled ? ` · ${tx('Not enough points')}` : ''}</Text>
+                </View>
+              </TouchableOpacity>;
+            })}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  checkoutHero: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 12,
+    borderRadius: 22,
+    padding: 18,
+    overflow: 'hidden',
+    ...premiumShadow('lg'),
+  },
+  checkoutEyebrow: { color: 'rgba(255,255,255,0.74)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  checkoutHeroTitle: { color: '#FFFFFF', fontSize: 20, lineHeight: 27, fontWeight: '900', marginTop: 5, maxWidth: 270 },
+  checkoutSteps: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  checkoutStep: { color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 999, fontSize: 11, fontWeight: '800', paddingHorizontal: 10, paddingVertical: 6 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -655,6 +732,7 @@ const styles = StyleSheet.create({
   productPrice: { fontSize: 14, fontWeight: '800' },
   productQty: { fontSize: 12 },
   productTotal: { fontSize: 18, fontWeight: '900' },
+  sectionKicker: { fontSize: 10, fontWeight: '900', letterSpacing: 1.15, marginBottom: 5 },
   checkoutQtyPill: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderRadius: 999, overflow: 'hidden',
@@ -769,6 +847,28 @@ const styles = StyleSheet.create({
   paymentCopy: { flex: 1 },
   paymentText: { fontSize: 14, fontWeight: '800' },
   paymentHint: { fontSize: 11, marginTop: 3, lineHeight: 15 },
+  paymentTag: { fontSize: 10, fontWeight: '900', letterSpacing: 0.7, marginLeft: 8 },
+  paymentSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  paymentSelectorCopy: { flex: 1, minWidth: 0 },
+  paymentSelectorLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  paymentSelectorTitle: { fontSize: 13, fontWeight: '900', marginTop: 2 },
+  paymentSelectorDetail: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  paymentSelectorAction: { fontSize: 12, fontWeight: '900', marginLeft: 12 },
+  paymentSheetOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.5)' },
+  paymentSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, paddingHorizontal: 18, paddingTop: 10, gap: 10 },
+  sheetHandle: { width: 44, height: 5, borderRadius: 99, alignSelf: 'center', marginBottom: 6 },
+  sheetTitle: { fontSize: 20, fontWeight: '900' },
+  sheetSub: { fontSize: 12, lineHeight: 18, marginBottom: 6 },
+  sheetPaymentOption: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1.5, borderRadius: 16, padding: 14 },
 
   footer: {
     position: 'absolute',

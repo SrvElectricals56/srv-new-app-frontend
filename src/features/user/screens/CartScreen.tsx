@@ -109,7 +109,7 @@ function MinusIcon({ size = 16, color = '#fff' }: { size?: number; color?: strin
 
 function CartHeroIcon({ primarySoft, primaryDark }: { primarySoft: string; primaryDark: string }) {
   return (
-    <Svg width={86} height={86} viewBox="0 0 86 86" fill="none">
+    <Svg width={70} height={70} viewBox="0 0 86 86" fill="none">
       <Rect x="8" y="14" width="70" height="48" rx="18" fill={primarySoft} />
       <Path
         d="M24 28h8l4 20h25l5-14H34"
@@ -449,9 +449,9 @@ const styles = StyleSheet.create({
   heroCard: {
     margin: 14,
     marginBottom: 10,
-    borderRadius: 28,
+    borderRadius: 22,
     borderWidth: 1,
-    padding: 20,
+    padding: 15,
     overflow: 'hidden',
     ...createShadow({ color: '#0F172A', offsetY: 10, blur: 22, opacity: 0.1, elevation: 6 }),
   },
@@ -476,21 +476,21 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginBottom: 8,
   },
-  heroTitle: { fontSize: 28, fontWeight: '900', marginBottom: 6 },
-  heroSubtitle: { fontSize: 13, lineHeight: 20, maxWidth: 210 },
+  heroTitle: { fontSize: 22, fontWeight: '900', marginBottom: 3 },
+  heroSubtitle: { fontSize: 12, lineHeight: 17, maxWidth: 210 },
   heroStats: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 18,
+    marginTop: 12,
   },
   statChip: {
     flex: 1,
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
-  statValue: { fontSize: 20, fontWeight: '900' },
-  statLabel: { fontSize: 12, fontWeight: '700', marginTop: 2 },
+  statValue: { fontSize: 17, fontWeight: '900' },
+  statLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 1 },
 
   emptyCard: {
     marginHorizontal: 14,
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   itemImage: { width: '100%', height: '100%' },
-  itemInfo: { flex: 1, justifyContent: 'space-between' },
+  itemInfo: { flex: 1, minWidth: 0, justifyContent: 'space-between' },
   itemTextWrap: { paddingTop: 2 },
   itemName: { fontSize: 16, fontWeight: '800', lineHeight: 21, marginBottom: 4 },
   itemDesc: { fontSize: 12, lineHeight: 18 },
@@ -592,8 +592,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
   },
-  itemPriceCol: { alignItems: 'flex-end', justifyContent: 'center', paddingRight: 4 },
-  itemPriceLabel: { fontSize: 12, fontWeight: '600', textDecorationLine: 'line-through', marginBottom: 2 },
+  itemPriceCol: { minWidth: 76, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 2 },
+  itemPriceLabel: { fontSize: 11, fontWeight: '700', marginBottom: 3, textAlign: 'right' },
   itemTotal: { fontSize: 15, fontWeight: '900' },
   removeBtn: {
     width: 40,

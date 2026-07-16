@@ -8,6 +8,8 @@ import { ws, hs, rf } from '../../shared/hooks/useResponsive';
 import { usePreferenceContext } from '@/shared/preferences';
 const AView = Animated.View as any;
 const CIRCLE_SIZE = ws(240);
+const HERO_WIDTH = ws(330);
+const HERO_HEIGHT = hs(205);
 const electricianImage = require('../../../assets/Electrician.png');
 
 const THEME = {
@@ -57,8 +59,8 @@ const Character = React.memo(function Character() {
   return (
     <Image
       source={electricianImage}
-      style={{ width: ws(338), height: ws(338), marginTop: -hs(6) }}
-      resizeMode="contain"
+      style={s.heroImage}
+      resizeMode="cover"
       fadeDuration={0}
     />
   );
@@ -199,9 +201,10 @@ export default function ElectricianSlide({ onBack, onContinue }: Props) {
 
 const s = StyleSheet.create({
   root:              { flex: 1, alignItems: 'center', justifyContent: 'flex-start', backgroundColor: '#FFFFFF', paddingHorizontal: ws(20), paddingTop: hs(48) },
-  circleWrap:        { marginBottom: hs(28), shadowColor: THEME.shadow, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 24, elevation: 14, marginTop: hs(8) },
-  circle:            { width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  glowRing:          { position: 'absolute', width: CIRCLE_SIZE + ws(12), height: CIRCLE_SIZE + ws(12), borderRadius: (CIRCLE_SIZE + ws(12)) / 2, borderWidth: 1.5, opacity: 0.3, top: -ws(6), left: -ws(6) },
+  circleWrap:        { marginBottom: hs(22), shadowColor: THEME.shadow, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 24, elevation: 14, marginTop: hs(8) },
+  circle:            { width: HERO_WIDTH, height: HERO_HEIGHT, borderRadius: ws(28), alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  heroImage:         { width: '100%', height: '100%' },
+  glowRing:          { position: 'absolute', width: HERO_WIDTH + ws(12), height: HERO_HEIGHT + ws(12), borderRadius: ws(34), borderWidth: 1.5, opacity: 0.3, top: -ws(6), left: -ws(6) },
   card:              { alignItems: 'center', paddingHorizontal: ws(16), width: '100%' },
   titleButton:       { paddingHorizontal: ws(32), paddingVertical: hs(8), borderRadius: ws(25), marginBottom: hs(12), shadowColor: THEME.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 },
   titleButtonText:   { fontSize: rf(13, 11, 15), fontWeight: '900', color: '#FFFFFF', textAlign: 'center', letterSpacing: 1 },

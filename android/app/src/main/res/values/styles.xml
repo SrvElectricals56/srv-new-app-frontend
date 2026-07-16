@@ -6,6 +6,6 @@
     <item name="android:statusBarColor">#F5F0E8</item>
   </style>
   <style name="Theme.App.SplashScreen" parent="AppTheme">
-    <item name="android:windowBackground">@drawable/ic_launcher_background</item>
+    <item name="android:windowBackground">@drawable/srv_splash</item>
   </style>
 </resources>

@@ -15,7 +15,7 @@ const bankTransferImage = require('../assets/upi.png');
 const transferPointImage = require('../assets/transferpoint.png');
 
 type RedemptionTab = 'Buy Gift' | 'Bank Transfer' | 'Transfer Point' | 'Dealer Bonus';
-export type GiftStoreOrderFilter = 'This Month' | 'Last 30 Days' | 'All' | 'Completed' | 'Delivered';
+export type GiftStoreOrderFilter = 'This Month' | 'All' | 'Order placed' | 'Delivered';
 type FilterRange = GiftStoreOrderFilter;
 type GiftStoreOrder = {
   id: string;
@@ -65,9 +65,9 @@ function toStatusLabel(status?: string | null) {
     .join(' ');
 }
 
-function isCompletedStatus(status?: string | null) {
+function isOrderPlacedStatus(status?: string | null) {
   const normalized = String(status ?? '').trim().toLowerCase();
-  return ['approved', 'completed', 'delivered'].includes(normalized);
+  return ['pending', 'approved'].includes(normalized);
 }
 
 function isDeliveredStatus(status?: string | null, deliveredAt?: string | null) {
@@ -147,7 +147,7 @@ export function RedemptionPage({
     currentRole === 'dealer'
       ? ['Buy Gift', 'Bank Transfer', 'Dealer Bonus']
       : ['Buy Gift', 'Bank Transfer', 'Transfer Point'];
-  const filters: FilterRange[] = ['This Month', 'Last 30 Days', 'All', 'Completed', 'Delivered'];
+  const filters: FilterRange[] = ['This Month', 'All', 'Order placed', 'Delivered'];
 
   useEffect(() => {
     setActiveFilter(initialFilter);
@@ -202,19 +202,12 @@ export function RedemptionPage({
     const now = new Date();
     const byTab = redemptions.filter((item) => item.type === activeTab);
     if (activeFilter === 'Delivered') return byTab.filter((item) => isDeliveredStatus(item.status, item.deliveredAt));
-    if (activeFilter === 'Completed') return byTab.filter((item) => isCompletedStatus(item.status));
+    if (activeFilter === 'Order placed') return byTab.filter((item) => isOrderPlacedStatus(item.status));
     if (activeFilter === 'All') return byTab;
 
     const cutoff = new Date(now);
-    if (activeFilter === 'This Month') {
-      // From the 1st of current month at 00:00:00
-      cutoff.setDate(1);
-      cutoff.setHours(0, 0, 0, 0);
-    } else {
-      // Last 30 days from now
-      cutoff.setDate(cutoff.getDate() - 30);
-      cutoff.setHours(0, 0, 0, 0);
-    }
+    cutoff.setDate(1);
+    cutoff.setHours(0, 0, 0, 0);
 
     return byTab.filter((item) => {
       if (!item.rawDate) return false;
@@ -230,8 +223,8 @@ export function RedemptionPage({
     onOpenTransferPoints();
   };
 
-  const totalRedeemed = useMemo(
-    () => redemptions.filter((r) => isCompletedStatus(r.status)).length,
+  const placedOrdersCount = useMemo(
+    () => redemptions.filter((r) => r.type === 'Buy Gift' && isOrderPlacedStatus(r.status)).length,
     [redemptions],
   );
 
@@ -265,21 +258,21 @@ export function RedemptionPage({
             style={[
               styles.summaryCard,
               {
-                backgroundColor: activeFilter === 'Completed' ? theme.accent : theme.surface,
-                borderColor: activeFilter === 'Completed' ? theme.accent : theme.border,
+                backgroundColor: activeFilter === 'Order placed' ? theme.accent : theme.surface,
+                borderColor: activeFilter === 'Order placed' ? theme.accent : theme.border,
               },
             ]}
             activeOpacity={0.86}
             onPress={() => {
-              setActiveFilter('Completed');
+              setActiveFilter('Order placed');
               setExpandedOrderId(null);
             }}
           >
-            <Text style={[styles.summaryLabel, { color: activeFilter === 'Completed' ? '#FFFFFF' : theme.textMuted }]}>
-              {tx('Completed')}
+            <Text style={[styles.summaryLabel, { color: activeFilter === 'Order placed' ? '#FFFFFF' : theme.textMuted }]}>
+              {tx('Order placed')}
             </Text>
-            <Text style={[styles.summaryValue, { color: activeFilter === 'Completed' ? '#FFFFFF' : theme.accent }]}>
-              {loading ? '...' : totalRedeemed}
+            <Text style={[styles.summaryValue, { color: activeFilter === 'Order placed' ? '#FFFFFF' : theme.accent }]}>
+              {loading ? '...' : placedOrdersCount}
             </Text>
           </TouchableOpacity>
         </View>

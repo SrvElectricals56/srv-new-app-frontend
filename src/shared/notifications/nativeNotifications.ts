@@ -6,9 +6,7 @@ type ExpoNotifications = typeof import('expo-notifications');
 let notificationsPromise: Promise<ExpoNotifications | null> | null = null;
 
 export function canUseNativeNotifications() {
-  // Expo Go no longer includes Android remote-notification support. Avoid loading
-  // the native module there; development and production builds remain supported.
-  return Platform.OS !== 'web' && Constants.executionEnvironment !== 'storeClient';
+  return Platform.OS !== 'web' && Constants.appOwnership !== 'expo';
 }
 
 export async function getNativeNotifications() {

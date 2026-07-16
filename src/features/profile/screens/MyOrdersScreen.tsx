@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -342,10 +342,13 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
   const [requestReason, setRequestReason] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [visibleOrderCount, setVisibleOrderCount] = useState(8);
+  const ordersRequestInFlightRef = useRef(false);
 
   const cacheKey = `${role ?? 'guest'}:${user?.id ?? 'anonymous'}`;
 
   const loadOrders = useCallback(async (options: { keepCurrent?: boolean } = {}) => {
+    if (ordersRequestInFlightRef.current) return;
+    ordersRequestInFlightRef.current = true;
     setLoadError(null);
     try {
       const data = await withTimeout(ordersApi.getAll());
@@ -357,6 +360,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
       if (!options.keepCurrent) setOrders([]);
       setLoadError('Unable to load orders. Please try again later.');
     } finally {
+      ordersRequestInFlightRef.current = false;
       setHasLoadedOrders(true);
     }
   }, [cacheKey]);
@@ -368,11 +372,15 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
       setHasLoadedOrders(true);
       setLogoLoading(false);
       void loadOrders({ keepCurrent: true });
-      return;
+    } else {
+      setLogoLoading(true);
+      void loadOrders().finally(() => setLogoLoading(false));
     }
 
-    setLogoLoading(true);
-    void loadOrders().finally(() => setLogoLoading(false));
+    // Keep the order screen in sync with admin actions without requiring the
+    // customer to leave the screen or pull to refresh.
+    const syncTimer = setInterval(() => void loadOrders({ keepCurrent: true }), 1000);
+    return () => clearInterval(syncTimer);
   }, [cacheKey, loadOrders, reloadKey]);
 
   const handleRefresh = useCallback(async () => {

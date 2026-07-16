@@ -28,7 +28,9 @@ export async function configureNotificationHandler() {
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowBanner: true,
+      // The app renders its own smooth floating banner while foregrounded.
+      // Android still displays the system notification while backgrounded.
+      shouldShowBanner: false,
       shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,

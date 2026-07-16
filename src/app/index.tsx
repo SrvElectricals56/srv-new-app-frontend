@@ -1137,7 +1137,7 @@ function AppContent() {
         case 'notification':
           return <ElectricianNotificationScreen onNavigate={handleNavigate} role="dealer" onNotificationsSeen={handleNotificationsSeen} />;
         case 'rewards':
-          return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} />;
+          return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} onOpenScanner={() => setCurrentScreen('scan')} />;
         case 'wallet': {
           const dealerKycStatus = user?.kycStatus ?? 'not_submitted';
           if (dealerKycStatus !== 'verified') {
@@ -1296,7 +1296,7 @@ function AppContent() {
             />
           );
         case 'rewards':
-          return <UserRewardsScreen onBack={() => setCurrentScreen('profile')} />;
+          return <UserRewardsScreen onBack={() => setCurrentScreen('profile')} onOpenScanner={() => setCurrentScreen('scan')} />;
         case 'profile':
           return (
             <UserProfileScreen
@@ -1568,7 +1568,7 @@ function AppContent() {
           />
         );
       case 'rewards':
-        return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} />;
+        return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} onOpenScanner={() => setCurrentScreen('scan')} />;
       case 'profile':
         return (
           <ElectricianProfileScreen

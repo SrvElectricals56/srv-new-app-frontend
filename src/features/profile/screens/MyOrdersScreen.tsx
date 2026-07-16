@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { ordersApi, type UserOrder } from '@/shared/api';
@@ -10,8 +10,7 @@ import { SrvLogoLoader } from '@/shared/components/SrvLogoLoader';
 import { formatISTDate } from '@/shared/utils/dateIST';
 import { resolveImageUrl } from '@/shared/api/config';
 
-const ORDERS_LOGO_LOADER_MS = 900;
-
+// Keep the screen responsive while giving the branded loader enough time to be seen.
 function formatDate(value?: string | null) {
   if (!value) return 'Recent';
   const result = formatISTDate(value);
@@ -36,13 +35,23 @@ function getExpectedDeliveryDate(order: UserOrder) {
 function toStatusLabel(status?: string | null, type?: string | null) {
   const normalized = String(status ?? '').trim().toLowerCase();
   if (type === 'product' && normalized === 'pending') return 'Order Confirmed';
-  if (normalized === 'out_for_delivery') return 'Out For Delivery';
+  if (normalized === 'out_for_delivery') return 'Shipped';
   if (!normalized) return 'Pending';
   return normalized
     .split(/[_\s-]+/)
     .filter(Boolean)
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function getDisplayStatusLabel(order: UserOrder) {
+  const status = String(order.status ?? '').trim().toLowerCase();
+  const refundStatus = String(order.refundStatus ?? '').trim().toLowerCase();
+  if (status === 'refunded') return 'Refund Done';
+  if (refundStatus === 'requested') {
+    return 'Refund Requested';
+  }
+  return toStatusLabel(order.status, order.type);
 }
 
 function isClosedStatus(status?: string) {
@@ -78,10 +87,6 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs = 25000): Promise<T> {
       .catch(reject)
       .finally(() => clearTimeout(timer));
   });
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getOrderAmountLabel(order: UserOrder) {
@@ -134,10 +139,10 @@ function getOrderActionConfig(action: OrderAction) {
     };
   }
   return {
-    title: 'Refund Order',
+    title: 'Initiate Refund',
     label: 'Refund',
-    question: 'Do you really want to request a refund for your order?',
-    reason: 'Refund requested from app within 24 hours',
+    question: 'Do you want to initiate your refund? It will be processed within 4 to 5 working days.',
+    reason: 'Refund initiated from app',
     accent: '#059669',
     soft: '#D1FAE5',
     status: 'refunded',
@@ -146,17 +151,19 @@ function getOrderActionConfig(action: OrderAction) {
 
 function getOrderActionAvailability(order: UserOrder, action: OrderAction) {
   const flag = action === 'cancel' ? order.canCancel : action === 'return' ? order.canReturn : order.canRefund;
-  if (flag === true) return true;
+  // The API is the source of truth: it also checks the 24-hour window. Do not
+  // re-enable an action locally when the API has explicitly marked it unavailable.
+  if (typeof flag === 'boolean') return flag;
   const status = String(order.status ?? '').toLowerCase();
-  if (action === 'cancel') return ['pending', 'approved', 'out_for_delivery'].includes(status);
+  if (action === 'cancel') return ['pending', 'approved'].includes(status);
   if (action === 'return') return status === 'delivered';
-  return isPaymentDone(order) && !['refunded', 'rejected'].includes(status);
+  return isPaymentDone(order) && ['cancelled', 'returned'].includes(status);
 }
 
 function getOrderActionUnavailableMessage(action: OrderAction) {
   if (action === 'cancel') return 'Cancellation is available only for active orders within the allowed time.';
   if (action === 'return') return 'Return is available only after the order is delivered.';
-  return 'Refund is available only for paid product orders.';
+  return 'Refund can be initiated only for a paid cancelled or returned order.';
 }
 
 function getStatusActionDate(order: UserOrder) {
@@ -168,8 +175,18 @@ function getStoppedMessage(order: UserOrder) {
   const date = formatDate(getStatusActionDate(order));
   if (status === 'cancelled') return `Your order has been cancelled on ${date}.`;
   if (status === 'returned') return `Your return request was placed on ${date}.`;
-  if (status === 'refunded') return `Your refund request was placed on ${date}.`;
+  if (status === 'refunded') return 'Refund done. Your payment has been refunded successfully.';
   return `Your order has been rejected on ${date}.`;
+}
+
+function getCustomerActionMessage(order: UserOrder) {
+  if (String(order.refundStatus ?? '').toLowerCase() === 'requested') {
+    return 'Your refund is in process. Please wait 4 to 5 working days for the amount to be credited.';
+  }
+  if (String(order.status ?? '').trim().toLowerCase() === 'cancelled') {
+    return 'Cancellation requested. Refund is pending.';
+  }
+  return order.refundMessage || order.deliveryNotes || '';
 }
 
 function getOrderImage(order: UserOrder, giftImageByName: Map<string, string | null>) {
@@ -192,19 +209,19 @@ function getOrderImage(order: UserOrder, giftImageByName: Map<string, string | n
 
 function getTrackingSteps(order: UserOrder) {
   const status = String(order.status ?? '').toLowerCase();
+  const refundRequested = String(order.refundStatus ?? '').toLowerCase() === 'requested';
   const rejected = ['rejected', 'cancelled', 'returned', 'refunded'].includes(status);
   const orderedAt = order.orderedAt ?? order.createdAt;
   const shippedAt = order.dispatchedAt ?? addDays(orderedAt, 3);
   const deliveryAt = order.deliveredAt ?? getExpectedDeliveryDate(order);
   const shipped = ['shipped', 'out_for_delivery', 'delivered'].includes(status);
-  const outForDelivery = status === 'out_for_delivery' || status === 'delivered';
   const delivered = Boolean(order.deliveredAt) || status === 'delivered';
 
-  if (rejected) {
+  if (refundRequested || rejected) {
     return [
       {
-        label: status === 'cancelled' ? 'Order Cancelled' : status === 'returned' ? 'Return Requested' : status === 'refunded' ? 'Refund Requested' : 'Order Rejected',
-        value: `${getStoppedMessage(order)}\n${order.rejectionReason ? `Reason: ${order.rejectionReason}` : ''}\n${order.refundMessage || order.deliveryNotes || ''}`,
+        label: refundRequested ? 'Refund Requested' : status === 'cancelled' ? 'Order Cancelled' : status === 'returned' ? 'Return Requested' : status === 'refunded' ? 'Refund Done' : 'Order Rejected',
+        value: `${getStoppedMessage(order)}\n${order.rejectionReason ? `Reason: ${order.rejectionReason}` : ''}\n${getCustomerActionMessage(order)}`,
         done: true,
       },
     ];
@@ -234,11 +251,6 @@ function getTrackingSteps(order: UserOrder) {
       done: shipped,
     },
     {
-      label: 'Out For Delivery',
-      value: outForDelivery ? 'Item is out for delivery.' : 'Item yet to be out for delivery.',
-      done: outForDelivery,
-    },
-    {
       label: `Delivery Expected By ${formatDate(deliveryAt)}`,
       value: delivered ? `Item delivered.\n${formatDate(deliveryAt)}` : `Item yet to be delivered.\nExpected by ${formatDate(deliveryAt)}`,
       done: delivered,
@@ -257,7 +269,7 @@ function getOrderProgress(order: UserOrder) {
   if (stopped) {
     return [
       {
-        label: toStatusLabel(order.status, order.type),
+        label: getDisplayStatusLabel(order),
         value: formatDate(getStatusActionDate(order)),
         done: true,
       },
@@ -284,6 +296,9 @@ function getOrderProgress(order: UserOrder) {
 
 function getOrderProgressSubtitle(order: UserOrder) {
   const status = String(order.status ?? '').toLowerCase();
+  if (String(order.refundStatus ?? '').toLowerCase() === 'requested') {
+    return 'Your refund is in process. Please wait 4 to 5 working days for the amount to be credited.';
+  }
   if (['rejected', 'cancelled', 'returned', 'refunded'].includes(status)) {
     return getStoppedMessage(order);
   }
@@ -302,9 +317,15 @@ function normalizeOrder(order: UserOrder): UserOrder {
   };
 }
 
+// Keep the most recent response in memory for the current signed-in user. This
+// makes returning to My Orders instantaneous while a fresh response is fetched
+// in the background. It deliberately is not persisted, so logging out never
+// exposes one account's order history to another account.
+const ordersMemoryCache = new Map<string, UserOrder[]>();
+
 export function MyOrdersPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const { giftProducts } = useAppData();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'my_orders');
   const [orders, setOrders] = useState<UserOrder[]>([]);
@@ -318,36 +339,49 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
   const [actionSubmitting, setActionSubmitting] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<OrderAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [requestReason, setRequestReason] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [visibleOrderCount, setVisibleOrderCount] = useState(8);
 
-  const loadOrders = useCallback(async () => {
+  const cacheKey = `${role ?? 'guest'}:${user?.id ?? 'anonymous'}`;
+
+  const loadOrders = useCallback(async (options: { keepCurrent?: boolean } = {}) => {
     setLoadError(null);
     try {
       const data = await withTimeout(ordersApi.getAll());
-      setOrders(Array.isArray(data) ? data.map(normalizeOrder) : []);
+      const normalizedOrders = Array.isArray(data) ? data.map(normalizeOrder) : [];
+      ordersMemoryCache.set(cacheKey, normalizedOrders);
+      setOrders(normalizedOrders);
     } catch (error) {
       console.warn('Unable to load orders.', error);
-      setOrders([]);
+      if (!options.keepCurrent) setOrders([]);
       setLoadError('Unable to load orders. Please try again later.');
     } finally {
       setHasLoadedOrders(true);
     }
-  }, []);
+  }, [cacheKey]);
 
   useEffect(() => {
+    const cachedOrders = ordersMemoryCache.get(cacheKey);
+    if (cachedOrders) {
+      setOrders(cachedOrders);
+      setHasLoadedOrders(true);
+      setLogoLoading(false);
+      void loadOrders({ keepCurrent: true });
+      return;
+    }
+
     setLogoLoading(true);
-    const timer = setTimeout(() => setLogoLoading(false), ORDERS_LOGO_LOADER_MS);
-    void loadOrders();
-    return () => clearTimeout(timer);
-  }, [loadOrders, reloadKey]);
+    void loadOrders().finally(() => setLogoLoading(false));
+  }, [cacheKey, loadOrders, reloadKey]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setLogoLoading(true);
-    void delay(ORDERS_LOGO_LOADER_MS).then(() => setLogoLoading(false));
     try {
-      await loadOrders();
+      await loadOrders({ keepCurrent: true });
     } finally {
+      setLogoLoading(false);
       setRefreshing(false);
     }
   }, [loadOrders]);
@@ -375,6 +409,12 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
     return orders;
   }, [activeOrders, orderFilter, orders]);
 
+  useEffect(() => {
+    // Render the first cards immediately and defer older cards until requested.
+    // This keeps navigation responsive even for customers with a large history.
+    setVisibleOrderCount(8);
+  }, [orderFilter, orders]);
+
   const giftImageByName = useMemo(() => {
     const map = new Map<string, string | null>();
     giftProducts.forEach((gift) => {
@@ -387,29 +427,35 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
     if (!selectedOrder || selectedOrder.type !== 'product') return;
     const orderSnapshot = selectedOrder;
     const config = getOrderActionConfig(action);
+    const reason = requestReason.trim();
+    if (reason.length < 3) {
+      setActionError('Please tell us the reason for this request.');
+      return;
+    }
     setActionSubmitting(action);
     setActionError(null);
     try {
-      if (action === 'cancel') await ordersApi.cancel(orderSnapshot.id, config.reason);
-      if (action === 'return') await ordersApi.returnOrder(orderSnapshot.id, config.reason);
-      if (action === 'refund') await ordersApi.refund(orderSnapshot.id, config.reason);
+      if (action === 'cancel') await ordersApi.cancel(orderSnapshot.id, reason);
+      if (action === 'return') await ordersApi.returnOrder(orderSnapshot.id, reason);
+      if (action === 'refund') await ordersApi.refund(orderSnapshot.id, reason);
       const actionDate = new Date().toISOString();
-      const nextStatus = config.status;
+      const nextStatus = action === 'refund' ? orderSnapshot.status : config.status;
+      const refundPending = action === 'cancel' && isOnlinePaymentOrder(orderSnapshot) && isPaymentDone(orderSnapshot);
       const actionMessage =
         action === 'cancel'
-          ? `Your order has been cancelled on ${formatDate(actionDate)}.`
+          ? 'Cancellation requested. Refund will be processed within 4 to 5 working days.'
           : action === 'return'
             ? `Your return request was placed on ${formatDate(actionDate)}.`
-            : `Your refund request was placed on ${formatDate(actionDate)}.`;
+            : 'Your refund is in process. Please wait 4 to 5 working days for the amount to be credited.';
       setSelectedOrder((current) =>
         current && current.id === orderSnapshot.id
           ? {
               ...current,
               status: nextStatus,
               updatedAt: actionDate,
-              refundStatus: action === 'cancel' && current.paymentStatus !== 'paid' ? current.refundStatus : 'requested',
+              refundStatus: action === 'refund' ? 'requested' : refundPending ? 'pending' : current.refundStatus,
               refundMessage: actionMessage,
-              deliveryNotes: actionMessage,
+              deliveryNotes: `${action === 'cancel' ? 'Cancelled' : action === 'return' ? 'Return requested' : 'Refund initiated'} by user: ${reason}`,
               canCancel: false,
               canReturn: false,
               canRefund: false,
@@ -417,6 +463,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
           : current,
       );
       setConfirmAction(null);
+      setRequestReason('');
       setShowAllUpdates(true);
       setReloadKey((value) => value + 1);
     } catch (error) {
@@ -428,6 +475,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
 
   const handleOrderAction = (action: OrderAction) => {
     setActionError(null);
+    setRequestReason('');
     setConfirmAction(action);
   };
 
@@ -471,6 +519,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
     const isGift = selectedOrder.type === 'gift';
     const status = String(selectedOrder.status ?? '').toLowerCase();
     const isStopped = ['rejected', 'cancelled', 'returned', 'refunded'].includes(status);
+    const isRefundInProgress = String(selectedOrder.refundStatus ?? '').toLowerCase() === 'requested';
     const activeActionConfig = confirmAction ? getOrderActionConfig(confirmAction) : null;
     const activeActionAvailable = Boolean(
       selectedOrder.type === 'product' &&
@@ -499,11 +548,11 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             </View>
           </View>
 
-          <Text style={[styles.detailOrderId, { color: theme.textMuted }]}>Order #{selectedOrder.id}</Text>
+          <Text style={[styles.detailOrderId, { color: theme.textMuted }]}>Order {selectedOrder.orderCode ?? selectedOrder.id}</Text>
 
           <View style={[styles.progressCard, { borderColor: '#1D4ED8', backgroundColor: theme.surface }]}>
             <Text style={[styles.progressTitle, { color: theme.textPrimary }]}>
-              {tx(toStatusLabel(selectedOrder.status, selectedOrder.type))}
+              {tx(getDisplayStatusLabel(selectedOrder))}
             </Text>
             <Text style={[styles.progressSubtitle, { color: theme.textSecondary }]}>
               {tx(getOrderProgressSubtitle(selectedOrder))}
@@ -524,8 +573,8 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             </View>
             <View style={[styles.infoBox, { backgroundColor: theme.soft }]}>
               <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-                {isStopped
-                  ? `${selectedOrder.rejectionReason ? `${tx('Reason')}: ${selectedOrder.rejectionReason}\n` : ''}${selectedOrder.refundMessage || selectedOrder.deliveryNotes || ''}`
+                {isStopped || isRefundInProgress
+                  ? `${selectedOrder.rejectionReason ? `${tx('Reason')}: ${selectedOrder.rejectionReason}\n` : ''}${getCustomerActionMessage(selectedOrder)}`
                   : selectedOrder.trackingNumber
                   ? `${tx('Tracking ID')}: ${selectedOrder.trackingNumber}`
                   : tx('Delivery Executive details will be available once the order is out for delivery')}
@@ -548,7 +597,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
                   return (
                     <TouchableOpacity
                       key={action}
-                      disabled={actionSubmitting !== null}
+                      disabled={actionSubmitting !== null || !available}
                       activeOpacity={0.86}
                       onPress={() => handleOrderAction(action)}
                       style={[
@@ -579,6 +628,21 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
               <Text style={[styles.confirmText, { color: theme.textSecondary }]}>
                 {tx(activeActionConfig?.question ?? 'Do you want to continue?')}
               </Text>
+              {activeActionAvailable ? (
+                <View style={styles.reasonInputWrap}>
+                  <Text style={[styles.reasonLabel, { color: theme.textPrimary }]}>{tx('Reason for request')}</Text>
+                  <TextInput
+                    value={requestReason}
+                    onChangeText={setRequestReason}
+                    placeholder={tx('Tell us why you want to cancel, return or refund')}
+                    placeholderTextColor={theme.textMuted}
+                    multiline
+                    maxLength={300}
+                    style={[styles.reasonInput, { color: theme.textPrimary, borderColor: theme.border, backgroundColor: theme.soft }]}
+                  />
+                  <Text style={[styles.reasonHint, { color: theme.textMuted }]}>{tx('This reason is shared with the order support team.')}</Text>
+                </View>
+              ) : null}
               {!activeActionAvailable ? (
                 <View style={[styles.confirmNotice, { backgroundColor: theme.soft, borderColor: theme.border }]}>
                   <Text style={[styles.confirmNoticeText, { color: theme.textSecondary }]}>
@@ -598,6 +662,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
                     if (actionSubmitting === null) {
                       setConfirmAction(null);
                       setActionError(null);
+                      setRequestReason('');
                     }
                   }}
                   style={[styles.confirmButton, styles.confirmSecondary, { borderColor: theme.border }]}
@@ -715,7 +780,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             </Text>
           </View>
         ) : (
-          displayedOrders.map((order) => {
+          displayedOrders.slice(0, visibleOrderCount).map((order) => {
             const statusColors = getOrderStatusColors(order.status, order.paymentStatus);
             const orderImage = getOrderImage(order, giftImageByName);
             const expectedDeliveryAt = getExpectedDeliveryDate(order);
@@ -749,10 +814,10 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
                     <Text style={[styles.orderType, { color: order.type === 'product' ? '#1D4ED8' : C.purple }]}>
                       {order.type === 'product' ? `${tx('Product')} | ${tx('Qty')}: ${order.quantity}` : tx('Gift')}
                     </Text>
-                    <Text style={[styles.orderMeta, { color: theme.textMuted }]}>{order.id}</Text>
+                    <Text style={[styles.orderMeta, { color: theme.textMuted }]}>{order.orderCode ?? order.id}</Text>
                   </View>
                   <View style={[styles.statusChip, { backgroundColor: statusColors.background }]}>
-                    <Text style={[styles.statusText, { color: statusColors.text }]}>{toStatusLabel(order.status, order.type)}</Text>
+                    <Text style={[styles.statusText, { color: statusColors.text }]}>{getDisplayStatusLabel(order)}</Text>
                   </View>
                 </View>
 
@@ -776,6 +841,15 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
             );
           })
         )}
+        {displayedOrders.length > visibleOrderCount ? (
+          <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={() => setVisibleOrderCount((count) => count + 8)}
+            style={[styles.loadMoreButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          >
+            <Text style={styles.loadMoreText}>{tx('Load more orders')}</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
       <SrvLogoLoader visible={logoLoading} label={tx('Loading your orders...')} />
     </View>
@@ -784,6 +858,8 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 14, paddingBottom: 32 },
+  loadMoreButton: { minHeight: 46, borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  loadMoreText: { color: C.primary, fontSize: 14, fontWeight: '900' },
   detailContent: { padding: 18, gap: 18, paddingBottom: 36 },
   timelineContent: { paddingHorizontal: 24, paddingTop: 36, paddingBottom: 48 },
   timelineRow: { flexDirection: 'row', minHeight: 118 },
@@ -838,6 +914,10 @@ const styles = StyleSheet.create({
   confirmIcon: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   confirmTitle: { fontSize: 21, fontWeight: '900', textAlign: 'center' },
   confirmText: { fontSize: 15, fontWeight: '700', lineHeight: 22, textAlign: 'center' },
+  reasonInputWrap: { width: '100%', gap: 6, marginTop: 2 },
+  reasonLabel: { fontSize: 12, fontWeight: '900' },
+  reasonInput: { minHeight: 76, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, fontWeight: '600', textAlignVertical: 'top' },
+  reasonHint: { fontSize: 11, fontWeight: '600', lineHeight: 16 },
   confirmNotice: { width: '100%', borderRadius: 14, borderWidth: 1, padding: 12 },
   confirmNoticeText: { fontSize: 13, fontWeight: '700', lineHeight: 19, textAlign: 'center' },
   confirmActions: { width: '100%', flexDirection: 'row', gap: 10, marginTop: 4 },

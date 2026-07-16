@@ -363,7 +363,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         <FlatList
           data={messages}
           keyExtractor={(_, i) => String(i)}
-          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 118 }}
+          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 188 }}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={(
             <LinearGradient
@@ -420,11 +420,11 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
                 >
                   <Text style={[styles.chatMessageText, { color: theme.textPrimary }]}>{item.message}</Text>
                   {'photoUrls' in item && item.photoUrls && item.photoUrls.length > 0 ? (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ticketPhotoStrip}>
+                    <View style={styles.ticketPhotoGrid}>
                       {item.photoUrls.map((photo, index) => (
                         <Image key={`${photo}-${index}`} source={{ uri: photo }} style={styles.ticketPhoto} />
                       ))}
-                    </ScrollView>
+                    </View>
                   ) : null}
                 </Pressable>
                 <Text style={[styles.chatTime, { color: theme.textMuted }, item.type === 'user' ? styles.chatTimeUser : null]}>
@@ -441,7 +441,11 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         />
 
         {/* Chat Input + Close Button */}
-        <View style={[styles.ticketComposer, { bottom: TICKET_DETAIL_NAV_CLEARANCE }]}>
+        <View style={[styles.ticketComposer, { bottom: TICKET_DETAIL_NAV_CLEARANCE, backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={[styles.composerLabelRow, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.composerLabel, { color: theme.textPrimary }]}>{isTicketClosed ? tx('Ticket closed') : tx('Reply to support')}</Text>
+            {!isTicketClosed ? <Text style={[styles.composerHint, { color: theme.textMuted }]}>{tx('Your reply is sent securely')}</Text> : null}
+          </View>
           <View style={styles.composerRow}>
             <TextInput
               style={[styles.messageInput, { borderColor: theme.border, backgroundColor: theme.soft, color: theme.textPrimary }]}
@@ -467,7 +471,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
           </View>
           {!isTicketClosed && (
             <TouchableOpacity
-              style={[styles.closeTicketBtn, closing ? { opacity: 0.7 } : null]}
+              style={[styles.closeTicketBtn, { borderColor: '#FECACA', backgroundColor: '#FFF7F7' }, closing ? { opacity: 0.7 } : null]}
               onPress={() => {
                 setDialog({
                   visible: true, variant: 'destructive', title: tx('Close Ticket'), message: tx('Are you sure you want to close this ticket?'),
@@ -573,7 +577,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
             />
             <Text style={[styles.photoCount, { color: theme.textMuted }]}>{tx('Photos')} ({photos.length}/{MAX_SUPPORT_PHOTOS})</Text>
             <Text style={[styles.photoHint, { color: theme.textMuted }]}>{tx('Tap + to select and attach multiple photos')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoStrip}>
+            <View style={styles.photoGrid}>
               {photos.map((photo, index) => (
                 <View key={`${photo}-${index}`} style={[styles.photoTile, { borderColor: theme.border }]}>
                   <Image source={{ uri: photo }} style={styles.previewImage} />
@@ -594,7 +598,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
                   <Text style={[styles.addPhotoLabel, { color: theme.textMuted }]}>{photos.length ? tx('Add more') : tx('Upload Photos')}</Text>
                 </TouchableOpacity>
               )}
-            </ScrollView>
+            </View>
           </View>
           <TouchableOpacity
             style={[styles.primaryAction, { backgroundColor: accentColor }, submitting && { opacity: 0.7 }]}
@@ -812,11 +816,11 @@ const styles = StyleSheet.create({
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   photoCount: { fontSize: 12, fontWeight: '700', marginBottom: -4 },
   photoHint: { fontSize: 11, lineHeight: 16, marginTop: -8 },
-  photoStrip: { gap: 10, paddingBottom: 2 },
-  photoTile: { width: 92, height: 92, borderRadius: 12, borderWidth: 1, overflow: 'hidden', position: 'relative' },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 2 },
+  photoTile: { width: '30.7%', aspectRatio: 1, borderRadius: 14, borderWidth: 1, overflow: 'hidden', position: 'relative' },
   removePhotoButton: { position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(15,23,42,0.78)', alignItems: 'center', justifyContent: 'center' },
   removePhotoText: { color: '#FFFFFF', fontSize: 18, lineHeight: 20, fontWeight: '700' },
-  addPhotoButton: { width: 92, height: 92, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', padding: 6 },
+  addPhotoButton: { width: '30.7%', aspectRatio: 1, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', padding: 6 },
   addPhotoPlus: { fontSize: 30, lineHeight: 32, fontWeight: '500' },
   addPhotoLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
   dropdownOverlay: {
@@ -841,8 +845,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   confirmPreviewStrip: { gap: 10, paddingBottom: 16 },
-  ticketPhotoStrip: { gap: 8, paddingTop: 10 },
-  ticketPhoto: { width: 118, height: 118, borderRadius: 12, resizeMode: 'cover' },
+  ticketPhotoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 10 },
+  ticketPhoto: { width: 104, height: 104, borderRadius: 14, resizeMode: 'cover' },
   confirmActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   confirmCancelBtn: {
     flex: 1,
@@ -1028,10 +1032,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 10,
     right: 10,
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: 0,
+    borderWidth: 1,
+    borderRadius: 22,
+    padding: 12,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 7,
   },
+  composerLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, paddingBottom: 9, marginBottom: 10 },
+  composerLabel: { fontSize: 13, fontWeight: '900' },
+  composerHint: { fontSize: 10.5, fontWeight: '700' },
   composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   messageInput: {
     flex: 1,
@@ -1059,15 +1071,15 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   closeTicketBtn: {
-    alignSelf: 'flex-end',
-    marginTop: 5,
-    minHeight: 24,
-    borderRadius: 999,
-    paddingHorizontal: 4,
+    marginTop: 10,
+    minHeight: 40,
+    borderRadius: 13,
+    borderWidth: 1,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
-  closeTicketText: { fontSize: 11.5, color: '#EF4444', fontWeight: '800' },
+  closeTicketText: { fontSize: 12, color: '#EF4444', fontWeight: '900' },
 });

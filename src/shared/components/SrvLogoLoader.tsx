@@ -1,23 +1,45 @@
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 
-type Props = {
-  visible: boolean;
-  label?: string;
-};
+type Props = { visible: boolean; label?: string };
 
 const srvLogo = require('../../../assets/srv-logo.png');
 
-export function SrvLogoLoader({ visible, label = 'Loading...' }: Props) {
+export function SrvLogoLoader({ visible }: Props) {
+  const spin = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      spin.setValue(0);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 1100,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [spin, visible]);
+
   if (!visible) return null;
 
+  const spinStyle = {
+    transform: [{ rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
+  };
+
   return (
-    <View style={styles.overlay} pointerEvents="auto">
-      <View style={styles.card}>
-        <View style={styles.logoWrap}>
+    <View style={styles.overlay} pointerEvents="none">
+      <View style={styles.loader}>
+        <Animated.View style={[styles.spinner, spinStyle]} />
+        <View style={styles.logoCircle}>
           <Image source={srvLogo} style={styles.logo} resizeMode="contain" />
-          <ActivityIndicator color="#EF3340" size="large" style={styles.spinner} />
         </View>
-        <Text style={styles.label}>{label}</Text>
       </View>
     </View>
   );
@@ -32,31 +54,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  card: {
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 18,
-    backgroundColor: 'transparent',
+  logoCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
   },
-  logoWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  loader: {
+    width: 76,
+    height: 76,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logo: {
-    width: 52,
-    height: 52,
-  },
   spinner: {
     position: 'absolute',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 3,
+    borderColor: 'rgba(27, 83, 164, 0.18)',
+    borderTopColor: '#1B53A4',
+    borderRightColor: '#57B7F1',
   },
-  label: {
-    color: '#111827',
-    fontSize: 11,
-    fontWeight: '800',
+  logo: {
+    width: '100%',
+    height: '100%',
   },
 });

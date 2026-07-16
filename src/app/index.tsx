@@ -1,6 +1,7 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, BackHandler, Easing, Keyboard, PanResponder, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav as DealerBottomNav } from '@/features/dealer/screens/BottomNav';
 import { CallElectricianScreen as DealerCallElectricianScreen } from '@/features/dealer/screens/CallElectricianScreen';
@@ -47,6 +48,7 @@ import {
 } from '@/features/profile/screens/WalletLinkedPages';
 import { NavActionProvider } from '@/shared/context/NavActionContext';
 import { SrvLogoLoader } from '@/shared/components/SrvLogoLoader';
+import { getNativeNotifications } from '@/shared/notifications/nativeNotifications';
 import { PreferenceContext, type AppLanguage, usePreferenceValue } from '@/shared/preferences';
 import { colors } from '@/shared/theme/colors';
 import type { Screen, UserRole } from '@/shared/types/navigation';
@@ -216,10 +218,23 @@ function AppContent() {
   const electricianCartCount = useMemo(() => electricianCartItems.reduce((total, item) => total + item.qty, 0), [electricianCartItems]);
   const [checkoutItem, setCheckoutItem] = useState<CheckoutItem | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const routeLoadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [profileInitialSubPage, setProfileInitialSubPage] = useState<Exclude<SubPage, null> | null>(
     null
   );
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSubscription = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
   const isPreviewMode = previewState.enabled;
   const previewTarget = useMemo(
     () => resolvePreviewTarget(previewState.role, previewState.page),
@@ -347,13 +362,13 @@ function AppContent() {
       Animated.parallel([
         Animated.timing(notificationBannerY, {
           toValue: direction === 'up' ? -96 : 0,
-          duration: 200,
+          duration: 120,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(notificationBannerX, {
           toValue: direction === 'side' ? 420 : 0,
-          duration: 200,
+          duration: 120,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -370,7 +385,7 @@ function AppContent() {
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gesture) =>
-          Math.abs(gesture.dx) > 14 || gesture.dy < -8,
+          Math.abs(gesture.dx) > 5 || gesture.dy < -5,
         onPanResponderMove: (_, gesture) => {
           notificationBannerX.setValue(gesture.dx);
           if (gesture.dy < 0) {
@@ -378,21 +393,25 @@ function AppContent() {
           }
         },
         onPanResponderRelease: (_, gesture) => {
-          if (Math.abs(gesture.dx) > 80) {
+          if (Math.abs(gesture.dx) > 42 || Math.abs(gesture.vx) > 0.22) {
             hideNotificationBanner('side');
             return;
           }
-          if (gesture.dy < -28) {
+          if (gesture.dy < -18 || gesture.vy < -0.22) {
             hideNotificationBanner('up');
             return;
           }
           Animated.parallel([
             Animated.spring(notificationBannerX, {
               toValue: 0,
+              speed: 28,
+              bounciness: 0,
               useNativeDriver: true,
             }),
             Animated.spring(notificationBannerY, {
               toValue: 0,
+              speed: 28,
+              bounciness: 0,
               useNativeDriver: true,
             }),
           ]).start();
@@ -402,29 +421,57 @@ function AppContent() {
   );
 
   // Fetch unread notification count — poll every 30s when authenticated
+  const showNotificationBanner = useCallback((notification: any) => {
+    const content = notification?.request?.content ?? notification;
+    const id = String(content?.data?.notificationId ?? notification?.id ?? notification?.request?.identifier ?? 'notification');
+    if (lastBannerNotificationIdRef.current === id) return;
+    lastBannerNotificationIdRef.current = id;
+    if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
+    setNotificationBanner({
+      id,
+      title: content?.title ?? notification?.title ?? 'New notification',
+      message: content?.body ?? notification?.message ?? notification?.body ?? '',
+    });
+    notificationBannerX.setValue(0);
+    Animated.timing(notificationBannerY, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [notificationBannerX, notificationBannerY]);
+
+  // The timeout belongs to the rendered banner, not to the notification request.
+  // This makes every visible banner dismiss itself after ten seconds, even when
+  // a notification is delivered while other app state is updating.
+  useEffect(() => {
+    if (!notificationBanner) return;
+    if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
+    notificationBannerTimerRef.current = setTimeout(() => hideNotificationBanner('up'), 5000);
+    return () => {
+      if (notificationBannerTimerRef.current) {
+        clearTimeout(notificationBannerTimerRef.current);
+        notificationBannerTimerRef.current = null;
+      }
+    };
+  }, [hideNotificationBanner, notificationBanner]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || isPreviewMode) return;
+    let subscription: { remove: () => void } | null = null;
+    void (async () => {
+      const Notifications = await getNativeNotifications();
+      if (!Notifications) return;
+      subscription = Notifications.addNotificationReceivedListener((notification) => {
+        if (currentScreen !== 'notification') showNotificationBanner(notification);
+      });
+    })();
+    return () => subscription?.remove();
+  }, [currentScreen, isAuthenticated, isPreviewMode, showNotificationBanner, user]);
+
   useEffect(() => {
     if (isPreviewMode) return;
     if (!isAuthenticated || !user) return;
-    const showNotificationBanner = (notification: any) => {
-      if (!notification?.id || lastBannerNotificationIdRef.current === notification.id) return;
-      lastBannerNotificationIdRef.current = notification.id;
-      if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
-      setNotificationBanner({
-        id: notification.id,
-        title: notification.title || 'New notification',
-        message: notification.message || notification.body || '',
-      });
-      notificationBannerX.setValue(0);
-      Animated.timing(notificationBannerY, {
-        toValue: 0,
-        duration: 260,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-      notificationBannerTimerRef.current = setTimeout(() => {
-        hideNotificationBanner('up');
-      }, 4200);
-    };
     const checkUnread = async () => {
       try {
         const notificationsEnabled = await storage.getPushNotificationsEnabled();
@@ -454,9 +501,8 @@ function AppContent() {
     const interval = setInterval(checkUnread, 30000);
     return () => {
       clearInterval(interval);
-      if (notificationBannerTimerRef.current) clearTimeout(notificationBannerTimerRef.current);
     };
-  }, [authRole, currentScreen, hideNotificationBanner, isAuthenticated, isPreviewMode, notificationBannerX, notificationBannerY, user]);
+  }, [authRole, currentScreen, isAuthenticated, isPreviewMode, showNotificationBanner, user]);
 
   const preferenceValue = usePreferenceValue({
     language,
@@ -1124,7 +1170,7 @@ function AppContent() {
         case 'notification':
           return <ElectricianNotificationScreen onNavigate={handleNavigate} role="dealer" onNotificationsSeen={handleNotificationsSeen} />;
         case 'rewards':
-          return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} />;
+          return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} onOpenScanner={() => setCurrentScreen('scan')} />;
         case 'wallet': {
           const dealerKycStatus = user?.kycStatus ?? 'not_submitted';
           if (dealerKycStatus !== 'verified') {
@@ -1283,7 +1329,7 @@ function AppContent() {
             />
           );
         case 'rewards':
-          return <UserRewardsScreen onBack={() => setCurrentScreen('profile')} />;
+          return <UserRewardsScreen onBack={() => setCurrentScreen('profile')} onOpenScanner={() => setCurrentScreen('scan')} />;
         case 'profile':
           return (
             <UserProfileScreen
@@ -1555,7 +1601,7 @@ function AppContent() {
           />
         );
       case 'rewards':
-        return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} />;
+        return <ElectricianRewardsScreen onBack={() => setCurrentScreen('profile')} onOpenScanner={() => setCurrentScreen('scan')} />;
       case 'profile':
         return (
           <ElectricianProfileScreen
@@ -1749,7 +1795,7 @@ function AppContent() {
             </NavActionProvider>
           </View>
         </SafeAreaView>
-        {!pendingApprovalRole ? (
+        {!pendingApprovalRole && !keyboardVisible ? (
           isDealer ? (
             <DealerBottomNav currentScreen={resolvedCurrentScreen} onNavigate={handleNavigate} />
           ) : isUser ? (
@@ -1770,18 +1816,24 @@ function AppContent() {
             ]}
           >
             <TouchableOpacity
-              activeOpacity={0.9}
-              style={[styles.notificationBanner, { backgroundColor: appTheme.surface ?? '#FFFFFF' }]}
+              activeOpacity={0.92}
               onPress={() => {
                 hideNotificationBanner('up');
                 handleNavigate('notification');
               }}
             >
-              <View style={styles.notificationDot} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[styles.notificationTitle, { color: appTheme.textPrimary }]} numberOfLines={1}>{notificationBanner.title}</Text>
-                {notificationBanner.message ? <Text style={styles.notificationMessage} numberOfLines={1}>{notificationBanner.message}</Text> : null}
-              </View>
+              <LinearGradient colors={['#FFFFFF', '#FFF7F7', '#FFFFFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.notificationBanner}>
+                <View style={styles.notificationBrandMark}><Text style={styles.notificationBrandText}>SRV</Text></View>
+                <View style={styles.notificationCopy}>
+                  <View style={styles.notificationMetaRow}>
+                    <Text style={styles.notificationAppName}>SRV ELECTRICALS</Text>
+                    <View style={styles.notificationLiveDot} />
+                    <Text style={styles.notificationNow}>NOW</Text>
+                  </View>
+                  <Text style={styles.notificationTitle} numberOfLines={1}>{notificationBanner.title}</Text>
+                </View>
+                <View style={styles.notificationChevron}><Text style={styles.notificationChevronText}>›</Text></View>
+              </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
         ) : null}
@@ -1803,32 +1855,42 @@ const styles = StyleSheet.create({
   },
   notificationBannerWrap: {
     position: 'absolute',
-    top: 72,
-    left: 14,
-    right: 14,
+    top: Platform.OS === 'ios' ? 58 : 42,
+    left: 12,
+    right: 12,
     zIndex: 2000,
     elevation: 20,
   },
   notificationBanner: {
-    minHeight: 58,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    minHeight: 68,
+    borderRadius: 22,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
+    overflow: 'hidden',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOpacity: 0.30,
+    shadowRadius: 20,
+    elevation: 14,
   },
-  notificationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#E8453C',
+  notificationBrandMark: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#C62832',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
   },
-  notificationTitle: { fontSize: 14, fontWeight: '900' },
-  notificationMessage: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  notificationBrandText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', letterSpacing: 0.2 },
+  notificationCopy: { flex: 1, minWidth: 0 },
+  notificationMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 },
+  notificationAppName: { color: '#A11D25', fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  notificationLiveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#D52D35' },
+  notificationNow: { color: '#9A5A5E', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
+  notificationChevron: { width: 20, alignItems: 'flex-end', justifyContent: 'center' },
+  notificationChevronText: { color: '#A11D25', fontSize: 27, fontWeight: '300', marginTop: -2 },
+  notificationTitle: { color: '#172033', fontSize: 14, fontWeight: '900', lineHeight: 18 },
 });

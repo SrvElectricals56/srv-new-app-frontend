@@ -51,8 +51,8 @@ type SignupStep =
   | 'otp'
   | 'password';
 
-const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long and include one capital letter and one special character.';
-const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
+const PASSWORD_RULE_MESSAGE = 'Please enter a minimum 8 character password.';
+const isValidPassword = (value: string) => /^\S{8,}$/.test(value);
 const cleanPasswordInput = (value: string) => value.replace(/\s/g, '');
 const showPasswordRuleAlert = () => {
   Alert.alert('Password Required', PASSWORD_RULE_MESSAGE);
@@ -2631,7 +2631,7 @@ export function OnboardingScreen({
                                     setSignupPass(value);
                                     setError('signupPass', getPasswordError(value));
                                   }}
-                                  placeholder={tx('Create password')}
+                                  placeholder={tx('Create a password (minimum 8 characters)')}
                                   secureTextEntry={!showPassword}
                                   error={getPasswordError(signupPass)}
                                   onFocus={scrollToForm}
@@ -2933,7 +2933,7 @@ export function OnboardingScreen({
                                     setSignupPass(value);
                                     setError('signupPass', getPasswordError(value));
                                   }}
-                                  placeholder={tx('Create password')}
+                                  placeholder={tx('Create a password (minimum 8 characters)')}
                                   secureTextEntry={!showPassword}
                                   error={getPasswordError(signupPass)}
                                   onFocus={scrollToForm}
@@ -3064,7 +3064,7 @@ export function OnboardingScreen({
                       label={tx('New Password')}
                       value={forgotPassword}
                       onChangeText={(value) => setForgotPassword(cleanPasswordInput(value))}
-                      placeholder={tx('Create password')}
+                      placeholder={tx('Create a password (minimum 8 characters)')}
                       secureTextEntry={!showForgotPassword}
                       error={errors.forgotPassword}
                       actionContent={<EyeIcon open={showForgotPassword} />}

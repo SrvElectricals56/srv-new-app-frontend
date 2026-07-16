@@ -6,7 +6,9 @@ type ExpoNotifications = typeof import('expo-notifications');
 let notificationsPromise: Promise<ExpoNotifications | null> | null = null;
 
 export function canUseNativeNotifications() {
-  return Platform.OS !== 'web' && Constants.appOwnership !== 'expo';
+  // Expo Go no longer includes Android remote-notification support. Avoid loading
+  // the native module there; development and production builds remain supported.
+  return Platform.OS !== 'web' && Constants.executionEnvironment !== 'storeClient';
 }
 
 export async function getNativeNotifications() {
@@ -26,7 +28,9 @@ export async function configureNotificationHandler() {
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowBanner: true,
+      // The app renders its own smooth floating banner while foregrounded.
+      // Android still displays the system notification while backgrounded.
+      shouldShowBanner: false,
       shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,

@@ -453,10 +453,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         if (!Notifications || !active) return;
 
         if (Platform.OS === 'android') {
-          await Notifications.setNotificationChannelAsync('default', {
-            name: 'SRV Notifications',
+          await Notifications.setNotificationChannelAsync('srv_alerts_v2', {
+            name: 'SRV Alerts',
             importance: Notifications.AndroidImportance.HIGH,
             vibrationPattern: [0, 250, 250, 250],
+            lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+            showBadge: true,
           });
         }
         const current = await Notifications.getPermissionsAsync();

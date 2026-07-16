@@ -717,6 +717,7 @@ function productOrderToUserOrder(order: ProductOrder): UserOrder {
   const total = Number(order.price ?? 0) * Number(order.quantity ?? 1);
   return {
     id: order.id,
+    orderCode: (order as any).orderCode ?? null,
     type: 'product',
     status: order.status,
     title: order.productName,
@@ -745,6 +746,10 @@ function productOrderToUserOrder(order: ProductOrder): UserOrder {
     refundMessage: order.refundMessage ?? null,
     rejectionReason: order.rejectionReason ?? null,
     deliveryNotes: order.deliveryNotes ?? null,
+    cancelReason: (order as any).cancelReason ?? null,
+    returnReason: (order as any).returnReason ?? null,
+    refundReason: (order as any).refundReason ?? null,
+    customerActionAt: (order as any).customerActionAt ?? null,
     canCancel: (order as any).canCancel ?? null,
     canReturn: (order as any).canReturn ?? null,
     canRefund: (order as any).canRefund ?? null,
@@ -757,7 +762,7 @@ export const ordersApi = {
     try {
       const response = await api.get<OrdersApiResponse>('/mobile/profile/orders', undefined, true);
       const orders = normalizeOrdersResponse(response);
-      if (orders.length > 0) return orders;
+      return orders;
     } catch (error) {
       console.warn('Unable to load combined order history, trying product orders.', error);
     }
@@ -1025,6 +1030,10 @@ export type ProductOrder = {
   refundMessage?: string | null;
   rejectionReason?: string | null;
   deliveryNotes?: string | null;
+  cancelReason?: string | null;
+  returnReason?: string | null;
+  refundReason?: string | null;
+  customerActionAt?: string | null;
   orderedAt: string;
 };
 
@@ -1266,6 +1275,7 @@ export type RedemptionRecord = {
 
 export type UserOrder = {
   id: string;
+  orderCode?: string | null;
   type: 'gift' | 'product';
   status: string;
   title: string;
@@ -1294,6 +1304,10 @@ export type UserOrder = {
   refundMessage?: string | null;
   rejectionReason?: string | null;
   deliveryNotes?: string | null;
+  cancelReason?: string | null;
+  returnReason?: string | null;
+  refundReason?: string | null;
+  customerActionAt?: string | null;
   canCancel?: boolean | null;
   canReturn?: boolean | null;
   canRefund?: boolean | null;

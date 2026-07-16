@@ -149,7 +149,7 @@ function GiftCard({
 }
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
-export function RewardsScreen({ onBack }: { onBack?: () => void }) {
+export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; onOpenScanner?: () => void }) {
   const { darkMode, tx, theme } = usePreferenceContext();
   const { giftProducts, wallet, walletSummary, redeemReward, refreshAll } = useAppData();
   const { role } = useAuth();
@@ -245,7 +245,7 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
       >
         {/* Points Banner */}
         <View style={[styles.pointsBanner, darkMode && styles.pointsBannerDark]}>
-          <View>
+          <View style={styles.pointsInfo}>
             <Text style={[styles.pointsLabel, darkMode && styles.pointsLabelDark]}>{tx('Your Points')}</Text>
             <View style={styles.pointsValueRow}>
               <CoinIcon size={22} />
@@ -255,11 +255,11 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
             </View>
           </View>
           {!isDealer && (
-            <View style={styles.pointsHint}>
-              <Text style={styles.pointsHintText}>
+            <TouchableOpacity style={styles.pointsHint} onPress={onOpenScanner} activeOpacity={0.8}>
+              <Text style={styles.pointsHintText} numberOfLines={2}>
                 {tx('Scan products to earn more')}
               </Text>
-            </View>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -311,6 +311,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
     backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
@@ -322,11 +323,21 @@ const styles = StyleSheet.create({
   pointsBannerDark: { backgroundColor: '#111827', borderColor: '#243043' },
   pointsLabel: { fontSize: 12, fontWeight: '600', color: C.textMuted, marginBottom: 4 },
   pointsLabelDark: { color: '#94A3B8' },
+  pointsInfo: { flex: 1, minWidth: 0 },
   pointsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   pointsValue: { fontSize: 22, fontWeight: '900', color: C.textDark },
   pointsValueDark: { color: '#F8FAFC' },
-  pointsHint: { backgroundColor: C.goldLight, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
-  pointsHintText: { fontSize: 11, fontWeight: '700', color: C.goldDark },
+  pointsHint: {
+    flexShrink: 1,
+    maxWidth: '54%',
+    backgroundColor: C.goldLight,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDE6A5',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  pointsHintText: { fontSize: 11, lineHeight: 15, fontWeight: '800', color: C.goldDark, textAlign: 'right' },
 
   // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

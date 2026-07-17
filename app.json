@@ -41,7 +41,7 @@
       "bundleIdentifier": "com.srvelectricals.app"
     },
     "android": {
-      "versionCode": 13,
+      "versionCode": 18,
       "allowBackup": false,
       "googleServicesFile": "./android/app/google-services.json",
       "softwareKeyboardLayoutMode": "resize",

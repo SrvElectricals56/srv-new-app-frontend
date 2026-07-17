@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 def appVariant = System.getenv("APP_VARIANT") ?: "production"
@@ -91,7 +92,10 @@ android {
 
     namespace 'com.srvelectricals.app'
     defaultConfig {
-        applicationId isStagingBuild ? 'com.srvelectricals.app.staging' : 'com.srvelectricals.app'
+        applicationId 'com.srvelectricals.app'
+        if (isStagingBuild) {
+            applicationIdSuffix '.staging'
+        }
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 13

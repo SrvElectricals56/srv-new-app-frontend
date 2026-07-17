@@ -1,0 +1,32 @@
+{
+  "project_info": {
+    "project_number": "519956418767",
+    "project_id": "srvelectricals-afa73",
+    "storage_bucket": "srvelectricals-afa73.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:519956418767:android:e4709e210f7973cb51e7ba",
+        "android_client_info": {
+          "package_name": "com.srvelectricals.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [{ "current_key": "AIzaSyBPWhkgtgmqKVH6_ZTnnT_VFGP5Fvd7gu4" }],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:519956418767:android:9b58db0f9a6ba38051e7ba",
+        "android_client_info": {
+          "package_name": "com.srvelectricals.app.staging"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [{ "current_key": "AIzaSyBPWhkgtgmqKVH6_ZTnnT_VFGP5Fvd7gu4" }],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    }
+  ],
+  "configuration_version": "1"
+}

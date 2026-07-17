@@ -47,7 +47,6 @@ import {
   WalletTransferPointsScreen,
 } from '@/features/profile/screens/WalletLinkedPages';
 import { NavActionProvider } from '@/shared/context/NavActionContext';
-import { SrvLogoLoader } from '@/shared/components/SrvLogoLoader';
 import { getNativeNotifications } from '@/shared/notifications/nativeNotifications';
 import { PreferenceContext, type AppLanguage, usePreferenceValue } from '@/shared/preferences';
 import { colors } from '@/shared/theme/colors';
@@ -217,9 +216,7 @@ function AppContent() {
   const counterboyCartCount = useMemo(() => counterboyCartItems.reduce((total, item) => total + item.qty, 0), [counterboyCartItems]);
   const electricianCartCount = useMemo(() => electricianCartItems.reduce((total, item) => total + item.qty, 0), [electricianCartItems]);
   const [checkoutItem, setCheckoutItem] = useState<CheckoutItem | null>(null);
-  const [routeLoading, setRouteLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const routeLoadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [profileInitialSubPage, setProfileInitialSubPage] = useState<Exclude<SubPage, null> | null>(
     null
   );
@@ -521,7 +518,6 @@ function AppContent() {
   }, []);
   const [profileResetKey, setProfileResetKey] = useState(0);
   const screenStartRef = useRef({ screen: currentScreen, startedAt: Date.now() });
-  const routeScreenRef = useRef(currentScreen);
   const screenHistoryRef = useRef<Screen[]>([]);
   const lastScreenRef = useRef(currentScreen);
   const isHardwareBackRef = useRef(false);
@@ -530,30 +526,9 @@ function AppContent() {
     void activityApi.track(data).catch(() => {});
   }, []);
 
-  const showRouteLoader = useCallback(() => {
-    setRouteLoading(true);
-    if (routeLoadingTimeoutRef.current) {
-      clearTimeout(routeLoadingTimeoutRef.current);
-    }
-    routeLoadingTimeoutRef.current = setTimeout(() => {
-      setRouteLoading(false);
-      routeLoadingTimeoutRef.current = null;
-    }, 600);
-  }, []);
-
-  useEffect(() => () => {
-    if (routeLoadingTimeoutRef.current) {
-      clearTimeout(routeLoadingTimeoutRef.current);
-    }
-  }, []);
-
   useEffect(() => {
     const previous = screenStartRef.current;
     const now = Date.now();
-    if (routeScreenRef.current !== currentScreen) {
-      showRouteLoader();
-      routeScreenRef.current = currentScreen;
-    }
     if (previous.screen && previous.screen !== currentScreen) {
       trackActivity({
         eventType: 'screen_time',
@@ -569,7 +544,7 @@ function AppContent() {
       previousScreen: previous.screen !== currentScreen ? previous.screen : undefined,
     });
     screenStartRef.current = { screen: currentScreen, startedAt: now };
-  }, [currentScreen, showRouteLoader, trackActivity]);
+  }, [currentScreen, trackActivity]);
 
   useEffect(() => () => {
     const current = screenStartRef.current;
@@ -596,21 +571,19 @@ function AppContent() {
       if (previous) {
         isHardwareBackRef.current = true;
         if (currentScreen === 'checkout') setCheckoutItem(null);
-        showRouteLoader();
         setCurrentScreen(previous);
         return true;
       }
       if (currentScreen !== 'home') {
         isHardwareBackRef.current = true;
         if (currentScreen === 'checkout') setCheckoutItem(null);
-        showRouteLoader();
         setCurrentScreen('home');
         return true;
       }
       return false;
     });
     return () => subscription.remove();
-  }, [currentScreen, showRouteLoader]);
+  }, [currentScreen]);
 
   const handleNavigate = useCallback(
     (screen: Screen) => {
@@ -622,7 +595,6 @@ function AppContent() {
       });
 
       if (!isRoleFeatureEnabled(rolePageControls, currentRole, screen)) {
-        if (currentScreen !== 'home') showRouteLoader();
         setCurrentScreen('home');
         setGuestAuthRole(null);
         return;
@@ -630,7 +602,6 @@ function AppContent() {
 
       if (screen === 'my_redemption') {
         setProfileInitialSubPage('My Redemption');
-        showRouteLoader();
         setCurrentScreen('profile');
         return;
       }
@@ -639,7 +610,6 @@ function AppContent() {
       // dismiss the auth flow and navigate normally
       if (guestAuthRole && screen !== 'wallet' && screen !== 'profile') {
         setGuestAuthRole(null);
-        showRouteLoader();
         setCurrentScreen(screen);
         return;
       }
@@ -662,10 +632,9 @@ function AppContent() {
         setSelectedProductCategory('all');
       }
 
-      showRouteLoader();
       setCurrentScreen(screen);
     },
-    [currentRole, currentScreen, guestAuthRole, rolePageControls, showRouteLoader, trackActivity]
+    [currentRole, currentScreen, guestAuthRole, rolePageControls, trackActivity]
   );
 
   const handleOpenProductCategory = useCallback((category: string) => {
@@ -675,16 +644,14 @@ function AppContent() {
       screen: currentScreen,
       productCategory: category,
     });
-    showRouteLoader();
     setSelectedProductCategory(category);
     setCurrentScreen('product');
-  }, [currentScreen, showRouteLoader, trackActivity]);
+  }, [currentScreen, trackActivity]);
 
   const handleOpenScanHistory = useCallback(() => {
-    showRouteLoader();
     setProfileInitialSubPage('Scan History');
     setCurrentScreen('profile');
-  }, [showRouteLoader]);
+  }, []);
 
   const handleAddToCart = useCallback((item: CartItem) => {
     setUserCartItems((prev) => {
@@ -1806,7 +1773,6 @@ function AppContent() {
             <ElectricianBottomNav currentScreen={resolvedCurrentScreen} onNavigate={handleNavigate} />
           )
         ) : null}
-        <SrvLogoLoader visible={routeLoading} label="Opening SRV page..." />
         {notificationBanner ? (
           <Animated.View
             {...notificationBannerPanResponder.panHandlers}

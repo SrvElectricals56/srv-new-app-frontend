@@ -35,6 +35,7 @@ import { AppSettingsPage } from './AppSettingsScreen';
 import { BankDetailsPage } from './BankDetailsScreen';
 import { BankTransferRequestPage } from './BankTransferRequestScreen';
 import { ContactSupportPage } from './ContactSupportScreen';
+import { AccountDeletionPage } from './AccountDeletionScreen';
 import { MyOrdersPage } from './MyOrdersScreen';
 import { RedemptionPage, type GiftStoreOrderFilter } from './MyRedemptionScreen';
 import { NeedHelpPage } from './NeedHelpScreen';
@@ -780,6 +781,7 @@ export function ProfileScreen({
     'App Settings': <AppSettingsPage onBack={() => setSubPage(null)} />,
     'Scan History': <ScanHistoryPage onBack={() => setSubPage(null)} />,
     'Contact Support': <ContactSupportPage onBack={() => setSubPage(null)} />,
+    'Delete Account': <AccountDeletionPage onBack={() => setSubPage(null)} />,
     'Privacy Policy': <PrivacyPolicyPage onBack={() => setSubPage(null)} />,
     'Rate Us': <RateUsPage onBack={() => setSubPage(null)} onHome={() => onNavigate('home')} />,
     'KYC Verification': <KYCVerificationScreen onBack={() => setSubPage(null)} currentRole={currentRole} />,

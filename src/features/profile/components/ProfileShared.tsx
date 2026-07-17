@@ -68,6 +68,7 @@ export type SubPage =
   | 'App Settings'
   | 'Scan History'
   | 'Contact Support'
+  | 'Delete Account'
   | 'Privacy Policy'
   | 'Rate Us'
   | 'KYC Verification';

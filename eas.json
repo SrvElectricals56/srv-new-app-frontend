@@ -26,7 +26,26 @@
       "autoIncrement": true,
       "env": {
         "EXPO_USE_COMMUNITY_AUTOLINKING": "1",
-        "EXPO_PUBLIC_API_URL": "https://api.srvelectricals.in/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://api.srvelectricals.in/api/v1",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "519956418767-use4fj4rpt9i7e49dmakrga9v3a2b41s.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "519956418767-6ato62vc6k043gb0fv7vl5qepni4dad7.apps.googleusercontent.com"
+      }
+    },
+    "android-production": {
+      "extends": "production",
+      "credentialsSource": "local"
+    },
+    "production-apk": {
+      "distribution": "internal",
+      "credentialsSource": "local",
+      "env": {
+        "EXPO_USE_COMMUNITY_AUTOLINKING": "1",
+        "EXPO_PUBLIC_API_URL": "https://api.srvelectricals.in/api/v1",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "519956418767-use4fj4rpt9i7e49dmakrga9v3a2b41s.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "519956418767-6ato62vc6k043gb0fv7vl5qepni4dad7.apps.googleusercontent.com"
+      },
+      "android": {
+        "buildType": "apk"
       }
     }
   },

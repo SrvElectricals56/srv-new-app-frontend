@@ -5,8 +5,8 @@ import {
    Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -25,7 +25,15 @@ const THEMES = {
 
 const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long and include one capital letter and one special character.';
 const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? '';
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() ?? '';
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '';
+
+function getGoogleClientId() {
+  if (Platform.OS === 'ios') return GOOGLE_IOS_CLIENT_ID;
+  if (Platform.OS === 'android') return GOOGLE_ANDROID_CLIENT_ID;
+  return GOOGLE_WEB_CLIENT_ID;
+}
 WebBrowser.maybeCompleteAuthSession();
 
 
@@ -40,19 +48,6 @@ const SwitchRoleIcon = ({ c = '#fff', s = 16 }) => <Svg width={s} height={s} vie
 const ArrowLeft = ({ c = '#6A2F12', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M19 12H5M11 18l-6-6 6-6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 const ArrowRight  = ({ c = '#fff', s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24" fill="none"><Path d="M5 12h14M13 6l6 6-6 6" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 const GoogleIcon = ({ s = 18 }) => <Svg width={s} height={s} viewBox="0 0 24 24"><Path fill="#4285F4" d="M21.6 12.23c0-.77-.07-1.51-.2-2.23H12v4.22h5.38a4.6 4.6 0 0 1-1.99 3.02v2.51h3.23c1.89-1.74 2.98-4.3 2.98-7.52z"/><Path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.43l-3.23-2.51c-.9.6-2.04.95-3.39.95-2.6 0-4.8-1.76-5.59-4.12H3.07v2.59A10 10 0 0 0 12 22z"/><Path fill="#FBBC05" d="M6.41 13.89A6.01 6.01 0 0 1 6.1 12c0-.66.11-1.3.31-1.89V7.52H3.07A10 10 0 0 0 2 12c0 1.61.39 3.14 1.07 4.48l3.34-2.59z"/><Path fill="#EA4335" d="M12 5.99c1.47 0 2.79.51 3.83 1.5l2.87-2.87C16.96 3.01 14.7 2 12 2a10 10 0 0 0-8.93 5.52l3.34 2.59C7.2 7.75 9.4 5.99 12 5.99z"/></Svg>;
-
-function randomOAuthValue() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-function readOAuthParam(url: string, key: string) {
-  const parts = url.split(/[?#]/).slice(1).join('&').split('&');
-  for (const part of parts) {
-    const [rawKey, rawValue = ''] = part.split('=');
-    if (decodeURIComponent(rawKey) === key) return decodeURIComponent(rawValue.replace(/\+/g, ' '));
-  }
-  return null;
-}
 
 // â”€â”€ Floating orbs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Orbs({ color }: { color: string }) {
@@ -135,6 +130,12 @@ export function UserAuthScreen({
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<'landing' | 'login' | 'signup' | 'forgot'>('landing');
   const [loading, setLoading] = useState(false);
+  const [googleRequest, googleResponse, promptGoogle] = Google.useIdTokenAuthRequest({
+    iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID || undefined,
+    webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
+    selectAccount: true,
+  });
 
   const theme = THEMES[role];
   const P1   = theme.p1;
@@ -371,48 +372,50 @@ export function UserAuthScreen({
     }
   };
 
+  useEffect(() => {
+    if (!googleResponse) return;
+
+    if (googleResponse.type !== 'success') {
+      if (googleResponse.type === 'error') {
+        setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message: tx('Google could not complete sign-in. Please try again.') });
+      }
+      setLoading(false);
+      return;
+    }
+
+    const idToken = googleResponse.params?.id_token;
+    if (!idToken) {
+      setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message: tx('Google did not return a sign-in token.') });
+      setLoading(false);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const res = await authApi.loginWithGoogleCustomer(idToken);
+        (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = res.user;
+        onAuthenticated('user', { passwordConfigured: Boolean(res.user?.hasPassword), passwordValue: '' });
+      } catch (e: any) {
+        setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message: e?.message || tx('Please try again.') });
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [googleResponse, onAuthenticated, tx]);
+
   const continueWithGoogle = async () => {
     if (role !== 'user') {
       setDialog({ visible: true, variant: 'info', title: tx('Customer only'), message: tx('Google signup is available for customer accounts only.') });
       return;
     }
-    if (!GOOGLE_WEB_CLIENT_ID) {
-      setDialog({ visible: true, variant: 'error', title: tx('Google not configured'), message: tx('Please set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in the app environment.') });
+    if (!getGoogleClientId() || !googleRequest) {
+      setDialog({ visible: true, variant: 'error', title: tx('Google not configured'), message: tx('Google sign-in is not available in this app build. Please update the app and try again.') });
       return;
     }
 
     setLoading(true);
     try {
-      const redirectUri = Linking.createURL('google-auth');
-      const nonce = randomOAuthValue();
-      const state = randomOAuthValue();
-      const params = new URLSearchParams({
-        client_id: GOOGLE_WEB_CLIENT_ID,
-        redirect_uri: redirectUri,
-        response_type: 'id_token',
-        scope: 'openid email profile',
-        nonce,
-        state,
-        prompt: 'select_account',
-      });
-      const result = await WebBrowser.openAuthSessionAsync(
-        `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
-        redirectUri,
-      );
-
-      if (result.type !== 'success') {
-        setLoading(false);
-        return;
-      }
-      if (readOAuthParam(result.url, 'state') !== state) {
-        throw new Error('Google sign-in security check failed.');
-      }
-      const idToken = readOAuthParam(result.url, 'id_token');
-      if (!idToken) throw new Error('Google did not return a sign-in token.');
-
-      const res = await authApi.loginWithGoogleCustomer(idToken);
-      (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = res.user;
-      onAuthenticated('user', { passwordConfigured: Boolean(res.user?.hasPassword), passwordValue: '' });
+      await promptGoogle();
     } catch (e: any) {
       setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message: e?.message || tx('Please try again.') });
     } finally {

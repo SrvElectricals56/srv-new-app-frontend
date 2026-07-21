@@ -356,7 +356,10 @@ function buildCategories(
   const merged = new Map<string, UiCategory>();
 
   apiCategories.forEach((category) => {
-    const id = category.categoryId ?? category.slug ?? category.id;
+    // Product.category is stored as the category label in production. Do not
+    // use metadata UUIDs/slugs for the UI filter, otherwise valid categories
+    // such as Voltage Stabilizer display an empty product list.
+    const id = category.label || category.categoryId || category.slug || category.id;
     merged.set(id, {
       id,
       label: category.label || CATEGORY_LABELS[id] || id,

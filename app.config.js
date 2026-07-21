@@ -4,13 +4,12 @@ module.exports = ({ config }) => {
   return {
     ...config,
     name: isStaging ? 'SRV Electricals Staging' : config.name,
-    icon: './assets/app-icon.png',
+    icon: './assets/srv-mark-final.png',
     ios: {
       ...config.ios,
       bundleIdentifier: isStaging
         ? 'com.srvelectricals.app.staging'
         : config.ios.bundleIdentifier,
-      buildNumber: '13',
       supportsTablet: false,
       infoPlist: {
         ...config.ios.infoPlist,

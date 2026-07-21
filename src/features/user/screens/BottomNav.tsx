@@ -183,7 +183,7 @@ function CategoriesButton({
         accessibilityRole="button"
         accessibilityLabel="User bottom navigation categories"
         accessibilityState={{ selected: isActive }}
-        style={[catStyles.pressArea, compact && catStyles.pressAreaCompact, { marginTop: compact ? -14 : -20 }]}
+        style={[catStyles.pressArea, compact && catStyles.pressAreaCompact, { marginTop: compact ? -6 : -10 }]}
       >
         <Animated.View
           style={[
@@ -215,7 +215,7 @@ const catStyles = StyleSheet.create({
   wrapperCompact: { width: 60 },
   ring: {
     position: 'absolute',
-    top: -22,
+    top: -12,
     width: 60,
     height: 60,
     borderRadius: 18,
@@ -223,7 +223,7 @@ const catStyles = StyleSheet.create({
     zIndex: 0,
   },
   ringCompact: { borderRadius: 14 },
-  pressArea: { marginTop: -20, marginBottom: 5, zIndex: 1 },
+  pressArea: { marginTop: -10, marginBottom: 5, zIndex: 1 },
   pressAreaCompact: { marginBottom: 3 },
   btn: {
     width: 60,

@@ -24,7 +24,6 @@ import { createShadow } from '@/shared/theme/shadows';
 import type { Screen } from '@/shared/types/navigation';
 import { electriciansApi } from '@/shared/api';
 import { formatISTDate } from '@/shared/utils/dateIST';
-import { useAppData } from '@/shared/context/AppDataContext';
 import { useAppPageContent } from '@/shared/hooks';
 
 type ElectricianStatus = 'Active' | 'Inactive' | 'Pending';
@@ -60,14 +59,6 @@ function TeamIcon({ color = '#FFFFFF', size = 24 }: { color?: string; size?: num
         strokeWidth={1.6}
         strokeLinecap="round"
       />
-    </Svg>
-  );
-}
-
-function PlusIcon({ color = '#173E80', size = 18 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 5V19M5 12H19" stroke={color} strokeWidth={2.1} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -159,7 +150,6 @@ function isInNetworkPeriod(item: Electrician, period: NetworkPeriodFilter) {
 export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Screen) => void }) {
   const { tx, darkMode, theme } = usePreferenceContext();
   const { user: authUser } = useAuth();
-  const { appSettings } = useAppData();
   const pageContent = useAppPageContent('dealer', 'electricians');
   const [electricians, setElectricians] = useState<Electrician[]>([]);
   const [apiLoaded, setApiLoaded] = useState(false);
@@ -385,19 +375,6 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
           <Text style={styles.heroSub}>
             {tx('Review connected electricians and monitor their network activity from one place.')}
           </Text>
-          {appSettings?.dealerCanAddElectrician !== false && (
-            <TouchableOpacity
-              style={styles.heroButton}
-              onPress={() => {
-                resetForm();
-                setShowAddModal(true);
-              }}
-              activeOpacity={0.9}
-            >
-              <PlusIcon />
-              <Text style={styles.heroButtonText}>{pageContent.primaryCtaLabel || tx('Add Electrician')}</Text>
-            </TouchableOpacity>
-          )}
         </LinearGradient>
 
         <View style={styles.statsRow}>

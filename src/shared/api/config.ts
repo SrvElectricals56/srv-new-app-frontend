@@ -27,7 +27,15 @@ export function resolveImageUrl(value?: string | null): string | null {
   if (!s) return null;
   s = s.replace(/\\/g, '/');
   if (/^data:image\//i.test(s)) return s;
-  if (/^https?:\/\//i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) {
+    // Serialise absolute legacy URLs so filenames with spaces are encoded for
+    // native image loaders on both iOS and Android.
+    try {
+      return new URL(s).toString();
+    } catch {
+      return s;
+    }
+  }
   if (s.startsWith('//')) return `https:${s}`;
   const origin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
   if (s.startsWith('/')) return `${origin}${s}`;

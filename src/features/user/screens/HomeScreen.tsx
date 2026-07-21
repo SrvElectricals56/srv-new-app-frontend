@@ -270,7 +270,7 @@ const homeCatStyles = StyleSheet.create({
   pillText: { fontSize: 10, fontWeight: '700' },
 });
 
-const logoImage = require('../../../../assets/srv logo white.jpeg');
+const logoImage = require('../../../../assets/srv-mark-final.png');
 
 const API_BASE_HOST = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
 
@@ -546,7 +546,10 @@ export function HomeScreen({
     const merged = new Map<string, { id: string; label: string; imageUrl?: string | null }>();
 
     ctxCategories.forEach((category) => {
-      const id = category.categoryId ?? category.slug ?? category.id;
+      // The mobile API exposes a slug for category metadata, while products
+      // retain their human-readable category value. Navigation must use the
+      // latter or a category tab can open with no matching products.
+      const id = category.label || category.categoryId || category.slug || category.id;
       merged.set(id, {
         id,
         label: category.label || CATEGORY_LABELS[id] || id,

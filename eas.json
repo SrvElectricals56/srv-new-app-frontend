@@ -23,7 +23,7 @@
       }
     },
     "production": {
-      "autoIncrement": true,
+      "autoIncrement": false,
       "env": {
         "EXPO_USE_COMMUNITY_AUTOLINKING": "1",
         "EXPO_PUBLIC_API_URL": "https://api.srvelectricals.in/api/v1",

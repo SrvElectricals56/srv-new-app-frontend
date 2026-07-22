@@ -39,10 +39,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.srvelectricals.app",
-      "buildNumber": "19"
+      "buildNumber": "20"
     },
     "android": {
-      "versionCode": 23,
+      "versionCode": 24,
       "allowBackup": false,
       "googleServicesFile": "./android/app/google-services.json",
       "softwareKeyboardLayoutMode": "resize",

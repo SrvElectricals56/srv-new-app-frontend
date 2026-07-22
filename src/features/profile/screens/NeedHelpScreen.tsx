@@ -361,9 +361,10 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       >
         <PageHeader title={selectedTicket.subject} onBack={() => setSelectedTicket(null)} />
         <FlatList
+          style={{ flex: 1 }}
           data={messages}
           keyExtractor={(_, i) => String(i)}
-          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 188 }}
+          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 20 }}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={(
             <LinearGradient
@@ -441,7 +442,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         />
 
         {/* Chat Input + Close Button */}
-        <View style={[styles.ticketComposer, { bottom: TICKET_DETAIL_NAV_CLEARANCE, backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[styles.ticketComposer, { marginBottom: TICKET_DETAIL_NAV_CLEARANCE, backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={[styles.composerLabelRow, { borderBottomColor: theme.border }]}>
             <Text style={[styles.composerLabel, { color: theme.textPrimary }]}>{isTicketClosed ? tx('Ticket closed') : tx('Reply to support')}</Text>
             {!isTicketClosed ? <Text style={[styles.composerHint, { color: theme.textMuted }]}>{tx('Your reply is sent securely')}</Text> : null}
@@ -1029,9 +1030,7 @@ const styles = StyleSheet.create({
   chatTime: { fontSize: 10, marginTop: 4, fontWeight: '700' },
   chatTimeUser: { textAlign: 'right' },
   ticketComposer: {
-    position: 'absolute',
-    left: 10,
-    right: 10,
+    marginHorizontal: 10,
     borderWidth: 1,
     borderRadius: 22,
     padding: 12,

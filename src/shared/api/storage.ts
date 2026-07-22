@@ -114,19 +114,17 @@ export const storage = {
 
   async clearAll() {
     const allKeys = await safeGetAllKeys();
-    const scopedKeys = allKeys.filter(
-      (key) =>
-        key.startsWith(`${KEYS.PASSWORD_CONFIGURED_PREFIX}:`) ||
-        key.startsWith(`${KEYS.SEEN_NOTIFICATION_IDS_PREFIX}:`) ||
-        key.startsWith(`${KEYS.CLEARED_NOTIFICATION_IDS_PREFIX}:`),
+    const scopedKeys = allKeys.filter((key) =>
+      key.startsWith(`${KEYS.PASSWORD_CONFIGURED_PREFIX}:`),
     );
     const directKeys = [
       KEYS.ACCESS_TOKEN,
       KEYS.REFRESH_TOKEN,
       KEYS.USER_PROFILE,
       KEYS.USER_ROLE,
-      KEYS.PUSH_NOTIFICATIONS_ENABLED,
     ];
+    // Notification read/clear state and the push preference are durable device
+    // preferences. Removing them here makes old notifications reappear later.
     await Promise.all([...directKeys, ...scopedKeys].map(safeRemove));
   },
 

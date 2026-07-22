@@ -48,8 +48,8 @@ type SignupStep =
   | 'otp'
   | 'password';
 
-const PASSWORD_RULE_MESSAGE = 'Please enter a minimum 8 character password.';
-const isValidPassword = (value: string) => /^\S{8,}$/.test(value);
+const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters and include one capital letter and one special character.';
+const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
 const cleanPasswordInput = (value: string) => value.replace(/\s/g, '');
 const showPasswordRuleAlert = () => {
   Alert.alert('Password Required', PASSWORD_RULE_MESSAGE);
@@ -2998,7 +2998,16 @@ export function OnboardingScreen({
       <Modal visible={forgotVisible} transparent animationType="fade" onRequestClose={() => setForgotVisible(false)}>
         <View style={s.forgotOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setForgotVisible(false)} />
-          <View style={s.forgotCard}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={s.forgotKav}
+          >
+          <ScrollView
+            style={s.forgotScroll}
+            contentContainerStyle={s.forgotCard}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={s.forgotHandle} />
             <Text style={s.forgotTitle}>{tx('Forgot Password')}</Text>
             <Text style={s.forgotSubtitle}>
@@ -3079,7 +3088,8 @@ export function OnboardingScreen({
                 <Text style={s.forgotResendText}>{tx('Resend OTP')}</Text>
               </Pressable>
             ) : null}
-          </View>
+          </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>
@@ -3096,6 +3106,8 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(15,23,42,0.48)',
   },
+  forgotKav: { width: '100%', maxHeight: '92%' },
+  forgotScroll: { width: '100%' },
   forgotCard: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 28,

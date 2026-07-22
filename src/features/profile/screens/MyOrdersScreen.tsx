@@ -583,8 +583,11 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
               <Text style={[styles.infoText, { color: theme.textSecondary }]}>
                 {isStopped || isRefundInProgress
                   ? `${selectedOrder.rejectionReason ? `${tx('Reason')}: ${selectedOrder.rejectionReason}\n` : ''}${getCustomerActionMessage(selectedOrder)}`
-                  : selectedOrder.trackingNumber
-                  ? `${tx('Tracking ID')}: ${selectedOrder.trackingNumber}`
+                  : selectedOrder.courierName || selectedOrder.trackingNumber
+                  ? [
+                      selectedOrder.courierName ? `${tx('Courier Partner')}: ${selectedOrder.courierName}` : '',
+                      selectedOrder.trackingNumber ? `${tx('Tracking ID')}: ${selectedOrder.trackingNumber}` : '',
+                    ].filter(Boolean).join('\n')
                   : tx('Delivery Executive details will be available once the order is out for delivery')}
               </Text>
             </View>

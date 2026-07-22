@@ -51,8 +51,8 @@ type SignupStep =
   | 'otp'
   | 'password';
 
-const PASSWORD_RULE_MESSAGE = 'Please enter a minimum 8 character password.';
-const isValidPassword = (value: string) => /^\S{8,}$/.test(value);
+const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters and include one capital letter and one special character.';
+const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
 const cleanPasswordInput = (value: string) => value.replace(/\s/g, '');
 const showPasswordRuleAlert = () => {
   Alert.alert('Password Required', PASSWORD_RULE_MESSAGE);
@@ -3016,7 +3016,12 @@ export function OnboardingScreen({
       <Modal visible={forgotVisible} transparent animationType="fade" onRequestClose={closeForgotPassword}>
         <View style={s.forgotBackdrop}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.forgotKav}>
-            <View style={s.forgotCard}>
+            <ScrollView
+              style={s.forgotScroll}
+              contentContainerStyle={s.forgotCard}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View style={s.forgotIconWrap}>
                 <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
                   <Path d="M7 11V8A5 5 0 0 1 17 8V11" stroke="#2C6BE7" strokeWidth={2} strokeLinecap="round" />
@@ -3101,7 +3106,7 @@ export function OnboardingScreen({
                   <Text style={s.forgotLinkText}>{tx('Resend OTP')}</Text>
                 </Pressable>
               ) : null}
-            </View>
+            </ScrollView>
           </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -3439,7 +3444,8 @@ const s = StyleSheet.create({
   forgotLinkWrap: { alignSelf: 'flex-end', paddingVertical: 2, paddingHorizontal: 4, marginTop: -6 },
   forgotLinkText: { color: '#2C6BE7', fontSize: 12.5, fontWeight: '900' },
   forgotBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.56)', justifyContent: 'center', padding: 18 },
-  forgotKav: { width: '100%' },
+  forgotKav: { width: '100%', maxHeight: '92%' },
+  forgotScroll: { width: '100%' },
   forgotCard: {
     borderRadius: 26,
     backgroundColor: '#FFFFFF',

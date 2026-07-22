@@ -168,13 +168,6 @@ export const settingsItems: (ProfileMenuItem & { screen: SubPage; badge?: boolea
     bg: C.tealLight,
     screen: 'Contact Support',
   },
-  {
-    label: 'Delete Account',
-    icon: 'warning',
-    color: C.error,
-    bg: C.errorLight,
-    screen: 'Delete Account',
-  },
   { label: 'Privacy Policy', icon: 'lock', color: C.muted, bg: C.bg, screen: 'Privacy Policy' },
 ];
 

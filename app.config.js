@@ -16,5 +16,13 @@ module.exports = ({ config }) => {
         ITSAppUsesNonExemptEncryption: false,
       },
     },
+    android: {
+      ...config.android,
+      icon: './assets/srv-mark-final.png',
+      adaptiveIcon: {
+        foregroundImage: './assets/srv-mark-final.png',
+        backgroundColor: '#FFFFFF',
+      },
+    },
   };
 };

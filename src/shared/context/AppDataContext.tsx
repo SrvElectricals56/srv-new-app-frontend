@@ -245,20 +245,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       } else if (Array.isArray(giftRaw?.products)) {
         giftProductsData = giftRaw.products;
       }
-      // Fallback: if no gift products from API, show reward schemes as gifts
-      if (giftProductsData.length === 0 && Array.isArray(schemes?.data)) {
-        giftProductsData = schemes.data.map((s: RewardScheme) => ({
-          id: s.id,
-          name: s.name,
-          description: s.description,
-          imageUrl: s.imageUrl ?? null,
-          pointsRequired: s.pointsCost,
-          mrp: s.mrp ?? 0,
-          stock: s.active ? 999 : 0,
-          badge: '',
-          targetRole: 'all',
-        }));
-      }
+      // Empty is a valid role-specific result. Never replace it with a global
+      // reward list, otherwise gifts configured for another role leak in.
 
       debugLog('✅ Public data loaded:', {
         products: prods.data?.length || 0,

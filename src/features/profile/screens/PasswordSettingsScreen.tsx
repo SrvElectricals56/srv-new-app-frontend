@@ -130,11 +130,13 @@ type StrengthRule = {
 
 const strengthRules: StrengthRule[] = [
   { label: 'At least 8 characters', test: (p) => p.length >= 8 },
+  { label: 'One capital letter', test: (p) => /[A-Z]/.test(p) },
+  { label: 'One special character', test: (p) => /[^A-Za-z0-9]/.test(p) },
   { label: 'No spaces allowed', test: (p) => !/\s/.test(p) },
 ];
 
-const PASSWORD_RULE_MESSAGE = 'Please enter a minimum 8 character password.';
-const isStrongPassword = (value: string) => /^\S{8,}$/.test(value);
+const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters and include one capital letter and one special character.';
+const isStrongPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
 const cleanPasswordInput = (value: string) => value.replace(/\s/g, '');
 
 function getStrengthLevel(password: string): { level: number; color: string } {

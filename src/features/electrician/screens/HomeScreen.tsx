@@ -453,12 +453,14 @@ export function HomeScreen({
   const insets = useSafeAreaInsets();
   const [apiBannerSlides, setApiBannerSlides] = useState<{ image: { uri: string }; resizeMode: 'cover' | 'contain'; backgroundColor: string }[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
   const homeScrollRef = useRef<ScrollView>(null);
   useRegisterScrollToTop('home', homeScrollRef);
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
       await refreshAll();
+      setLeaderboardRefreshKey(current => current + 1);
     } finally {
       setRefreshing(false);
     }
@@ -695,7 +697,7 @@ export function HomeScreen({
       ) : null,
       quick_actions: (
         <Fragment key="quick_actions">
-        <TopFiveLeaderboard role="electrician" darkMode={darkMode} />
+        <TopFiveLeaderboard role="electrician" darkMode={darkMode} refreshKey={leaderboardRefreshKey} />
         <View style={styles.quickGrid}>
           {quickActions.map((item) => {
             const Icon = item.icon;
@@ -774,7 +776,7 @@ export function HomeScreen({
       .filter(Boolean) as React.ReactNode[];
   }, [
     homeSections, authUser, apiBannerSlides, heroImageHeight, darkMode,
-    quickActions, cardW, categories, pageContent, showProduct,
+    quickActions, cardW, categories, pageContent, showProduct, leaderboardRefreshKey,
     displayedCategories, catCardW, showTestimonials, testimonials,
     onNavigate, onOpenProductCategory, tx,
   ]);

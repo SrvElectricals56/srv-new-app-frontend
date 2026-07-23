@@ -1,20 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
 import { leaderboardApi, type TopFiveMember } from '@/shared/api/services';
 import type { UserRole } from '@/shared/types/navigation';
 
-export function TopFiveLeaderboard({ role, darkMode = false }: { role: UserRole; darkMode?: boolean }) {
+export function TopFiveLeaderboard({
+  role,
+  darkMode = false,
+  refreshKey = 0,
+}: {
+  role: UserRole;
+  darkMode?: boolean;
+  refreshKey?: number;
+}) {
   const [rows, setRows] = useState<TopFiveMember[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-    leaderboardApi.getTopFive(role)
-      .then(data => { if (active) setRows(Array.isArray(data) ? data : []); })
-      .catch(() => { if (active) setRows([]); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [role]);
+    const load = () => {
+      leaderboardApi.getTopFive(role)
+        .then(data => { if (active) setRows(Array.isArray(data) ? data : []); })
+        .catch(() => { if (active) setRows([]); })
+        .finally(() => { if (active) setLoading(false); });
+    };
+    load();
+    const appStateSubscription = AppState.addEventListener('change', state => {
+      if (state === 'active') load();
+    });
+    return () => {
+      active = false;
+      appStateSubscription.remove();
+    };
+  }, [role, refreshKey]);
 
   if (!loading && rows.length === 0) return null;
   const title = role === 'dealer' ? 'Top 5 Dealers' : role === 'user' ? 'Top 5 Customers' : role === 'counterboy' ? 'Top 5 Counter Boys' : 'Top 5 Electricians';

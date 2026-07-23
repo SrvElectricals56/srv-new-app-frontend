@@ -7,6 +7,7 @@ module.exports = ({ config }) => {
     icon: './assets/srv-mark-final.png',
     ios: {
       ...config.ios,
+      icon: './assets/srv-logo-ios.png',
       bundleIdentifier: isStaging
         ? 'com.srvelectricals.app.staging'
         : config.ios.bundleIdentifier,

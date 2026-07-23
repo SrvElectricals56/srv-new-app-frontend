@@ -169,6 +169,7 @@ export const settingsItems: (ProfileMenuItem & { screen: SubPage; badge?: boolea
     screen: 'Contact Support',
   },
   { label: 'Privacy Policy', icon: 'lock', color: C.muted, bg: C.bg, screen: 'Privacy Policy' },
+  { label: 'Delete Account', icon: 'warning', color: C.error, bg: '#FFF0F0', screen: 'Delete Account' },
 ];
 
 export const detailRows: ProfileDetailRow[] = [

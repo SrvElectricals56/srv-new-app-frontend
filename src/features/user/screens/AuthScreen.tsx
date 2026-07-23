@@ -628,7 +628,7 @@ export function UserAuthScreen({
             <Text style={[S.btnOutlineText, { color: P1 }]}>{tx('Create New Account')}</Text>
           </Pressable>
 
-          {role === 'user' ? (
+          {role === 'user' && Platform.OS !== 'ios' ? (
             <Pressable
               onPress={continueWithGoogle}
               disabled={loading}
@@ -1040,7 +1040,7 @@ export function UserAuthScreen({
             </Pressable>
           )}
 
-          {role === 'user' && (isLogin || isSignup) ? (
+          {role === 'user' && Platform.OS !== 'ios' && (isLogin || isSignup) ? (
             <Pressable
               onPress={continueWithGoogle}
               disabled={loading}

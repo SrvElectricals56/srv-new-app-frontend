@@ -136,12 +136,48 @@ export function ContactSupportPage({ onBack }: { onBack: () => void }) {
   ], [headOffice, supportEmail, supportPhone, tx]);
   const faqData = [
     {
-      q: tx('Q1. What is SRV Electricals?'),
-      a: tx('SRV Electricals is a leading manufacturer of electrical products.'),
+      q: tx('What is SRV Electricals?'),
+      a: tx('SRV Electricals is an Indian electrical-products manufacturer established in 2000. The company supplies reliable products for residential, commercial and industrial installations.'),
     },
     {
-      q: tx('Q2. What products do you manufacture?'),
-      a: tx('We manufacture MCB boxes, junction boxes and more.'),
+      q: tx('Which products are available in the app?'),
+      a: tx('You can browse fan boxes, concealed and modular boxes, MCB distribution boxes, bus bars, ventilation and industrial fans, stabilizers, switchgear, lighting products and other electrical accessories.'),
+    },
+    {
+      q: tx('How do QR rewards work?'),
+      a: tx('Sign in with the correct role, open the scanner and scan the genuine QR code printed on an eligible SRV product. Valid points are credited to your wallet after successful verification. Each QR code can be redeemed only once.'),
+    },
+    {
+      q: tx('Where can I see my points and wallet history?'),
+      a: tx('Open Wallet from the bottom navigation to view your available balance and transaction history. Pull down to refresh if you have just scanned a QR code or received transferred points.'),
+    },
+    {
+      q: tx('How can I redeem a gift?'),
+      a: tx('Open Gift Store, select a gift available for your role, confirm that you have enough points and submit the redemption. Gift redemptions and their delivery updates are shown separately under Gift Store Order.'),
+    },
+    {
+      q: tx('Which payment methods are supported?'),
+      a: tx('Online product purchases are processed securely through Razorpay using supported UPI, card, netbanking or wallet options. An order is confirmed only after the payment is successfully verified.'),
+    },
+    {
+      q: tx('What happens if I cancel or close Razorpay?'),
+      a: tx('Closing the payment window does not confirm an order and no successful purchase will appear in My Orders. You can return to checkout and try again whenever you are ready.'),
+    },
+    {
+      q: tx('How can I cancel, return or request a refund?'),
+      a: tx('Open My Orders, select the relevant product order and choose an available action. Cancellation is available for eligible active orders, while returns and refunds depend on delivery and payment status. Add a clear reason before submitting.'),
+    },
+    {
+      q: tx('Where can I download the latest catalogue?'),
+      a: tx('Tap Product Catalog on the home page to open the latest SRV catalogue. The catalogue contains the current product range and is updated by SRV administrators.'),
+    },
+    {
+      q: tx('What should I do if an OTP is delayed?'),
+      a: tx('Confirm that the mobile number is correct, wait for the SMS and use only the latest OTP within its validity period. If it expires, request a fresh OTP and avoid pressing Verify more than once.'),
+    },
+    {
+      q: tx('How do I contact support?'),
+      a: tx('Use the phone, WhatsApp or email options in Contact Us, or open Need Help to create a support ticket. Include your registered mobile number and order or QR details so the team can assist quickly.'),
     },
   ];
 

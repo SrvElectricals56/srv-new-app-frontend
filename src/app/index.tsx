@@ -454,6 +454,22 @@ function AppContent() {
   }, [hideNotificationBanner, notificationBanner]);
 
   useEffect(() => {
+    if (!notificationBanner || !user?.id || !authRole) return;
+    const visibleNotificationId = notificationBanner.id;
+    const timer = setTimeout(() => {
+      const notifScope = `${authRole}:${user.id}`;
+      void storage.markNotificationsAsSeen([visibleNotificationId], notifScope).then(() => {
+        setUnreadNotifCount((count) => {
+          const nextCount = Math.max(0, count - 1);
+          setHasUnreadNotif(nextCount > 0);
+          return nextCount;
+        });
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [authRole, notificationBanner, user?.id]);
+
+  useEffect(() => {
     if (!isAuthenticated || !user || isPreviewMode) return;
     let subscription: { remove: () => void } | null = null;
     void (async () => {

@@ -323,28 +323,32 @@ export function CheckoutScreen({
 
         let paymentResponse;
         try {
-        const checkoutOptions = {
-          key: paymentOrder.keyId,
-          amount: paymentOrder.amount,
-          currency: paymentOrder.currency,
-          name: paymentOrder.businessName,
-          description: isCartCheckout
-            ? `${tx('Cart item')}: ${line.name} x ${line.qty}`
-            : paymentOrder.description,
-          order_id: paymentOrder.razorpayOrderId,
-          prefill: paymentOrder.prefill,
-          method: 'upi',
-          retry: { enabled: true, max_count: 3 },
-          theme: { color: theme.primary },
-        };
-        // Razorpay supports `method`, but v3's bundled TypeScript definition omits it.
-        paymentResponse = await RazorpayCheckout.open(checkoutOptions as any);
+          const checkoutOptions = {
+            key: paymentOrder.keyId,
+            amount: paymentOrder.amount,
+            currency: paymentOrder.currency,
+            name: paymentOrder.businessName,
+            description: isCartCheckout
+              ? `${tx('Cart item')}: ${line.name} x ${line.qty}`
+              : paymentOrder.description,
+            order_id: paymentOrder.razorpayOrderId,
+            prefill: paymentOrder.prefill,
+            retry: { enabled: true, max_count: 3 },
+            theme: { color: theme.primary },
+          };
+          paymentResponse = await RazorpayCheckout.open(checkoutOptions as any);
         } catch (paymentError: any) {
           await catalogApi.recordRazorpayFailure({
             productOrderId: paymentOrder.productOrderId,
             reason: paymentError?.description || paymentError?.message || 'Payment cancelled',
           }).catch(() => undefined);
-          throw paymentError;
+          setDialog({
+            visible: true,
+            variant: 'info',
+            title: tx('Payment not completed'),
+            message: tx('The payment was cancelled or could not be completed. No order has been confirmed and you have not been charged.'),
+          });
+          return;
         }
 
         await catalogApi.verifyRazorpayPayment({
@@ -367,11 +371,15 @@ export function CheckoutScreen({
         completeOnClose: true,
       });
     } catch (error: any) {
+      const safeMessage =
+        typeof error?.message === 'string' && !error.message.trim().startsWith('{')
+          ? error.message
+          : tx('The payment could not be completed. Please try again.');
       setDialog({
         visible: true,
         variant: 'error',
         title: tx('Payment failed'),
-        message: error?.description || error?.message || tx('Please try again.'),
+        message: safeMessage,
       });
     } finally {
       setPlacing(false);

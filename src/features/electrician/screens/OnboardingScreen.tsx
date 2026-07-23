@@ -773,6 +773,7 @@ export function OnboardingScreen({
   const [dealerLoginMethod, setDealerLoginMethod] = useState<LoginMethod>(null);
   const activeLoginMethod = role === 'electrician' ? electricianLoginMethod : dealerLoginMethod;
   const [loading, setLoading] = useState(false);
+  const otpVerificationInFlightRef = useRef(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [forgotVisible, setForgotVisible] = useState(false);
@@ -1442,8 +1443,10 @@ export function OnboardingScreen({
 
   const verifyLoginOtp = () => {
     dismissKeyboard();
+    if (otpVerificationInFlightRef.current) return;
     if (loginOtp.length !== 4) return setError('loginOtp', 'Enter the 4-digit OTP to continue.');
     setError('loginOtp');
+    otpVerificationInFlightRef.current = true;
     setLoading(true);
     authApi.verifyOtp(loginPhone, role, loginOtp)
       .then((res) => {
@@ -1453,7 +1456,10 @@ export function OnboardingScreen({
       .catch((err: Error) => {
         setError('loginOtp', err.message || 'Invalid OTP. Please try again.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        otpVerificationInFlightRef.current = false;
+        setLoading(false);
+      });
   };
 
   const verifyDealer = () => {
@@ -1526,10 +1532,12 @@ export function OnboardingScreen({
 
   const verifySignupOtp = () => {
     dismissKeyboard();
+    if (otpVerificationInFlightRef.current) return;
     if (!signupOtpSent) return setError('signupOtp', 'Please verify your mobile number first.');
     if (signupOtp.length !== 4)
       return setError('signupOtp', 'Enter the 4-digit OTP to verify your number.');
     setError('signupOtp');
+    otpVerificationInFlightRef.current = true;
     setLoading(true);
     authApi
       .verifySignupOtp(signupPhone, role, signupOtp)
@@ -1540,7 +1548,10 @@ export function OnboardingScreen({
       .catch((err: Error) => {
         setError('signupOtp', err.message || 'Invalid OTP. Please try again.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        otpVerificationInFlightRef.current = false;
+        setLoading(false);
+      });
   };
 
   const continueSignup = () => {

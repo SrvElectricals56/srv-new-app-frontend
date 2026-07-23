@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { ordersApi, type UserOrder } from '@/shared/api';
@@ -630,8 +630,18 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
           </View>
         </ScrollView>
         <Modal transparent visible={confirmAction !== null} animationType="fade" onRequestClose={() => setConfirmAction(null)}>
-          <View style={styles.modalOverlay}>
-            <View style={[styles.confirmCard, { backgroundColor: theme.surface }]}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+          >
+            <ScrollView
+              style={styles.confirmScroll}
+              contentContainerStyle={styles.confirmScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={[styles.confirmCard, { backgroundColor: theme.surface }]}>
               <View style={[styles.confirmIcon, { backgroundColor: activeActionConfig?.soft ?? theme.soft }]}>
                 <AppIcon name="order" size={24} color={activeActionConfig?.accent ?? C.primary} />
               </View>
@@ -694,8 +704,9 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
                   </TouchableOpacity>
                 ) : null}
               </View>
-            </View>
-          </View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </Modal>
       </View>
     );
@@ -917,10 +928,10 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
   },
+  confirmScroll: { flexGrow: 0, maxHeight: '100%' },
+  confirmScrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   confirmCard: { width: '100%', maxWidth: 360, borderRadius: 24, padding: 22, alignItems: 'center', gap: 12 },
   confirmIcon: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   confirmTitle: { fontSize: 21, fontWeight: '900', textAlign: 'center' },

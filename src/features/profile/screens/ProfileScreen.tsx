@@ -32,6 +32,7 @@ import {
   usePreferenceValue,
 } from '@/shared/preferences';
 import { AppSettingsPage } from './AppSettingsScreen';
+import { AccountDeletionPage } from './AccountDeletionScreen';
 import { BankDetailsPage } from './BankDetailsScreen';
 import { BankTransferRequestPage } from './BankTransferRequestScreen';
 import { ContactSupportPage } from './ContactSupportScreen';
@@ -781,6 +782,7 @@ export function ProfileScreen({
     'Scan History': <ScanHistoryPage onBack={() => setSubPage(null)} />,
     'Contact Support': <ContactSupportPage onBack={() => setSubPage(null)} />,
     'Privacy Policy': <PrivacyPolicyPage onBack={() => setSubPage(null)} />,
+    'Request Account Deletion': <AccountDeletionPage onBack={() => setSubPage(null)} />,
     'Rate Us': <RateUsPage onBack={() => setSubPage(null)} onHome={() => onNavigate('home')} />,
     'KYC Verification': <KYCVerificationScreen onBack={() => setSubPage(null)} currentRole={currentRole} />,
   };

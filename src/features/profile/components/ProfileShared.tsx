@@ -69,6 +69,7 @@ export type SubPage =
   | 'Scan History'
   | 'Contact Support'
   | 'Privacy Policy'
+  | 'Request Account Deletion'
   | 'Rate Us'
   | 'KYC Verification';
 

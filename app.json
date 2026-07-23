@@ -42,7 +42,7 @@
       "buildNumber": "24"
     },
     "android": {
-      "versionCode": 27,
+      "versionCode": 28,
       "allowBackup": false,
       "googleServicesFile": "./android/app/google-services.json",
       "softwareKeyboardLayoutMode": "resize",

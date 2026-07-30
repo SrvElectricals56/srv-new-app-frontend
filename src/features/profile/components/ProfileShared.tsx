@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
 import type { Screen } from '@/shared/types/navigation';
 
@@ -884,11 +885,12 @@ export function AppIcon({
 
 export function PageHeader({ title, onBack }: { title: string; onBack: () => void }) {
   const { theme } = usePreferenceContext();
+  const insets = useSafeAreaInsets();
   return (
     <View
       style={[
         shared.header,
-        { backgroundColor: theme.bg, borderBottomColor: theme.border, paddingTop: 12 },
+        { backgroundColor: theme.bg, borderBottomColor: theme.border, paddingTop: Math.max(insets.top, 12) },
       ]}
     >
       <TouchableOpacity

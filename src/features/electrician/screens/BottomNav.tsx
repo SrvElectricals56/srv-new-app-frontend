@@ -459,7 +459,7 @@ export function BottomNav({
             onPress={() => onNavigate(item.id)}
             testID={item.testID}
             accessibilityLabel={item.accessibilityLabel}
-            compact={isShortDevice}
+            compact={isShortDevice || isSmallDevice}
           />
         ))}
       </View>
@@ -468,7 +468,7 @@ export function BottomNav({
         <ScanButton
           isActive={currentScreen === 'scan'}
           onPress={() => onNavigate('scan')}
-          compact={isShortDevice}
+          compact={isShortDevice || isSmallDevice}
         />
       ) : null}
 
@@ -482,7 +482,7 @@ export function BottomNav({
             onPress={() => onNavigate(item.id)}
             testID={item.testID}
             accessibilityLabel={item.accessibilityLabel}
-            compact={isShortDevice}
+            compact={isShortDevice || isSmallDevice}
           />
         ))}
       </View>

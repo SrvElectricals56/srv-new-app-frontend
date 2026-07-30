@@ -663,8 +663,9 @@ export function ScanScreen({
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 1,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
     });
 
     if (result.canceled || !result.assets?.length) {
@@ -683,9 +684,9 @@ export function ScanScreen({
         completeScan(matches[0]?.data);
         return;
       }
-      setDialog({ visible: true, variant: 'info', title: tx('Scan QR Code'), message: tx('Align QR code within the frame') });
+      setDialog({ visible: true, variant: 'info', title: tx('QR not detected'), message: tx('Crop closely around the QR code and choose the image again. Make sure the full square is visible and in focus.') });
     } catch {
-      setDialog({ visible: true, variant: 'error', title: tx('Scan QR Code'), message: tx('Align QR code within the frame') });
+      setDialog({ visible: true, variant: 'error', title: tx('QR not detected'), message: tx('This image could not be read. Crop closely around the QR code or use the camera scanner.') });
     }
   };
 

@@ -259,18 +259,18 @@ export function BottomNav({ currentScreen, onNavigate }: { currentScreen: Screen
       <View style={styles.side}>
         {leftItems.map((item) => (
           <NavTab key={item.id} id={item.id} label={tx(item.label)} active={currentScreen === item.id}
-            onPress={() => onNavigate(item.id)} testID={item.testID} accessibilityLabel={item.accessibilityLabel} compact={isShortDevice} />
+            onPress={() => onNavigate(item.id)} testID={item.testID} accessibilityLabel={item.accessibilityLabel} compact={isShortDevice || isSmallDevice} />
         ))}
       </View>
 
       {allowedScreens.has('support') ? (
-        <SupportButton onPress={() => onNavigate('support')} compact={isShortDevice} />
+        <SupportButton onPress={() => onNavigate('support')} compact={isShortDevice || isSmallDevice} />
       ) : null}
 
       <View style={styles.side}>
         {rightItems.map((item) => (
           <NavTab key={item.id} id={item.id} label={tx(item.label)} active={currentScreen === item.id}
-            onPress={() => onNavigate(item.id)} testID={item.testID} accessibilityLabel={item.accessibilityLabel} compact={isShortDevice} />
+            onPress={() => onNavigate(item.id)} testID={item.testID} accessibilityLabel={item.accessibilityLabel} compact={isShortDevice || isSmallDevice} />
         ))}
       </View>
     </View>

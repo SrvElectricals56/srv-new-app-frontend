@@ -34,7 +34,7 @@ type Ticket = {
   subject: string;
   message: string;
   status: string;
-  replies?: { id?: string; sender: string; senderName: string; message: string; timestamp: string }[];
+  replies?: { id?: string; sender: string; senderName: string; message: string; timestamp: string; photoUrls?: string[] }[];
   createdAt: string;
   photoUrl?: string | null;
   photoUrls?: string[];
@@ -222,6 +222,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
   };
 
   const [replyText, setReplyText] = useState('');
+  const [replyPhotos, setReplyPhotos] = useState<string[]>([]);
   const [sendingReply, setSendingReply] = useState(false);
   const [closing, setClosing] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
@@ -229,11 +230,30 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
 
   const isTicketClosed = selectedTicket?.status === 'closed' || selectedTicket?.status === 'resolved';
 
+  const pickReplyPhotos = async () => {
+    if (isTicketClosed || replyPhotos.length >= MAX_SUPPORT_PHOTOS) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setDialog({ visible: true, variant: 'info', title: tx('Permission required'), message: tx('Please allow gallery access.') });
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_SUPPORT_PHOTOS - replyPhotos.length,
+    });
+    if (!result.canceled) {
+      setReplyPhotos((current) => [...current, ...result.assets.map((asset) => asset.uri)].slice(0, MAX_SUPPORT_PHOTOS));
+    }
+  };
+
   const handleSendReply = async () => {
-    if (!selectedTicket || !replyText.trim() || isTicketClosed) return;
+    if (!selectedTicket || (!replyText.trim() && !replyPhotos.length) || isTicketClosed) return;
     setSendingReply(true);
     try {
-      const response = await supportApi.replyToTicket(selectedTicket.id, replyText.trim());
+      const uploadedReplyPhotos = replyPhotos.length ? await Promise.all(replyPhotos.map(toDataUri)) : undefined;
+      const response = await supportApi.replyToTicket(selectedTicket.id, replyText.trim(), uploadedReplyPhotos);
       const apiReply = response.reply;
       const newReply = {
         id: apiReply?.id ?? `reply_${Date.now()}`,
@@ -241,6 +261,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         senderName: 'You',
         message: apiReply?.message ?? replyText.trim(),
         timestamp: String(apiReply?.timestamp ?? new Date().toISOString()),
+        photoUrls: apiReply?.photoUrls ?? uploadedReplyPhotos,
       };
       const updatedTicket = {
         ...selectedTicket,
@@ -250,6 +271,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       setSelectedTicket(updatedTicket);
       setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
       setReplyText('');
+      setReplyPhotos([]);
     } catch {
       setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Could not send reply. Please try again.') });
     } finally {
@@ -349,6 +371,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
         message: r.message,
         createdAt: String(r.timestamp),
         senderName: r.senderName,
+        photoUrls: r.photoUrls,
         canDelete: r.sender === 'user',
       })),
     ];
@@ -448,6 +471,14 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
             {!isTicketClosed ? <Text style={[styles.composerHint, { color: theme.textMuted }]}>{tx('Your reply is sent securely')}</Text> : null}
           </View>
           <View style={styles.composerRow}>
+            <TouchableOpacity
+              style={[styles.attachButton, { borderColor: theme.border, backgroundColor: theme.soft }]}
+              onPress={() => void pickReplyPhotos()}
+              disabled={isTicketClosed || replyPhotos.length >= MAX_SUPPORT_PHOTOS}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.attachButtonText, { color: accentColor }]}>+</Text>
+            </TouchableOpacity>
             <TextInput
               style={[styles.messageInput, { borderColor: theme.border, backgroundColor: theme.soft, color: theme.textPrimary }]}
               placeholder={isTicketClosed ? tx('This ticket is closed') : tx('Type a message...')}
@@ -458,18 +489,27 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
               multiline
             />
             <TouchableOpacity
-              style={[styles.sendButton, { backgroundColor: isTicketClosed || !replyText.trim() ? theme.border : accentColor }]}
+              style={[styles.sendButton, { backgroundColor: isTicketClosed || (!replyText.trim() && !replyPhotos.length) ? theme.border : accentColor }]}
               onPress={() => void handleSendReply()}
-              disabled={isTicketClosed || !replyText.trim() || sendingReply}
+              disabled={isTicketClosed || (!replyText.trim() && !replyPhotos.length) || sendingReply}
               activeOpacity={0.8}
             >
               {sendingReply ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <SendIcon color={isTicketClosed || !replyText.trim() ? theme.textMuted : '#fff'} />
+                <SendIcon color={isTicketClosed || (!replyText.trim() && !replyPhotos.length) ? theme.textMuted : '#fff'} />
               )}
             </TouchableOpacity>
           </View>
+          {replyPhotos.length ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.replyPhotoStrip}>
+              {replyPhotos.map((photo, index) => (
+                <Pressable key={`${photo}-${index}`} onPress={() => setReplyPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+                  <Image source={{ uri: photo }} style={styles.replyPhotoPreview} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : null}
           {!isTicketClosed && (
             <TouchableOpacity
               style={[styles.closeTicketBtn, { borderColor: '#FECACA', backgroundColor: '#FFF7F7' }, closing ? { opacity: 0.7 } : null]}
@@ -1044,6 +1084,10 @@ const styles = StyleSheet.create({
   composerLabel: { fontSize: 13, fontWeight: '900' },
   composerHint: { fontSize: 10.5, fontWeight: '700' },
   composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  attachButton: { width: 46, height: 46, borderRadius: 23, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  attachButtonText: { fontSize: 27, lineHeight: 29, fontWeight: '500' },
+  replyPhotoStrip: { gap: 8, paddingTop: 10 },
+  replyPhotoPreview: { width: 58, height: 58, borderRadius: 12 },
   messageInput: {
     flex: 1,
     minHeight: 46,

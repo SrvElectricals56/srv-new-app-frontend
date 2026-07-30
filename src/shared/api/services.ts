@@ -19,6 +19,7 @@ function sanitizeDealerSignupPayload(data: {
   pincode?: string;
   gstNumber?: string;
   password?: string;
+  signupVerificationToken: string;
 }) {
   return {
     name: data.name,
@@ -31,6 +32,7 @@ function sanitizeDealerSignupPayload(data: {
     pincode: data.pincode,
     gstNumber: data.gstNumber,
     password: data.password,
+    signupVerificationToken: data.signupVerificationToken,
   };
 }
 
@@ -44,6 +46,7 @@ function sanitizeCounterBoySignupPayload(data: {
   address?: string;
   pincode?: string;
   password?: string;
+  signupVerificationToken: string;
 }) {
   return {
     name: data.name.trim(),
@@ -55,6 +58,7 @@ function sanitizeCounterBoySignupPayload(data: {
     address: data.address?.trim() || undefined,
     pincode: data.pincode?.trim() || undefined,
     password: data.password?.trim() || undefined,
+    signupVerificationToken: data.signupVerificationToken,
   };
 }
 
@@ -62,7 +66,7 @@ function sanitizeUserProfileUpdatePayload(data: Partial<UserProfile>) {
   const allowed = [
     'name', 'email', 'phone', 'city', 'town', 'district', 'state',
     'address', 'pincode', 'gstNumber', 'accountHolderName', 'bankAccount',
-    'ifsc', 'bankName', 'upiId', 'bankLinked', 'language', 'darkMode',
+    'ifsc', 'bankName', 'upiId', 'upiQrCodeImage', 'bankLinked', 'language', 'darkMode',
     'pushEnabled', 'profileImage',
     'kycStatus', 'kycRejectionReason', 'aadharFrontImage', 'panDocument', 'gstDocument',
   ] as const;
@@ -136,6 +140,7 @@ function sanitizeElectricianPayload(data: {
   dealerCode?: string;
   tier?: 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
   status?: 'active' | 'pending' | 'inactive' | 'suspended';
+  signupVerificationToken?: string;
 }) {
   const dealerCodePrefix = data.dealerCode?.trim();
   return {
@@ -152,6 +157,7 @@ function sanitizeElectricianPayload(data: {
     subCategory: data.subCategory?.trim() || undefined,
     tier: data.tier ?? 'Silver',
     status: data.status ?? 'active',
+    signupVerificationToken: data.signupVerificationToken,
     electricianCode:
       data.electricianCode?.trim() ||
       (dealerCodePrefix ? `${dealerCodePrefix}-001` : '') ||
@@ -186,6 +192,7 @@ export const authApi = {
     city?: string;
     district?: string;
     pincode?: string;
+    signupVerificationToken: string;
   }) => {
     if (data.role === 'dealer') {
       return authApi.registerDealer({
@@ -197,6 +204,7 @@ export const authApi = {
         state: '',
         address: '',
         password: data.password,
+        signupVerificationToken: data.signupVerificationToken,
       });
     }
     if (data.role === 'counterboy') {
@@ -210,6 +218,7 @@ export const authApi = {
         city: data.city,
         district: data.district ?? data.city,
         pincode: data.pincode,
+        signupVerificationToken: data.signupVerificationToken,
       });
     }
     if (data.role === 'user') {
@@ -223,6 +232,7 @@ export const authApi = {
         city: data.city,
         district: data.district ?? data.city,
         pincode: data.pincode,
+        signupVerificationToken: data.signupVerificationToken,
       });
     }
     return authApi.registerElectrician({
@@ -234,6 +244,7 @@ export const authApi = {
       state: '',
       dealerPhone: '',
       password: data.password,
+      signupVerificationToken: data.signupVerificationToken,
     });
   },
 
@@ -258,7 +269,7 @@ export const authApi = {
   },
 
   verifySignupOtp: (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy', otp: string) =>
-    api.post<{ success: boolean; message: string }>(
+    api.post<{ success: boolean; message: string; signupVerificationToken: string }>(
       '/mobile/auth/signup/verify-otp',
       { phone: normalizePhone(phone), role, otp }
     ),
@@ -278,10 +289,10 @@ export const authApi = {
     return res;
   },
 
-  loginWithGoogleCustomer: async (idToken: string) => {
+  loginWithGoogleCustomer: async (credential: { idToken?: string; accessToken?: string }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/google/user',
-      { idToken },
+      credential,
     );
     await storage.setTokens(res.accessToken, res.refreshToken);
     await storage.setUserProfile(res.user);
@@ -327,6 +338,7 @@ export const authApi = {
     pincode?: string;
     gstNumber?: string;
     password?: string;
+    signupVerificationToken: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/dealer',
@@ -354,6 +366,7 @@ export const authApi = {
     dealerCode?: string;
     tier?: 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
     status?: 'active' | 'pending' | 'inactive' | 'suspended';
+    signupVerificationToken: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/electrician',
@@ -375,6 +388,7 @@ export const authApi = {
     address?: string;
     pincode?: string;
     password?: string;
+    signupVerificationToken: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/user',
@@ -396,6 +410,7 @@ export const authApi = {
     address?: string;
     pincode?: string;
     password?: string;
+    signupVerificationToken: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/counterboy',
@@ -865,8 +880,8 @@ export const supportApi = {
     api.post<{ message: string; ticketId: string }>('/mobile/support', data, true),
   getMyTickets: () =>
     api.get<{ data: any[] }>('/mobile/support/tickets', undefined, true),
-  replyToTicket: (ticketId: string, message: string) =>
-    api.post<{ message: string; reply?: any }>(`/mobile/support/tickets/${ticketId}/reply`, { message }, true),
+  replyToTicket: (ticketId: string, message: string, photoUrls?: string[]) =>
+    api.post<{ message: string; reply?: any }>(`/mobile/support/tickets/${ticketId}/reply`, { message, photoUrls }, true),
   deleteTicketReply: (ticketId: string, replyId: string) =>
     api.delete<{ message: string }>(`/mobile/support/tickets/${ticketId}/replies/${encodeURIComponent(replyId)}`, true),
   closeTicket: (ticketId: string) =>
@@ -948,6 +963,7 @@ export type UserProfile = {
   kycRejectionReason?: string;
   bankLinked?: boolean;
   upiId?: string | null;
+  upiQrCodeImage?: string | null;
   bankAccount?: string | null;
   ifsc?: string | null;
   bankName?: string | null;

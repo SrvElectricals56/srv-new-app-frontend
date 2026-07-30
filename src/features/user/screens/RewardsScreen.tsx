@@ -163,6 +163,7 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
   const { role } = useAuth();
   const pageContent = useAppPageContent((role ?? 'user') as any, 'rewards');
   const { width } = useWindowDimensions();
+  const isCompact = width < 360;
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
@@ -280,7 +281,7 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
         </LinearGradient>
 
         {/* Points Banner */}
-        <View style={[styles.pointsBanner, darkMode && styles.pointsBannerDark]}>
+        <View style={[styles.pointsBanner, isCompact && styles.pointsBannerCompact, darkMode && styles.pointsBannerDark]}>
           <View style={styles.pointsInfo}>
             <Text style={[styles.pointsLabel, darkMode && styles.pointsLabelDark]}>{tx('Your Points')}</Text>
             <View style={styles.pointsValueRow}>
@@ -290,8 +291,8 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.pointsHint} onPress={onOpenScanner} activeOpacity={0.8}>
-            <Text style={styles.pointsHintText} numberOfLines={2}>{tx('Scan products to earn more')}</Text>
+          <TouchableOpacity style={[styles.pointsHint, isCompact && styles.pointsHintCompact]} onPress={onOpenScanner} activeOpacity={0.8}>
+            <Text style={[styles.pointsHintText, isCompact && styles.pointsHintTextCompact]}>{tx('Scan products to earn more')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -394,6 +395,7 @@ const styles = StyleSheet.create({
     ...createShadow({ color: '#000', offsetY: 2, blur: 8, opacity: 0.05, elevation: 2 }),
   },
   pointsBannerDark: { backgroundColor: '#111827', borderColor: '#243043' },
+  pointsBannerCompact: { flexDirection: 'column', alignItems: 'stretch' },
   pointsLabel: { fontSize: 12, fontWeight: '600', color: C.textMuted, marginBottom: 4 },
   pointsLabelDark: { color: '#94A3B8' },
   pointsInfo: { flex: 1, minWidth: 0 },
@@ -411,6 +413,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   pointsHintText: { fontSize: 11, lineHeight: 15, fontWeight: '800', color: C.goldDark, textAlign: 'right' },
+  pointsHintCompact: { maxWidth: '100%', alignSelf: 'stretch' },
+  pointsHintTextCompact: { textAlign: 'center' },
 
   // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

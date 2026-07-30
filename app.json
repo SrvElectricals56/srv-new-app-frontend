@@ -3,7 +3,7 @@
     "name": "SRV Electricals",
     "slug": "srv-electricals",
     "scheme": "srv-electricals",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "plugins": [
       "expo-router",
       [
@@ -22,7 +22,13 @@
       "expo-mail-composer",
       "expo-notifications",
       "expo-web-browser",
-      "expo-video"
+      "expo-video",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.519956418767-use4fj4rpt9i7e49dmakrga9v3a2b41s"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -42,7 +48,7 @@
       "buildNumber": "24"
     },
     "android": {
-      "versionCode": 28,
+      "versionCode": 29,
       "allowBackup": false,
       "googleServicesFile": "./android/app/google-services.json",
       "softwareKeyboardLayoutMode": "resize",

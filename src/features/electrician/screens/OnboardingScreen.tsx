@@ -806,6 +806,7 @@ export function OnboardingScreen({
   const [signupOtp, setSignupOtp] = useState('');
   const [signupOtpSent, setSignupOtpSent] = useState(false);
   const [signupOtpVerified, setSignupOtpVerified] = useState(false);
+  const [signupVerificationToken, setSignupVerificationToken] = useState('');
   const [signupOtpCountdown, setSignupOtpCountdown] = useState(0);
   const [signupPass, setSignupPass] = useState('');
   const [signupConfirmPass, setSignupConfirmPass] = useState('');
@@ -1001,6 +1002,7 @@ export function OnboardingScreen({
     setSignupOtp('');
     setSignupOtpSent(false);
     setSignupOtpVerified(false);
+    setSignupVerificationToken('');
     setSignupPass('');
     setSignupConfirmPass('');
     setSignupStep('name');
@@ -1029,6 +1031,7 @@ export function OnboardingScreen({
     setSignupOtp('');
     setSignupOtpSent(false);
     setSignupOtpVerified(false);
+    setSignupVerificationToken('');
     setError('signupPhone');
     setError('signupOtp');
   };
@@ -1251,6 +1254,7 @@ export function OnboardingScreen({
           pincode: signupPincode.trim() || undefined,
           gstNumber: normalizeGstOrPanNumber(signupGstNumber) || undefined,
           password: signupPass.trim() || undefined,
+          signupVerificationToken,
         });
         finishLogin(res.user);
         return;
@@ -1267,6 +1271,7 @@ export function OnboardingScreen({
           address: undefined,
           pincode: signupPincode.trim() || undefined,
           password: signupPass.trim() || undefined,
+          signupVerificationToken,
         });
         finishLogin(res.user);
         return;
@@ -1283,6 +1288,7 @@ export function OnboardingScreen({
           address: undefined,
           pincode: signupPincode.trim() || undefined,
           password: signupPass.trim() || undefined,
+          signupVerificationToken,
         });
         finishLogin(res.user);
         return;
@@ -1303,6 +1309,7 @@ export function OnboardingScreen({
           ? `${verifiedDealerCode}-${verifiedDealerNextSerial}`
           : undefined,
         password: signupPass.trim() || undefined,
+        signupVerificationToken,
       });
       finishLogin(res.user);
     } catch (err: any) {
@@ -1513,6 +1520,7 @@ export function OnboardingScreen({
     setError('signupOtp');
     setSignupOtp('');
     setSignupOtpVerified(false);
+    setSignupVerificationToken('');
     setLoading(true);
     authApi
       .sendSignupOtp(signupPhone, role)
@@ -1541,7 +1549,8 @@ export function OnboardingScreen({
     setLoading(true);
     authApi
       .verifySignupOtp(signupPhone, role, signupOtp)
-      .then(() => {
+      .then((result) => {
+        setSignupVerificationToken(result.signupVerificationToken);
         setSignupOtpVerified(true);
         setSignupStep(role === 'dealer' ? 'password' : 'address');
       })

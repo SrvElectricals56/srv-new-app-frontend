@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { counterboyTheme as cb } from '@/features/counterboy/theme';
 import { useAppPageContent } from '@/shared/hooks/useAppPageContent';
@@ -43,6 +43,19 @@ interface Props {
   photoUri?: string | null;
   apiPhotoUri?: string | null;
   onOpenProfileEdit?: () => void;
+}
+
+const FALLBACK_QR_ROWS = '1111111010111010001111111|1000001000100000001000001|1011101010101100101011101|1011101001010110101011101|1011101000111110001011101|1000001010110100001000001|1111111010101010101111111|0000000001011010100000000|1010001101110001000100101|1111000000101001111101011|1111111010000111011001101|1100010010100011001001000|0000001110011001101000001|0111000101001101111100011|1100001101001101001001101|0001100110111000101111000|1100111001101001111110010|0000000011100010100010001|1111111011011010101010001|1000001001011011100010010|1011101001001011111110010|1011101001011100010010110|1011101010110000010111011|1000001000000000110110000|1111111011001000101001001'.split('|');
+
+function OfflineProfileQr() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 29 29">
+      <Rect width="29" height="29" fill="#FFFFFF" />
+      {FALLBACK_QR_ROWS.flatMap((row, y) =>
+        [...row].map((cell, x) => cell === '1' ? <Rect key={`${x}-${y}`} x={x + 2} y={y + 2} width="1" height="1" fill="#111827" /> : null),
+      )}
+    </Svg>
+  );
 }
 
 function DownloadIcon({ color = '#FFFFFF', size = 16 }: { color?: string; size?: number }) {
@@ -698,7 +711,7 @@ export default function ProfileFlipCard({ profile, role = 'electrician', photoUr
 
                 <View style={styles.qrPanel}>
                   <View style={styles.qrFrame}>
-                    <Image source={{ uri: qrUrl }} style={styles.qrImage} resizeMode="contain" />
+                    <OfflineProfileQr />
                   </View>
                   <Text
                     style={[

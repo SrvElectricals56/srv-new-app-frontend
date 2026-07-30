@@ -171,6 +171,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user, role, logout } = useAuth();
   const previewState = useAppPreviewState();
   const appStateRef = useRef(AppState.currentState);
+  const backgroundedAtRef = useRef(0);
 
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -412,20 +413,34 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, [loadPrivateData, loadPublicData]);
 
   // Initial load — include `role` so banners/offers refetch when session role is available or changes
-  useEffect(() => { void refreshAll(); }, [refreshAll]);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    void Promise.all([loadPublicData(), loadPrivateData()]).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [loadPrivateData, loadPublicData]);
 
   // AppState — clear cache and refresh when app comes to foreground
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
+      if (next === 'background') {
+        backgroundedAtRef.current = Date.now();
+      }
       if (/inactive|background/.test(prev) && next === 'active') {
-        clearCache();
-        void refreshAll();
+        const awayFor = Date.now() - backgroundedAtRef.current;
+        if (awayFor > 120_000) {
+          clearCache('/mobile/auth/profile');
+          clearCache('/mobile/wallet');
+          void loadPrivateData();
+        }
       }
     });
     return () => sub.remove();
-  }, [refreshAll]);
+  }, [loadPrivateData]);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id || Platform.OS === 'web' || !Device.isDevice) return;

@@ -11,7 +11,7 @@ module.exports = ({ config }) => {
       bundleIdentifier: isStaging
         ? 'com.srvelectricals.app.staging'
         : config.ios.bundleIdentifier,
-      supportsTablet: false,
+      supportsTablet: true,
       infoPlist: {
         ...config.ios.infoPlist,
         ITSAppUsesNonExemptEncryption: false,

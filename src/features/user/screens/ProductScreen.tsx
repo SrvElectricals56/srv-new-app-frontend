@@ -1,9 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image as ExpoImage } from 'expo-image';
 import { useMemo, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -354,6 +354,8 @@ function buildCategories(
   };
 
   const merged = new Map<string, UiCategory>();
+  const displayCategoryLabel = (value: string) =>
+    /ventilation\s*fan/i.test(value) ? 'Industrial Fan' : value;
 
   apiCategories.forEach((category) => {
     // Product.category is stored as the category label in production. Do not
@@ -362,7 +364,7 @@ function buildCategories(
     const id = category.label || category.categoryId || category.slug || category.id;
     merged.set(id, {
       id,
-      label: category.label || CATEGORY_LABELS[id] || id,
+      label: displayCategoryLabel(category.label || CATEGORY_LABELS[id] || id),
       count: category.productCount ?? catMap.get(id) ?? 0,
       imageUrl: category.imageUrl ?? null,
     });
@@ -372,7 +374,7 @@ function buildCategories(
     if (!merged.has(id)) {
       merged.set(id, {
         id,
-        label: CATEGORY_LABELS[id] ?? id.charAt(0).toUpperCase() + id.slice(1),
+        label: displayCategoryLabel(CATEGORY_LABELS[id] ?? id.charAt(0).toUpperCase() + id.slice(1)),
         count: catMap.get(id) ?? 0,
         imageUrl: null,
       });
@@ -467,7 +469,7 @@ function AnimatedProductImage({ uri, size }: { uri: string; size: number }) {
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Animated.View style={{ transform: [{ translateY: floatY }, { scale: imgScale }] }}>
-        <Image source={{ uri }} style={{ width: size, height: size }} resizeMode="contain" />
+        <ExpoImage source={{ uri }} style={{ width: size, height: size }} contentFit="contain" cachePolicy="memory-disk" transition={120} />
       </Animated.View>
     </View>
   );
@@ -573,6 +575,7 @@ export function ProductScreen({
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<UiProduct | null>(null);
+  const categoryTabsRef = useRef<ScrollView>(null);
 
   const catalogProducts = useMemo(() => apiProducts.map(mapApiToUi), [apiProducts]);
   const catalogCategories = useMemo(
@@ -645,14 +648,16 @@ export function ProductScreen({
     return catalogCategories.filter((cat) => matchingCategoryIds.has(cat.id));
   }, [catalogCategories, isSearching, matchingCategoryIds]);
 
-  const categoryTabs = useMemo(() => {
-    const activeCategory = catalogCategories.find((cat) => cat.id === category);
-    if (!activeCategory) return catalogCategories;
-    return [
-      activeCategory,
-      ...catalogCategories.filter((cat) => cat.id !== category),
-    ];
-  }, [catalogCategories, category]);
+  const categoryTabs = catalogCategories;
+
+  useEffect(() => {
+    const selectedIndex = categoryTabs.findIndex((cat) => cat.id === category);
+    if (selectedIndex < 0) return;
+    const timer = setTimeout(() => {
+      categoryTabsRef.current?.scrollTo({ x: Math.max(0, selectedIndex * 126 - 18), animated: true });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [category, categoryTabs]);
 
   const relatedProducts = useMemo(() => {
     if (!selectedProduct) return [];
@@ -778,7 +783,7 @@ export function ProductScreen({
       ) : null}
 
       {/* Category Tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabList}>
+      <ScrollView ref={categoryTabsRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabList}>
         {categoryTabs.map((cat) => {
           const active = !isSearching && cat.id === category;
           const cc = getCatColor(cat.id, catalogCategories.findIndex((item) => item.id === cat.id));
@@ -883,7 +888,7 @@ export function ProductScreen({
                 </View>
                 <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailScrollContent} showsVerticalScrollIndicator={false}>
                   <View style={styles.detailImageWrap}>
-                    <Image source={{ uri: selectedProduct.img }} style={styles.detailImage} resizeMode="contain" />
+                    <ExpoImage source={{ uri: selectedProduct.img }} style={styles.detailImage} contentFit="contain" cachePolicy="memory-disk" transition={150} />
                     <View style={styles.detailImageShadow} />
                   </View>
                   <Text style={[styles.detailTitle, darkMode ? styles.detailTitleDark : null]}>
@@ -929,7 +934,7 @@ export function ProductScreen({
                             onPress={() => setSelectedProduct(product)}
                           >
                             <View style={styles.relatedImageWrap}>
-                              <Image source={{ uri: product.img }} style={styles.relatedImage} resizeMode="contain" />
+                              <ExpoImage source={{ uri: product.img }} style={styles.relatedImage} contentFit="contain" cachePolicy="memory-disk" transition={120} />
                             </View>
                             <Text style={[styles.relatedName, darkMode ? styles.productNameDark : null]} numberOfLines={2}>
                               {localizeCatalogText(product.name, language)}

@@ -146,7 +146,9 @@ export function RedemptionPage({
   const tabs: RedemptionTab[] =
     currentRole === 'dealer'
       ? ['Buy Gift', 'Bank Transfer', 'Dealer Bonus']
-      : ['Buy Gift', 'Bank Transfer', 'Transfer Point'];
+      : currentRole === 'user'
+        ? ['Buy Gift', 'Bank Transfer']
+        : ['Buy Gift', 'Bank Transfer', 'Transfer Point'];
   const filters: FilterRange[] = ['This Month', 'All', 'Order placed', 'Delivered'];
 
   useEffect(() => {
@@ -227,6 +229,10 @@ export function RedemptionPage({
     () => redemptions.filter((r) => r.type === 'Buy Gift' && isOrderPlacedStatus(r.status)).length,
     [redemptions],
   );
+  const giftOrdersCount = useMemo(
+    () => redemptions.filter((r) => r.type === 'Buy Gift').length,
+    [redemptions],
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -251,7 +257,7 @@ export function RedemptionPage({
               {tx('Total Requests')}
             </Text>
             <Text style={[styles.summaryValue, { color: activeFilter === 'All' ? '#FFFFFF' : theme.textPrimary }]}>
-              {loading ? '...' : redemptions.length}
+              {loading ? '...' : giftOrdersCount}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

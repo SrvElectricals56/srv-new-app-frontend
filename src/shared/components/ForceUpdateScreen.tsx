@@ -96,10 +96,12 @@ export function ForceUpdateScreen({
   const handleUpdate = () => {
     onGoToStore?.();
     const DEFAULT_PLAY = 'https://play.google.com/store/apps/details?id=com.srvelectricals.app';
+    const DEFAULT_IOS = 'https://apps.apple.com/in/app/srv-electricals/id6752710193';
     const androidUrl = playStoreUrl || DEFAULT_PLAY;
-    const iosUrl     = appStoreUrl  || '';
-    const url = Platform.OS === 'ios' && iosUrl ? iosUrl : androidUrl;
-    Linking.openURL(url).catch(() => Linking.openURL(DEFAULT_PLAY));
+    const iosUrl = appStoreUrl || DEFAULT_IOS;
+    const url = Platform.OS === 'ios' ? iosUrl : androidUrl;
+    const fallback = Platform.OS === 'ios' ? DEFAULT_IOS : DEFAULT_PLAY;
+    Linking.openURL(url).catch(() => Linking.openURL(fallback));
   };
 
   return (

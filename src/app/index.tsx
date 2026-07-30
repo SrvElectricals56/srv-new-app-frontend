@@ -1,7 +1,7 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, Keyboard, PanResponder, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, BackHandler, Easing, Keyboard, Linking, PanResponder, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav as DealerBottomNav } from '@/features/dealer/screens/BottomNav';
 import { CallElectricianScreen as DealerCallElectricianScreen } from '@/features/dealer/screens/CallElectricianScreen';
@@ -207,6 +207,7 @@ function AppContent() {
   const notificationBannerX = useRef(new Animated.Value(0)).current;
   const notificationBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastBannerNotificationIdRef = useRef<string | null>(null);
+  const lastNotificationResponseIdRef = useRef<string | null>(null);
   const [userCartItems, setUserCartItems] = useState<CartItem[]>([]);
   const [dealerCartItems, setDealerCartItems] = useState<CartItem[]>([]);
   const [counterboyCartItems, setCounterboyCartItems] = useState<CartItem[]>([]);
@@ -652,6 +653,41 @@ function AppContent() {
     },
     [currentRole, currentScreen, guestAuthRole, rolePageControls, trackActivity]
   );
+
+  // Handle notification taps in foreground, background, and cold-start states.
+  // Update notifications carry an HTTPS actionUrl and open the appropriate store;
+  // ordinary notifications continue to the in-app notification center.
+  useEffect(() => {
+    if (isPreviewMode) return;
+    let active = true;
+    let subscription: { remove: () => void } | null = null;
+
+    const handleResponse = (response: any) => {
+      const responseId = String(response?.notification?.request?.identifier ?? '');
+      if (responseId && lastNotificationResponseIdRef.current === responseId) return;
+      if (responseId) lastNotificationResponseIdRef.current = responseId;
+
+      const actionUrl = response?.notification?.request?.content?.data?.actionUrl;
+      if (typeof actionUrl === 'string' && /^https:\/\//i.test(actionUrl)) {
+        void Linking.openURL(actionUrl).catch(() => handleNavigate('notification'));
+        return;
+      }
+      handleNavigate('notification');
+    };
+
+    void (async () => {
+      const Notifications = await getNativeNotifications();
+      if (!Notifications || !active) return;
+      subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+      const initialResponse = await Notifications.getLastNotificationResponseAsync();
+      if (initialResponse && active) handleResponse(initialResponse);
+    })();
+
+    return () => {
+      active = false;
+      subscription?.remove();
+    };
+  }, [handleNavigate, isPreviewMode]);
 
   const handleOpenProductCategory = useCallback((category: string) => {
     trackActivity({

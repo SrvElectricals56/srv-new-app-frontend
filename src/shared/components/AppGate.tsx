@@ -7,7 +7,7 @@
  *   until admin bumps minAppVersion again.
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { useAppData } from '../context/AppDataContext';
@@ -15,11 +15,9 @@ import { MaintenanceScreen } from './MaintenanceScreen';
 import { ForceUpdateScreen } from './ForceUpdateScreen';
 import { isAppPreviewSearch } from '../preview/appPreviewStore';
 
-// ── Current app version — keep in sync with app.json ─────────────────────────
-export const APP_VERSION = '2.0.0';
-
-// Storage key: stores the minAppVersion the user last acknowledged/updated to
-const STORAGE_KEY = 'srv_force_update_dismissed_version';
+// Read the version embedded in the installed native build. This prevents the
+// update gate drifting out of sync with app.json on future releases.
+export const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
 
 type Props = { children: React.ReactNode };
 
@@ -33,9 +31,8 @@ export function AppGate({ children }: Props) {
     isAppPreviewSearch(globalThis.location.search);
 
 
-  // Check if this force-update has already been dismissed for this version
   useEffect(() => {
-    const check = async () => {
+    const check = () => {
       if (isPreviewMode) {
         setChecked(true);
         return;
@@ -63,32 +60,14 @@ export function AppGate({ children }: Props) {
         return;
       }
 
-      // Check if user already dismissed this specific required version
-      try {
-        const dismissed = await AsyncStorage.getItem(STORAGE_KEY);
-        if (dismissed === requiredVersion) {
-          setShowForceUpdate(false);
-        } else {
-          setShowForceUpdate(true);
-        }
-      } catch {
-        setShowForceUpdate(true);
-      }
+      // A required update cannot be dismissed. The gate disappears only after
+      // the installed native version actually satisfies minAppVersion.
+      setShowForceUpdate(true);
       setChecked(true);
     };
 
     check();
   }, [appSettings, isPreviewMode]);
-
-  // Called when user taps "Update" — record that they acknowledged this version
-  const handleGoToStore = useCallback(async () => {
-    const requiredVersion = appSettings?.minAppVersion ?? '0.0.0';
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, requiredVersion);
-    } catch { /* ignore */ }
-    // Don't hide the screen — they need to actually update
-    // Next time they open the app with new version, APP_VERSION >= required → gate won't show
-  }, [appSettings?.minAppVersion]);
 
   const handleRetry = useCallback(() => {
     void refreshAll();
@@ -110,7 +89,6 @@ export function AppGate({ children }: Props) {
         minVersion={appSettings.minAppVersion}
         playStoreUrl={appSettings.playStoreUrl}
         appStoreUrl={appSettings.appStoreUrl}
-        onGoToStore={handleGoToStore}
       />
     );
   }

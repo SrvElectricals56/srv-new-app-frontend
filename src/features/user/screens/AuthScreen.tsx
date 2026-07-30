@@ -2,11 +2,15 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated, Easing, Image, KeyboardAvoidingView, Platform,
-   Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+   Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  isSuccessResponse,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -25,16 +29,8 @@ const THEMES = {
 
 const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long and include one capital letter and one special character.';
 const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
-const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? '';
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() ?? '';
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '';
-
-function getGoogleClientId() {
-  if (Platform.OS === 'ios') return GOOGLE_IOS_CLIENT_ID;
-  if (Platform.OS === 'android') return GOOGLE_ANDROID_CLIENT_ID;
-  return GOOGLE_WEB_CLIENT_ID;
-}
-WebBrowser.maybeCompleteAuthSession();
 
 
 // â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -128,14 +124,18 @@ export function UserAuthScreen({
 }) {
   const { tx, darkMode } = usePreferenceContext();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const compactPhone = width <= 375 || height <= 760;
   const [mode, setMode] = useState<'landing' | 'login' | 'signup' | 'forgot'>('landing');
   const [loading, setLoading] = useState(false);
-  const [googleRequest, googleResponse, promptGoogle] = Google.useIdTokenAuthRequest({
-    iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID || undefined,
-    webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
-    selectAccount: true,
-  });
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    GoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
+      offlineAccess: false,
+    });
+  }, []);
 
   const theme = THEMES[role];
   const P1   = theme.p1;
@@ -182,6 +182,7 @@ export function UserAuthScreen({
   const [showSP, setShowSP] = useState(false);
   const [otpSentSignup, setOtpSentSignup] = useState(false);
   const [otpSignupPhone, setOtpSignupPhone] = useState('');
+  const [signupVerificationToken, setSignupVerificationToken] = useState('');
   const [signupStep, setSignupStep] = useState<'identity' | 'otp' | 'details'>('identity');
   const sPhoneRef = useRef<TextInput>(null);
   const sEmailRef = useRef<TextInput>(null);
@@ -204,6 +205,7 @@ export function UserAuthScreen({
     }
     return digits.slice(-10);
   };
+  const isValidIndianMobile = (value: string) => /^[6-9]\d{9}$/.test(normalizePhone(value));
   const handleSignupEmail = (value: string) => {
     setSEmail(value);
   };
@@ -242,6 +244,7 @@ export function UserAuthScreen({
     if (mode !== 'signup') {
       setOtpSentSignup(false);
       setOtpSignupPhone('');
+      setSignupVerificationToken('');
       setSOtp('');
       setSState('');
       setSCity('');
@@ -271,6 +274,7 @@ export function UserAuthScreen({
     if (otpSentSignup && normalizePhone(sPhone) !== otpSignupPhone) {
       setOtpSentSignup(false);
       setOtpSignupPhone('');
+      setSignupVerificationToken('');
       setSOtp('');
       setSignupStep('identity');
     }
@@ -279,7 +283,7 @@ export function UserAuthScreen({
   const sendOtpLogin = async () => {
     if (!lPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
     const cleanPhone = normalizePhone(lPhone);
-    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
+    if (!isValidIndianMobile(cleanPhone)) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid Indian mobile number') }); return; }
     setLoading(true);
     try {
       const data = await authApi.sendOtp(cleanPhone, role);
@@ -303,11 +307,12 @@ export function UserAuthScreen({
     if (!sName.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
     if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
     const cleanPhone = normalizePhone(sPhone);
-    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
+    if (!isValidIndianMobile(cleanPhone)) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid Indian mobile number') }); return; }
     setLoading(true);
     try {
       const data = await authApi.sendSignupOtp(cleanPhone, role);
       setSPhone(cleanPhone);
+      setSignupVerificationToken('');
       setOtpSentSignup(true);
       setOtpSignupPhone(cleanPhone);
       setSignupStep('otp');
@@ -327,7 +332,7 @@ export function UserAuthScreen({
   const login = async () => {
     if (!lPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
     const cleanPhone = normalizePhone(lPhone);
-    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
+    if (!isValidIndianMobile(cleanPhone)) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid Indian mobile number') }); return; }
     
     if (useOtpLogin) {
       if (!lOtp.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter the OTP') }); return; }
@@ -372,52 +377,38 @@ export function UserAuthScreen({
     }
   };
 
-  useEffect(() => {
-    if (!googleResponse) return;
-
-    if (googleResponse.type !== 'success') {
-      if (googleResponse.type === 'error') {
-        setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message: tx('Google could not complete sign-in. Please try again.') });
-      }
-      setLoading(false);
-      return;
-    }
-
-    const idToken = googleResponse.params?.id_token;
-    if (!idToken) {
-      setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message: tx('Google did not return a sign-in token.') });
-      setLoading(false);
-      return;
-    }
-
-    void (async () => {
-      try {
-        const res = await authApi.loginWithGoogleCustomer(idToken);
-        (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = res.user;
-        onAuthenticated('user', { passwordConfigured: Boolean(res.user?.hasPassword), passwordValue: '' });
-      } catch (e: any) {
-        setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message: e?.message || tx('Please try again.') });
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [googleResponse, onAuthenticated, tx]);
-
   const continueWithGoogle = async () => {
     if (role !== 'user') {
       setDialog({ visible: true, variant: 'info', title: tx('Customer only'), message: tx('Google signup is available for customer accounts only.') });
       return;
     }
-    if (!getGoogleClientId() || !googleRequest) {
+    if (Platform.OS !== 'android' || !GOOGLE_ANDROID_CLIENT_ID) {
       setDialog({ visible: true, variant: 'error', title: tx('Google not configured'), message: tx('Google sign-in is not available in this app build. Please update the app and try again.') });
       return;
     }
 
     setLoading(true);
     try {
-      await promptGoogle();
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const response = await GoogleSignin.signIn();
+      if (!isSuccessResponse(response)) return;
+      const tokens = await GoogleSignin.getTokens();
+      const idToken = response.data.idToken || tokens.idToken || undefined;
+      const accessToken = tokens.accessToken || undefined;
+      if (!idToken && !accessToken) {
+        throw new Error(tx('Google did not return a sign-in token.'));
+      }
+      const res = await authApi.loginWithGoogleCustomer({ idToken, accessToken });
+      (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = res.user;
+      onAuthenticated('user', { passwordConfigured: Boolean(res.user?.hasPassword), passwordValue: '' });
     } catch (e: any) {
-      setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message: e?.message || tx('Please try again.') });
+      if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) return;
+      const message = isErrorWithCode(e) && e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE
+        ? tx('Google Play Services is unavailable or needs an update on this device.')
+        : isErrorWithCode(e) && e.code === statusCodes.IN_PROGRESS
+          ? tx('Google sign-in is already in progress.')
+          : e?.message || tx('Please try again.');
+      setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message });
     } finally {
       setLoading(false);
     }
@@ -425,7 +416,7 @@ export function UserAuthScreen({
 
   const openForgotPassword = () => {
     const cleanPhone = normalizePhone(lPhone);
-    setFPhone(cleanPhone.length === 10 ? cleanPhone : '');
+    setFPhone(isValidIndianMobile(cleanPhone) ? cleanPhone : '');
     setFOtp('');
     setFOtpVerified(false);
     setFPwd('');
@@ -439,7 +430,7 @@ export function UserAuthScreen({
 
   const sendForgotOtp = async () => {
     const cleanPhone = normalizePhone(fPhone);
-    if (cleanPhone.length !== 10) {
+    if (!isValidIndianMobile(cleanPhone)) {
       setDialog({ visible: true, variant: 'info', title: tx('Invalid Mobile Number'), message: tx('Please enter a valid 10-digit mobile number.') });
       return;
     }
@@ -513,11 +504,12 @@ export function UserAuthScreen({
     if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
     if (!sOtp.trim())   { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter the OTP') }); return; }
     const cleanPhone = normalizePhone(sPhone);
-    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
+    if (!isValidIndianMobile(cleanPhone)) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid Indian mobile number') }); return; }
 
     setLoading(true);
     try {
-      await authApi.verifySignupOtp(cleanPhone, role, sOtp.trim());
+      const verification = await authApi.verifySignupOtp(cleanPhone, role, sOtp.trim());
+      setSignupVerificationToken(verification.signupVerificationToken);
       setSignupStep('details');
     } catch (e: any) {
       const msg = e?.message ?? '';
@@ -540,12 +532,12 @@ export function UserAuthScreen({
   const signup = async () => {
     if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
     if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
-    if (!otpSentSignup || signupStep !== 'details') {
+    if (!otpSentSignup || signupStep !== 'details' || !signupVerificationToken) {
       setDialog({ visible: true, variant: 'info', title: '', message: tx('Please verify your OTP first') });
       return;
     }
     const cleanPhone = normalizePhone(sPhone);
-    if (cleanPhone.length !== 10) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid 10-digit phone number') }); return; }
+    if (!isValidIndianMobile(cleanPhone)) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid Indian mobile number') }); return; }
     if (sState.trim().length < 2) {
       setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your state') });
       return;
@@ -576,6 +568,7 @@ export function UserAuthScreen({
         city: sCity.trim() || undefined,
         district: sCity.trim() || undefined,
         pincode: sPincode.trim() || undefined,
+        signupVerificationToken,
       });
       (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = registerData.user;
       onAuthenticated(role, { passwordConfigured: !!sPwd.trim(), passwordValue: sPwd.trim() });
@@ -596,12 +589,17 @@ export function UserAuthScreen({
   if (mode === 'landing') {
     return (
       <View style={[S.screen, { backgroundColor: bg }]}>
-        <View style={[S.landingScroll, { paddingBottom: insets.bottom + 104 }]}>
-          <LinearGradient colors={[P1, P2, theme.orb]} style={[S.hero, { paddingTop: insets.top + 6 }]}>
+        <ScrollView
+          style={S.landingViewport}
+          contentContainerStyle={[S.landingScroll, { paddingBottom: Math.max(insets.bottom, 12) + 28 }]}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <LinearGradient colors={[P1, P2, theme.orb]} style={[S.hero, compactPhone && S.heroCompact, { paddingTop: insets.top + (compactPhone ? 3 : 6) }]}>
             <Orbs color={theme.orb} />
             <Animated.View style={[S.heroContent, { transform: [{ translateY: slideY }], opacity: fadeO }]}>
-              <View style={S.logoWrap}>
-                <Image source={SRV_LOGO} style={S.logoImg} resizeMode="contain" />
+              <View style={[S.logoWrap, compactPhone && S.logoWrapCompact]}>
+                <Image source={SRV_LOGO} style={[S.logoImg, compactPhone && S.logoImgCompact]} resizeMode="contain" />
               </View>
               <Text style={S.heroTag}>SRV ELECTRICALS</Text>
               <Text style={S.heroTitle}>{tx('Welcome Back')}</Text>
@@ -609,7 +607,7 @@ export function UserAuthScreen({
             </Animated.View>
           </LinearGradient>
 
-        <Animated.View style={[S.landCard, { backgroundColor: card, borderColor: bdr, transform: [{ translateY: slideY }], opacity: fadeO }]}>
+        <Animated.View style={[S.landCard, compactPhone && S.landCardCompact, { backgroundColor: card, borderColor: bdr, transform: [{ translateY: slideY }], opacity: fadeO }]}>
           <Text style={[S.landTitle, { color: tp }]}>{tx('Get Started')}</Text>
           <Text style={[S.landSub, { color: tm }]}>{tx('Login or create a new account')}</Text>
 
@@ -628,7 +626,7 @@ export function UserAuthScreen({
             <Text style={[S.btnOutlineText, { color: P1 }]}>{tx('Create New Account')}</Text>
           </Pressable>
 
-          {role === 'user' && Platform.OS !== 'ios' ? (
+          {role === 'user' && Platform.OS === 'android' ? (
             <Pressable
               onPress={continueWithGoogle}
               disabled={loading}
@@ -640,9 +638,9 @@ export function UserAuthScreen({
             </Pressable>
           ) : null}
 
-          <View style={[S.statsRow, { borderTopColor: `${P1}22` }]}>
+          <View style={[S.statsRow, compactPhone && S.statsRowCompact, { borderTopColor: `${P1}22` }]}>
             {[['25+', tx('Years')], ['250+', tx('Products')], ['50K+', tx('Customers')]].map(([n, l], i) => (
-              <View key={i} style={[S.statItem, statCardStyle]}>
+              <View key={i} style={[S.statItem, compactPhone && S.statItemCompact, statCardStyle]}>
                 <Text style={[S.statN, { color: P1 }]}>{n}</Text>
                 <Text style={[S.statL, { color: tm }]}>{l}</Text>
               </View>
@@ -666,7 +664,7 @@ export function UserAuthScreen({
             </LinearGradient>
           </Pressable>
         )}
-        </View>
+        </ScrollView>
         <Dialog
           visible={dialog.visible}
           variant={dialog.variant}
@@ -707,7 +705,7 @@ export function UserAuthScreen({
                     darkMode={darkMode}
                     accentColor={P1}
                   />
-                  <Pressable onPress={sendForgotOtp} disabled={loading || normalizePhone(fPhone).length !== 10} style={[S.btnShell, (loading || normalizePhone(fPhone).length !== 10) && { opacity: 0.55 }]}>
+                  <Pressable onPress={sendForgotOtp} disabled={loading || !isValidIndianMobile(fPhone)} style={[S.btnShell, (loading || !isValidIndianMobile(fPhone)) && { opacity: 0.55 }]}>
                     <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
                       <Text style={S.btnPrimaryText}>{loading ? tx('Sending...') : tx('Send OTP')}</Text>
                       {!loading && <ArrowRight s={18} />}
@@ -1040,7 +1038,7 @@ export function UserAuthScreen({
             </Pressable>
           )}
 
-          {role === 'user' && Platform.OS !== 'ios' && (isLogin || isSignup) ? (
+          {role === 'user' && Platform.OS === 'android' && (isLogin || isSignup) ? (
             <Pressable
               onPress={continueWithGoogle}
               disabled={loading}
@@ -1083,6 +1081,7 @@ const S = StyleSheet.create({
   landingScroll: {
     flexGrow: 1,
   },
+  landingViewport: { flex: 1 },
   hero: {
     paddingHorizontal: 20,
     paddingBottom: 18,
@@ -1090,6 +1089,7 @@ const S = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
+  heroCompact: { paddingHorizontal: 14, paddingBottom: 12 },
   backRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'flex-start',
@@ -1108,6 +1108,8 @@ const S = StyleSheet.create({
     elevation: 5,
   },
   logoImg: { width: 56, height: 56 },
+  logoWrapCompact: { width: 58, height: 58, borderRadius: 17, marginBottom: 7 },
+  logoImgCompact: { width: 46, height: 46 },
   heroTag: { fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: 3, marginBottom: 4 },
   heroTitle: { fontSize: 26, fontWeight: '900', color: '#FFFFFF', marginBottom: 4 },
   heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
@@ -1125,9 +1127,11 @@ const S = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
   },
+  landCardCompact: { marginHorizontal: 8, marginVertical: 8, padding: 13, gap: 7 },
   landTitle: { fontSize: 20, fontWeight: '900' },
   landSub: { fontSize: 13, lineHeight: 18, marginBottom: 4 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingTop: 10, borderTopWidth: 1, marginTop: 4 },
+  statsRowCompact: { gap: 6 },
   statItem: {
     alignItems: 'center',
     gap: 2,
@@ -1137,6 +1141,7 @@ const S = StyleSheet.create({
     minWidth: 84,
     borderWidth: 1,
   },
+  statItemCompact: { flex: 1, minWidth: 0, paddingHorizontal: 5, paddingVertical: 7 },
   statN: { fontSize: 17, fontWeight: '900' },
   statL: { fontSize: 11, fontWeight: '600' },
 

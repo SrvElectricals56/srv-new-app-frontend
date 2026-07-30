@@ -393,7 +393,7 @@ export function BottomNav({
             onPress={() => onNavigate(item.id)}
             testID={item.testID}
             accessibilityLabel={item.accessibilityLabel}
-            compact={isShortDevice}
+            compact={isShortDevice || isSmallDevice}
           />
         ))}
       </View>
@@ -402,7 +402,7 @@ export function BottomNav({
         <CenterButton
           active={currentScreen === 'electricians'}
           onPress={() => onNavigate('electricians')}
-          compact={isShortDevice}
+          compact={isShortDevice || isSmallDevice}
         />
       ) : null}
 
@@ -416,7 +416,7 @@ export function BottomNav({
             onPress={() => onNavigate(item.id)}
             testID={item.testID}
             accessibilityLabel={item.accessibilityLabel}
-            compact={isShortDevice}
+            compact={isShortDevice || isSmallDevice}
           />
         ))}
       </View>

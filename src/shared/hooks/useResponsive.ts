@@ -23,8 +23,10 @@ export const hp = (size: number): number => hs(size);
 export const ms = (size: number, factor = 0.5): number =>
   Math.round(size + (ws(size) - size) * factor);
 
-export const isSmallDevice = SCREEN_W < 360;
-export const isMediumDevice = SCREEN_W >= 360 && SCREEN_W < 414;
+// Galaxy S23 and many modern Android phones report a 360-384dp logical
+// viewport. Treat those widths as compact even though their pixel density is high.
+export const isSmallDevice = SCREEN_W < 390;
+export const isMediumDevice = SCREEN_W >= 390 && SCREEN_W < 414;
 export const isLargeDevice = SCREEN_W >= 414;
 export const isTablet = SCREEN_W >= 768;
 export const isShortDevice = SCREEN_H < 760;

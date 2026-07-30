@@ -9,7 +9,7 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
-const DEFAULT_TTL = 15_000; // 15 seconds
+const DEFAULT_TTL = 60_000; // 60 seconds
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -241,18 +241,14 @@ export const api = {
     const key = dedupKey(path, { method: 'GET', params, auth });
 
     // No cache for banners and products — always fetch fresh from server
-    const noCache = path.includes('/mobile/banners') || path.includes('/mobile/products');
-
-    if (!noCache) {
-      const cached = getCached<T>(key);
-      if (cached !== null) return Promise.resolve(cached);
-    }
+    const cached = getCached<T>(key);
+    if (cached !== null) return Promise.resolve(cached);
 
     const inflight = inflightRequests.get(key) as Promise<T> | undefined;
     if (inflight) return inflight;
 
     const promise = request<T>(path, { method: 'GET', params, auth }).then((data) => {
-      if (!noCache) setCache(key, data);
+      setCache(key, data);
       inflightRequests.delete(key);
       return data;
     }).catch((err) => {

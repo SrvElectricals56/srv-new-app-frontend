@@ -21,5 +21,19 @@ allprojects {
   }
 }
 
+// CMake shortens tool paths on Windows when the SDK lives under a user name
+// containing spaces. Clang then sees a name such as CLANG_~1.EXE instead of
+// clang++.exe and can omit libc++ while linking native React Native modules.
+// Explicit driver mode is harmless on other hosts and keeps local/EAS builds
+// consistent.
+subprojects { subproject ->
+  afterEvaluate {
+    if (subproject.plugins.hasPlugin('com.android.application') ||
+        subproject.plugins.hasPlugin('com.android.library')) {
+      subproject.android.defaultConfig.externalNativeBuild.cmake.cppFlags '--driver-mode=g++'
+    }
+  }
+}
+
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"

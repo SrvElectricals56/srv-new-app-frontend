@@ -43,6 +43,7 @@ includeBuild(expoAutolinking.reactNativeGradlePlugin)
 // Android project directories so release variants are always available.
 def nativeAndroidProjects = [
   ':react-native-async-storage_async-storage': '../node_modules/@react-native-async-storage/async-storage/android',
+  ':react-native-google-signin_google-signin': '../node_modules/@react-native-google-signin/google-signin/android',
   ':react-native-razorpay': '../node_modules/react-native-razorpay/android',
   ':react-native-safe-area-context': '../node_modules/react-native-safe-area-context/android',
   ':react-native-screens': '../node_modules/react-native-screens/android',

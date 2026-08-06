@@ -815,8 +815,6 @@ export function OnboardingScreen({
   const [signupStep, setSignupStep] = useState<SignupStep>('name');
   const [dealerVerified, setDealerVerified] = useState(false);
   const [verifiedDealerName, setVerifiedDealerName] = useState('');
-  const [verifiedDealerCode, setVerifiedDealerCode] = useState('');
-  const [verifiedDealerNextSerial, setVerifiedDealerNextSerial] = useState('001');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const keyboardHeightRef = useRef(0);
   const isCompactPhone = width <= 360 || height <= 760;
@@ -1008,8 +1006,6 @@ export function OnboardingScreen({
     setSignupStep('name');
     setDealerVerified(false);
     setVerifiedDealerName('');
-    setVerifiedDealerCode('');
-    setVerifiedDealerNextSerial('001');
   };
 
   const handlePhone = (setter: (value: string) => void) => (value: string) =>
@@ -1304,10 +1300,6 @@ export function OnboardingScreen({
         address: undefined,
         pincode: signupPincode.trim() || undefined,
         dealerPhone: signupDealerPhone,
-        dealerCode: verifiedDealerCode || undefined,
-        electricianCode: verifiedDealerCode
-          ? `${verifiedDealerCode}-${verifiedDealerNextSerial}`
-          : undefined,
         password: signupPass.trim() || undefined,
         signupVerificationToken,
       });
@@ -1326,6 +1318,9 @@ export function OnboardingScreen({
         setError('signupDealerPhone', message);
       } else {
         setError('signupPhone', message);
+      }
+      if (mode === 'signup') {
+        Alert.alert(tx('Could not create account'), message);
       }
     } finally {
       setLoading(false);
@@ -1490,20 +1485,12 @@ export function OnboardingScreen({
           '';
         setDealerVerified(true);
         setVerifiedDealerName(resolvedDealerName);
-        setVerifiedDealerCode(dealer.dealerCode ?? '');
-        const nextSerial = Number(
-          dealer.nextElectricianSerial ??
-          ((dealer.electricianCount ?? 0) + 1)
-        );
-        setVerifiedDealerNextSerial(String(nextSerial).padStart(3, '0'));
       })
       .catch((err: Error) => {
         const message = (err.message || '').toLowerCase();
         if (message.includes('not found') || message.includes('not registered')) {
           setDealerVerified(true);
           setVerifiedDealerName('SRV Dealer');
-          setVerifiedDealerCode('');
-          setVerifiedDealerNextSerial('001');
           setError('signupDealerPhone');
           return;
         }
@@ -2840,8 +2827,6 @@ export function OnboardingScreen({
                                   handlePhone(setSignupDealerPhone)(value);
                                   setDealerVerified(false);
                                   setVerifiedDealerName('');
-                                  setVerifiedDealerCode('');
-                                  setVerifiedDealerNextSerial('001');
                                   setError('signupDealerPhone');
                                 }}
                                 placeholder={tx('Enter dealer mobile number')}

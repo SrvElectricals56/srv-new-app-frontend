@@ -117,16 +117,18 @@ export function UserAuthScreen({
   onAuthenticated,
   onBack,
   role = 'user',
+  initialMode = 'landing',
 }: {
   onAuthenticated: (role: any, options?: { passwordConfigured?: boolean; passwordValue?: string }) => void;
   onBack?: () => void;
   role?: 'user' | 'dealer' | 'electrician' | 'counterboy';
+  initialMode?: 'landing' | 'login' | 'signup';
 }) {
   const { tx, darkMode } = usePreferenceContext();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const compactPhone = width <= 375 || height <= 760;
-  const [mode, setMode] = useState<'landing' | 'login' | 'signup' | 'forgot'>('landing');
+  const [mode, setMode] = useState<'landing' | 'login' | 'signup' | 'forgot'>(initialMode);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -182,6 +184,7 @@ export function UserAuthScreen({
   const [showSP, setShowSP] = useState(false);
   const [otpSentSignup, setOtpSentSignup] = useState(false);
   const [otpSignupPhone, setOtpSignupPhone] = useState('');
+  const [signupOtpVerified, setSignupOtpVerified] = useState(false);
   const [signupVerificationToken, setSignupVerificationToken] = useState('');
   const [signupStep, setSignupStep] = useState<'identity' | 'otp' | 'details'>('identity');
   const sPhoneRef = useRef<TextInput>(null);
@@ -244,6 +247,7 @@ export function UserAuthScreen({
     if (mode !== 'signup') {
       setOtpSentSignup(false);
       setOtpSignupPhone('');
+      setSignupOtpVerified(false);
       setSignupVerificationToken('');
       setSOtp('');
       setSState('');
@@ -274,6 +278,7 @@ export function UserAuthScreen({
     if (otpSentSignup && normalizePhone(sPhone) !== otpSignupPhone) {
       setOtpSentSignup(false);
       setOtpSignupPhone('');
+      setSignupOtpVerified(false);
       setSignupVerificationToken('');
       setSOtp('');
       setSignupStep('identity');
@@ -312,6 +317,7 @@ export function UserAuthScreen({
     try {
       const data = await authApi.sendSignupOtp(cleanPhone, role);
       setSPhone(cleanPhone);
+      setSignupOtpVerified(false);
       setSignupVerificationToken('');
       setOtpSentSignup(true);
       setOtpSignupPhone(cleanPhone);
@@ -509,13 +515,20 @@ export function UserAuthScreen({
     setLoading(true);
     try {
       const verification = await authApi.verifySignupOtp(cleanPhone, role, sOtp.trim());
-      setSignupVerificationToken(verification.signupVerificationToken);
+      const verificationToken =
+        typeof verification?.signupVerificationToken === 'string'
+          ? verification.signupVerificationToken.trim()
+          : '';
+      setSignupVerificationToken(verificationToken);
+      setSignupOtpVerified(true);
       setSignupStep('details');
     } catch (e: any) {
       const msg = e?.message ?? '';
       if (msg.toLowerCase().includes('expired')) {
         setDialog({ visible: true, variant: 'info', title: tx('OTP Expired'), message: tx('Your OTP has expired. Please request a new one.') });
         setOtpSentSignup(false);
+        setSignupOtpVerified(false);
+        setSignupVerificationToken('');
         setSOtp('');
         setSignupStep('identity');
       } else if (msg.toLowerCase().includes('invalid')) {
@@ -532,7 +545,7 @@ export function UserAuthScreen({
   const signup = async () => {
     if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
     if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
-    if (!otpSentSignup || signupStep !== 'details' || !signupVerificationToken) {
+    if (!otpSentSignup || signupStep !== 'details' || !signupOtpVerified) {
       setDialog({ visible: true, variant: 'info', title: '', message: tx('Please verify your OTP first') });
       return;
     }

@@ -63,6 +63,7 @@ type Props = {
   minVersion?: string;
   playStoreUrl?: string;
   appStoreUrl?: string;
+  message?: string;
   onGoToStore?: () => void;
 };
 
@@ -71,6 +72,7 @@ export function ForceUpdateScreen({
   minVersion,
   playStoreUrl,
   appStoreUrl,
+  message,
   onGoToStore,
 }: Props) {
   const iconBounce = useRef(new Animated.Value(0)).current;
@@ -131,7 +133,7 @@ export function ForceUpdateScreen({
 
         <Text style={styles.title}>New Version Required</Text>
         <Text style={styles.sub}>
-          A newer version of SRV Electricals is available with important improvements. Please update to continue.
+          {message || 'A newer version of SRV Electricals is available with important improvements. Please update to continue.'}
         </Text>
 
         {/* Version pills */}

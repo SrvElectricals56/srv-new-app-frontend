@@ -57,6 +57,7 @@ import { GetStartedScreen } from '@/features/onboarding/GetStartedScreen';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { activityApi, storage } from '@/shared/api';
+import { Dialog } from '@/shared/components/Dialog';
 import type { AppContentPage } from '@/shared/config/appPageContent';
 import {
   isRoleFeatureEnabled,
@@ -71,6 +72,21 @@ type OnboardingStartOptions = {
   passwordConfigured?: boolean;
   passwordValue?: string;
 };
+
+type GuestAuthMode = 'login' | 'signup';
+
+function getRoleLabel(role: UserRole) {
+  switch (role) {
+    case 'dealer':
+      return 'Dealer';
+    case 'user':
+      return 'Customer';
+    case 'counterboy':
+      return 'Counter Boy';
+    default:
+      return 'Electrician';
+  }
+}
 
 function resolveRewardPoints(
   profile:
@@ -161,7 +177,7 @@ export default function Index() {
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading: authLoading, user, role: authRole, login, logout } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, role: authRole, login, logout, setBrowsingRole } = useAuth();
   const { appSettings } = useAppData();
   useAppPreviewBridge();
   const previewState = useAppPreviewState();
@@ -173,6 +189,8 @@ function AppContent() {
   const [language, setLanguage] = useState<AppLanguage>('English');
   const [darkMode, setDarkMode] = useState(false);
   const [guestAuthRole, setGuestAuthRole] = useState<UserRole | null>(null);
+  const [guestAuthInitialMode, setGuestAuthInitialMode] = useState<GuestAuthMode | null>(null);
+  const [guestAuthPromptRole, setGuestAuthPromptRole] = useState<UserRole | null>(null);
   const [passwordConfiguredByRole, setPasswordConfiguredByRole] = useState<
     Record<UserRole, boolean>
   >({
@@ -294,6 +312,8 @@ function AppContent() {
       setProfileInitialSubPage(previewTarget.subPage);
       setShowOnboarding(false);
       setGuestAuthRole(null);
+      setGuestAuthInitialMode(null);
+      setGuestAuthPromptRole(null);
       return;
     }
 
@@ -614,6 +634,7 @@ function AppContent() {
       if (!isRoleFeatureEnabled(rolePageControls, currentRole, screen)) {
         setCurrentScreen('home');
         setGuestAuthRole(null);
+        setGuestAuthInitialMode(null);
         return;
       }
 
@@ -627,6 +648,7 @@ function AppContent() {
       // dismiss the auth flow and navigate normally
       if (guestAuthRole && screen !== 'wallet' && screen !== 'profile') {
         setGuestAuthRole(null);
+        setGuestAuthInitialMode(null);
         setCurrentScreen(screen);
         return;
       }
@@ -908,6 +930,9 @@ function AppContent() {
     void (async () => {
       await logout(); // clears storage + resets AuthContext state
       setShowOnboarding(true);
+      setGuestAuthRole(null);
+      setGuestAuthInitialMode(null);
+      setGuestAuthPromptRole(null);
       setCurrentRole('electrician');
       setCurrentScreen('home');
       setSelectedProductCategory('all');
@@ -921,6 +946,25 @@ function AppContent() {
   const handleNotificationsSeen = useCallback(() => {
     setHasUnreadNotif(false);
     setUnreadNotifCount(0);
+  }, []);
+
+  const closeGuestAuth = useCallback(() => {
+    setGuestAuthRole(null);
+    setGuestAuthInitialMode(null);
+  }, []);
+
+  const openGuestAuth = useCallback((role: UserRole, mode?: GuestAuthMode) => {
+    setGuestAuthPromptRole(null);
+    setGuestAuthInitialMode(mode ?? null);
+    setGuestAuthRole(role);
+    setShowOnboarding(false);
+  }, []);
+
+  const showGuestAuthPrompt = useCallback((role: UserRole) => {
+    setGuestAuthRole(null);
+    setGuestAuthInitialMode(null);
+    setGuestAuthPromptRole(role);
+    setShowOnboarding(false);
   }, []);
 
   const handlePasswordConfiguredChange = useCallback((role: UserRole, configured: boolean) => {
@@ -937,6 +981,8 @@ function AppContent() {
         setCurrentRole('electrician');
         setCurrentScreen('home');
         setGuestAuthRole(null);
+        setGuestAuthInitialMode(null);
+        setGuestAuthPromptRole(null);
         setShowOnboarding(true);
         return;
       }
@@ -975,6 +1021,8 @@ function AppContent() {
       setCurrentRole(role);
       setCurrentScreen('home');
       setGuestAuthRole(null);
+      setGuestAuthInitialMode(null);
+      setGuestAuthPromptRole(null);
       setShowOnboarding(false);
     },
     [handlePasswordConfiguredChange, login]
@@ -986,11 +1034,11 @@ function AppContent() {
         role={role}
         featureTitle={featureTitle}
         featureDescription={featureDescription}
-        onOpenAuth={() => setGuestAuthRole(role)}
+        onOpenAuth={() => showGuestAuthPrompt(role)}
         onBack={() => setCurrentScreen('home')}
       />
     ),
-    []
+    [showGuestAuthPrompt]
   );
 
   const renderGuestAuthLanding = useCallback(
@@ -1009,9 +1057,8 @@ function AppContent() {
 
   const handleLoginRequired = useCallback(() => {
     if (isPreviewMode || isAuthenticated) return;
-    setGuestAuthRole(currentRole);
-    setShowOnboarding(false);
-  }, [currentRole, isAuthenticated, isPreviewMode]);
+    showGuestAuthPrompt(currentRole);
+  }, [currentRole, isAuthenticated, isPreviewMode, showGuestAuthPrompt]);
 
   const handleUseAnotherApprovalNumber = useCallback(() => {
     void (async () => {
@@ -1023,6 +1070,8 @@ function AppContent() {
       }
       setCurrentRole(pendingRole);
       setCurrentScreen('profile');
+      setGuestAuthInitialMode(null);
+      setGuestAuthPromptRole(null);
       setGuestAuthRole(pendingRole);
       setShowOnboarding(false);
     })();
@@ -1070,9 +1119,11 @@ function AppContent() {
     if (guestAuthRole) {
       return (
         <AuthLandingScreen
+          key={`${guestAuthRole}-${guestAuthInitialMode ?? 'landing'}`}
           role={guestAuthRole}
+          initialMode={guestAuthInitialMode ?? undefined}
           onAuthenticated={handleAuthenticatedRoleStart}
-          onBack={() => setGuestAuthRole(null)}
+          onBack={closeGuestAuth}
         />
       );
     }
@@ -1747,6 +1798,8 @@ function AppContent() {
     renderGuestFeatureGate,
     renderGuestAuthLanding,
     guestAuthRole,
+    guestAuthInitialMode,
+    closeGuestAuth,
     hasUnreadNotif,
     unreadNotifCount,
     userCartItems,
@@ -1793,9 +1846,11 @@ function AppContent() {
         <PreferenceContext.Provider value={preferenceValue}>
           <GetStartedScreen
             onComplete={(role: UserRole) => {
+              setBrowsingRole(role);
               setCurrentRole(role);
               setCurrentScreen('home');
               setShowOnboarding(false);
+              showGuestAuthPrompt(role);
             }}
           />
         </PreferenceContext.Provider>
@@ -1825,6 +1880,23 @@ function AppContent() {
             <ElectricianBottomNav currentScreen={resolvedCurrentScreen} onNavigate={handleNavigate} />
           )
         ) : null}
+        <Dialog
+          visible={Boolean(guestAuthPromptRole)}
+          onClose={() => setGuestAuthPromptRole(null)}
+          title={guestAuthPromptRole ? `${preferenceValue.tx('Welcome')} ${preferenceValue.tx(getRoleLabel(guestAuthPromptRole))}` : ''}
+          message={preferenceValue.tx('You can explore the home page as a guest. Login or create an account to use all app features.')}
+          variant="info"
+          choices={guestAuthPromptRole ? [
+            {
+              label: preferenceValue.tx('Login'),
+              onPress: () => openGuestAuth(guestAuthPromptRole, 'login'),
+            },
+            {
+              label: preferenceValue.tx('Create Account'),
+              onPress: () => openGuestAuth(guestAuthPromptRole, 'signup'),
+            },
+          ] : []}
+        />
         {notificationBanner ? (
           <Animated.View
             {...notificationBannerPanResponder.panHandlers}

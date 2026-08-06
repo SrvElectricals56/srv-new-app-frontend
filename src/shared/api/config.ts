@@ -13,11 +13,14 @@ const fallbackUrl = DEFAULT_URL_BY_PLATFORM[Platform.OS] ?? 'http://127.0.0.1:30
 const devLanUrl = 'http://10.255.222.231:3001/api/v1';
 
 export const API_BASE_URL: string = ENV_URL && ENV_URL.length > 0 ? ENV_URL : fallbackUrl;
+const developmentFallbackUrls = __DEV__
+  ? Platform.OS === 'android' || Platform.OS === 'ios'
+    ? [devLanUrl, fallbackUrl]
+    : [fallbackUrl]
+  : [];
 export const API_BASE_URLS: string[] = Array.from(new Set([
   API_BASE_URL,
-  ...(Platform.OS === 'android' ? [devLanUrl, fallbackUrl] : []),
-  ...(Platform.OS === 'ios' ? [devLanUrl, fallbackUrl] : []),
-  ...(Platform.OS === 'web' ? [fallbackUrl] : []),
+  ...developmentFallbackUrls,
 ].filter(Boolean)));
 export const API_FALLBACK_BASE_URL: string | null = API_BASE_URLS.find((url) => url !== API_BASE_URL) ?? null;
 

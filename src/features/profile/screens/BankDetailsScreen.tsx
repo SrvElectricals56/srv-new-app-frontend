@@ -46,20 +46,9 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   }, [role, user?.id, user?.accountHolderName, user?.bankAccount, user?.upiId, user?.upiQrCodeImage]);
 
   const pickUpiQrCode = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setDialog({
-        visible: true,
-        variant: 'info',
-        title: tx('Permission required'),
-        message: tx('Please allow photo access to upload your UPI QR code.'),
-      });
-      return;
-    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false,
       quality: 0.72,
       base64: true,
     });

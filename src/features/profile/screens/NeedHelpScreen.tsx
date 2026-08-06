@@ -114,10 +114,6 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
       setDialog({ visible: true, variant: 'info', title: tx('Photo limit reached'), message: tx('You can attach up to 5 photos.') });
       return;
     }
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setDialog({ visible: true, variant: 'info', title: tx('Permission required'), message: tx('Please allow gallery access.') }); return;
-    }
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
@@ -232,11 +228,6 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
 
   const pickReplyPhotos = async () => {
     if (isTicketClosed || replyPhotos.length >= MAX_SUPPORT_PHOTOS) return;
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setDialog({ visible: true, variant: 'info', title: tx('Permission required'), message: tx('Please allow gallery access.') });
-      return;
-    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,

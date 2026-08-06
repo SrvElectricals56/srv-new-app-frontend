@@ -52,7 +52,7 @@ const CAT_IMAGES: Record<string, string> = {
   modular:       'https://srvelectricals.com/cdn/shop/files/3x3_679e5d30-ecf2-446e-9452-354bbf4c4a26.png?v=1757426377&width=320',
   mcb:           'https://srvelectricals.com/cdn/shop/files/MCB_Box_4_Way_GI.png?v=1757426418&width=320',
   busbar:        'https://cdn.shopify.com/s/files/1/0651/4583/1466/files/Bus_Bar_100A_Super.png',
-  industrialfan: 'https://cdn.shopify.com/s/files/1/0651/4583/1466/files/VentilationFan_3594eae1-055d-4a86-b75c-b8cbbfcb22d6.png?v=1763708515',
+  industrialfan: 'https://api.srvelectricals.in/uploads/products/product-1784699625228-811239596.jpeg',
   stabilizer:    '/uploads/products/srv-voltage-stabilizer.png',
   exhaust:       'https://srvelectricals.com/cdn/shop/files/AP-Turtle-Fan.webp?v=1747938680&width=320',
   led:           'https://srvelectricals.com/cdn/shop/files/FloodLightSleek.png?v=1757426471&width=320',
@@ -584,7 +584,7 @@ export function HomeScreen({
     }));
     setApiBannerSlides(mapped as any);
     const uris = mapped.map((b) => b.image.uri);
-    uris.forEach((uri) => Image.prefetch(uri).catch(() => null));
+    uris.slice(0, 2).forEach((uri) => Image.prefetch(uri).catch(() => null));
   }, [ctxBanners]);
 
   // Show only 4 specific hardcoded categories on home screen

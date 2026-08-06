@@ -25,6 +25,7 @@ export function AuthLandingScreen({
   role,
   onAuthenticated,
   onBack,
+  initialMode,
 }: {
   role: UserRole;
   onAuthenticated: (
@@ -32,9 +33,10 @@ export function AuthLandingScreen({
     options?: { passwordConfigured?: boolean; passwordValue?: string }
   ) => void;
   onBack?: () => void;
+  initialMode?: 'login' | 'signup';
 }) {
   const { tx, theme } = usePreferenceContext();
-  const [mode, setMode] = useState<'login' | 'signup' | null>(null);
+  const [mode, setMode] = useState<'login' | 'signup' | null>(initialMode ?? null);
 
   if (role === 'user' || role === 'counterboy') {
     return (
@@ -42,6 +44,7 @@ export function AuthLandingScreen({
         onAuthenticated={onAuthenticated}
         onBack={onBack}
         role={role}
+        initialMode={initialMode ?? 'landing'}
       />
     );
   }
@@ -53,7 +56,13 @@ export function AuthLandingScreen({
         fixedRole={role}
         initialMode={mode}
         initialPhase="auth"
-        onCancel={() => setMode(null)}
+        onCancel={() => {
+          if (initialMode) {
+            onBack?.();
+            return;
+          }
+          setMode(null);
+        }}
         onGetStarted={onAuthenticated}
       />
     );

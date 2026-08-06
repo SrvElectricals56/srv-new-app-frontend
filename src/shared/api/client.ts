@@ -10,6 +10,23 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 const DEFAULT_TTL = 60_000; // 60 seconds
+const PUBLIC_CONTENT_TTL = 5 * 60_000;
+const LEADERBOARD_TTL = 2 * 60_000;
+
+function getCacheTtl(path: string) {
+  if (path.includes('/mobile/leaderboard/top-five')) return LEADERBOARD_TTL;
+  if (
+    path.includes('/mobile/products') ||
+    path.includes('/mobile/banners') ||
+    path.includes('/mobile/testimonials') ||
+    path.includes('/mobile/offers') ||
+    path.includes('/mobile/reward-schemes') ||
+    path.includes('/mobile/gift-products')
+  ) {
+    return PUBLIC_CONTENT_TTL;
+  }
+  return DEFAULT_TTL;
+}
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -248,7 +265,7 @@ export const api = {
     if (inflight) return inflight;
 
     const promise = request<T>(path, { method: 'GET', params, auth }).then((data) => {
-      setCache(key, data);
+      setCache(key, data, getCacheTtl(path));
       inflightRequests.delete(key);
       return data;
     }).catch((err) => {

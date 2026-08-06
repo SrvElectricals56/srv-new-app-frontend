@@ -683,16 +683,9 @@ export function ProfileScreen({
         return;
       }
 
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        setDialog({ visible: true, variant: 'info', title: tx('Permission needed'), message: tx('Allow gallery access to update your profile photo.') });
-        return;
-      }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
+        allowsEditing: false,
         quality: 1,
       });
 

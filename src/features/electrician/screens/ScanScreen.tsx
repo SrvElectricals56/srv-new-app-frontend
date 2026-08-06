@@ -101,7 +101,13 @@ const resolveRewardFromCode = async (value?: string, mode: ScanMode = 'single'):
     ) {
       return { reward: null, errorType: 'already_scanned', duplicate: normalizeDuplicateScan(payload) };
     }
-    return { reward: null, errorType: 'invalid', duplicate: null };
+    const status = Number(err?.status ?? err?.response?.status ?? 0);
+    const invalidRequest = status === 400 || status === 404 || status === 422;
+    return {
+      reward: null,
+      errorType: invalidRequest ? 'invalid' : 'request_failed',
+      duplicate: null,
+    };
   }
 };
 
@@ -291,7 +297,7 @@ export function ScanScreen({
     firstScanVisibility.dealerName ||
     firstScanVisibility.dealerPhone ||
     firstScanVisibility.scannedAt;
-  const frameSize = Math.min(width - 80, 280);
+  const frameSize = Math.min(width - 40, 340);
 
   const laserY = useRef(new Animated.Value(0)).current;
   const laserOpacity = useRef(new Animated.Value(0.3)).current;
@@ -648,13 +654,6 @@ export function ScanScreen({
   };
 
   const handlePickFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      setDialog({ visible: true, variant: 'info', title: tx('Permission Required'), message: tx('Gallery permission is required to select QR images.') });
-      return;
-    }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,

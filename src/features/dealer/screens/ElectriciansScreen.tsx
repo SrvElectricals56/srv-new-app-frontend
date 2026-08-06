@@ -22,7 +22,7 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import type { Screen } from '@/shared/types/navigation';
-import { electriciansApi } from '@/shared/api';
+import { electriciansApi, type DealerElectricianWalletActivity } from '@/shared/api';
 import { formatISTDate } from '@/shared/utils/dateIST';
 import { useAppPageContent } from '@/shared/hooks';
 
@@ -157,6 +157,9 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
   const [query, setQuery] = useState('');
   const [periodFilter, setPeriodFilter] = useState<NetworkPeriodFilter>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [activityTarget, setActivityTarget] = useState<Electrician | null>(null);
+  const [walletActivity, setWalletActivity] = useState<DealerElectricianWalletActivity | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newCity, setNewCity] = useState('');
@@ -310,6 +313,32 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
       setDialog({ visible: true, variant: 'error', title: tx('Add electrician failed'), message });
       setSubmitting(false);
     }
+  };
+
+  const openWalletActivity = async (electrician: Electrician) => {
+    setActivityTarget(electrician);
+    setWalletActivity(null);
+    setActivityLoading(true);
+    try {
+      const result = await electriciansApi.getWalletActivity(electrician.id, 1, 50);
+      setWalletActivity(result);
+    } catch (error: any) {
+      setActivityTarget(null);
+      setDialog({
+        visible: true,
+        variant: 'error',
+        title: tx('Unable to load wallet activity'),
+        message: error?.message ?? tx('Please try again.'),
+      });
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  const closeWalletActivity = () => {
+    setActivityTarget(null);
+    setWalletActivity(null);
+    setActivityLoading(false);
   };
 
   const handleHomePressIn = () => {
@@ -514,11 +543,106 @@ export function ElectriciansScreen({ onNavigate }: { onNavigate?: (screen: Scree
 
               <Text style={[styles.memberCity, { color: theme.textSecondary }]}>{item.city}</Text>
               <Text style={[styles.memberJoined, { color: theme.textMuted }]}>{tx(item.joinedAt)}</Text>
+              <TouchableOpacity
+                style={[styles.activityButton, { backgroundColor: darkMode ? theme.soft : '#EEF5FF', borderColor: theme.border }]}
+                activeOpacity={0.82}
+                onPress={() => void openWalletActivity(item)}
+              >
+                <Text style={[styles.activityButtonText, { color: theme.accent }]}>
+                  {tx('View wallet & withdrawals')}
+                </Text>
+              </TouchableOpacity>
             </View>
           ))
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={Boolean(activityTarget)}
+        animationType="slide"
+        transparent
+        onRequestClose={closeWalletActivity}
+      >
+        <View style={[styles.modalOverlay, darkMode ? styles.modalOverlayDark : null]}>
+          <Pressable style={styles.modalBackdropTapArea} onPress={closeWalletActivity} />
+          <View style={[styles.activitySheet, { backgroundColor: theme.surface }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.activityHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
+                  {activityTarget?.name ?? tx('Electrician activity')}
+                </Text>
+                <Text style={[styles.modalSub, { color: theme.textMuted }]}>
+                  {tx('Wallet history, withdrawal requests and your 5% bonus')}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closeWalletActivity} style={[styles.closeButton, { backgroundColor: theme.soft }]}>
+                <Text style={[styles.closeButtonText, { color: theme.textPrimary }]}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            {activityLoading ? (
+              <ActivityIndicator color="#173E80" size="large" style={styles.activityLoader} />
+            ) : walletActivity ? (
+              <ScrollView contentContainerStyle={styles.activityContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.activityStats}>
+                  <View style={[styles.activityStat, { backgroundColor: theme.soft }]}>
+                    <Text style={[styles.activityStatLabel, { color: theme.textMuted }]}>{tx('Wallet balance')}</Text>
+                    <Text style={[styles.activityStatValue, { color: theme.textPrimary }]}>Rs. {walletActivity.electrician.walletBalance.toLocaleString('en-IN')}</Text>
+                  </View>
+                  <View style={[styles.activityStat, { backgroundColor: theme.soft }]}>
+                    <Text style={[styles.activityStatLabel, { color: theme.textMuted }]}>{tx('Withdrawals')}</Text>
+                    <Text style={[styles.activityStatValue, { color: theme.textPrimary }]}>{walletActivity.withdrawals.length}</Text>
+                  </View>
+                </View>
+
+                <Text style={[styles.activitySectionTitle, { color: theme.textPrimary }]}>{tx('Withdrawal requests & 5% bonus')}</Text>
+                {walletActivity.withdrawals.length ? walletActivity.withdrawals.map((withdrawal) => {
+                  const credited = withdrawal.dealerBonus.status === 'credited';
+                  return (
+                    <View key={withdrawal.id} style={[styles.activityItem, { borderColor: theme.border, backgroundColor: theme.bg }]}>
+                      <View style={styles.activityItemTop}>
+                        <Text style={[styles.activityAmount, { color: theme.textPrimary }]}>Rs. {withdrawal.amount.toLocaleString('en-IN')}</Text>
+                        <View style={[styles.activityStatus, { backgroundColor: credited ? '#DCFCE7' : '#FFF4E2' }]}>
+                          <Text style={[styles.activityStatusText, { color: credited ? '#17834C' : '#B66A08' }]}>{tx(withdrawal.status)}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.activityDate, { color: theme.textMuted }]}>{formatISTDate(withdrawal.requestedAt)}</Text>
+                      <Text style={[styles.bonusLine, { color: credited ? '#17834C' : theme.textSecondary }]}>
+                        {credited
+                          ? `${tx('5% bonus credited')}: Rs. ${withdrawal.dealerBonus.amount.toLocaleString('en-IN')}`
+                          : `${tx('Expected 5% bonus after approval')}: Rs. ${withdrawal.dealerBonus.amount.toLocaleString('en-IN')}`}
+                      </Text>
+                    </View>
+                  );
+                }) : (
+                  <Text style={[styles.activityEmpty, { color: theme.textMuted }]}>{tx('No withdrawal requests yet.')}</Text>
+                )}
+
+                <Text style={[styles.activitySectionTitle, { color: theme.textPrimary }]}>{tx('Wallet history')}</Text>
+                {walletActivity.transactions.data.length ? walletActivity.transactions.data.map((transaction) => (
+                  <View key={transaction.id} style={[styles.activityItem, { borderColor: theme.border, backgroundColor: theme.bg }]}>
+                    <View style={styles.activityItemTop}>
+                      <Text style={[styles.activityDescription, { color: theme.textPrimary }]} numberOfLines={2}>
+                        {transaction.description || tx('Wallet transaction')}
+                      </Text>
+                      <Text style={[styles.transactionAmount, { color: transaction.type === 'credit' ? '#17834C' : '#BE123C' }]}>
+                        {transaction.type === 'credit' ? '+' : '-'}{Number(transaction.amount).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                    <Text style={[styles.activityDate, { color: theme.textMuted }]}>
+                      {formatISTDate(transaction.createdAt)} · {tx('Balance')} {Number(transaction.balanceAfter).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                )) : (
+                  <Text style={[styles.activityEmpty, { color: theme.textMuted }]}>{tx('No wallet activity yet.')}</Text>
+                )}
+              </ScrollView>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showAddModal}
@@ -836,6 +960,29 @@ const styles = StyleSheet.create({
   metaPoints: { color: '#173E80', fontSize: 12, fontWeight: '800' },
   memberCity: { marginTop: 12, color: '#263A56', fontSize: 13, fontWeight: '700' },
   memberJoined: { marginTop: 4, color: '#8597AC', fontSize: 12 },
+  activityButton: { marginTop: 14, borderRadius: 15, borderWidth: 1, paddingVertical: 11, alignItems: 'center' },
+  activityButtonText: { fontSize: 13, fontWeight: '900' },
+  activitySheet: { width: '100%', maxHeight: '88%', minHeight: 360, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' },
+  activityHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 18, paddingBottom: 12 },
+  closeButton: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  closeButtonText: { fontSize: 25, lineHeight: 27, fontWeight: '500' },
+  activityLoader: { marginVertical: 80 },
+  activityContent: { paddingHorizontal: 18, paddingBottom: 30, gap: 12 },
+  activityStats: { flexDirection: 'row', gap: 10 },
+  activityStat: { flex: 1, borderRadius: 18, padding: 14 },
+  activityStatLabel: { fontSize: 11, fontWeight: '700' },
+  activityStatValue: { marginTop: 6, fontSize: 18, fontWeight: '900' },
+  activitySectionTitle: { marginTop: 8, fontSize: 16, fontWeight: '900' },
+  activityItem: { borderWidth: 1, borderRadius: 18, padding: 13, gap: 5 },
+  activityItemTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  activityAmount: { fontSize: 16, fontWeight: '900' },
+  activityStatus: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
+  activityStatusText: { fontSize: 10, fontWeight: '900', textTransform: 'capitalize' },
+  activityDate: { fontSize: 11, fontWeight: '600' },
+  bonusLine: { marginTop: 4, fontSize: 12, fontWeight: '800' },
+  activityDescription: { flex: 1, fontSize: 13, fontWeight: '800' },
+  transactionAmount: { fontSize: 14, fontWeight: '900' },
+  activityEmpty: { borderRadius: 16, paddingVertical: 18, textAlign: 'center', fontSize: 12, fontWeight: '600' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12,26,49,0.38)' },
   modalOverlayDark: { backgroundColor: 'rgba(2,6,23,0.72)' },
   modalBackdropTapArea: { ...StyleSheet.absoluteFillObject },

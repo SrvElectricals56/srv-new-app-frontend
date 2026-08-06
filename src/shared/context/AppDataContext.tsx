@@ -198,15 +198,25 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     debugLog('🔄 Loading public data...');
     try {
       const [prods, cats, roleBans, tests, setts, offs, schemes, gifts] = await Promise.all([
-        productsApi.getAll().catch((err) => {
+        productsApi.getAll().then((result) => {
+          setProducts(result.data ?? []);
+          setCatalogLoading(false);
+          return result;
+        }).catch((err) => {
           logDataWarning('Products API failed.', err?.message ?? err);
           return { data: [] as Product[] };
         }),
-        catalogApi.getCategories().catch((err) => {
+        catalogApi.getCategories().then((result) => {
+          setCategories(result.data ?? []);
+          return result;
+        }).catch((err) => {
           logDataWarning('Categories API failed.', err?.message ?? err);
           return { data: [] as ProductCategory[] };
         }),
-        bannersApi.getAll(role ?? undefined).catch((err) => {
+        bannersApi.getAll(role ?? undefined).then((result) => {
+          if ((result.data?.length ?? 0) > 0) setBanners(result.data);
+          return result;
+        }).catch((err) => {
           logDataWarning('Banners API failed.', err?.message ?? err);
           return { data: [] as Banner[] };
         }),
@@ -214,7 +224,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           logDataWarning('Testimonials API failed.', err?.message ?? err);
           return { data: [] as Testimonial[] };
         }),
-        settingsApi.getAppSettings().catch((err) => {
+        settingsApi.getAppSettings().then((result) => {
+          if (result) setAppSettings(result);
+          return result;
+        }).catch((err) => {
           logDataWarning('Settings API failed.', err?.message ?? err);
           return null;
         }),
@@ -437,10 +450,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           clearCache('/mobile/wallet');
           void loadPrivateData();
         }
+        if (awayFor > 5 * 60_000) {
+          clearCache('/mobile/banners');
+          clearCache('/mobile/products');
+          void loadPublicData();
+        }
       }
     });
     return () => sub.remove();
-  }, [loadPrivateData]);
+  }, [loadPrivateData, loadPublicData]);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id || Platform.OS === 'web' || !Device.isDevice) return;
@@ -489,10 +507,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isAuthenticated, loadPrivateData, profile?.pushEnabled, user?.id]);
 
-  // Poll app settings every 30 seconds so maintenance mode / force update
-  // reflects quickly without requiring the user to restart the app.
+  // Poll settings periodically while foregrounded so maintenance and force
+  // update changes remain timely without continuously waking the device radio.
   useEffect(() => {
-    const POLL_INTERVAL = 30_000; // 30 seconds
+    const POLL_INTERVAL = 2 * 60_000;
 
     const pollSettings = async () => {
       // Only poll when app is in the foreground
@@ -510,13 +528,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, []);
 
-  // Poll banners and products every 30 seconds so admin changes reflect quickly
+  // Public catalog content changes infrequently. Five-minute refreshes avoid
+  // repeatedly downloading the product payload while the app is being used.
   useEffect(() => {
-    const POLL_INTERVAL = 30_000; // 30 seconds
+    const POLL_INTERVAL = 5 * 60_000;
 
     const pollPublicContent = async () => {
       if (appStateRef.current !== 'active') return;
       try {
+        clearCache('/mobile/banners');
+        clearCache('/mobile/products');
         const [bans, prods] = await Promise.all([
           bannersApi.getAll(role ?? undefined).catch(() => null),
           productsApi.getAll().catch(() => null),
@@ -532,58 +553,70 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [role]);
 
+  const refreshPrivateData = useCallback(() => {
+    clearCache('/mobile/auth/profile');
+    clearCache('/mobile/wallet');
+    clearCache('/mobile/scan-history');
+    clearCache('/mobile/notifications');
+    clearCache('/mobile/redemptions');
+    clearCache('/mobile/electricians');
+    clearCache('/mobile/profile/qr-code');
+    clearCache('/mobile/referral');
+    return loadPrivateData();
+  }, [loadPrivateData]);
+
   // ── Actions ───────────────────────────────────────────────────────────────
   const submitScan = useCallback(async (qrCode: string, mode: 'single' | 'multi'): Promise<ScanResult> => {
     const result = await scanApi.submit(qrCode, mode);
-    void refreshAll();
+    void refreshPrivateData();
     return result;
-  }, [refreshAll]);
+  }, [refreshPrivateData]);
 
   const addElectrician = useCallback(async (data: { name: string; phone: string; city?: string; state?: string }) => {
     await electriciansApi.add(data);
-    void refreshAll();
-  }, [refreshAll]);
+    void refreshPrivateData();
+  }, [refreshPrivateData]);
 
   const updateProfile = useCallback(async (data: Partial<UserProfile>): Promise<UserProfile> => {
     const result = await profileApi.update(data);
-    void refreshAll();
+    void refreshPrivateData();
     return result;
-  }, [refreshAll]);
+  }, [refreshPrivateData]);
 
   const uploadProfilePhoto = useCallback(async (base64DataUri: string, source = 'upload') => {
     await profileApi.uploadPhoto(base64DataUri, source);
-    void refreshAll();
-  }, [refreshAll]);
+    void refreshPrivateData();
+  }, [refreshPrivateData]);
 
   const removeProfilePhoto = useCallback(async () => {
     await profileApi.removePhoto();
-    void refreshAll();
-  }, [refreshAll]);
+    void refreshPrivateData();
+  }, [refreshPrivateData]);
 
   const updatePreferences = useCallback(async (data: { language?: string; darkMode?: boolean; pushEnabled?: boolean }) => {
     await profileApi.updatePreferences(data);
-    void refreshAll();
-  }, [refreshAll]);
+    void refreshPrivateData();
+  }, [refreshPrivateData]);
 
   const saveBankAccount = useCallback(async (data: any) => {
     await walletApi.saveBankAccount(data);
-    void refreshAll();
-  }, [refreshAll]);
+    void refreshPrivateData();
+  }, [refreshPrivateData]);
 
   const redeemReward = useCallback(async (data: { schemeId: string; note?: string; giftImage?: string }) => {
     await walletApi.redeemReward(data);
-    void refreshAll();
-  }, [refreshAll]);
+    void refreshPrivateData();
+  }, [refreshPrivateData]);
 
   const transferPoints = useCallback(async (data: { receiverPhone: string; points: number }) => {
     await walletApi.transferPoints(data);
-    void refreshAll();
-  }, [refreshAll]);
+    void refreshPrivateData();
+  }, [refreshPrivateData]);
 
   const requestDealerBonusWithdrawal = useCallback(async (data: { amount: number }) => {
     await walletApi.requestDealerBonusWithdrawal(data);
-    void refreshAll();
-  }, [refreshAll]);
+    void refreshPrivateData();
+  }, [refreshPrivateData]);
 
   const submitSupportTicket = useCallback(async (data: { subject: string; comment: string; photoUrl?: string; photoUrls?: string[] }) => {
     await supportApi.createTicket(data);

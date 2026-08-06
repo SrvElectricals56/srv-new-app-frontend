@@ -56,7 +56,7 @@ function resolveRemoteImageUrl(value?: string | null): string | null {
 }
 
 const CB_HOME_CAT_IMAGES: Record<string, string> = {
-  industrialfan:'https://cdn.shopify.com/s/files/1/0651/4583/1466/files/VentilationFan_3594eae1-055d-4a86-b75c-b8cbbfcb22d6.png?v=1763708515',
+  industrialfan:'https://api.srvelectricals.in/uploads/products/product-1784699625228-811239596.jpeg',
   stabilizer:   '/uploads/products/srv-voltage-stabilizer.png',
   fanbox:       'https://srvelectricals.com/cdn/shop/files/FC_4_17-30.png?v=1757426626&width=320',
   concealedbox: 'https://srvelectricals.com/cdn/shop/files/CRD_PL_3.png?v=1757426566&width=320',
@@ -270,7 +270,7 @@ export function HomeScreen({
       };
     });
     setApiBannerSlides(mapped as any);
-    mapped.forEach((s) => Image.prefetch(s.image.uri).catch(() => null));
+    mapped.slice(0, 2).forEach((s) => Image.prefetch(s.image.uri).catch(() => null));
   }, [ctxBanners]);
 
   useEffect(() => {

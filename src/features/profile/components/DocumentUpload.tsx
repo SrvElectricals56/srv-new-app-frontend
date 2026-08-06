@@ -69,18 +69,11 @@ export function DocumentUpload({
   };
 
   const pickFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setDialog({ visible: true, variant: 'info', title: 'Permission needed', message: 'Allow gallery access to upload documents.' });
-      return;
-    }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: pickerAspect,
+      // Keep iOS on PHPicker, which grants access only to selected items.
+      allowsEditing: false,
       quality: 0.9,
-      legacy: true,
     });
 
     if (!result.canceled && result.assets?.length) {

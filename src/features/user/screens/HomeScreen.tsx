@@ -41,7 +41,6 @@ import { useAppPageContent, useAppPageSections, useCatalogDownload } from '@/sha
 import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
 import type { HomePageSectionKey } from '@/shared/config/appPageContent';
 import { API_BASE_URL } from '@/shared/api/config';
-import { bannersApi } from '@/shared/api';
 import { CUSTOMER_THEME } from '@/features/user/theme';
 
 // ── Category color system (same as ProductScreen) ─────────────────────
@@ -53,7 +52,7 @@ const CAT_IMAGES: Record<string, string> = {
   modular:       'https://srvelectricals.com/cdn/shop/files/3x3_679e5d30-ecf2-446e-9452-354bbf4c4a26.png?v=1757426377&width=320',
   mcb:           'https://srvelectricals.com/cdn/shop/files/MCB_Box_4_Way_GI.png?v=1757426418&width=320',
   busbar:        'https://cdn.shopify.com/s/files/1/0651/4583/1466/files/Bus_Bar_100A_Super.png',
-  industrialfan: 'https://cdn.shopify.com/s/files/1/0651/4583/1466/files/VentilationFan_3594eae1-055d-4a86-b75c-b8cbbfcb22d6.png?v=1763708515',
+  industrialfan: 'https://api.srvelectricals.in/uploads/products/product-1784699625228-811239596.jpeg',
   stabilizer:    '/uploads/products/srv-voltage-stabilizer.png',
   exhaust:       'https://srvelectricals.com/cdn/shop/files/AP-Turtle-Fan.webp?v=1747938680&width=320',
   led:           'https://srvelectricals.com/cdn/shop/files/FloodLightSleek.png?v=1757426471&width=320',
@@ -614,36 +613,8 @@ export function HomeScreen({
     const uris = mapped
       .map((b) => (typeof b.image === 'object' && 'uri' in b.image ? b.image.uri : null))
       .filter((uri): uri is string => !!uri);
-    uris.forEach((uri) => Image.prefetch(uri).catch(() => null));
+    uris.slice(0, 2).forEach((uri) => Image.prefetch(uri).catch(() => null));
   }, [ctxBanners]);
-
-  // Customer screen direct DB fallback for banners in case shared public context misses them.
-  useEffect(() => {
-    if (apiBannerSlides.length > 0) return;
-    let cancelled = false;
-
-    const loadBanners = async () => {
-      try {
-        const roleRes = await bannersApi.getAll('user');
-        const roleSlides = mapBannerSlides((roleRes as any).data ?? []);
-        const finalSlides =
-          roleSlides.length > 0
-            ? roleSlides
-            : mapBannerSlides(((await bannersApi.getAll()) as any).data ?? []);
-
-        if (!cancelled && finalSlides.length > 0) {
-          setApiBannerSlides(finalSlides);
-        }
-      } catch {
-        // Keep existing UI if DB banners still fail here.
-      }
-    };
-
-    void loadBanners();
-    return () => {
-      cancelled = true;
-    };
-  }, [apiBannerSlides.length]);
 
   const activeBannerSlides = apiBannerSlides;
 

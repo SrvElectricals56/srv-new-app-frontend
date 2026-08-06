@@ -3,7 +3,9 @@ const path = require('path');
 const { Client } = require('pg');
 const bcrypt = require('bcrypt');
 
-const backendDir = 'C:\\Users\\dell\\Desktop\\ADMIN-BACKEND';
+const backendDir = process.env.SRV_BACKEND_DIR
+  ? path.resolve(process.env.SRV_BACKEND_DIR)
+  : path.resolve(__dirname, '..', '..', 'srv-new-app-backend');
 const env = {};
 for (const raw of fs.readFileSync(path.join(backendDir, '.env'), 'utf8').split(/\r?\n/)) {
   const line = raw.trim();

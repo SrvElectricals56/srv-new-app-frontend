@@ -43,6 +43,7 @@ export function GetStartedScreen({ onComplete }: GetStartedScreenProps) {
       </View>
     );
   }
+
   return (
     <View style={[s.root, { backgroundColor: bg }]}>
       <MainSlide onRoleSelect={(role) => setSelectedRole(role)} />

@@ -379,7 +379,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
 
     // Keep the order screen in sync with admin actions without requiring the
     // customer to leave the screen or pull to refresh.
-    const syncTimer = setInterval(() => void loadOrders({ keepCurrent: true }), 1000);
+    const syncTimer = setInterval(() => void loadOrders({ keepCurrent: true }), 15_000);
     return () => clearInterval(syncTimer);
   }, [cacheKey, loadOrders, reloadKey]);
 

@@ -24,6 +24,7 @@ type Props = { children: React.ReactNode };
 export function AppGate({ children }: Props) {
   const { appSettings, refreshAll } = useAppData();
   const [showForceUpdate, setShowForceUpdate] = useState(false);
+  const [showIosReviewMaintenance, setShowIosReviewMaintenance] = useState(false);
   const [checked, setChecked] = useState(false);
   const isPreviewMode =
     Platform.OS === 'web' &&
@@ -43,12 +44,6 @@ export function AppGate({ children }: Props) {
         return;
       }
 
-      if (!appSettings.forceUpdate) {
-        setShowForceUpdate(false);
-        setChecked(true);
-        return;
-      }
-
       const requiredVersion = appSettings.minAppVersion ?? '0.0.0';
 
       // If current app version >= required version, no need to show update screen
@@ -56,12 +51,30 @@ export function AppGate({ children }: Props) {
       
       if (comparison >= 0) {
         setShowForceUpdate(false);
+        setShowIosReviewMaintenance(false);
+        setChecked(true);
+        return;
+      }
+
+      if (Platform.OS === 'ios') {
+        // iOS has its own release switch and never inherits the Android/Google
+        // Play behavior. Flip it only after the new version is live in App Store.
+        setShowForceUpdate(appSettings.iosUpdateAvailable === true);
+        setShowIosReviewMaintenance(appSettings.iosUpdateAvailable !== true);
+        setChecked(true);
+        return;
+      }
+
+      if (!appSettings.forceUpdate) {
+        setShowForceUpdate(false);
+        setShowIosReviewMaintenance(false);
         setChecked(true);
         return;
       }
 
       // A required update cannot be dismissed. The gate disappears only after
       // the installed native version actually satisfies minAppVersion.
+      setShowIosReviewMaintenance(false);
       setShowForceUpdate(true);
       setChecked(true);
     };
@@ -89,6 +102,18 @@ export function AppGate({ children }: Props) {
         minVersion={appSettings.minAppVersion}
         playStoreUrl={appSettings.playStoreUrl}
         appStoreUrl={appSettings.appStoreUrl}
+        message={Platform.OS === 'ios' ? appSettings.iosUpdateMessage : appSettings.androidUpdateMessage}
+      />
+    );
+  }
+
+  // While an iOS release is awaiting approval, never send users to Google Play
+  // or to an App Store version that is not available yet.
+  if (showIosReviewMaintenance && appSettings) {
+    return (
+      <MaintenanceScreen
+        message={appSettings.iosReviewMaintenanceMessage}
+        onRetry={handleRetry}
       />
     );
   }

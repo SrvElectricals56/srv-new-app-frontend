@@ -12,7 +12,24 @@
           "package_name": "com.srvelectricals.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "519956418767-6ato62vc6k043gb0fv7vl5qepni4dad7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.srvelectricals.app",
+            "certificate_hash": "be76eccbc5d05b11b7a668ae568d3858bf189ed3"
+          }
+        },
+        {
+          "client_id": "519956418767-5l6rat990tlrtss5ofrq0g73halu8crg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.srvelectricals.app",
+            "certificate_hash": "ffb3eb2e5d1d7cf495f5e85f080078b90c101009"
+          }
+        }
+      ],
       "api_key": [{ "current_key": "AIzaSyBPWhkgtgmqKVH6_ZTnnT_VFGP5Fvd7gu4" }],
       "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
     },

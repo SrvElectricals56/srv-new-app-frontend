@@ -1,7 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
 import { leaderboardApi, type TopFiveMember } from '@/shared/api/services';
+import { clearCache } from '@/shared/api/client';
 import type { UserRole } from '@/shared/types/navigation';
+
+const LEADERBOARD_TTL = 2 * 60_000;
+const leaderboardCache = new Map<UserRole, { rows: TopFiveMember[]; updatedAt: number }>();
+const leaderboardRequests = new Map<UserRole, Promise<TopFiveMember[]>>();
+
+function getLeaderboard(role: UserRole, force = false) {
+  const cached = leaderboardCache.get(role);
+  if (!force && cached && Date.now() - cached.updatedAt < LEADERBOARD_TTL) {
+    return Promise.resolve(cached.rows);
+  }
+  const pending = leaderboardRequests.get(role);
+  if (pending) return pending;
+  if (force) clearCache('/mobile/leaderboard/top-five');
+
+  const request = leaderboardApi.getTopFive(role)
+    .then(data => {
+      const rows = Array.isArray(data) ? data : [];
+      leaderboardCache.set(role, { rows, updatedAt: Date.now() });
+      return rows;
+    })
+    .finally(() => leaderboardRequests.delete(role));
+  leaderboardRequests.set(role, request);
+  return request;
+}
 
 export function TopFiveLeaderboard({
   role,
@@ -12,20 +37,27 @@ export function TopFiveLeaderboard({
   darkMode?: boolean;
   refreshKey?: number;
 }) {
-  const [rows, setRows] = useState<TopFiveMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = leaderboardCache.get(role);
+  const [rows, setRows] = useState<TopFiveMember[]>(cached?.rows ?? []);
+  const [loading, setLoading] = useState(!cached);
 
   useEffect(() => {
     let active = true;
-    const load = () => {
-      leaderboardApi.getTopFive(role)
-        .then(data => { if (active) setRows(Array.isArray(data) ? data : []); })
-        .catch(() => { if (active) setRows([]); })
+    const existing = leaderboardCache.get(role);
+    setRows(existing?.rows ?? []);
+    const load = (force = false) => {
+      getLeaderboard(role, force)
+        .then(data => { if (active) setRows(data); })
+        .catch(() => {})
         .finally(() => { if (active) setLoading(false); });
     };
-    load();
+    setLoading(!existing);
+    load(refreshKey > 0);
     const appStateSubscription = AppState.addEventListener('change', state => {
-      if (state === 'active') load();
+      const roleCache = leaderboardCache.get(role);
+      if (state === 'active' && (!roleCache || Date.now() - roleCache.updatedAt >= LEADERBOARD_TTL)) {
+        load();
+      }
     });
     return () => {
       active = false;

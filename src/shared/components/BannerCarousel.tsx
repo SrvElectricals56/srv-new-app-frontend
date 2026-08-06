@@ -45,6 +45,7 @@ export function BannerCarousel({
   borderRadius = 16,
 }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [previousIndex, setPreviousIndex] = useState<number | null>(null);
 
   const activeRef = useRef(0);
   const lenRef = useRef(slides.length);
@@ -66,7 +67,16 @@ export function BannerCarousel({
     opacities.current.forEach((v, i) => v.setValue(i === 0 ? 1 : 0));
     activeRef.current = 0;
     setActiveIndex(0);
+    setPreviousIndex(null);
   }, [slides.length]);
+
+  useEffect(() => {
+    if (slides.length < 2) return;
+    const nextSlide = slides[(activeIndex + 1) % slides.length];
+    if (nextSlide && typeof nextSlide.image === 'object' && 'uri' in nextSlide.image) {
+      void Image.prefetch(nextSlide.image.uri).catch(() => null);
+    }
+  }, [activeIndex, slides]);
 
   // ── Cross-fade ────────────────────────────────────────────────────────────
   const goTo = useCallback((next: number) => {
@@ -79,12 +89,15 @@ export function BannerCarousel({
     const nextVal = opacities.current[safeNext];
     if (!prevVal || !nextVal) return;
     activeRef.current = safeNext;
+    setPreviousIndex(prev);
     setActiveIndex(safeNext);
     nextVal.setValue(0);
     Animated.parallel([
       Animated.timing(nextVal, { toValue: 1, duration: 350, useNativeDriver: true }),
       Animated.timing(prevVal, { toValue: 0, duration: 350, useNativeDriver: true }),
-    ]).start();
+    ]).start(({ finished }) => {
+      if (finished) setPreviousIndex(current => current === prev ? null : current);
+    });
   }, []);
 
   // ── Auto-play ─────────────────────────────────────────────────────────────
@@ -134,6 +147,7 @@ export function BannerCarousel({
         {...panResponder.panHandlers}
       >
         {slides.map((slide, index) => {
+          if (index !== activeIndex && index !== previousIndex) return null;
           const opacity = opacities.current[index];
           if (!opacity) return null;
           return (

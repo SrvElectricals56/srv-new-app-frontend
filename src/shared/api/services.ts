@@ -8,6 +8,10 @@ function normalizePhone(phone?: string | null) {
   return String(phone ?? '').replace(/\D/g, '').slice(-10);
 }
 
+function normalizeSignupVerificationToken(token?: string | null) {
+  return token?.trim() || undefined;
+}
+
 function sanitizeDealerSignupPayload(data: {
   name: string;
   phone: string;
@@ -19,7 +23,7 @@ function sanitizeDealerSignupPayload(data: {
   pincode?: string;
   gstNumber?: string;
   password?: string;
-  signupVerificationToken: string;
+  signupVerificationToken?: string;
 }) {
   return {
     name: data.name,
@@ -32,7 +36,7 @@ function sanitizeDealerSignupPayload(data: {
     pincode: data.pincode,
     gstNumber: data.gstNumber,
     password: data.password,
-    signupVerificationToken: data.signupVerificationToken,
+    signupVerificationToken: normalizeSignupVerificationToken(data.signupVerificationToken),
   };
 }
 
@@ -46,7 +50,7 @@ function sanitizeCounterBoySignupPayload(data: {
   address?: string;
   pincode?: string;
   password?: string;
-  signupVerificationToken: string;
+  signupVerificationToken?: string;
 }) {
   return {
     name: data.name.trim(),
@@ -58,7 +62,7 @@ function sanitizeCounterBoySignupPayload(data: {
     address: data.address?.trim() || undefined,
     pincode: data.pincode?.trim() || undefined,
     password: data.password?.trim() || undefined,
-    signupVerificationToken: data.signupVerificationToken,
+    signupVerificationToken: normalizeSignupVerificationToken(data.signupVerificationToken),
   };
 }
 
@@ -77,53 +81,6 @@ function sanitizeUserProfileUpdatePayload(data: Partial<UserProfile>) {
   return out;
 }
 
-function buildElectricianCodeFallback(data: {
-  phone: string;
-  state?: string;
-  pincode?: string;
-  district?: string;
-  dealerPhone?: string;
-}) {
-  const stateCodeMap: Record<string, string> = {
-    andhrapradesh: 'AP',
-    arunachalpradesh: 'AR',
-    assam: 'AS',
-    bihar: 'BH',
-    chhattisgarh: 'CG',
-    delhi: 'DL',
-    goa: 'GA',
-    gujarat: 'GJ',
-    haryana: 'HR',
-    himachalpradesh: 'HP',
-    jharkhand: 'JH',
-    karnataka: 'KA',
-    kerala: 'KL',
-    madhyapradesh: 'MP',
-    maharashtra: 'MH',
-    odisha: 'OD',
-    punjab: 'PB',
-    rajasthan: 'RJ',
-    tamilnadu: 'TN',
-    telangana: 'TS',
-    uttarpradesh: 'UP',
-    uttarakhand: 'UK',
-    westbengal: 'WB',
-  };
-  const normalizedState = (data.state ?? data.district ?? '').replace(/[^A-Za-z]/g, '').toLowerCase();
-  const stateCode =
-    stateCodeMap[normalizedState] ||
-    (data.state ?? data.district ?? 'XX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 2).padEnd(2, 'X');
-  const districtCode = '01';
-  const areaCode = (data.pincode ?? data.phone.slice(-6) ?? '')
-    .replace(/\D/g, '')
-    .slice(-6)
-    .padStart(6, '0');
-  const rawDealerSequence = (data.dealerPhone ?? '').replace(/\D/g, '').slice(-3);
-  const dealerSequence = rawDealerSequence ? rawDealerSequence.padStart(3, '0') : '001';
-  const memberSequence = data.phone.replace(/\D/g, '').slice(-3).padStart(3, '0');
-  return `${stateCode}-${districtCode}-${areaCode}-${dealerSequence}-${memberSequence}`;
-}
-
 function sanitizeElectricianPayload(data: {
   name: string;
   phone: string;
@@ -136,13 +93,8 @@ function sanitizeElectricianPayload(data: {
   dealerPhone?: string;
   password?: string;
   subCategory?: string;
-  electricianCode?: string;
-  dealerCode?: string;
-  tier?: 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
-  status?: 'active' | 'pending' | 'inactive' | 'suspended';
   signupVerificationToken?: string;
 }) {
-  const dealerCodePrefix = data.dealerCode?.trim();
   return {
     name: data.name,
     phone: normalizePhone(data.phone),
@@ -155,19 +107,7 @@ function sanitizeElectricianPayload(data: {
     dealerPhone: normalizePhone(data.dealerPhone),
     password: data.password?.trim() || undefined,
     subCategory: data.subCategory?.trim() || undefined,
-    tier: data.tier ?? 'Silver',
-    status: data.status ?? 'active',
-    signupVerificationToken: data.signupVerificationToken,
-    electricianCode:
-      data.electricianCode?.trim() ||
-      (dealerCodePrefix ? `${dealerCodePrefix}-001` : '') ||
-      buildElectricianCodeFallback({
-        phone: normalizePhone(data.phone),
-        state: data.state,
-        pincode: data.pincode,
-        district: data.district ?? data.city,
-        dealerPhone: normalizePhone(data.dealerPhone),
-      }),
+    signupVerificationToken: normalizeSignupVerificationToken(data.signupVerificationToken),
   };
 }
 
@@ -192,7 +132,7 @@ export const authApi = {
     city?: string;
     district?: string;
     pincode?: string;
-    signupVerificationToken: string;
+    signupVerificationToken?: string;
   }) => {
     if (data.role === 'dealer') {
       return authApi.registerDealer({
@@ -268,11 +208,16 @@ export const authApi = {
     return res;
   },
 
-  verifySignupOtp: (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy', otp: string) =>
-    api.post<{ success: boolean; message: string; signupVerificationToken: string }>(
+  verifySignupOtp: async (phone: string, role: 'electrician' | 'dealer' | 'user' | 'counterboy', otp: string) => {
+    const response = await api.post<{ success: boolean; message: string; signupVerificationToken?: string }>(
       '/mobile/auth/signup/verify-otp',
       { phone: normalizePhone(phone), role, otp }
-    ),
+    );
+    return {
+      ...response,
+      signupVerificationToken: normalizeSignupVerificationToken(response.signupVerificationToken) ?? '',
+    };
+  },
 
   loginWithPassword: async (
     phone: string,
@@ -338,7 +283,7 @@ export const authApi = {
     pincode?: string;
     gstNumber?: string;
     password?: string;
-    signupVerificationToken: string;
+    signupVerificationToken?: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/dealer',
@@ -362,11 +307,7 @@ export const authApi = {
     dealerPhone: string;
     password?: string;
     subCategory?: string;
-    electricianCode?: string;
-    dealerCode?: string;
-    tier?: 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
-    status?: 'active' | 'pending' | 'inactive' | 'suspended';
-    signupVerificationToken: string;
+    signupVerificationToken?: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/electrician',
@@ -388,11 +329,15 @@ export const authApi = {
     address?: string;
     pincode?: string;
     password?: string;
-    signupVerificationToken: string;
+    signupVerificationToken?: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/user',
-      { ...data, phone: normalizePhone(data.phone) }
+      {
+        ...data,
+        phone: normalizePhone(data.phone),
+        signupVerificationToken: normalizeSignupVerificationToken(data.signupVerificationToken),
+      }
     );
     await storage.setTokens(res.accessToken, res.refreshToken);
     await storage.setUserProfile(res.user);
@@ -410,7 +355,7 @@ export const authApi = {
     address?: string;
     pincode?: string;
     password?: string;
-    signupVerificationToken: string;
+    signupVerificationToken?: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/counterboy',
@@ -702,6 +647,13 @@ export const electriciansApi = {
 
   getCallList: () =>
     api.get<{ data: CallListItem[] }>('/mobile/electricians/call-list', undefined, true),
+
+  getWalletActivity: (electricianId: string, page = 1, limit = 50) =>
+    api.get<DealerElectricianWalletActivity>(
+      `/mobile/electricians/${encodeURIComponent(electricianId)}/wallet-activity`,
+      { page, limit },
+      true
+    ),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1157,6 +1109,10 @@ export type AppSettings = {
   appVersion: string;
   minAppVersion: string;
   forceUpdate: boolean;
+  iosUpdateAvailable?: boolean;
+  androidUpdateMessage?: string;
+  iosUpdateMessage?: string;
+  iosReviewMaintenanceMessage?: string;
   scanEnabled: boolean;
   giftsEnabled: boolean;
   referralEnabled: boolean;
@@ -1334,6 +1290,46 @@ export type DealerBonus = {
   availableBonus: number;
   totalBonus: number;
   pendingWithdrawals: number;
+  pendingWithdrawalCount?: number;
+};
+
+export type DealerElectricianWalletActivity = {
+  electrician: {
+    id: string;
+    name: string;
+    phone: string;
+    electricianCode?: string | null;
+    walletBalance: number;
+    totalPoints: number;
+    totalScans: number;
+    totalRedemptions: number;
+    status: string;
+  };
+  transactions: {
+    data: (WalletTransaction & {
+      balanceBefore: number;
+      balanceAfter: number;
+      referenceId?: string | null;
+      referenceType?: string | null;
+    })[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  withdrawals: {
+    id: string;
+    amount: number;
+    points: number;
+    status: string;
+    requestedAt: string;
+    processedAt?: string | null;
+    dealerBonus: {
+      amount: number;
+      status: 'credited' | 'pending_approval' | 'not_credited';
+      creditedAt?: string | null;
+    };
+  }[];
 };
 
 export type BankAccountPayload = {
@@ -1407,7 +1403,7 @@ export type TopFiveMember = {
 
 export const leaderboardApi = {
   getTopFive: (role: string) =>
-    api.get<TopFiveMember[]>('/mobile/leaderboard/top-five', { role }, true),
+    api.get<TopFiveMember[]>('/mobile/leaderboard/top-five', { role }),
 };
 
 export type PlayVideo = {

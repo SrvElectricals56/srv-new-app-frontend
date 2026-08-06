@@ -52,6 +52,7 @@ type PendingRewardItem = Omit<RewardHistoryItem, 'id' | 'time'>;
 type ScanResolveResult =
   | { type: 'success'; reward: PendingRewardItem }
   | { type: 'duplicate'; duplicate: DuplicateScanDetails | null }
+  | { type: 'failed'; message: string }
   | { type: 'invalid' };
 
 const normalizeDuplicateScan = (payload: any): DuplicateScanDetails | null => {
@@ -98,7 +99,11 @@ const resolveRewardFromCode = async (value?: string): Promise<ScanResolveResult>
     ) {
       return { type: 'duplicate', duplicate: normalizeDuplicateScan(payload) };
     }
-    return { type: 'invalid' };
+    const status = Number(err?.status ?? err?.response?.status ?? 0);
+    if (status === 400 || status === 404 || status === 422) {
+      return { type: 'invalid' };
+    }
+    return { type: 'failed', message: message || 'Unable to verify this QR right now. Please try again.' };
   }
 };
 
@@ -286,7 +291,7 @@ export function ScanScreen({
   const [showAllBatchItems, setShowAllBatchItems] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
-  const frameSize = Math.min(width - 80, 280);
+  const frameSize = Math.min(width - 40, 340);
 
   const laserY = useRef(new Animated.Value(0)).current;
   const laserOpacity = useRef(new Animated.Value(0.3)).current;
@@ -605,6 +610,18 @@ export function ScanScreen({
       return;
     }
 
+    if (resolved.type === 'failed') {
+      scanLockedRef.current = false;
+      setScanning(true);
+      setDialog({
+        visible: true,
+        variant: 'error',
+        title: tx('Scan verification failed'),
+        message: tx(resolved.message),
+      });
+      return;
+    }
+
     if (resolved.type === 'invalid') {
       setScanned(true);
       setEarnedPoints(0);
@@ -655,13 +672,6 @@ export function ScanScreen({
   };
 
   const handlePickFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      setDialog({ visible: true, variant: 'info', title: tx('Permission Required'), message: tx('Gallery permission is required to select QR images.') });
-      return;
-    }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,

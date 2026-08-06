@@ -1,0 +1,49 @@
+{
+  "total": 7,
+  "passed": 7,
+  "failed": 0,
+  "tests": [
+    {
+      "name": "Admin product search",
+      "status": "PASS",
+      "httpStatus": 200,
+      "durationMs": 71
+    },
+    {
+      "name": "Hidden product excluded from mobile",
+      "status": "PASS",
+      "httpStatus": 200,
+      "durationMs": 36
+    },
+    {
+      "name": "QR hub summary",
+      "status": "PASS",
+      "httpStatus": 200,
+      "durationMs": 14
+    },
+    {
+      "name": "Optimized QR list",
+      "status": "PASS",
+      "httpStatus": 200,
+      "durationMs": 33
+    },
+    {
+      "name": "QR scanner lookup",
+      "status": "PASS",
+      "httpStatus": 201,
+      "durationMs": 31
+    },
+    {
+      "name": "Sub-dealers dealer-equivalent response",
+      "status": "PASS",
+      "httpStatus": 200,
+      "durationMs": 18
+    },
+    {
+      "name": "Atomic app settings save",
+      "status": "PASS",
+      "httpStatus": 200,
+      "durationMs": 21
+    }
+  ]
+}

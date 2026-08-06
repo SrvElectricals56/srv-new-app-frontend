@@ -3,9 +3,17 @@
     "name": "SRV Electricals",
     "slug": "srv-electricals",
     "scheme": "srv-electricals",
-    "version": "2.0.1",
+    "version": "2.0.0",
     "plugins": [
       "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow SRV Electricals to access only the photos you choose for profile, document, and support uploads.",
+          "cameraPermission": "Allow SRV Electricals to use your camera when you choose to take a photo.",
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-camera",
         {
@@ -45,10 +53,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.srvelectricals.app",
-      "buildNumber": "24"
+      "buildNumber": "27"
     },
     "android": {
-      "versionCode": 29,
+      "versionCode": 30,
       "allowBackup": false,
       "googleServicesFile": "./android/app/google-services.json",
       "softwareKeyboardLayoutMode": "resize",

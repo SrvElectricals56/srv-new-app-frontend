@@ -95,7 +95,7 @@ export function BankTransferRequestPage({
   ]);
 
   const bankReady = Boolean(
-    user?.bankLinked && user?.accountHolderName && user?.upiId,
+    user?.bankLinked && user?.accountHolderName && (user?.upiId || user?.bankAccount),
   );
   const bankSummary = bankReady
     ? user?.bankAccount

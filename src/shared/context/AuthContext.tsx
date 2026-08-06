@@ -17,6 +17,7 @@ type AuthContextType = AuthState & {
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateUser: (data: Partial<UserProfile>) => void;
+  setBrowsingRole: (role: UserRole | null) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -50,8 +51,9 @@ function isApprovedAccountStatus(status?: string | null, role?: UserRole | null)
   return normalized === 'active' || normalized === 'approved';
 }
 
-const ACCOUNT_STATUS_POLL_MS = 2000;
-const KYC_STATUS_POLL_MS = 600;
+const ACCOUNT_STATUS_POLL_MS = 5_000;
+const ACTIVE_DEALER_STATUS_POLL_MS = 30_000;
+const KYC_STATUS_POLL_MS = 5_000;
 
 function buildPreviewUser(role: UserRole): UserProfile {
   const base = {
@@ -226,7 +228,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     pollProfile();
-    const intervalId = setInterval(pollProfile, ACCOUNT_STATUS_POLL_MS);
+    const intervalMs = isApprovedAccountStatus(currentUserStatus, state.role)
+      ? ACTIVE_DEALER_STATUS_POLL_MS
+      : ACCOUNT_STATUS_POLL_MS;
+    const intervalId = setInterval(pollProfile, intervalMs);
 
     return () => {
       cancelled = true;
@@ -280,6 +285,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const setBrowsingRole = useCallback((role: UserRole | null) => {
+    setState((current) => current.isAuthenticated ? current : { ...current, role });
+  }, []);
+
   const previewOverride = useMemo<AuthContextType | null>(() => {
     if (!previewState.enabled) {
       return null;
@@ -298,10 +307,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout: async () => {},
       refreshProfile: async () => {},
       updateUser: () => {},
+      setBrowsingRole: () => {},
     };
   }, [previewState.authMode, previewState.enabled, previewState.role]);
 
-  const value = previewOverride ?? { ...state, login, logout, refreshProfile, updateUser };
+  const value = previewOverride ?? { ...state, login, logout, refreshProfile, updateUser, setBrowsingRole };
 
   return (
     <AuthContext.Provider value={value}>

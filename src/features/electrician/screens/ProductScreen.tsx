@@ -861,11 +861,12 @@ export function ProductScreen({
 
   // ✨ PREFETCH NEXT IMAGES FOR FASTER LOADING ✨
   useEffect(() => {
-    if (filtered.length > 6) {
-      // Prefetch next 10 images in background
-      const nextImages = filtered.slice(6, 16);
+    if (filtered.length > 4) {
+      // Prefetch only the next few cards; downloading the full catalog's
+      // images at once slows the first product view on mobile networks.
+      const nextImages = filtered.slice(4, 10);
       nextImages.forEach(product => {
-        Image.prefetch(product.imageUrl);
+        void Image.prefetch(product.imageUrl).catch(() => null);
       });
     }
   }, [filtered]);

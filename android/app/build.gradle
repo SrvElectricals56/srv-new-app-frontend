@@ -93,9 +93,6 @@ android {
     namespace 'com.srvelectricals.app'
     defaultConfig {
         applicationId 'com.srvelectricals.app'
-        if (isStagingBuild) {
-            applicationIdSuffix '.staging'
-        }
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 30
@@ -157,6 +154,12 @@ android {
             android.packagingOptions[prop] += it
         }
     }
+}
+
+// Keep the production application ID statically declared above so release and
+// store tooling can resolve it. Staging remains a separately installable app.
+if (isStagingBuild) {
+    android.defaultConfig.applicationId = 'com.srvelectricals.app.staging'
 }
 
 dependencies {

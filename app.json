@@ -3,7 +3,7 @@
     "name": "SRV Electricals",
     "slug": "srv-electricals",
     "scheme": "srv-electricals",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "plugins": [
       "expo-router",
       [
@@ -53,7 +53,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.srvelectricals.app",
-      "buildNumber": "27"
+      "buildNumber": "28"
     },
     "android": {
       "versionCode": 30,

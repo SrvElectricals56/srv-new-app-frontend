@@ -13,7 +13,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { AppIcon, C, PageHeader, PrimaryBtn } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
-import { authApi } from '@/shared/api';
+import { authApi, profileApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { Dialog } from '@/shared/components/Dialog';
@@ -24,6 +24,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'bank_details');
 
   const [saving, setSaving] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
   const [dialog, setDialog] = useState<{
     visible: boolean;
     variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info';
@@ -50,15 +51,23 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
       mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.72,
-      base64: true,
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (result.canceled) return;
     const asset = result.assets[0];
-    if (!asset.base64) {
-      setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Could not read this image. Please choose another one.') });
-      return;
+    setUploadingQr(true);
+    try {
+      const uploadedUrl = await profileApi.uploadDocument({
+        uri: asset.uri,
+        type: asset.mimeType || 'image/jpeg',
+        name: asset.fileName || 'upi-qr-code.jpg',
+      }, 'pan');
+      setUpiQrCodeImage(uploadedUrl);
+    } catch (error: any) {
+      setDialog({ visible: true, variant: 'error', title: tx('Upload failed'), message: error?.message || tx('Could not read this image. Please choose another one.') });
+    } finally {
+      setUploadingQr(false);
     }
-    setUpiQrCodeImage(`data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`);
   };
 
   const isValidUpi = (value: string) =>
@@ -232,6 +241,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
               accessibilityLabel={tx('Upload UPI QR Code')}
               activeOpacity={0.8}
               onPress={() => void pickUpiQrCode()}
+              disabled={saving || uploadingQr}
               style={[styles.qrPicker, { backgroundColor: theme.soft, borderColor: theme.border }]}
             >
               {upiQrCodeImage ? (
@@ -239,14 +249,14 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
               ) : (
                 <View style={styles.qrEmpty}>
                   <AppIcon name="gallery" size={28} color={C.gold} />
-                  <Text style={[styles.qrTitle, { color: theme.textPrimary }]}>{tx('Upload UPI QR Code')}</Text>
+                  <Text style={[styles.qrTitle, { color: theme.textPrimary }]}>{uploadingQr ? tx('Uploading...') : tx('Upload UPI QR Code')}</Text>
                   <Text style={[styles.qrHint, { color: theme.textMuted }]}>{tx('Select a clear square QR image from your gallery')}</Text>
                 </View>
               )}
             </TouchableOpacity>
             {upiQrCodeImage ? (
-              <TouchableOpacity onPress={() => void pickUpiQrCode()} style={styles.replaceButton}>
-                <Text style={styles.replaceText}>{tx('Replace QR image')}</Text>
+              <TouchableOpacity disabled={saving || uploadingQr} onPress={() => void pickUpiQrCode()} style={styles.replaceButton}>
+                <Text style={styles.replaceText}>{uploadingQr ? tx('Uploading...') : tx('Replace QR image')}</Text>
               </TouchableOpacity>
             ) : null}
           </View>

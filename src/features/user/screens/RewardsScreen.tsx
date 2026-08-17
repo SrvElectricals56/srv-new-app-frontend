@@ -170,6 +170,7 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const currentPoints = wallet?.totalPoints ?? walletSummary?.totalPoints ?? 0;
+  const isCustomer = role === 'user';
   const cardW = Math.floor((width - 32 - 12) / 2);
 
   // Auto-filter by user role — no tabs needed
@@ -195,14 +196,18 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
     if (currentPoints < 100) {
       setDialog({
         visible: true, variant: 'info', title: tx('Minimum Points Required'),
-        message: `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Scan SRV products to earn more!')}`,
+        message: isCustomer
+          ? `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points.')}`
+          : `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Scan SRV products to earn more!')}`,
       });
       return;
     }
     if (currentPoints < gift.pointsRequired) {
       setDialog({
         visible: true, variant: 'info', title: tx('Not Enough Points'),
-        message: `${tx('You need')} ${gift.pointsRequired} ${tx('pts but have')} ${currentPoints} ${tx('pts. Keep scanning to unlock this gift!')}`,
+        message: isCustomer
+          ? `${tx('You need')} ${gift.pointsRequired} ${tx('pts but have')} ${currentPoints} ${tx('pts.')}`
+          : `${tx('You need')} ${gift.pointsRequired} ${tx('pts but have')} ${currentPoints} ${tx('pts. Keep scanning to unlock this gift!')}`,
       });
       return;
     }
@@ -291,9 +296,11 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={[styles.pointsHint, isCompact && styles.pointsHintCompact]} onPress={onOpenScanner} activeOpacity={0.8}>
-            <Text style={[styles.pointsHintText, isCompact && styles.pointsHintTextCompact]}>{tx('Scan products to earn more')}</Text>
-          </TouchableOpacity>
+          {!isCustomer && onOpenScanner ? (
+            <TouchableOpacity style={[styles.pointsHint, isCompact && styles.pointsHintCompact]} onPress={onOpenScanner} activeOpacity={0.8}>
+              <Text style={[styles.pointsHintText, isCompact && styles.pointsHintTextCompact]}>{tx('Scan products to earn more')}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Grid */}

@@ -773,6 +773,7 @@ export function ProductScreen({
   const { isAuthenticated } = useAuth();
   const { width } = useWindowDimensions();
   const productListRef = useRef<FlatList>(null);
+  const categoryListRef = useRef<FlatList<UiCategory>>(null);
   useRegisterScrollToTop('product', productListRef);
   const contentRole = role === 'customer' ? 'user' : role;
   const pageContent = useAppPageContent(contentRole as any, 'product');
@@ -805,15 +806,17 @@ export function ProductScreen({
     [pageContent.pageTitle, products.length, tx]
   );
   const categoryItems = useMemo(() => {
-    if (category === 'all') return [allCategoryItem, ...uiCategories];
-    const activeCategory = uiCategories.find((item) => item.id === category);
-    if (!activeCategory) return [allCategoryItem, ...uiCategories];
-    return [
-      activeCategory,
-      allCategoryItem,
-      ...uiCategories.filter((item) => item.id !== category),
-    ];
-  }, [allCategoryItem, category, uiCategories]);
+    return [allCategoryItem, ...uiCategories];
+  }, [allCategoryItem, uiCategories]);
+
+  useEffect(() => {
+    const selectedIndex = categoryItems.findIndex((item) => item.id === category);
+    if (selectedIndex < 0) return;
+    const timer = setTimeout(() => {
+      categoryListRef.current?.scrollToIndex({ index: selectedIndex, animated: true, viewPosition: 0.5 });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [category, categoryItems]);
 
   // Sync initialCategory changes
   useEffect(() => {
@@ -1266,11 +1269,15 @@ export function ProductScreen({
 
       {/* Category tabs */}
       <FlatList
+        ref={categoryListRef}
         data={categoryItems}
         keyExtractor={c => c.id}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.tabList}
+        onScrollToIndexFailed={({ averageItemLength, index }) => {
+          categoryListRef.current?.scrollToOffset({ offset: Math.max(0, averageItemLength * index - width / 2), animated: true });
+        }}
           renderItem={({ item: cat }) => {
             const active = !isSearching && cat.id === category;
             const tabStyle = active
@@ -1343,7 +1350,7 @@ export function ProductScreen({
         </View>
       )}
     </View>
-  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, pageContent.pageTitle, pageContent.searchPlaceholder, searchSuggestions, handleOpenProduct, cartCount, productTheme]);
+  ), [darkMode, tx, search, showFilters, uiCategories, categoryItems, category, isSearching, filtered.length, currentCat, catalogLoading, products.length, isCustomer, isDealer, isCounterboy, onNavigate, pageContent.pageTitle, pageContent.searchPlaceholder, searchSuggestions, handleOpenProduct, cartCount, productTheme, width]);
 
   const ListFooter = useMemo(() => (
     <View>

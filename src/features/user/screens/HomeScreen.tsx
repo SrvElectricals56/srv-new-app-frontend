@@ -598,10 +598,7 @@ export function HomeScreen({
       });
     }
 
-    return TESTIMONIAL_FALLBACK_COPY.map((item, index) => {
-      const themed = getTestimonialTheme(index);
-      return { ...item, colors: themed.colors, ring: themed.ring, glow: themed.glow };
-    });
+    return [];
   }, [ctxTestimonials]);
 
   // Map banners from context — set immediately, prefetch in background
@@ -799,7 +796,7 @@ export function HomeScreen({
           </View>
         </View>
       ) : null,
-      testimonials: showTestimonials ? (
+      testimonials: showTestimonials && testimonials.length > 0 ? (
         <TestimonialShowcase
           key="testimonials"
           eyebrow={pageContent.testimonialEyebrow || tx('Electrician Testimonials')}

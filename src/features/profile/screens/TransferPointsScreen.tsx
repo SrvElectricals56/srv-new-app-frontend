@@ -66,7 +66,7 @@ export function TransferPointsPage({
     try {
       const res = await walletApi.lookupTransferRecipient(mobile.trim());
       if (res.role !== targetRole) {
-        setSearchError(tx(`Points can only be transferred to another ${targetRoleLabel}.`));
+        setSearchError(`${tx('Points can only be transferred to another')} ${tx(targetRoleLabel)}.`);
         return;
       }
       setFoundUser(res);
@@ -108,7 +108,7 @@ export function TransferPointsPage({
     const pts = Number(points);
     if (!canTransferPoints) { setDialog({ visible: true, variant: 'info', title: tx('Not allowed'), message: tx('Only electricians and counter boys can transfer points.') }); return; }
     if (!foundUser) { setDialog({ visible: true, variant: 'info', title: tx('Search first'), message: tx('Please search for a user first.') }); return; }
-    if (foundUser.role !== targetRole) { setDialog({ visible: true, variant: 'info', title: tx('Invalid receiver'), message: tx(`Points can only be transferred to another ${targetRoleLabel}.`) }); return; }
+    if (foundUser.role !== targetRole) { setDialog({ visible: true, variant: 'info', title: tx('Invalid receiver'), message: `${tx('Points can only be transferred to another')} ${tx(targetRoleLabel)}.` }); return; }
     if (!pts || pts <= 0) { setDialog({ visible: true, variant: 'info', title: tx('Invalid amount'), message: tx('Enter valid points to transfer.') }); return; }
     if (pts > availablePoints) { setDialog({ visible: true, variant: 'info', title: tx('Insufficient points'), message: tx('You do not have enough points.') }); return; }
 
@@ -158,14 +158,14 @@ export function TransferPointsPage({
 
         {/* Search user */}
         <View style={[styles.searchCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionLabel, { color: theme.textPrimary }]}>{pageContent.inputLabel || tx(`${targetRoleLabel} Mobile Number`)}</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textPrimary }]}>{pageContent.inputLabel || `${tx(targetRoleLabel)} ${tx('Mobile Number')}`}</Text>
           <Text style={[styles.ruleText, { color: theme.textPrimary }]}>
-            {tx(`Points transfer is available only from ${targetRoleLabel} to ${targetRoleLabel}.`)}
+            {tx('Points transfer is available only between users with the same role.')}
           </Text>
           <View style={styles.searchRow}>
             <TextInput
               style={[styles.searchInput, { backgroundColor: theme.bg, borderColor: theme.border, color: theme.textPrimary }]}
-              placeholder={pageContent.searchPlaceholder || tx(`Enter ${targetRoleLabel} 10-digit mobile number`)}
+              placeholder={pageContent.searchPlaceholder || `${tx('Enter')} ${tx(targetRoleLabel)} ${tx('10-digit mobile number')}`}
               placeholderTextColor={theme.textSecondary}
               value={mobile}
               onChangeText={(v) => { setMobile(v.replace(/\D/g, '').slice(0, 10)); setFoundUser(null); setSearchError(''); }}

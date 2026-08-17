@@ -56,7 +56,7 @@ import { formatISTDateTime } from '@/shared/utils/dateIST';
 import { GetStartedScreen } from '@/features/onboarding/GetStartedScreen';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
-import { activityApi, storage } from '@/shared/api';
+import { activityApi, ratingApi, storage } from '@/shared/api';
 import { Dialog } from '@/shared/components/Dialog';
 import type { AppContentPage } from '@/shared/config/appPageContent';
 import {
@@ -191,6 +191,7 @@ function AppContent() {
   const [guestAuthRole, setGuestAuthRole] = useState<UserRole | null>(null);
   const [guestAuthInitialMode, setGuestAuthInitialMode] = useState<GuestAuthMode | null>(null);
   const [guestAuthPromptRole, setGuestAuthPromptRole] = useState<UserRole | null>(null);
+  const [reviewPromptVisible, setReviewPromptVisible] = useState(false);
   const [passwordConfiguredByRole, setPasswordConfiguredByRole] = useState<
     Record<UserRole, boolean>
   >({
@@ -346,6 +347,27 @@ function AppContent() {
     logout,
     user,
   ]);
+
+  useEffect(() => {
+    if (!authResolved || !isAuthenticated || !user?.id || isPreviewMode || showOnboarding || pendingApprovalRole) return;
+    let active = true;
+    void (async () => {
+      const accountStartValue = user.firstAppLoginAt ?? user.joinedDate ?? user.createdAt ?? null;
+      const accountStart = accountStartValue ? new Date(accountStartValue).getTime() : Number.NaN;
+      if (!Number.isFinite(accountStart) || Date.now() - accountStart < 7 * 24 * 60 * 60 * 1000) return;
+
+      const [existingRating, lastPromptAt] = await Promise.all([
+        ratingApi.get().catch(() => null),
+        storage.getLastReviewPromptAt(user.id),
+      ]);
+      if (existingRating || !active) return;
+
+      const lastPromptTime = lastPromptAt ? new Date(lastPromptAt).getTime() : Number.NaN;
+      if (Number.isFinite(lastPromptTime) && Date.now() - lastPromptTime < 7 * 24 * 60 * 60 * 1000) return;
+      setReviewPromptVisible(true);
+    })();
+    return () => { active = false; };
+  }, [authResolved, isAuthenticated, isPreviewMode, pendingApprovalRole, showOnboarding, user]);
 
   // Keep points/scans in sync when user profile updates (admin changes reflected)
   // Always use server value — admin can increase OR decrease points
@@ -554,6 +576,7 @@ function AppContent() {
     return () => { scrollToTopFns.current.delete(screenId); };
   }, []);
   const [profileResetKey, setProfileResetKey] = useState(0);
+  const navigateFromNotificationRef = useRef<(screen: Screen) => void>(() => {});
   const screenStartRef = useRef({ screen: currentScreen, startedAt: Date.now() });
   const screenHistoryRef = useRef<Screen[]>([]);
   const lastScreenRef = useRef(currentScreen);
@@ -676,6 +699,10 @@ function AppContent() {
     [currentRole, currentScreen, guestAuthRole, rolePageControls, trackActivity]
   );
 
+  useEffect(() => {
+    navigateFromNotificationRef.current = handleNavigate;
+  }, [handleNavigate]);
+
   // Handle notification taps in foreground, background, and cold-start states.
   // Update notifications carry an HTTPS actionUrl and open the appropriate store;
   // ordinary notifications continue to the in-app notification center.
@@ -691,10 +718,10 @@ function AppContent() {
 
       const actionUrl = response?.notification?.request?.content?.data?.actionUrl;
       if (typeof actionUrl === 'string' && /^https:\/\//i.test(actionUrl)) {
-        void Linking.openURL(actionUrl).catch(() => handleNavigate('notification'));
+        void Linking.openURL(actionUrl).catch(() => navigateFromNotificationRef.current('notification'));
         return;
       }
-      handleNavigate('notification');
+      navigateFromNotificationRef.current('notification');
     };
 
     void (async () => {
@@ -709,7 +736,7 @@ function AppContent() {
       active = false;
       subscription?.remove();
     };
-  }, [handleNavigate, isPreviewMode]);
+  }, [isPreviewMode]);
 
   const handleOpenProductCategory = useCallback((category: string) => {
     trackActivity({
@@ -1896,6 +1923,35 @@ function AppContent() {
               onPress: () => openGuestAuth(guestAuthPromptRole, 'signup'),
             },
           ] : []}
+        />
+        <Dialog
+          visible={reviewPromptVisible}
+          onClose={() => {
+            if (user?.id) void storage.setLastReviewPromptAt(user.id);
+            setReviewPromptVisible(false);
+          }}
+          title={preferenceValue.tx('How is your SRV app experience?')}
+          message={preferenceValue.tx('You have used the app for a week. Share an honest review to help other SRV members and improve the app.')}
+          variant="info"
+          choices={[
+            {
+              label: preferenceValue.tx('Rate now'),
+              onPress: () => {
+                if (user?.id) void storage.setLastReviewPromptAt(user.id);
+                setReviewPromptVisible(false);
+                setProfileInitialSubPage('Rate Us');
+                setProfileResetKey((key) => key + 1);
+                setCurrentScreen('profile');
+              },
+            },
+            {
+              label: preferenceValue.tx('Maybe later'),
+              onPress: () => {
+                if (user?.id) void storage.setLastReviewPromptAt(user.id);
+                setReviewPromptVisible(false);
+              },
+            },
+          ]}
         />
         {notificationBanner ? (
           <Animated.View

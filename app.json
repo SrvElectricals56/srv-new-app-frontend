@@ -3,7 +3,8 @@
     "name": "SRV Electricals",
     "slug": "srv-electricals",
     "scheme": "srv-electricals",
-    "version": "2.0.1",
+    "version": "2.0.2",
+    "icon": "./assets/srv-app-icon-final-v2.png",
     "plugins": [
       "expo-router",
       [
@@ -43,20 +44,27 @@
     },
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "androidNavigationBar": {
+      "backgroundColor": "#FFFFFF",
+      "barStyle": "dark-content"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "splash": {
+      "image": "./assets/srv-app-icon-final-v2.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F5F0E8"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
+      "icon": "./assets/srv-app-icon-final-v2.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.srvelectricals.app",
-      "buildNumber": "28"
+      "buildNumber": "30"
     },
     "android": {
-      "versionCode": 30,
+      "icon": "./assets/srv-app-icon-final-v2.png",
+      "versionCode": 32,
       "allowBackup": false,
       "googleServicesFile": "./android/app/google-services.json",
       "softwareKeyboardLayoutMode": "resize",
@@ -73,7 +81,8 @@
         "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#F5F0E8"
+        "foregroundImage": "./assets/srv-app-icon-final-v2.png",
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.srvelectricals.app"
     },

@@ -39,7 +39,7 @@ export function SupportScreen({ onNavigate }: { onNavigate: (screen: Screen) => 
   const { tx } = usePreferenceContext();
   const insets = useSafeAreaInsets();
   const pageContent = useAppPageContent('counterboy', 'support');
-  const [supportPhone, setSupportPhone] = useState('8837668004');
+  const [supportPhone, setSupportPhone] = useState('8837684004');
   const [supportEmail] = useState('info@srvelectricals.com');
 
   useEffect(() => {

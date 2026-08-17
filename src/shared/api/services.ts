@@ -12,6 +12,10 @@ function normalizeSignupVerificationToken(token?: string | null) {
   return token?.trim() || undefined;
 }
 
+function normalizeReferralCode(code?: string | null) {
+  return code?.trim().toUpperCase() || undefined;
+}
+
 function sanitizeDealerSignupPayload(data: {
   name: string;
   phone: string;
@@ -24,6 +28,7 @@ function sanitizeDealerSignupPayload(data: {
   gstNumber?: string;
   password?: string;
   signupVerificationToken?: string;
+  referralCode?: string;
 }) {
   return {
     name: data.name,
@@ -37,6 +42,7 @@ function sanitizeDealerSignupPayload(data: {
     gstNumber: data.gstNumber,
     password: data.password,
     signupVerificationToken: normalizeSignupVerificationToken(data.signupVerificationToken),
+    referralCode: normalizeReferralCode(data.referralCode),
   };
 }
 
@@ -51,6 +57,7 @@ function sanitizeCounterBoySignupPayload(data: {
   pincode?: string;
   password?: string;
   signupVerificationToken?: string;
+  referralCode?: string;
 }) {
   return {
     name: data.name.trim(),
@@ -63,6 +70,7 @@ function sanitizeCounterBoySignupPayload(data: {
     pincode: data.pincode?.trim() || undefined,
     password: data.password?.trim() || undefined,
     signupVerificationToken: normalizeSignupVerificationToken(data.signupVerificationToken),
+    referralCode: normalizeReferralCode(data.referralCode),
   };
 }
 
@@ -94,6 +102,7 @@ function sanitizeElectricianPayload(data: {
   password?: string;
   subCategory?: string;
   signupVerificationToken?: string;
+  referralCode?: string;
 }) {
   return {
     name: data.name,
@@ -108,6 +117,7 @@ function sanitizeElectricianPayload(data: {
     password: data.password?.trim() || undefined,
     subCategory: data.subCategory?.trim() || undefined,
     signupVerificationToken: normalizeSignupVerificationToken(data.signupVerificationToken),
+    referralCode: normalizeReferralCode(data.referralCode),
   };
 }
 
@@ -133,6 +143,7 @@ export const authApi = {
     district?: string;
     pincode?: string;
     signupVerificationToken?: string;
+    referralCode?: string;
   }) => {
     if (data.role === 'dealer') {
       return authApi.registerDealer({
@@ -145,6 +156,7 @@ export const authApi = {
         address: '',
         password: data.password,
         signupVerificationToken: data.signupVerificationToken,
+        referralCode: data.referralCode,
       });
     }
     if (data.role === 'counterboy') {
@@ -159,6 +171,7 @@ export const authApi = {
         district: data.district ?? data.city,
         pincode: data.pincode,
         signupVerificationToken: data.signupVerificationToken,
+        referralCode: data.referralCode,
       });
     }
     if (data.role === 'user') {
@@ -173,6 +186,7 @@ export const authApi = {
         district: data.district ?? data.city,
         pincode: data.pincode,
         signupVerificationToken: data.signupVerificationToken,
+        referralCode: data.referralCode,
       });
     }
     return authApi.registerElectrician({
@@ -185,6 +199,7 @@ export const authApi = {
       dealerPhone: '',
       password: data.password,
       signupVerificationToken: data.signupVerificationToken,
+      referralCode: data.referralCode,
     });
   },
 
@@ -284,6 +299,7 @@ export const authApi = {
     gstNumber?: string;
     password?: string;
     signupVerificationToken?: string;
+    referralCode?: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/dealer',
@@ -308,6 +324,7 @@ export const authApi = {
     password?: string;
     subCategory?: string;
     signupVerificationToken?: string;
+    referralCode?: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/electrician',
@@ -330,6 +347,7 @@ export const authApi = {
     pincode?: string;
     password?: string;
     signupVerificationToken?: string;
+    referralCode?: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/user',
@@ -337,6 +355,7 @@ export const authApi = {
         ...data,
         phone: normalizePhone(data.phone),
         signupVerificationToken: normalizeSignupVerificationToken(data.signupVerificationToken),
+        referralCode: normalizeReferralCode(data.referralCode),
       }
     );
     await storage.setTokens(res.accessToken, res.refreshToken);
@@ -356,6 +375,7 @@ export const authApi = {
     pincode?: string;
     password?: string;
     signupVerificationToken?: string;
+    referralCode?: string;
   }) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: UserProfile }>(
       '/mobile/auth/signup/counterboy',
@@ -852,11 +872,11 @@ export const referralApi = {
 // APP RATING
 // ─────────────────────────────────────────────────────────────────────────────
 export const ratingApi = {
-  submit: (rating: number, review?: string) =>
-    api.post<{ id: string; rating: number }>('/mobile/rating', { rating, review }, true),
+  submit: (rating: number, review?: string, displayConsent = false) =>
+    api.post<{ id: string; rating: number; review: string | null; displayConsent: boolean }>('/mobile/rating', { rating, review, displayConsent }, true),
 
   get: () =>
-    api.get<{ id: string; rating: number; review: string | null } | null>('/mobile/rating', undefined, true),
+    api.get<{ id: string; rating: number; review: string | null; displayConsent: boolean } | null>('/mobile/rating', undefined, true),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -877,6 +897,9 @@ export type UserProfile = {
   phone: string;
   email?: string;
   role: 'electrician' | 'dealer' | 'user' | 'counterboy';
+  firstAppLoginAt?: string | null;
+  joinedDate?: string | null;
+  createdAt?: string | null;
   profileImage?: string | null;
   hasPassword?: boolean;
   // Electrician fields

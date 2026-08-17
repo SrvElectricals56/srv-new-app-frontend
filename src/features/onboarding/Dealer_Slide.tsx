@@ -5,6 +5,7 @@ import {
 import Svg, { Circle, Rect, Path, G, Line } from 'react-native-svg';
 import { ws, hs, rf } from '../../shared/hooks/useResponsive';
 import { usePreferenceContext } from '@/shared/preferences';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AView = Animated.View as any;
 const CIRCLE_SIZE = ws(240);
@@ -65,6 +66,7 @@ const Character = React.memo(function Character() {
 interface Props { onBack?: () => void; onContinue?: () => void; }
 
 export default function DealerSlide({ onBack, onContinue }: Props) {
+  const insets = useSafeAreaInsets();
   const { darkMode } = usePreferenceContext();
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideUp   = useRef(new Animated.Value(40)).current;
@@ -113,7 +115,12 @@ export default function DealerSlide({ onBack, onContinue }: Props) {
   const floatY = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -12] });
 
   return (
-    <AView style={[s.root, { opacity: fadeAnim, backgroundColor: darkMode ? '#0B1220' : '#FFFFFF' }]}>
+    <Animated.ScrollView
+      style={[s.screen, { opacity: fadeAnim, backgroundColor: darkMode ? '#0B1220' : '#FFFFFF' }]}
+      contentContainerStyle={[s.root, { paddingTop: Math.max(insets.top + hs(16), hs(32)), paddingBottom: Math.max(insets.bottom + hs(24), hs(32)) }]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
 
       <AView style={[s.circleWrap, { transform: [{ scale: scaleAnim }, { translateY: floatY }] }]}>
         <View style={[s.circle, { backgroundColor: darkMode ? '#111827' : THEME.circle }]}>
@@ -205,12 +212,13 @@ export default function DealerSlide({ onBack, onContinue }: Props) {
         </View>
       </AView>
 
-    </AView>
+    </Animated.ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  root:              { flex: 1, alignItems: 'center', justifyContent: 'flex-start', backgroundColor: '#FFFFFF', paddingHorizontal: ws(20), paddingTop: hs(48) },
+  screen:            { flex: 1 },
+  root:              { flexGrow: 1, alignItems: 'center', justifyContent: 'flex-start', backgroundColor: '#FFFFFF', paddingHorizontal: ws(20), paddingTop: hs(48), paddingBottom: hs(24) },
   circleWrap:        { marginBottom: hs(22), shadowColor: '#102A63', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 14, marginTop: hs(8) },
   circle:            { width: HERO_WIDTH, height: HERO_HEIGHT, borderRadius: ws(28), alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   heroImage:         { width: '100%', height: '100%' },

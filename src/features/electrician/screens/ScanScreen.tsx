@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog } from '@/shared/components/Dialog';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, CameraView, scanFromURLAsync } from 'expo-camera';
+import { Camera, CameraView } from 'expo-camera';
 import {
+  ActivityIndicator,
   Animated,
   Easing,
   Image,
@@ -18,6 +19,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
+import { scanQrFromGalleryImage } from '@/shared/utils/qrImageScanner';
 import { usePreferenceContext } from '@/shared/preferences';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { scanApi, type DuplicateScanDetails } from '@/shared/api';
@@ -52,7 +54,7 @@ type ScanErrorType = 'already_scanned' | 'invalid' | 'request_failed' | null;
 
 type ScanResolveResult =
   | { reward: PendingRewardItem; errorType: null; duplicate: null }
-  | { reward: null; errorType: ScanErrorType; duplicate: DuplicateScanDetails | null };
+  | { reward: null; errorType: ScanErrorType; duplicate: DuplicateScanDetails | null; errorMessage?: string };
 
 const normalizeDuplicateScan = (payload: any): DuplicateScanDetails | null => {
   const source =
@@ -99,7 +101,7 @@ const resolveRewardFromCode = async (value?: string, mode: ScanMode = 'single'):
       msg.includes('already redeemed') ||
       msg.includes('already scanned')
     ) {
-      return { reward: null, errorType: 'already_scanned', duplicate: normalizeDuplicateScan(payload) };
+      return { reward: null, errorType: 'already_scanned', duplicate: normalizeDuplicateScan(payload), errorMessage: msg };
     }
     const status = Number(err?.status ?? err?.response?.status ?? 0);
     const invalidRequest = status === 400 || status === 404 || status === 422;
@@ -107,6 +109,7 @@ const resolveRewardFromCode = async (value?: string, mode: ScanMode = 'single'):
       reward: null,
       errorType: invalidRequest ? 'invalid' : 'request_failed',
       duplicate: null,
+      errorMessage: msg,
     };
   }
 };
@@ -274,6 +277,7 @@ export function ScanScreen({
   const { width } = useWindowDimensions();
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [processingScan, setProcessingScan] = useState(false);
   const [flashlightOn, setFlashlightOn] = useState(false);
   const [cameraGranted, setCameraGranted] = useState<boolean | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -309,6 +313,7 @@ export function ScanScreen({
   const batchPulse = useRef(new Animated.Value(1)).current;
   const scanLockedRef = useRef(false);
   const animationTriggeredRef = useRef(false);
+  const autoTorchAttemptedRef = useRef(false);
 
   const laserLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const cornerLoopRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -536,6 +541,15 @@ export function ScanScreen({
   ]);
 
   useEffect(() => {
+    if (!scanning || flashlightOn || autoTorchAttemptedRef.current || previewImage) return;
+    const timer = setTimeout(() => {
+      autoTorchAttemptedRef.current = true;
+      if (!scanLockedRef.current) setFlashlightOn(true);
+    }, 1400);
+    return () => clearTimeout(timer);
+  }, [flashlightOn, previewImage, scanning]);
+
+  useEffect(() => {
     if (scanned && !animationTriggeredRef.current) {
       animationTriggeredRef.current = true;
       laserLoopRef.current?.stop();
@@ -566,8 +580,10 @@ export function ScanScreen({
 
   const resetScanner = async () => {
     scanLockedRef.current = false;
+    autoTorchAttemptedRef.current = false;
     animationTriggeredRef.current = false;
     setScanned(false);
+    setProcessingScan(false);
     setPreviewImage(null);
     setDetectedLabel('SRV MCB 32A detected');
     setEarnedPoints(0);
@@ -590,8 +606,11 @@ export function ScanScreen({
   const completeScan = async (data?: string) => {
     if (scanLockedRef.current) return;
     scanLockedRef.current = true;
+    setProcessingScan(true);
+    setScanning(false);
 
     const result = await resolveRewardFromCode(data, scanMode);
+    setProcessingScan(false);
 
     if (!result.reward) {
       const errType = result.errorType ?? 'invalid';
@@ -614,9 +633,18 @@ export function ScanScreen({
           setScanErrorType(null);
           setDuplicateScan(null);
           setDetectedLabel('Scan next product');
+          setScanning(true);
         }, 2000);
       } else {
         setScanning(false);
+      }
+      if (errType === 'request_failed') {
+        setDialog({
+          visible: true,
+          variant: 'error',
+          title: tx('Unable to redeem QR'),
+          message: result.errorMessage || tx('Network or server error. Please check your connection and scan again.'),
+        });
       }
       return;
     }
@@ -642,6 +670,7 @@ export function ScanScreen({
       setScanErrorType(null);
       setDuplicateScan(null);
       setDetectedLabel('Scan next product');
+      setScanning(true);
     }, 1200);
   };
 
@@ -664,16 +693,17 @@ export function ScanScreen({
       return;
     }
 
-    const imageUri = result.assets[0].uri;
+    const asset = result.assets[0];
+    const imageUri = asset.uri;
     setPreviewImage(imageUri);
     setScanning(false);
     setScanned(false);
     scanLockedRef.current = false;
 
     try {
-      const matches = await scanFromURLAsync(imageUri, ['qr']);
-      if (matches.length) {
-        completeScan(matches[0]?.data);
+      const decodedValue = await scanQrFromGalleryImage(asset);
+      if (decodedValue) {
+        void completeScan(decodedValue);
         return;
       }
       setDialog({ visible: true, variant: 'info', title: tx('Scan QR Code'), message: tx('Align QR code within the frame') });
@@ -685,6 +715,18 @@ export function ScanScreen({
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (!scanning || scanLockedRef.current) return;
     void completeScan(data);
+  };
+
+  const handleCameraMountError = ({ message }: { message?: string }) => {
+    setCameraGranted(false);
+    setScanning(false);
+    setProcessingScan(false);
+    setDialog({
+      visible: true,
+      variant: 'error',
+      title: tx('Camera unavailable'),
+      message: message || tx('The camera could not start. Close the scanner and try again.'),
+    });
   };
 
   const handleContinueScanning = async () => {
@@ -850,9 +892,15 @@ export function ScanScreen({
                 <CameraView
                   style={StyleSheet.absoluteFillObject}
                   facing="back"
+                  autofocus="on"
+                  zoom={0.08}
                   enableTorch={flashlightOn}
                   barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                   onBarcodeScanned={scanning ? handleBarcodeScanned : undefined}
+                  onCameraReady={() => {
+                    if (!scanLockedRef.current && !scanned) setScanning(true);
+                  }}
+                  onMountError={handleCameraMountError}
                 />
               ) : cameraGranted && !previewImage && scanned && scanMode === 'single' ? (
                 <View
@@ -1024,13 +1072,18 @@ export function ScanScreen({
           </View>
 
           <View style={styles.statusRow}>
-            {scanning ? (
+            {processingScan ? (
+              <View style={styles.statusScanning}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={styles.statusActive}>{tx('QR detected — verifying and redeeming...')}</Text>
+              </View>
+            ) : scanning ? (
               <View style={styles.statusScanning}>
                 <View style={[styles.statusDot, styles.statusDotActive]} />
                 <Text style={styles.statusActive}>{tx('Scanning...')}</Text>
               </View>
             ) : null}
-            {!scanning && !scanned ? (
+            {!processingScan && !scanning && !scanned ? (
               <Text style={[styles.statusIdle, isDark ? styles.statusIdleDark : null]}>
                 {tx('Align QR code within the frame')}
               </Text>

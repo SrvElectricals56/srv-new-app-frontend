@@ -234,6 +234,7 @@ export function CartScreen({
   const pageContent = useAppPageContent(role === 'customer' ? 'user' : role, 'cart');
   const [selectedItem, setSelectedItem] = useState<CartItem | null>(null);
   const [search, setSearch] = useState('');
+  const [footerHeight, setFooterHeight] = useState(0);
 
   const theme = ROLE_THEMES[role] ?? ROLE_THEMES.customer;
 
@@ -277,7 +278,11 @@ export function CartScreen({
     <View style={[styles.screen, { backgroundColor: bg }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: cartItems.length ? insets.bottom + 150 : insets.bottom + 40 }}
+        contentContainerStyle={{
+          paddingBottom: cartItems.length
+            ? Math.max(footerHeight + 20, insets.bottom + 170)
+            : insets.bottom + 40,
+        }}
       >
         <LinearGradient
           colors={darkMode ? ['#1B2638', '#182131', '#111827'] : [theme.primarySoft, theme.mintSoft, theme.primarySoft]}
@@ -370,7 +375,10 @@ export function CartScreen({
       </ScrollView>
 
       {cartItems.length ? (
-        <View style={[styles.footerWrap, { paddingBottom: insets.bottom + 16 }]}>
+        <View
+          onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
+          style={[styles.footerWrap, { paddingBottom: insets.bottom + 16 }]}
+        >
           <View style={[styles.footerCard, { backgroundColor: cardBg, borderColor }]}>
             <View style={styles.footerRow}>
               <View>
@@ -386,7 +394,7 @@ export function CartScreen({
 
             {!meetsMinimum && (
               <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600', marginBottom: 10 }}>
-                {tx(`Add ₹${(minimumOrderAmount - totalPrice).toLocaleString('en-IN')} more to reach the minimum order amount.`)}
+                {tx('Add')} ₹{(minimumOrderAmount - totalPrice).toLocaleString('en-IN')} {tx('more to reach the minimum order amount.')}
               </Text>
             )}
 

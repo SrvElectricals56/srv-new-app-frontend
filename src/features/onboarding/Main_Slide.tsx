@@ -4,6 +4,7 @@ import {
   type ImageSourcePropType,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -279,12 +280,15 @@ export default function MainSlide({ onRoleSelect }: MainSlideProps) {
       <TopCornerOrnament side="left" top={safeTop} />
       <TopCornerOrnament side="right" top={safeTop} />
 
-      <View
-        style={[
-          styles.content,
-          isSmallDevice ? styles.contentSmall : null,
-          { paddingTop: safeTop + hs(3), paddingBottom: safeBottom + hs(4) },
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={[
+          styles.contentContainer,
+          isSmallDevice ? styles.contentSmall : styles.contentRegular,
+          { paddingTop: safeTop + hs(3), paddingBottom: safeBottom + hs(16) },
         ]}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
       >
         <View style={[styles.logoCard, { height: logoHeight }]}>
           <Image source={LOGO} resizeMode="contain" style={[styles.logo, { height: logoHeight - hs(8) }]} />
@@ -354,7 +358,7 @@ export default function MainSlide({ onRoleSelect }: MainSlideProps) {
             </View>
           ))}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -386,8 +390,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentRegular: {
     paddingHorizontal: ws(18),
+  },
+  contentContainer: {
+    flexGrow: 1,
     justifyContent: 'space-between',
+    gap: hs(8),
   },
   contentSmall: {
     paddingHorizontal: ws(14),

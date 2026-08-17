@@ -27,6 +27,7 @@ import { useAppData } from '@/shared/context/AppDataContext';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
 import { formatISTDate } from '@/shared/utils/dateIST';
+import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
 import { Dialog } from '@/shared/components/Dialog';
 
 type Ticket = {
@@ -173,22 +174,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     if (!subject.trim() || !comment.trim()) {
       setDialog({ visible: true, variant: 'info', title: tx('incompleteForm'), message: tx('fillSubjectComment') }); return;
     }
-    const message = encodeURIComponent(buildSupportMessage());
-    const appUrl = `whatsapp://send?phone=${supportWhatsapp}&text=${message}`;
-    const webUrl = `https://wa.me/${supportWhatsapp}?text=${message}`;
-    const canOpenApp = await Linking.canOpenURL(appUrl);
-    if (canOpenApp) {
-      await Linking.openURL(appUrl);
-      if (photos.length) {
-        setDialog({ visible: true, variant: 'info', title: tx('Photos ready'), message: tx('WhatsApp chat has opened on the SRV number. Please attach the selected photos manually inside WhatsApp.') });
-      }
-      return;
-    }
-    const canOpenWeb = await Linking.canOpenURL(webUrl);
-    if (!canOpenWeb) {
-      setDialog({ visible: true, variant: 'info', title: tx('WhatsApp unavailable'), message: tx('Please install or enable WhatsApp to send your request.') }); return;
-    }
-    await Linking.openURL(webUrl);
+    await openWhatsAppSupport(supportWhatsapp, buildSupportMessage());
     if (photos.length) {
       setDialog({ visible: true, variant: 'info', title: tx('Photos ready'), message: tx('WhatsApp chat has opened on the SRV number. Please attach the selected photos manually inside WhatsApp.') });
     }
@@ -272,6 +258,7 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
 
   const handleDeleteReply = async (replyId: string) => {
     if (!selectedTicket) return;
+    const originalTicket = selectedTicket;
     const updatedTicket = {
       ...selectedTicket,
       replies: (selectedTicket.replies || []).filter((reply) => {
@@ -291,7 +278,9 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     try {
       await supportApi.deleteTicketReply(selectedTicket.id, replyId);
     } catch {
-      // Keep the app clean for the user even when an older local reply has no backend reply id.
+      setSelectedTicket(originalTicket);
+      setTickets(prev => prev.map(t => t.id === originalTicket.id ? originalTicket : t));
+      setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Could not delete message. Please try again.') });
     }
   };
 
@@ -335,8 +324,10 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
     const date = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) return tx('Just now');
+    const minutes = Math.max(0, Math.floor(diff / (1000 * 60)));
+    const hours = Math.floor(minutes / 60);
+    if (minutes < 1) return tx('Just now');
+    if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
     return formatISTDate(date.toISOString());
   };
@@ -403,6 +394,21 @@ export function NeedHelpPage({ onBack }: { onBack: () => void }) {
               <Text style={[styles.ticketDetailMeta, { color: theme.textMuted }]}>
                 {tx('Created')} {formatDate(selectedTicket.createdAt)}
               </Text>
+              <TouchableOpacity
+                style={styles.ticketWhatsappButton}
+                activeOpacity={0.8}
+                onPress={() => void openWhatsAppSupport(
+                  supportWhatsapp,
+                  [
+                    `SRV Support: ${selectedTicket.subject}`,
+                    selectedTicket.message,
+                    ...(selectedTicket.replies ?? []).map((reply) => `${reply.senderName || reply.sender}: ${reply.message}`),
+                  ].filter(Boolean).join('\n\n'),
+                )}
+              >
+                <AppIcon name="whatsapp" size={17} color="#FFFFFF" />
+                <Text style={styles.ticketWhatsappText}>{tx('Continue on WhatsApp')}</Text>
+              </TouchableOpacity>
             </LinearGradient>
           )}
           renderItem={({ item }) => (
@@ -1017,6 +1023,8 @@ const styles = StyleSheet.create({
   },
   ticketDetailTitle: { fontSize: 20, fontWeight: '900', lineHeight: 26 },
   ticketDetailMeta: { fontSize: 12, fontWeight: '700', marginTop: 6 },
+  ticketWhatsappButton: { alignSelf: 'flex-start', marginTop: 14, minHeight: 40, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#16A34A' },
+  ticketWhatsappText: { color: '#FFFFFF', fontSize: 12.5, fontWeight: '800' },
   chatRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',

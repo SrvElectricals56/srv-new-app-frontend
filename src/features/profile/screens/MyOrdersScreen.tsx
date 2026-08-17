@@ -184,7 +184,7 @@ function getCustomerActionMessage(order: UserOrder) {
     return 'Your refund is in process. Please wait 4 to 5 working days for the amount to be credited.';
   }
   if (String(order.status ?? '').trim().toLowerCase() === 'cancelled') {
-    return 'Cancellation requested. Refund is pending.';
+    return isPaymentDone(order) ? 'Order cancelled. You can now submit the refund request.' : 'Order cancelled.';
   }
   return order.refundMessage || order.deliveryNotes || '';
 }
@@ -448,12 +448,19 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
       if (action === 'refund') await ordersApi.refund(orderSnapshot.id, reason);
       const actionDate = new Date().toISOString();
       const nextStatus = action === 'refund' ? orderSnapshot.status : config.status;
-      const refundPending = action === 'cancel' && isOnlinePaymentOrder(orderSnapshot) && isPaymentDone(orderSnapshot);
+      const refundAvailable =
+        action !== 'refund' &&
+        isPaymentDone(orderSnapshot) &&
+        ['cancel', 'return'].includes(action);
       const actionMessage =
         action === 'cancel'
-          ? 'Cancellation requested. Refund will be processed within 4 to 5 working days.'
+          ? refundAvailable
+            ? 'Order cancelled. You can now submit the refund request.'
+            : 'Order cancelled.'
           : action === 'return'
-            ? `Your return request was placed on ${formatDate(actionDate)}.`
+            ? refundAvailable
+              ? `Your return request was placed on ${formatDate(actionDate)}. You can now submit the refund request.`
+              : `Your return request was placed on ${formatDate(actionDate)}.`
             : 'Your refund is in process. Please wait 4 to 5 working days for the amount to be credited.';
       setSelectedOrder((current) =>
         current && current.id === orderSnapshot.id
@@ -461,12 +468,12 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
               ...current,
               status: nextStatus,
               updatedAt: actionDate,
-              refundStatus: action === 'refund' ? 'requested' : refundPending ? 'pending' : current.refundStatus,
+              refundStatus: action === 'refund' ? 'requested' : null,
               refundMessage: actionMessage,
               deliveryNotes: `${action === 'cancel' ? 'Cancelled' : action === 'return' ? 'Return requested' : 'Refund initiated'} by user: ${reason}`,
               canCancel: false,
               canReturn: false,
-              canRefund: false,
+              canRefund: refundAvailable,
             }
           : current,
       );
@@ -632,7 +639,7 @@ export function MyOrdersPage({ onBack }: { onBack: () => void }) {
         <Modal transparent visible={confirmAction !== null} animationType="fade" onRequestClose={() => setConfirmAction(null)}>
           <KeyboardAvoidingView
             style={styles.modalOverlay}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
           >
             <ScrollView

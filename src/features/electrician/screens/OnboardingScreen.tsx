@@ -6,6 +6,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -810,12 +811,24 @@ export function OnboardingScreen({
   const [signupOtpCountdown, setSignupOtpCountdown] = useState(0);
   const [signupPass, setSignupPass] = useState('');
   const [signupConfirmPass, setSignupConfirmPass] = useState('');
+  const [signupReferralCode, setSignupReferralCode] = useState('');
   const [signupPasswordSkipped, setSignupPasswordSkipped] = useState(false);
   const [signupTermsAgreed, setSignupTermsAgreed] = useState(false);
   const [signupStep, setSignupStep] = useState<SignupStep>('name');
   const [dealerVerified, setDealerVerified] = useState(false);
   const [verifiedDealerName, setVerifiedDealerName] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const captureReferral = (url?: string | null) => {
+      const match = String(url ?? '').match(/[?&]ref=([^&#]+)/i);
+      if (!match?.[1]) return;
+      try { setSignupReferralCode(decodeURIComponent(match[1]).trim().toUpperCase()); } catch { /* ignore malformed link */ }
+    };
+    void Linking.getInitialURL().then(captureReferral);
+    const subscription = Linking.addEventListener('url', event => captureReferral(event.url));
+    return () => subscription.remove();
+  }, []);
   const keyboardHeightRef = useRef(0);
   const isCompactPhone = width <= 360 || height <= 760;
   const authBackgroundColors: [string, string, string] = darkMode
@@ -1251,6 +1264,7 @@ export function OnboardingScreen({
           gstNumber: normalizeGstOrPanNumber(signupGstNumber) || undefined,
           password: signupPass.trim() || undefined,
           signupVerificationToken,
+          referralCode: signupReferralCode.trim() || undefined,
         });
         finishLogin(res.user);
         return;
@@ -1268,6 +1282,7 @@ export function OnboardingScreen({
           pincode: signupPincode.trim() || undefined,
           password: signupPass.trim() || undefined,
           signupVerificationToken,
+          referralCode: signupReferralCode.trim() || undefined,
         });
         finishLogin(res.user);
         return;
@@ -1285,6 +1300,7 @@ export function OnboardingScreen({
           pincode: signupPincode.trim() || undefined,
           password: signupPass.trim() || undefined,
           signupVerificationToken,
+          referralCode: signupReferralCode.trim() || undefined,
         });
         finishLogin(res.user);
         return;
@@ -1302,6 +1318,7 @@ export function OnboardingScreen({
         dealerPhone: signupDealerPhone,
         password: signupPass.trim() || undefined,
         signupVerificationToken,
+        referralCode: signupReferralCode.trim() || undefined,
       });
       finishLogin(res.user);
     } catch (err: any) {
@@ -1688,7 +1705,7 @@ export function OnboardingScreen({
         )}
         <KeyboardAvoidingView
           style={s.kav}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
         >
           <View style={s.dismissSurface}>
@@ -2625,6 +2642,14 @@ export function OnboardingScreen({
                                   )}
                                 </Text>
                                 <Field
+                                  label={tx('Referral Code (Optional)')}
+                                  value={signupReferralCode}
+                                  onChangeText={value => setSignupReferralCode(value.replace(/\s/g, '').toUpperCase().slice(0, 80))}
+                                  placeholder={tx('Enter your friend’s referral code')}
+                                  onFocus={scrollToForm}
+                                />
+                                <Info text={tx('After signup, you and your friend will each receive 20 points.')} kind="hint" />
+                                <Field
                                   label={tx('Password (Optional)')}
                                   value={signupPass}
                                   onChangeText={(value) => {
@@ -2904,6 +2929,14 @@ export function OnboardingScreen({
                                     'Password is optional. Leave both fields blank if you want to skip it.'
                                   )}
                                 </Text>
+                                <Field
+                                  label={tx('Referral Code (Optional)')}
+                                  value={signupReferralCode}
+                                  onChangeText={value => setSignupReferralCode(value.replace(/\s/g, '').toUpperCase().slice(0, 80))}
+                                  placeholder={tx('Enter your friend’s referral code')}
+                                  onFocus={scrollToForm}
+                                />
+                                <Info text={tx('After signup, you and your friend will each receive 20 points.')} kind="hint" />
                                 <Field
                                   label={tx('Password (Optional)')}
                                   value={signupPass}

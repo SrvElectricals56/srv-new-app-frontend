@@ -129,11 +129,11 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
           <View style={styles.heroTop}>
             <View style={[styles.heroBadge, { backgroundColor: theme.textPrimary === '#F8FAFC' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.62)' }]}>
               <AppIcon name="transfer" size={18} color={theme.accent} />
-              <Text style={[styles.heroBadgeText, { color: theme.textPrimary }]}>{pageContent.cardTitle || tx(`${bonusRate}% Auto Bonus`)}</Text>
+              <Text style={[styles.heroBadgeText, { color: theme.textPrimary }]}>{pageContent.cardTitle || `${bonusRate}% ${tx('Auto Bonus')}`}</Text>
             </View>
             <Text style={[styles.heroTitle, { color: theme.textPrimary }]}>{pageContent.heroTitle || tx('GET YOUR BONUS')}</Text>
             <Text style={[styles.heroSub, { color: theme.textSecondary }]}>
-              {pageContent.heroSubtitle || tx(`${bonusRate}% of the points redeemed by any electrician will be credited to your dealer wallet. 1 point = 1 INR, and you can withdraw it directly to your bank account.`)}
+              {pageContent.heroSubtitle || `${bonusRate}% ${tx('of the points redeemed by any electrician will be credited to your dealer wallet. 1 point = 1 INR, and you can withdraw it directly to your bank account.')}`}
             </Text>
           </View>
           <View style={styles.heroFooter}>
@@ -180,7 +180,7 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>{pageContent.sectionTitle || tx('How it works')}</Text>
           {[
-            { num: '1', bg: theme.accentSoft, color: theme.accent, text: tx(`Electrician points redeem hote hi ${bonusRate}% dealer bonus auto-credit ho jata hai.`) },
+            { num: '1', bg: theme.accentSoft, color: theme.accent, text: `${tx('When electrician points are redeemed, the dealer bonus is credited automatically:')} ${bonusRate}%.` },
             { num: '2', bg: theme.soft, color: theme.accentDeep, text: tx('Bonus balance update hota rahega and 1 point ki value 1 INR rahegi.') },
             { num: '3', bg: '#DCFCE7', color: C.success, text: tx('Aap bank transfer request karke amount withdraw kar sakte hain.') },
           ].map((step) => (

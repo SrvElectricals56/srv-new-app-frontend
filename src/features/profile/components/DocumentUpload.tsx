@@ -74,12 +74,14 @@ export function DocumentUpload({
       // Keep iOS on PHPicker, which grants access only to selected items.
       allowsEditing: false,
       quality: 0.9,
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
 
     if (!result.canceled && result.assets?.length) {
-      const localFileUri = result.assets[0].uri;
+      const asset = result.assets[0];
+      const localFileUri = asset.uri;
       setLocalUri(localFileUri);
-      await uploadDocument(localFileUri, 'image/jpeg', `${documentType}.jpg`);
+      await uploadDocument(localFileUri, asset.mimeType || 'image/jpeg', asset.fileName || `${documentType}.jpg`);
     }
   };
 

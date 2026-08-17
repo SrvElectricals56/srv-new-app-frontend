@@ -14,6 +14,7 @@ export function RateUsPage({ onBack, onHome }: { onBack: () => void; onHome?: ()
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'rate_us');
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
+  const [displayConsent, setDisplayConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'error' | 'info' | 'success'; title: string; message?: string }>({ visible: false, variant: 'info', title: '', message: '' });
@@ -23,6 +24,7 @@ export function RateUsPage({ onBack, onHome }: { onBack: () => void; onHome?: ()
       if (res) {
         setRating(res.rating ?? 0);
         setReview(res.review ?? '');
+        setDisplayConsent(Boolean(res.displayConsent));
         setSubmitted(true);
       }
     }).catch(() => {});
@@ -75,7 +77,7 @@ export function RateUsPage({ onBack, onHome }: { onBack: () => void; onHome?: ()
     if (rating === 0) return;
     setSubmitting(true);
     try {
-      await ratingApi.submit(rating, review.trim() || undefined);
+      await ratingApi.submit(rating, review.trim() || undefined, displayConsent);
       setSubmitted(true);
     } catch (error: any) {
       setDialog({
@@ -291,9 +293,26 @@ export function RateUsPage({ onBack, onHome }: { onBack: () => void; onHome?: ()
                   placeholderTextColor={theme.textMuted}
                   multiline
                   numberOfLines={5}
+                  maxLength={500}
                   style={[styles.reviewTextInput, { color: theme.textPrimary }]}
                 />
               </View>
+              {review.trim().length >= 10 ? (
+                <TouchableOpacity
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: displayConsent }}
+                  activeOpacity={0.8}
+                  onPress={() => setDisplayConsent((current) => !current)}
+                  style={[styles.consentRow, { borderColor: theme.border, backgroundColor: theme.bg }]}
+                >
+                  <View style={[styles.consentBox, { borderColor: displayConsent ? theme.accent : theme.border, backgroundColor: displayConsent ? theme.accent : theme.surface }]}>
+                    <Text style={styles.consentCheck}>{displayConsent ? '✓' : ''}</Text>
+                  </View>
+                  <Text style={[styles.consentText, { color: theme.textSecondary }]}>
+                    {tx('Allow SRV to show this review in the app with my name and role. It may appear after 7 days.')}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
             <TouchableOpacity
               style={[
@@ -461,6 +480,10 @@ const styles = StyleSheet.create({
   reviewHint: { fontSize: 12, marginBottom: 12 },
   reviewInput: { borderWidth: 1.5, borderRadius: 18, padding: 14, minHeight: 132 },
   reviewTextInput: { fontSize: 14, textAlignVertical: 'top', flex: 1, minHeight: 100 },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderWidth: 1, borderRadius: 14, padding: 12 },
+  consentBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  consentCheck: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', lineHeight: 17 },
+  consentText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '600' },
   rateSubmitBtn: {
     height: 56,
     borderRadius: 18,

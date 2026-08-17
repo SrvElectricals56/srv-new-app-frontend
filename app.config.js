@@ -4,10 +4,10 @@ module.exports = ({ config }) => {
   return {
     ...config,
     name: isStaging ? 'SRV Electricals Staging' : config.name,
-    icon: './assets/srv-mark-final.png',
+    icon: './assets/srv-app-icon-final-v2.png',
     ios: {
       ...config.ios,
-      icon: './assets/srv-logo-ios.png',
+      icon: './assets/srv-app-icon-final-v2.png',
       bundleIdentifier: isStaging
         ? 'com.srvelectricals.app.staging'
         : config.ios.bundleIdentifier,
@@ -19,9 +19,9 @@ module.exports = ({ config }) => {
     },
     android: {
       ...config.android,
-      icon: './assets/srv-mark-final.png',
+      icon: './assets/srv-app-icon-final-v2.png',
       adaptiveIcon: {
-        foregroundImage: './assets/srv-mark-final.png',
+        foregroundImage: './assets/srv-app-icon-final-v2.png',
         backgroundColor: '#FFFFFF',
       },
     },

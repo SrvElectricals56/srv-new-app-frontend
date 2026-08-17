@@ -55,16 +55,14 @@ export function ReferFriendPage({ onBack }: { onBack: () => void }) {
     await Share.share({ message: shareMessage, url: referralLink });
   };
 
-  const openWhatsApp = () => {
+  const openWhatsApp = async () => {
     const text = encodeURIComponent(shareMessage);
     const whatsappUrl = `whatsapp://send?text=${text}`;
-    Linking.canOpenURL(whatsappUrl).then((supported) => {
-      if (supported) {
-        Linking.openURL(whatsappUrl);
-      } else {
-        Linking.openURL(`https://wa.me/?text=${text}`);
-      }
-    });
+    try {
+      await Linking.openURL(whatsappUrl);
+    } catch {
+      await Linking.openURL(`https://wa.me/?text=${text}`);
+    }
   };
 
   return (

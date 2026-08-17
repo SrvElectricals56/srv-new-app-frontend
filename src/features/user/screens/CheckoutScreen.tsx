@@ -190,7 +190,9 @@ export function CheckoutScreen({
   const minimumOrderAmount = Number(appSettings?.minimumOrderAmounts?.[minimumRole] ?? 0);
   const availablePoints = Math.max(
     0,
-    Number((user as any)?.walletBalance ?? (user as any)?.totalPoints ?? 0)
+    Number(
+      (user as any)?.walletBalance ?? (user as any)?.totalPoints ?? 0,
+    )
   );
   const canPayWithPoints = availablePoints >= totalPrice;
   const paymentSummary = paymentMethod === 'online'
@@ -233,7 +235,7 @@ export function CheckoutScreen({
         visible: true,
         variant: 'info',
         title: tx('Minimum order amount'),
-        message: tx(`Please increase quantity. The minimum order amount is ₹${minimumOrderAmount.toLocaleString('en-IN')}.`),
+        message: `${tx('Please increase quantity. The minimum order amount is')} ₹${minimumOrderAmount.toLocaleString('en-IN')}.`,
       });
       return;
     }
@@ -270,7 +272,9 @@ export function CheckoutScreen({
         }
         updateUser({
           walletBalance: latestWalletBalance,
-          ...(role === 'dealer' ? {} : { totalPoints: latestWalletBalance }),
+          ...(role === 'dealer'
+            ? { bonusPoints: latestWalletBalance }
+            : { totalPoints: latestWalletBalance }),
         } as any);
         setDialog({
           visible: true,

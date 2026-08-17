@@ -899,15 +899,17 @@ export function ProfileScreen({
           </View>
         </TouchableOpacity>
         <View style={styles.heroIdentityBlock}>
-          <Text style={[styles.heroName, { color: theme.textPrimary }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{profile.name}</Text>
+          <Text style={[styles.heroName, { color: theme.textPrimary }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>
+            {profile.name || tx(currentRole === 'user' ? 'Customer Account' : 'SRV User')}
+          </Text>
           <Text style={[styles.heroPhone, { color: theme.textMuted }]}>
-            +91 {profile.phone}
+            {profile.phone ? `+91 ${profile.phone}` : tx('Phone number is not available for this account.')}
           </Text>
           <View style={styles.tagRow}>
             <View style={[styles.tag, { backgroundColor: isElectricianProfile ? premium.navySoft : theme.soft }]}>
               <AppIcon name="location" size={12} color={theme.textSecondary} />
               <Text style={[styles.tagTxt, { color: theme.textSecondary }]}>
-                {tx(profile.city)}
+                {profile.city ? tx(profile.city) : tx('Location not added')}
               </Text>
             </View>
             <View style={[styles.tag, { backgroundColor: roleSoft }]}>

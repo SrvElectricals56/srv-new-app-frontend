@@ -41,6 +41,7 @@ import { useAppPageContent, useAppPageSections, useCatalogDownload } from '@/sha
 import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
 import type { HomePageSectionKey } from '@/shared/config/appPageContent';
 import { API_BASE_URL } from '@/shared/api/config';
+import { electriciansApi } from '@/shared/api';
 
 const logoImage = require('../../../../assets/srv logo white.jpeg');
 
@@ -450,16 +451,24 @@ export function HomeScreen({
   const statPulse = useRef(new Animated.Value(1)).current;
   const homeScrollRef = useRef<ScrollView>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [liveElectricianCount, setLiveElectricianCount] = useState<number | null>(null);
+  const loadElectricianCount = async () => {
+    const response = await electriciansApi.getAll(1, 1);
+    setLiveElectricianCount(Number(response.total ?? response.data?.length ?? 0));
+  };
+  useEffect(() => {
+    void loadElectricianCount().catch(() => undefined);
+  }, [authUser?.id]);
   useRegisterScrollToTop('home', homeScrollRef);
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await refreshAll();
+      await Promise.all([refreshAll(), loadElectricianCount()]);
     } finally {
       setRefreshing(false);
     }
   };
-  const connectedCount = authUser?.electricianCount ?? 0;
+  const connectedCount = liveElectricianCount ?? authUser?.electricianCount ?? 0;
   const tier = useMemo(() => getTier(connectedCount), [connectedCount]);
   const cardW = (width - 28 - 12) / 2;
   const heroImageHeight = Math.round((width - 28) * 0.56);
@@ -591,12 +600,7 @@ export function HomeScreen({
     });
   }, [categories]);
   const dealerTestimonials = useMemo<TestimonialItem[]>(() => {
-    if (ctxTestimonials.length === 0) {
-      return TESTIMONIAL_FALLBACK_COPY.map((item, index) => {
-        const themed = getTestimonialTheme(index);
-        return { ...item, colors: themed.colors, ring: themed.ring, glow: themed.glow };
-      });
-    }
+    if (ctxTestimonials.length === 0) return [];
     if (ctxTestimonials.length > 0) {
       return ctxTestimonials.map((t, index) => {
         const themed = getTestimonialTheme(index);
@@ -762,7 +766,7 @@ export function HomeScreen({
           </View>
         </View>
       ) : null,
-      testimonials: showTestimonials ? (
+      testimonials: showTestimonials && dealerTestimonials.length > 0 ? (
         <TestimonialShowcase
           key="testimonials"
           eyebrow={pageContent.testimonialEyebrow || (

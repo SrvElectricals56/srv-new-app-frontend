@@ -1,7 +1,7 @@
 // Customer Auth Screen â€” Role-aware account design
 import { useEffect, useRef, useState } from 'react';
 import {
-  Animated, Easing, Image, KeyboardAvoidingView, Platform,
+  Animated, Easing, Image, KeyboardAvoidingView, Linking, Platform,
    Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,6 +30,7 @@ const THEMES = {
 const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long and include one capital letter and one special character.';
 const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() ?? '';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? '';
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '';
 
 
@@ -132,9 +133,9 @@ export function UserAuthScreen({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
     GoogleSignin.configure({
       webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
+      iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
       offlineAccess: false,
     });
   }, []);
@@ -184,8 +185,9 @@ export function UserAuthScreen({
   const [showSP, setShowSP] = useState(false);
   const [otpSentSignup, setOtpSentSignup] = useState(false);
   const [otpSignupPhone, setOtpSignupPhone] = useState('');
-  const [signupOtpVerified, setSignupOtpVerified] = useState(false);
   const [signupVerificationToken, setSignupVerificationToken] = useState('');
+  const signupOtpVerifiedRef = useRef(false);
+  const signupVerificationTokenRef = useRef('');
   const [signupStep, setSignupStep] = useState<'identity' | 'otp' | 'details'>('identity');
   const sPhoneRef = useRef<TextInput>(null);
   const sEmailRef = useRef<TextInput>(null);
@@ -198,6 +200,8 @@ export function UserAuthScreen({
   const [sState, setSState]     = useState('');
   const [sCity, setSCity]       = useState('');
   const [sPincode, setSPincode] = useState('');
+  const [sReferralCode, setSReferralCode] = useState('');
+  const sReferralRef = useRef<TextInput>(null);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
@@ -212,6 +216,17 @@ export function UserAuthScreen({
   const handleSignupEmail = (value: string) => {
     setSEmail(value);
   };
+
+  useEffect(() => {
+    const captureReferral = (url?: string | null) => {
+      const match = String(url ?? '').match(/[?&]ref=([^&#]+)/i);
+      if (!match?.[1]) return;
+      try { setSReferralCode(decodeURIComponent(match[1]).trim().toUpperCase()); } catch { /* ignore malformed link */ }
+    };
+    void Linking.getInitialURL().then(captureReferral);
+    const subscription = Linking.addEventListener('url', event => captureReferral(event.url));
+    return () => subscription.remove();
+  }, []);
 
   const bg   = darkMode ? '#0F172A' : '#EEF3F8';
   const card = darkMode ? '#1E293B' : '#FFFFFF';
@@ -247,8 +262,9 @@ export function UserAuthScreen({
     if (mode !== 'signup') {
       setOtpSentSignup(false);
       setOtpSignupPhone('');
-      setSignupOtpVerified(false);
       setSignupVerificationToken('');
+      signupOtpVerifiedRef.current = false;
+      signupVerificationTokenRef.current = '';
       setSOtp('');
       setSState('');
       setSCity('');
@@ -278,12 +294,25 @@ export function UserAuthScreen({
     if (otpSentSignup && normalizePhone(sPhone) !== otpSignupPhone) {
       setOtpSentSignup(false);
       setOtpSignupPhone('');
-      setSignupOtpVerified(false);
       setSignupVerificationToken('');
+      signupOtpVerifiedRef.current = false;
+      signupVerificationTokenRef.current = '';
       setSOtp('');
       setSignupStep('identity');
     }
   }, [sPhone, otpSentSignup, otpSignupPhone]);
+
+  useEffect(() => {
+    if (!otpSentLogin) return;
+    const timer = setTimeout(() => lOtpRef.current?.focus(), 180);
+    return () => clearTimeout(timer);
+  }, [otpSentLogin]);
+
+  useEffect(() => {
+    if (signupStep !== 'otp') return;
+    const timer = setTimeout(() => sOtpRef.current?.focus(), 180);
+    return () => clearTimeout(timer);
+  }, [signupStep]);
 
   const sendOtpLogin = async () => {
     if (!lPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
@@ -317,8 +346,9 @@ export function UserAuthScreen({
     try {
       const data = await authApi.sendSignupOtp(cleanPhone, role);
       setSPhone(cleanPhone);
-      setSignupOtpVerified(false);
       setSignupVerificationToken('');
+      signupOtpVerifiedRef.current = false;
+      signupVerificationTokenRef.current = '';
       setOtpSentSignup(true);
       setOtpSignupPhone(cleanPhone);
       setSignupStep('otp');
@@ -388,14 +418,17 @@ export function UserAuthScreen({
       setDialog({ visible: true, variant: 'info', title: tx('Customer only'), message: tx('Google signup is available for customer accounts only.') });
       return;
     }
-    if (Platform.OS !== 'android' || !GOOGLE_ANDROID_CLIENT_ID) {
+    const configuredClientId = Platform.OS === 'ios' ? GOOGLE_IOS_CLIENT_ID : GOOGLE_ANDROID_CLIENT_ID;
+    if (!configuredClientId) {
       setDialog({ visible: true, variant: 'error', title: tx('Google not configured'), message: tx('Google sign-in is not available in this app build. Please update the app and try again.') });
       return;
     }
 
     setLoading(true);
     try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      if (Platform.OS === 'android') {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      }
       const response = await GoogleSignin.signIn();
       if (!isSuccessResponse(response)) return;
       const tokens = await GoogleSignin.getTokens();
@@ -520,15 +553,17 @@ export function UserAuthScreen({
           ? verification.signupVerificationToken.trim()
           : '';
       setSignupVerificationToken(verificationToken);
-      setSignupOtpVerified(true);
+      signupVerificationTokenRef.current = verificationToken;
+      signupOtpVerifiedRef.current = true;
       setSignupStep('details');
     } catch (e: any) {
       const msg = e?.message ?? '';
       if (msg.toLowerCase().includes('expired')) {
         setDialog({ visible: true, variant: 'info', title: tx('OTP Expired'), message: tx('Your OTP has expired. Please request a new one.') });
         setOtpSentSignup(false);
-        setSignupOtpVerified(false);
         setSignupVerificationToken('');
+        signupOtpVerifiedRef.current = false;
+        signupVerificationTokenRef.current = '';
         setSOtp('');
         setSignupStep('identity');
       } else if (msg.toLowerCase().includes('invalid')) {
@@ -545,7 +580,7 @@ export function UserAuthScreen({
   const signup = async () => {
     if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
     if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
-    if (!otpSentSignup || signupStep !== 'details' || !signupOtpVerified) {
+    if (!otpSentSignup || signupStep !== 'details' || !signupOtpVerifiedRef.current) {
       setDialog({ visible: true, variant: 'info', title: '', message: tx('Please verify your OTP first') });
       return;
     }
@@ -581,7 +616,8 @@ export function UserAuthScreen({
         city: sCity.trim() || undefined,
         district: sCity.trim() || undefined,
         pincode: sPincode.trim() || undefined,
-        signupVerificationToken,
+        signupVerificationToken: signupVerificationTokenRef.current || signupVerificationToken,
+        referralCode: sReferralCode.trim() || undefined,
       });
       (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = registerData.user;
       onAuthenticated(role, { passwordConfigured: !!sPwd.trim(), passwordValue: sPwd.trim() });
@@ -639,7 +675,7 @@ export function UserAuthScreen({
             <Text style={[S.btnOutlineText, { color: P1 }]}>{tx('Create New Account')}</Text>
           </Pressable>
 
-          {role === 'user' && Platform.OS === 'android' ? (
+          {role === 'user' && Platform.OS !== 'web' ? (
             <Pressable
               onPress={continueWithGoogle}
               disabled={loading}
@@ -961,12 +997,33 @@ export function UserAuthScreen({
                         placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
                         keyboardType="numeric"
                         maxLength={6}
-                        onSubmitEditing={() => sPwdRef.current?.focus()}
+                        onSubmitEditing={() => sReferralRef.current?.focus()}
                         returnKeyType="next"
                       />
                     </View>
                   </View>
                 </View>
+              </View>
+            )}
+
+            {isSignupDetailsStep && (
+              <View style={S.inputWrap}>
+                <Text style={[S.inputLabel, { color: darkMode ? '#94A3B8' : '#6B7280' }]}>{tx('Referral Code')} ({tx('optional')})</Text>
+                <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
+                  <TextInput
+                    ref={sReferralRef}
+                    style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
+                    value={sReferralCode}
+                    onChangeText={value => setSReferralCode(value.replace(/\s/g, '').toUpperCase().slice(0, 80))}
+                    placeholder={tx('Enter your friend’s referral code')}
+                    placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    onSubmitEditing={() => sPwdRef.current?.focus()}
+                    returnKeyType="next"
+                  />
+                </View>
+                <Text style={[S.stepSub, { color: tm }]}>{tx('After signup, you and your friend will each receive 20 points.')}</Text>
               </View>
             )}
 
@@ -1051,7 +1108,7 @@ export function UserAuthScreen({
             </Pressable>
           )}
 
-          {role === 'user' && Platform.OS === 'android' && (isLogin || isSignup) ? (
+          {role === 'user' && Platform.OS !== 'web' && (isLogin || isSignup) ? (
             <Pressable
               onPress={continueWithGoogle}
               disabled={loading}

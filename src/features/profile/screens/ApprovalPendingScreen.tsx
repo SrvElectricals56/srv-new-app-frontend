@@ -157,6 +157,7 @@ export function ApprovalPendingScreen({
   const normalizedStatus = String(accountStatus ?? '').trim().toLowerCase();
   const isSuspended = normalizedStatus === 'suspended';
   const isRejected = isSuspended || normalizedStatus === 'inactive' || normalizedStatus === 'rejected';
+  const isInactiveElectrician = role === 'electrician' && normalizedStatus === 'inactive';
 
   const meta = ROLE_META[role];
   const T = isRejected ? meta.rejected : meta.pending;
@@ -170,6 +171,12 @@ export function ApprovalPendingScreen({
             { icon: 'message' as const, text: 'Contact support to understand suspension and next steps' },
             { icon: 'phone' as const, text: 'App features stay locked until status is restored' },
           ]
+        : isInactiveElectrician
+        ? [
+            { icon: 'alert' as const, text: 'No QR scan was recorded during the last 30 full days' },
+            { icon: 'check' as const, text: 'Wallet balance does not determine electrician account status' },
+            { icon: 'message' as const, text: 'Contact SRV Team to reactivate the account and resume scanning' },
+          ]
         : isRejected
         ? [
             { icon: 'check' as const, text: `Your ${roleLabel.toLowerCase()} account was reviewed by SRV Team` },
@@ -181,7 +188,7 @@ export function ApprovalPendingScreen({
             { icon: 'clock' as const, text: 'SRV Team approval is required before access' },
             { icon: 'message' as const, text: 'Contact support for urgent queries' },
           ],
-    [isRejected, isSuspended, roleLabel]
+    [isInactiveElectrician, isRejected, isSuspended, roleLabel]
   );
 
   const handleCall = () => {
@@ -203,6 +210,8 @@ export function ApprovalPendingScreen({
 
   const headline = isSuspended
     ? `Your ${roleLabel.toLowerCase()} account\nis suspended`
+    : isInactiveElectrician
+    ? 'No QR scan was recorded for 30 full days. Your wallet balance did not cause this status. Contact support to reactivate the account.'
     : isRejected
     ? `Your ${roleLabel.toLowerCase()} account\nis inactive`
     : 'Waiting for SRV Team\napproval';
@@ -250,6 +259,8 @@ export function ApprovalPendingScreen({
                 {rejectionReason?.trim() ||
                   (isSuspended
                     ? 'Account suspended by SRV Team. Contact support for details.'
+                    : isInactiveElectrician
+                    ? 'No QR scan was recorded during the last 30 full days, or SRV Team manually deactivated the account.'
                     : 'Marked inactive by SRV Team. Contact support for details.')}
               </Text>
             </View>
@@ -275,6 +286,8 @@ export function ApprovalPendingScreen({
               <Text style={[styles.noteText, { color: T.accentDeep }]}>
                 {isSuspended
                   ? 'Support can guide you on why the account was suspended and what is needed to restore access.'
+                  : isInactiveElectrician
+                  ? 'Support can reactivate the electrician account. Wallet points and wallet balance do not affect this status.'
                   : isRejected
                   ? 'You may contact our support team to understand why the account was deactivated and discuss next steps.'
                   : 'When SRV Team changes your status to active, reopen the app and your account will unlock automatically.'}

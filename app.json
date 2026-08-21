@@ -60,11 +60,11 @@
       "icon": "./assets/srv-app-icon-final-v2.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.srvelectricals.app",
-      "buildNumber": "30"
+      "buildNumber": "31"
     },
     "android": {
       "icon": "./assets/srv-app-icon-final-v2.png",
-      "versionCode": 32,
+      "versionCode": 33,
       "allowBackup": false,
       "googleServicesFile": "./android/app/google-services.json",
       "softwareKeyboardLayoutMode": "resize",

@@ -33,7 +33,10 @@
     },
     "android-production": {
       "extends": "production",
-      "credentialsSource": "local"
+      "credentialsSource": "local",
+      "android": {
+        "applicationArchivePath": "android/app/build/outputs/bundle/release/app-release.aab"
+      }
     },
     "production-apk": {
       "distribution": "internal",

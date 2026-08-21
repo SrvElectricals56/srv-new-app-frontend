@@ -290,6 +290,7 @@ type UiProduct = {
   name: string;
   sub: string;
   img: string;
+  imgs: string[];
   points: number;
   badge: string | null;
 };
@@ -324,12 +325,17 @@ const CATEGORY_ORDER = [
 ];
 
 function mapApiToUi(p: ApiProduct): UiProduct {
+  const imgs = Array.from(new Set([...(p.images ?? []), p.imageUrl, p.image]
+    .map(value => resolveImageUrl(value))
+    .filter((value): value is string => Boolean(value))));
+  if (imgs.length === 0) imgs.push(REAL_PRODUCT_IMAGES[p.category] || REAL_PRODUCT_IMAGES['fanbox']);
   return {
     id: p.id,
     category: p.category,
     name: p.name,
     sub: p.sub ?? '',
-    img: resolveImageUrl(p.imageUrl) || resolveImageUrl(p.image) || REAL_PRODUCT_IMAGES[p.category] || REAL_PRODUCT_IMAGES['fanbox'],
+    img: imgs[0],
+    imgs,
     points: p.points,
     badge: p.badge ?? null,
   };
@@ -888,9 +894,14 @@ export function ProductScreen({
                 </View>
                 <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailScrollContent} showsVerticalScrollIndicator={false}>
                   <View style={styles.detailImageWrap}>
-                    <ExpoImage source={{ uri: selectedProduct.img }} style={styles.detailImage} contentFit="contain" cachePolicy="memory-disk" transition={150} />
+                    <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: '100%' }}>
+                      {selectedProduct.imgs.map((imageUrl, index) => (
+                        <ExpoImage key={`${imageUrl}-${index}`} source={{ uri: imageUrl }} style={[styles.detailImage, { width: Math.max(260, width - 48) }]} contentFit="contain" cachePolicy="memory-disk" transition={150} />
+                      ))}
+                    </ScrollView>
                     <View style={styles.detailImageShadow} />
                   </View>
+                  {selectedProduct.imgs.length > 1 ? <Text style={[styles.detailMeta, darkMode ? styles.detailMetaDark : null]}>{selectedProduct.imgs.length} {tx('images')} · {tx('Swipe to view')}</Text> : null}
                   <Text style={[styles.detailTitle, darkMode ? styles.detailTitleDark : null]}>
                     {localizeCatalogText(selectedProduct.name, language)}
                   </Text>

@@ -971,8 +971,9 @@ export type Product = {
   description?: string;
   category: string;
   categoryId?: string;
-  image?: string;
-  imageUrl?: string;
+    image?: string;
+    imageUrl?: string;
+    images?: string[];
   points: number;
   badge?: string;
   price: number;

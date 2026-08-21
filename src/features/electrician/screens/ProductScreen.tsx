@@ -375,6 +375,7 @@ type UiProduct = {
   description: string;
   category: string;
   imageUrl: string;
+  imageUrls: string[];
   points: number;
   badge: string | null;
   price: number;
@@ -387,13 +388,18 @@ type UiProduct = {
 function mapProduct(p: ApiProduct): UiProduct {
   const cat = normCat(p.category);
   const description = p.description?.trim() || p.sub?.trim() || '';
+  const imageUrls = Array.from(new Set([...(p.images ?? []), p.imageUrl, p.image]
+    .map(value => resolveImageUrl(value))
+    .filter((value): value is string => Boolean(value))));
+  if (imageUrls.length === 0) imageUrls.push(catImg(cat));
   return {
     id: p.id,
     name: p.name,
     sub: p.sub || description,
     description,
     category: cat,
-    imageUrl: resolveImageUrl(p.imageUrl) || resolveImageUrl(p.image) || catImg(cat),
+    imageUrl: imageUrls[0],
+    imageUrls,
     points: p.points ?? 0,
     badge: p.badge?.trim() || null,
     price: Number(p.price ?? 0),
@@ -597,6 +603,7 @@ function ProductDetailView({
   onQtyChange: (qty: number) => void;
 }) {
   const { tx } = usePreferenceContext();
+  const { width } = useWindowDimensions();
   const bg = darkMode ? '#0B1220' : '#FFFFFF';
   const card = darkMode ? '#111827' : '#FFFFFF';
   const text = darkMode ? '#F8FAFC' : premium.ink;
@@ -621,7 +628,12 @@ function ProductDetailView({
         <LinearGradient colors={darkMode ? ['#111827', '#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFD', '#F5F7FB']} style={[styles.detailImagePanel, { borderColor: border }]}>
           {product.badge ? <Text style={[styles.detailBadge, { backgroundColor: roleTheme.primary, color: roleTheme.onPrimary }]}>{product.badge}</Text> : null}
           {discount > 0 ? <Text style={styles.detailDiscount}>{discount}% OFF</Text> : null}
-          <Image source={{ uri: product.imageUrl }} style={styles.detailImage} contentFit="contain" transition={200} />
+          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }}>
+            {product.imageUrls.map((imageUrl, index) => (
+              <Image key={`${imageUrl}-${index}`} source={{ uri: imageUrl }} style={[styles.detailImage, { width: Math.max(280, Math.min(width - 28, 680)) }]} contentFit="contain" transition={200} />
+            ))}
+          </ScrollView>
+          {product.imageUrls.length > 1 ? <Text style={[styles.detailHeaderSub, { color: muted }]}>{product.imageUrls.length} {tx('images')} · {tx('Swipe to view')}</Text> : null}
         </LinearGradient>
 
         <View style={[styles.detailInfoCard, { backgroundColor: card, borderColor: border }]}>

@@ -1,6 +1,11 @@
 // Generated from static tx(...) UI labels.
 export const generatedUiText: Record<'Hindi' | 'Punjabi', Record<string, string>> = {
   "Hindi": {
+    "Enter complete delivery address": "पूरा डिलीवरी पता दर्ज करें",
+    "images": "तस्वीरें",
+    "Swipe to view": "देखने के लिए स्वाइप करें",
+    "Welcome": "स्वागत है",
+    "You can explore the home page as a guest. Login or create an account to use all app features.": "आप अतिथि के रूप में होम पेज देख सकते हैं। सभी ऐप सुविधाओं का उपयोग करने के लिए लॉगिन करें या खाता बनाएँ।",
     "Back": "पीछे",
     "SUPPORT": "सहायता",
     "Clear All": "सभी साफ करें",
@@ -648,6 +653,11 @@ export const generatedUiText: Record<'Hindi' | 'Punjabi', Record<string, string>
     "more to reach the minimum order amount.": "न्यूनतम ऑर्डर राशि तक पहुंचने के लिए और अधिक।"
   },
   "Punjabi": {
+    "Enter complete delivery address": "ਪੂਰਾ ਡਿਲਿਵਰੀ ਪਤਾ ਦਰਜ ਕਰੋ",
+    "images": "ਤਸਵੀਰਾਂ",
+    "Swipe to view": "ਵੇਖਣ ਲਈ ਸਵਾਈਪ ਕਰੋ",
+    "Welcome": "ਜੀ ਆਇਆਂ ਨੂੰ",
+    "You can explore the home page as a guest. Login or create an account to use all app features.": "ਤੁਸੀਂ ਮਹਿਮਾਨ ਵਜੋਂ ਹੋਮ ਪੇਜ ਵੇਖ ਸਕਦੇ ਹੋ। ਐਪ ਦੀਆਂ ਸਾਰੀਆਂ ਸੁਵਿਧਾਵਾਂ ਵਰਤਣ ਲਈ ਲਾਗਇਨ ਕਰੋ ਜਾਂ ਖਾਤਾ ਬਣਾਓ।",
     "Back": "ਵਾਪਸ",
     "SUPPORT": "ਸਹਿਯੋਗ",
     "Clear All": "ਸਭ ਸਾਫ਼ ਕਰੋ",

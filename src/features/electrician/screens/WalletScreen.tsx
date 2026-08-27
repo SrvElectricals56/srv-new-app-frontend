@@ -135,6 +135,7 @@ function SparkIcon() {
 
 type ApiTxItem = {
   id: string;
+  referenceId?: string | null;
   title: string;
   time: string;
   points: string;
@@ -156,7 +157,8 @@ const parseSignedPoints = (value: string) => {
 };
 
 function resolveDisplayedPoints(...values: (number | null | undefined)[]) {
-  return Math.max(...values.map((value) => Number(value ?? 0)));
+  const firstAvailable = values.find((value) => value !== null && value !== undefined);
+  return Number(firstAvailable ?? 0);
 }
 
 // ── Role-wise theme tokens ────────────────────────────────────────────
@@ -324,6 +326,7 @@ export function WalletScreen({
       if (res.transactions?.data?.length) {
         const mapped: ApiTxItem[] = res.transactions.data.map((tx: any) => ({
           id: tx.id,
+          referenceId: tx.linkedRedemption?.id ?? tx.referenceId ?? null,
           title: tx.linkedRedemption
             ? `${tx.linkedRedemption.giftName ?? tx.linkedRedemption.type ?? 'Redemption'} - ${tx.linkedRedemption.status ?? 'pending'}`
             : tx.description ?? (tx.source === 'scan' ? 'Product scanned' : tx.source === 'redemption' ? 'Redemption processed' : tx.source === 'bonus' ? 'Bonus credited' : tx.source === 'transfer' ? 'Points transferred' : 'Transaction'),
@@ -353,6 +356,7 @@ export function WalletScreen({
       setApiTotalScans(res.totalScans ?? null);
       const mapped: ApiTxItem[] = (res.transactions?.data ?? []).map((tx: any) => ({
         id: tx.id,
+        referenceId: tx.linkedRedemption?.id ?? tx.referenceId ?? null,
         title: tx.linkedRedemption
           ? `${tx.linkedRedemption.giftName ?? tx.linkedRedemption.type ?? 'Redemption'} - ${tx.linkedRedemption.status ?? 'pending'}`
           : tx.description ?? (tx.source === 'scan' ? 'Product scanned' : tx.source === 'redemption' ? 'Redemption processed' : tx.source === 'bonus' ? 'Bonus credited' : tx.source === 'transfer' ? 'Points transferred' : 'Transaction'),
@@ -385,7 +389,9 @@ export function WalletScreen({
           rawDate: undefined,
         })));
 
-    const existingIds = new Set(walletItems.map((item) => item.id));
+    const existingIds = new Set(
+      walletItems.flatMap((item) => [item.id, item.referenceId].filter((value): value is string => Boolean(value))),
+    );
     const scanItems: ApiTxItem[] = (scanHistory?.data ?? [])
       .filter((scan: any) => !existingIds.has(scan.id))
       .map((scan: any) => ({

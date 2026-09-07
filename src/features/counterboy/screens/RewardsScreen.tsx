@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -20,6 +21,7 @@ import { Dialog } from '@/shared/components/Dialog';
 import { AppIcon, shared } from '@/features/profile/components/ProfileShared';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAppData } from '@/shared/context/AppDataContext';
+import { useAuth } from '@/shared/context/AuthContext';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
 import { counterboyTheme as cb } from '@/features/counterboy/theme';
@@ -131,9 +133,12 @@ function GiftCard({
 export function RewardsScreen({ onBack }: { onBack?: () => void }) {
   const { darkMode, tx } = usePreferenceContext();
   const { giftProducts, wallet, walletSummary, redeemReward, refreshAll } = useAppData();
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [shippingAddress, setShippingAddress] = useState('');
+  const shippingAddressRef = useRef('');
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
@@ -173,6 +178,9 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
       return;
     }
 
+    const savedAddress = String(user?.address ?? '').trim();
+    shippingAddressRef.current = savedAddress;
+    setShippingAddress(savedAddress);
     setDialog({
       visible: true, variant: 'confirm', icon: '🎁', title: `${tx('Redeem')} ${gift.name}?`,
       message: `${tx('This will use')} ${gift.pointsRequired} ${tx('points from your wallet.')}`,
@@ -180,7 +188,7 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
       onConfirm: async () => {
         try {
           setRedeemingId(gift.id);
-          await redeemReward({ schemeId: gift.id, note: gift.name, giftImage: gift.imageUrl ?? undefined });
+          await redeemReward({ schemeId: gift.id, note: gift.name, giftImage: gift.imageUrl ?? undefined, shippingAddress: shippingAddressRef.current.trim() });
           setDialog({
             visible: true, variant: 'success', icon: '🎁', title: tx('Gift Order Requested'),
             message: `${tx('Your request for')} "${gift.name}" ${tx('has been submitted. SRV team will process it shortly.')}`,
@@ -262,6 +270,17 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
         message={dialog.message}
         confirmLabel={dialog.confirmLabel}
         icon={dialog.icon}
+        content={dialog.variant === 'confirm' ? (
+          <TextInput
+            value={shippingAddress}
+            onChangeText={(value) => { shippingAddressRef.current = value; setShippingAddress(value); }}
+            placeholder={tx('Enter complete delivery address')}
+            placeholderTextColor={darkMode ? cb.darkMuted : cb.muted}
+            multiline
+            style={[styles.addressInput, { color: darkMode ? cb.darkText : cb.text, borderColor: darkMode ? cb.darkBorder : cb.border, backgroundColor: darkMode ? cb.darkSurface : cb.softBg }]}
+          />
+        ) : null}
+        confirmDisabled={dialog.variant === 'confirm' && shippingAddress.trim().length < 10}
         onConfirm={dialog.onConfirm}
         onClose={closeDialog}
       />
@@ -271,6 +290,7 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  addressInput: { minHeight: 86, marginTop: 14, borderWidth: 1, borderRadius: 12, padding: 12, textAlignVertical: 'top' },
   scroll: { padding: 16, paddingBottom: 120 },
 
   // Points banner

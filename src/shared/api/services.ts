@@ -611,7 +611,7 @@ export const walletApi = {
   saveBankAccount: (data: BankAccountPayload) =>
     api.post<{ message: string }>('/mobile/wallet/bank-account', data, true),
 
-  redeemReward: (data: { schemeId: string; note?: string; giftImage?: string }) =>
+  redeemReward: (data: { schemeId: string; note?: string; giftImage?: string; shippingAddress: string }) =>
     api.post<{ message: string }>('/mobile/wallet/redeem', data, true),
 
   requestBankTransfer: (data: { amount: number }) =>

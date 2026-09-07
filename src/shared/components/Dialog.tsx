@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useRef } from 'react';
+import { type ReactElement, type ReactNode, useEffect, useRef } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -55,6 +55,8 @@ interface DialogProps {
   icon?: string;
   choices?: Choice[];
   cancelButton?: boolean;
+  content?: ReactNode;
+  confirmDisabled?: boolean;
 }
 
 const VARIANT_META: Record<DialogVariant, { icon: string; accent: string }> = {
@@ -77,6 +79,8 @@ export function Dialog({
   icon,
   choices,
   cancelButton,
+  content,
+  confirmDisabled = false,
 }: DialogProps) {
   const { theme } = usePreferenceContext();
   const meta = VARIANT_META[variant];
@@ -114,6 +118,7 @@ export function Dialog({
             {message ? (
               <Text style={[styles.message, { color: theme.textMuted }]}>{message}</Text>
             ) : null}
+            {content}
             <View style={choices ? styles.choicesContainer : styles.actions}>
               {choices ? (
                 <>
@@ -148,8 +153,9 @@ export function Dialog({
                     <Text style={[styles.btnText, { color: theme.textPrimary }]}>{cancelLabel ?? 'Cancel'}</Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.btn, { backgroundColor: meta.accent }]}
+                    style={[styles.btn, { backgroundColor: meta.accent }, confirmDisabled && styles.btnDisabled]}
                     onPress={handleConfirm}
+                    disabled={confirmDisabled}
                   >
                     <Text style={[styles.btnText, styles.btnPrimaryText]}>{confirmLabel ?? (variant === 'destructive' ? 'Delete' : 'Confirm')}</Text>
                   </Pressable>
@@ -276,4 +282,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
   },
+  btnDisabled: { opacity: 0.45 },
 });

@@ -119,7 +119,7 @@ type AppDataContextType = {
   removeProfilePhoto: () => Promise<void>;
   updatePreferences: (data: { language?: string; darkMode?: boolean; pushEnabled?: boolean }) => Promise<void>;
   saveBankAccount: (data: any) => Promise<void>;
-  redeemReward: (data: { schemeId: string; note?: string; giftImage?: string }) => Promise<void>;
+  redeemReward: (data: { schemeId: string; note?: string; giftImage?: string; shippingAddress: string }) => Promise<void>;
   transferPoints: (data: { receiverPhone: string; points: number }) => Promise<void>;
   requestDealerBonusWithdrawal: (data: { amount: number }) => Promise<void>;
   submitSupportTicket: (data: { subject: string; comment: string; photoUrl?: string; photoUrls?: string[] }) => Promise<void>;
@@ -603,7 +603,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     void refreshPrivateData();
   }, [refreshPrivateData]);
 
-  const redeemReward = useCallback(async (data: { schemeId: string; note?: string; giftImage?: string }) => {
+  const redeemReward = useCallback(async (data: { schemeId: string; note?: string; giftImage?: string; shippingAddress: string }) => {
     await walletApi.redeemReward(data);
     void refreshPrivateData();
   }, [refreshPrivateData]);

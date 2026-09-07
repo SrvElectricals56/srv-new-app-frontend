@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -152,10 +153,12 @@ function GiftCard({
 export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; onOpenScanner?: () => void }) {
   const { darkMode, tx, theme } = usePreferenceContext();
   const { giftProducts, wallet, walletSummary, redeemReward, refreshAll } = useAppData();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const { width } = useWindowDimensions();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [shippingAddress, setShippingAddress] = useState('');
+  const shippingAddressRef = useRef('');
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
@@ -202,6 +205,9 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
       return;
     }
 
+    const savedAddress = String(user?.address ?? '').trim();
+    shippingAddressRef.current = savedAddress;
+    setShippingAddress(savedAddress);
     setDialog({
       visible: true, variant: 'confirm', icon: '🎁', title: `${tx('Redeem')} ${gift.name}?`,
       message: `${tx('This will use')} ${gift.pointsRequired} ${tx('points from your wallet.')}`,
@@ -209,7 +215,7 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
       onConfirm: async () => {
         try {
           setRedeemingId(gift.id);
-          await redeemReward({ schemeId: gift.id, note: gift.name, giftImage: gift.imageUrl ?? undefined });
+          await redeemReward({ schemeId: gift.id, note: gift.name, giftImage: gift.imageUrl ?? undefined, shippingAddress: shippingAddressRef.current.trim() });
           setDialog({
             visible: true, variant: 'success', icon: '🎁', title: tx('Gift Order Requested!'),
             message: `${tx('Your request for')} "${gift.name}" ${tx('has been submitted. SRV team will process it shortly.')}`,
@@ -295,6 +301,17 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
         message={dialog.message}
         confirmLabel={dialog.confirmLabel}
         icon={dialog.icon}
+        content={dialog.variant === 'confirm' ? (
+          <TextInput
+            value={shippingAddress}
+            onChangeText={(value) => { shippingAddressRef.current = value; setShippingAddress(value); }}
+            placeholder={tx('Enter complete delivery address')}
+            placeholderTextColor={theme.textMuted}
+            multiline
+            style={[styles.addressInput, { color: theme.textPrimary, borderColor: theme.border, backgroundColor: theme.soft }]}
+          />
+        ) : null}
+        confirmDisabled={dialog.variant === 'confirm' && shippingAddress.trim().length < 10}
         onConfirm={dialog.onConfirm}
         onClose={closeDialog}
       />
@@ -304,6 +321,7 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  addressInput: { minHeight: 86, marginTop: 14, borderWidth: 1, borderRadius: 12, padding: 12, textAlignVertical: 'top' },
   scroll: { padding: 16, paddingBottom: 120 },
 
   // Points banner

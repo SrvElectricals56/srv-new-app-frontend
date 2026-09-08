@@ -157,11 +157,7 @@ export function ElectricianTierScreen({
 }) {
   const { user } = useAuth();
   const { darkMode, tx } = usePreferenceContext();
-  const points = Math.max(
-    Number(totalPoints ?? 0),
-    Number(user?.totalPoints ?? 0),
-    Number(user?.walletBalance ?? 0),
-  );
+  const points = Number(totalPoints ?? user?.totalPoints ?? user?.walletBalance ?? 0);
   const currentTier = useMemo(() => getElectricianTier(points), [points]);
   const pulse = useRef(new Animated.Value(0)).current;
   const floatY = useRef(new Animated.Value(0)).current;

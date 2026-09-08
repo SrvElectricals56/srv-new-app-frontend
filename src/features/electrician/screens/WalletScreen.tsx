@@ -308,6 +308,7 @@ export function WalletScreen({
 
   // Real API wallet data
   const [apiBalance, setApiBalance] = useState<number | null>(null);
+  useEffect(() => { setApiBalance(propTotalPoints); }, [propTotalPoints]);
   const [apiTotalScans, setApiTotalScans] = useState<number | null>(null);
   const [apiTxItems, setApiTxItems] = useState<ApiTxItem[] | null>(null);
   const [apiLoading, setApiLoading] = useState(true);

@@ -30,10 +30,7 @@ function resolveProfilePoints(profile: UserProfile | null | undefined) {
       Number(profile?.totalPoints ?? 0),
     );
   }
-  return Math.max(
-    Number(profile?.totalPoints ?? 0),
-    Number(profile?.walletBalance ?? 0),
-  );
+  return Number(profile?.totalPoints ?? profile?.walletBalance ?? 0);
 }
 
 function normalizeProfile(profile: UserProfile | null | undefined): UserProfile | null {
@@ -212,17 +209,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (
-      state.role !== 'dealer' &&
-      isApprovedAccountStatus(currentUserStatus, state.role)
-    ) {
-      return;
-    }
-
     let cancelled = false;
 
     const pollProfile = () => {
-      if (!cancelled) {
+      if (!cancelled && AppState.currentState === 'active') {
         void refreshProfile();
       }
     };

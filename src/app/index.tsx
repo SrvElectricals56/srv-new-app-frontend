@@ -97,10 +97,7 @@ function resolveRewardPoints(
     | null
     | undefined
 ) {
-  return Math.max(
-    Number(profile?.totalPoints ?? 0),
-    Number(profile?.walletBalance ?? 0),
-  );
+  return Number(profile?.totalPoints ?? profile?.walletBalance ?? 0);
 }
 
 function roleNeedsAdminApproval(role: UserRole | null | undefined): role is UserRole {

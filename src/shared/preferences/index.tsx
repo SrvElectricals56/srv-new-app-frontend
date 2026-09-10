@@ -2296,7 +2296,9 @@ for (const language of ['Hindi', 'Punjabi'] as const) {
 }
 
 export const translateUiText = (language: AppLanguage, text: string) => {
-  if (language === 'English') return text;
+  if (language === 'English') {
+    return uiText.English[text] ?? (translations.English as Record<string, string>)[text] ?? text;
+  }
   const translated = auditUiText[language][text.trim()] ?? uiCatalogs[language].get(normalizeUiKey(text));
   if (!translated) {
     // Ledger descriptions include names and amounts; localize the sentence while

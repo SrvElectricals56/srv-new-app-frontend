@@ -53,6 +53,11 @@ for (const fixture of ['normal', 'small', 'transparent', 'rotated', 'label']) te
 });
 const prefs = load('src/shared/preferences/index.tsx');
 const native = load('src/shared/preferences/LocalizedNative.tsx');
+test('English resolves existing symbolic UI keys instead of displaying the key name', () => {
+  assert.equal(prefs.translateUiText('English', 'tapToChangePhoto'), 'Tap to Change Photo');
+  assert.equal(prefs.translateUiText('English', 'myProfile'), 'My Profile');
+  assert.equal(prefs.translateUiText('English', 'Manjeet Singh'), 'Manjeet Singh');
+});
 for (const language of ['Hindi', 'Punjabi']) {
   test(`${language}: shared text, inputs, nested labels, and named translations update without changing entered data`, () => {
     const tx = text => prefs.translateUiText(language, text);

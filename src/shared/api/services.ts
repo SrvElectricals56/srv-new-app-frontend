@@ -74,12 +74,12 @@ function sanitizeCounterBoySignupPayload(data: {
   };
 }
 
-function sanitizeUserProfileUpdatePayload(data: Partial<UserProfile>) {
+function sanitizeUserProfileUpdatePayload(data: Partial<UserProfile> & { phoneVerificationToken?: string }) {
   const allowed = [
     'name', 'email', 'phone', 'city', 'town', 'district', 'state',
     'address', 'pincode', 'gstNumber', 'accountHolderName', 'bankAccount',
     'ifsc', 'bankName', 'upiId', 'upiQrCodeImage', 'bankLinked', 'language', 'darkMode',
-    'pushEnabled', 'profileImage',
+    'pushEnabled', 'profileImage', 'phoneVerificationToken',
     'kycStatus', 'kycRejectionReason', 'aadharFrontImage', 'panDocument', 'gstDocument',
   ] as const;
   const out: Record<string, unknown> = {};
@@ -387,7 +387,7 @@ export const authApi = {
     return res;
   },
 
-  updateProfile: (data: Partial<UserProfile>) =>
+  updateProfile: (data: Partial<UserProfile> & { phoneVerificationToken?: string }) =>
     api.patch<UserProfile>('/mobile/auth/profile', sanitizeUserProfileUpdatePayload(data), true),
 
   getProfile: () =>
@@ -928,6 +928,7 @@ export type UserProfile = {
   // Dealer fields
   town?: string;
   electricianCount?: number;
+  activeElectricianCount?: number;
   gstNumber?: string;
   bonusPoints?: number;
   bonusStatus?: string;
@@ -1114,6 +1115,7 @@ export type DealerInfo = {
   district: string;
   state: string;
   electricianCount?: number;
+  activeElectricianCount?: number;
   nextElectricianSerial?: number | string;
 };
 
@@ -1200,6 +1202,7 @@ export type WalletData = {
   balance: number;
   totalPoints: number;
   totalScans: number;
+  activeElectricianCount?: number;
   transactions: {
     data: WalletTransaction[];
     total: number;

@@ -1,4 +1,6 @@
 import { scanFromURLAsync } from 'expo-camera';
+import { File } from 'expo-file-system';
+import { decodePngQr } from './decodePngQr';
 import { manipulateAsync, SaveFormat, type Action } from 'expo-image-manipulator';
 
 type GalleryImage = {
@@ -63,10 +65,9 @@ export async function scanQrFromGalleryImage(image: GalleryImage) {
 
   const width = Number(image.width ?? 0);
   const height = Number(image.height ?? 0);
-  if (width < 128 || height < 128) return null;
 
   const longestEdge = Math.max(width, height);
-  const normalizedLongestEdge = Math.min(2600, Math.max(1800, longestEdge * 2));
+  const normalizedLongestEdge = Math.min(2000, Math.max(1024, longestEdge));
   const resize = width >= height
     ? { resize: { width: Math.round(normalizedLongestEdge) } } as Action
     : { resize: { height: Math.round(normalizedLongestEdge) } } as Action;
@@ -80,6 +81,9 @@ export async function scanQrFromGalleryImage(image: GalleryImage) {
     });
     const normalizedResult = await scan(normalized.uri).catch(() => null);
     if (normalizedResult) return normalizedResult;
+
+    const localResult = await new File(normalized.uri).bytes().then(decodePngQr).catch(() => null);
+    if (localResult) return localResult;
 
     // Android's native decoder performs best when the QR occupies most of the
     // bitmap. Scan overlapping 3x3 crops in parallel so off-centre codes are

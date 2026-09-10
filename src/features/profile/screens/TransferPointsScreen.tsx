@@ -1,17 +1,6 @@
+import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';
 import { AppIcon, C, PageHeader, Screen } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';

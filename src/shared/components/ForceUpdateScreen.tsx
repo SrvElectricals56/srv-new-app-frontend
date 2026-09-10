@@ -1,20 +1,11 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 /**
  * ForceUpdateScreen — Light mode, SRV branded
  * Shows when admin enables forceUpdate and current app version < minAppVersion.
  */
 
 import { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Easing,
-  Image,
-  Linking,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Animated, Easing, Image, Linking, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { createShadow } from '@/shared/theme/shadows';
 

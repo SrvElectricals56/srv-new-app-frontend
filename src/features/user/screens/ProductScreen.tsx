@@ -1,19 +1,9 @@
+import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
+import { ProductImageCarousel } from '@/shared/components/ProductImageCarousel';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import { useMemo, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAppPageContent } from '@/shared/hooks';
@@ -894,12 +884,8 @@ export function ProductScreen({
                 </View>
                 <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailScrollContent} showsVerticalScrollIndicator={false}>
                   <View style={styles.detailImageWrap}>
-                    <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: '100%' }}>
-                      {selectedProduct.imgs.map((imageUrl, index) => (
-                        <ExpoImage key={`${imageUrl}-${index}`} source={{ uri: imageUrl }} style={[styles.detailImage, { width: Math.max(260, width - 48) }]} contentFit="contain" cachePolicy="memory-disk" transition={150} />
-                      ))}
-                    </ScrollView>
-                    <View style={styles.detailImageShadow} />
+                    <ProductImageCarousel images={selectedProduct.imgs} />
+                    <View pointerEvents="none" style={styles.detailImageShadow} />
                   </View>
                   {selectedProduct.imgs.length > 1 ? <Text style={[styles.detailMeta, darkMode ? styles.detailMetaDark : null]}>{selectedProduct.imgs.length} {tx('images')} · {tx('Swipe to view')}</Text> : null}
                   <Text style={[styles.detailTitle, darkMode ? styles.detailTitleDark : null]}>

@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo } from 'react';
 import { counterboyTheme as srvCbTheme } from '@/features/counterboy/theme';
 import type { UserRole } from '@/shared/types/navigation';
 import { generatedUiText } from './generatedUiText';
+import { auditUiText } from './auditUiText';
 
 const palette = {
   bg: '#F0F1F6',
@@ -2271,14 +2272,53 @@ const uiText: Record<AppLanguage, Record<string, string>> = {
   },
 } as const;
 
+const normalizeUiKey = (text: string) => text
+  .replace(/&apos;|&#39;/g, "'").replace(/&amp;/g, '&')
+  .replace(/&ldquo;/g, '“').replace(/&rdquo;/g, '”')
+  .replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+
+const uiCatalogs: Record<'Hindi' | 'Punjabi', Map<string, string>> = {
+  Hindi: new Map(), Punjabi: new Map(),
+};
+for (const language of ['Hindi', 'Punjabi'] as const) {
+  const entries: Record<string, string> = { ...generatedUiText[language] };
+  for (const [key, value] of Object.entries(uiText[language])) {
+    if (!hasCorruptedText(value)) entries[key] = value;
+  }
+  for (const key of Object.keys(translations.English) as (keyof typeof translations.English)[]) {
+    const value = (translations[language] as Record<string, string>)[key];
+    if (value && !hasCorruptedText(value)) entries[translations.English[key]] = value;
+  }
+  Object.assign(entries, auditUiText[language]);
+  for (const [key, value] of Object.entries(entries)) {
+    if (!hasCorruptedText(value)) uiCatalogs[language].set(normalizeUiKey(key), value);
+  }
+}
+
 export const translateUiText = (language: AppLanguage, text: string) => {
-  const translated = uiText[language]?.[text]
-    ?? (language === 'English' ? undefined : generatedUiText[language]?.[text]);
-  if (!translated || hasCorruptedText(translated)) {
+  if (language === 'English') return text;
+  const translated = auditUiText[language][text.trim()] ?? uiCatalogs[language].get(normalizeUiKey(text));
+  if (!translated) {
+    // Ledger descriptions include names and amounts; localize the sentence while
+    // preserving those values exactly as supplied by the account/product records.
+    const patterns: [RegExp, string, string][] = [
+      [/^Scan: (.+)$/, 'स्कैन: $1', 'ਸਕੈਨ: $1'],
+      [/^Transfer to (.+)$/, '$1 को ट्रांसफ़र', '$1 ਨੂੰ ਟ੍ਰਾਂਸਫ਼ਰ'],
+      [/^Transfer from (.+)$/, '$1 से ट्रांसफ़र', '$1 ਤੋਂ ਟ੍ਰਾਂਸਫ਼ਰ'],
+      [/^Reward redemption request for (.+)$/, '$1 के लिए रिवॉर्ड अनुरोध', '$1 ਲਈ ਇਨਾਮ ਦੀ ਬੇਨਤੀ'],
+      [/^Referral reward: (.+) and (.+) received ([\d.]+) points$/, 'रेफ़रल रिवॉर्ड: $1 और $2 को $3 पॉइंट्स मिले', 'ਰੈਫ਼ਰਲ ਇਨਾਮ: $1 ਅਤੇ $2 ਨੂੰ $3 ਪੁਆਇੰਟ ਮਿਲੇ'],
+    ];
+    for (const [pattern, hindi, punjabi] of patterns) {
+      if (pattern.test(text)) return text.replace(pattern, language === 'Hindi' ? hindi : punjabi);
+    }
     return text;
   }
-  return translated;
+  // Keep JSX spacing around adjacent values, such as a number followed by its unit.
+  return `${text.match(/^\s*/)?.[0] ?? ''}${translated}${text.match(/\s*$/)?.[0] ?? ''}`;
 };
+
+let currentAppLanguage: AppLanguage = 'English';
+export const getCurrentAppLanguage = () => currentAppLanguage;
 
 export const formatCountText = (
   language: AppLanguage,
@@ -2429,6 +2469,7 @@ export function usePreferenceValue({
   setDarkMode,
   currentRole = 'electrician',
 }: PreferenceValueParams): PreferenceContextValue {
+  currentAppLanguage = language;
   const theme = useMemo(() => getThemePalette(darkMode, currentRole), [currentRole, darkMode]);
 
   return useMemo(

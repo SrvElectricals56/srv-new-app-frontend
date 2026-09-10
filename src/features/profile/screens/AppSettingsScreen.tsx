@@ -1,5 +1,6 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { AppIcon, C, IconName, PageHeader } from '../components/ProfileShared';
 import { type AppLanguage, usePreferenceContext } from '@/shared/preferences';
 import { useAuth } from '@/shared/context/AuthContext';

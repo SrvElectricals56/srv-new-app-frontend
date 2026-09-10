@@ -23,13 +23,6 @@ type AuthContextType = AuthState & {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 function resolveProfilePoints(profile: UserProfile | null | undefined) {
-  // Dealers earn via bonus points (commission from electrician activity), not scan walletBalance
-  if (profile?.role === 'dealer') {
-    return Math.max(
-      Number(profile?.bonusPoints ?? 0),
-      Number(profile?.totalPoints ?? 0),
-    );
-  }
   return Number(profile?.totalPoints ?? profile?.walletBalance ?? 0);
 }
 

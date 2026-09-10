@@ -1,7 +1,8 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, Keyboard, Linking, PanResponder, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, BackHandler, Easing, Keyboard, Linking, PanResponder, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomNav as DealerBottomNav } from '@/features/dealer/screens/BottomNav';
 import { CallElectricianScreen as DealerCallElectricianScreen } from '@/features/dealer/screens/CallElectricianScreen';
@@ -1283,7 +1284,7 @@ function AppContent() {
               role="dealer"
               onNavigate={handleNavigate}
               onOpenScanHistory={handleOpenScanHistory}
-              totalPoints={Math.round(electricianRewardPoints * 0.05)}
+              totalPoints={electricianRewardPoints}
               totalScans={electricianRewardScans}
               historyItems={electricianRewardHistory}
             />

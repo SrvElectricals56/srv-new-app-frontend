@@ -1,18 +1,10 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Image,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Animated, Image, Platform, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { counterboyTheme as cb } from '@/features/counterboy/theme';

@@ -1,16 +1,7 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { createShadow } from '@/shared/theme/shadows';
 

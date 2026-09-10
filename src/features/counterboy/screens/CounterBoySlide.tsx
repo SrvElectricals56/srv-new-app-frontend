@@ -1,8 +1,7 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Image,
-} from 'react-native';
+import { View, StyleSheet, Animated, Easing, TouchableOpacity, Image } from 'react-native';
 import Svg, { Circle, Rect, Path, G, Line } from 'react-native-svg';
 import { ws, hs, rf } from '@/shared/hooks/useResponsive';
 

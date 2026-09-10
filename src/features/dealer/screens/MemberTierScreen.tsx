@@ -1,14 +1,8 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
+import { electriciansApi } from '@/shared/api';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useRef } from 'react';
-import {
-  Animated,
-  Easing,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -152,7 +146,13 @@ export function MemberTierScreen({ onBack }: { onBack: () => void }) {
   const { darkMode, tx, language, theme } = usePreferenceContext();
   const { user: authUser } = useAuth();
   const pageContent = useAppPageContent('dealer', 'member_tier');
-  const count = authUser?.electricianCount ?? 0;
+  const [networkCount, setNetworkCount] = useState<number | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    void electriciansApi.getAll(1, 1).then(result => { if (mounted) setNetworkCount(result.total); }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+  const count = networkCount ?? authUser?.electricianCount ?? 0;
   const getRange = (range: string) => {
     if (language === 'Hindi') {
       return tierRanges[range]?.hi ?? range;

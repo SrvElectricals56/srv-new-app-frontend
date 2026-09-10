@@ -1,11 +1,6 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { AppIcon } from '../components/ProfileShared';
 import { DocumentUpload } from '../components/DocumentUpload';
 import { usePreferenceContext } from '@/shared/preferences';

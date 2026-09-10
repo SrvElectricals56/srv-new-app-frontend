@@ -1,18 +1,11 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 /**
  * MaintenanceScreen — Light mode, SRV branded
  * Shows when admin enables maintenanceMode in App Settings.
  */
 
 import { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Easing,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Animated, Easing, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { createShadow } from '@/shared/theme/shadows';
 

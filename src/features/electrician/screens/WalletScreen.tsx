@@ -1,5 +1,7 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
+import { uniqueWalletTransactions } from '@/shared/utils/walletTransactions';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
@@ -285,10 +287,9 @@ export function WalletScreen({
   onOpenScanHistory,
   totalPoints: propTotalPoints = 0,
   totalScans: propTotalScans = 0,
-  historyItems = [],
 }: WalletScreenProps) {
   const { darkMode, tx } = usePreferenceContext();
-  const { dealerBonus, appSettings, scanHistory, redemptions, refreshAll } = useAppData();
+  const { dealerBonus, appSettings, refreshAll } = useAppData();
   const isDealer = role === 'dealer';
   const t = ROLE_THEME[role] ?? ROLE_THEME.electrician;
   const contentRole = role === 'user' ? 'user' : role;
@@ -307,6 +308,8 @@ export function WalletScreen({
   const itemsPerPage = 5;
 
   // Real API wallet data
+  const [apiActiveElectricians, setApiActiveElectricians] = useState(0);
+  const [apiTransactionTotal, setApiTransactionTotal] = useState(0);
   const [apiBalance, setApiBalance] = useState<number | null>(null);
   useEffect(() => { setApiBalance(propTotalPoints); }, [propTotalPoints]);
   const [apiTotalScans, setApiTotalScans] = useState<number | null>(null);
@@ -324,8 +327,10 @@ export function WalletScreen({
         ),
       );
       setApiTotalScans(res.totalScans ?? null);
-      if (res.transactions?.data?.length) {
-        const mapped: ApiTxItem[] = res.transactions.data.map((tx: any) => ({
+      setApiActiveElectricians(Number(res.activeElectricianCount ?? 0));
+      setApiTransactionTotal(Number(res.transactions?.total ?? 0));
+      {
+        const mapped: ApiTxItem[] = (res.transactions?.data ?? []).map((tx: any) => ({
           id: tx.id,
           referenceId: tx.linkedRedemption?.id ?? tx.referenceId ?? null,
           title: tx.linkedRedemption
@@ -340,7 +345,7 @@ export function WalletScreen({
         setApiTxItems(mapped);
       }
     }).catch(() => {}).finally(() => setApiLoading(false));
-  }, []);
+  }, [role, propTotalPoints]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -355,6 +360,8 @@ export function WalletScreen({
         ),
       );
       setApiTotalScans(res.totalScans ?? null);
+      setApiActiveElectricians(Number(res.activeElectricianCount ?? 0));
+      setApiTransactionTotal(Number(res.transactions?.total ?? 0));
       const mapped: ApiTxItem[] = (res.transactions?.data ?? []).map((tx: any) => ({
         id: tx.id,
         referenceId: tx.linkedRedemption?.id ?? tx.referenceId ?? null,
@@ -374,55 +381,10 @@ export function WalletScreen({
   };
 
   const dealerBonusValue = isDealer ? Number(dealerBonus?.availableBonus ?? 0) : 0;
-  const totalPoints = isDealer ? dealerBonusValue : (apiBalance !== null ? apiBalance : propTotalPoints);
+  const totalPoints = apiBalance !== null ? apiBalance : propTotalPoints;
   const totalScans = apiTotalScans ?? propTotalScans;
 
-  const allMappedItems: ApiTxItem[] = useMemo(() => {
-    const walletItems: ApiTxItem[] = apiTxItems ?? (isDealer
-      ? []
-      : historyItems.map((item) => ({
-          id: item.id,
-          title: item.mode === 'multi' ? `${item.label} batch credited` : `${item.label} scanned`,
-          time: item.time,
-          points: `+${item.points}`,
-          accent: '#1F9C5D',
-          type: 'scan' as const,
-          rawDate: undefined,
-        })));
-
-    const existingIds = new Set(
-      walletItems.flatMap((item) => [item.id, item.referenceId].filter((value): value is string => Boolean(value))),
-    );
-    const scanItems: ApiTxItem[] = (scanHistory?.data ?? [])
-      .filter((scan: any) => !existingIds.has(scan.id))
-      .map((scan: any) => ({
-        id: scan.id,
-        title: `${scan.productName ?? 'Product'} scanned${scan.qrCode ? ` (${scan.qrCode})` : ''}`,
-        time: scan.scannedAt ? formatISTDateTime(scan.scannedAt) : '',
-        points: `+${Number(scan.points ?? 0)}`,
-        accent: '#1F9C5D',
-        type: 'scan',
-        rawDate: scan.scannedAt,
-      }));
-
-    const redemptionItems: ApiTxItem[] = (redemptions ?? [])
-      .filter((redemption: any) => !existingIds.has(redemption.id))
-      .map((redemption: any) => ({
-        id: redemption.id,
-        title: `${redemption.giftName ?? redemption.type ?? 'Redemption'} - ${redemption.status ?? 'pending'}`,
-        time: redemption.requestedAt ? formatISTDateTime(redemption.requestedAt) : '',
-        points: `-${Number(redemption.points ?? redemption.amount ?? 0)}`,
-        accent: '#B44A3A',
-        type: 'redemption',
-        rawDate: redemption.requestedAt,
-      }));
-
-    return [...walletItems, ...scanItems, ...redemptionItems].sort((a, b) => {
-      const aTime = a.rawDate ? new Date(a.rawDate).getTime() : 0;
-      const bTime = b.rawDate ? new Date(b.rawDate).getTime() : 0;
-      return bTime - aTime;
-    });
-  }, [apiTxItems, historyItems, isDealer, redemptions, scanHistory?.data]);
+  const allMappedItems = useMemo(() => uniqueWalletTransactions(apiTxItems ?? []), [apiTxItems]);
 
   const filteredItems = useMemo(() => {
     const date = activityDate.trim();
@@ -683,8 +645,9 @@ export function WalletScreen({
           {pageContent.pageTitle || tx(walletTitle)}
         </Text>
         <Text style={styles.heroTitle}>
-          {totalPoints} {tx(isDealer ? 'Dealer Bonus Points' : 'Total Points')}
+          {totalPoints} {tx('Total Points')}
         </Text>
+        {isDealer && <Text style={styles.heroSub}>{tx('Available Bonus')}: {dealerBonusValue}</Text>}
         <Text style={styles.heroSub}>
           {pageContent.heroSubtitle || tx(walletSubtitle)}
         </Text>
@@ -704,15 +667,15 @@ export function WalletScreen({
               <Text style={styles.heroStatLabel}>
                 {tx(isDealer ? 'Active Electricians' : 'Total Scans')}
               </Text>
-              <Text style={styles.heroStatValue}>{apiLoading ? '...' : String(totalScans)}</Text>
+              <Text style={styles.heroStatValue}>{apiLoading ? '...' : String(isDealer ? apiActiveElectricians : totalScans)}</Text>
             </Pressable>
           )}
           <Pressable style={styles.heroStatCard} onPress={openTransactionHistory}>
             <Text style={styles.heroStatLabel}>
-              {tx(isDealer ? 'Bonus Withdrawals' : 'Transactions')}
+              {tx('Transactions')}
             </Text>
             <Text style={styles.heroStatValue}>
-              {apiLoading ? '...' : String(allMappedItems.length)}
+              {apiLoading ? '...' : String(apiTransactionTotal)}
             </Text>
           </Pressable>
         </View>
@@ -801,8 +764,8 @@ export function WalletScreen({
             </Text>
             <Text style={[styles.balanceLookupValue, { color: darkMode ? '#F8FAFC' : '#221C1A' }]}>
               {activityDate && selectedDateBalance !== null
-                ? `${selectedDateBalance.toLocaleString('en-IN')} ${tx(isDealer ? 'Dealer Bonus Points' : 'Total Points')}`
-                : `${totalPoints.toLocaleString('en-IN')} ${tx(isDealer ? 'Dealer Bonus Points' : 'Total Points')}`}
+                ? `${selectedDateBalance.toLocaleString('en-IN')} ${tx('Total Points')}`
+                : `${totalPoints.toLocaleString('en-IN')} ${tx('Total Points')}`}
             </Text>
             {activityDate ? (
               <Text style={[styles.balanceLookupDate, { color: darkMode ? '#CBD5E1' : colors.mutedText }]}>

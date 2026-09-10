@@ -1,21 +1,8 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, CameraView } from 'expo-camera';
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  Image,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { scanQrFromGalleryImage } from '@/shared/utils/qrImageScanner';

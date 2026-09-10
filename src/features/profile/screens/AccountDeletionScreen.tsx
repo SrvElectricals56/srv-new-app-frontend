@@ -1,5 +1,6 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAuth } from '@/shared/context/AuthContext';

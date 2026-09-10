@@ -1,14 +1,6 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import React, { useMemo, useState } from 'react';
-import {
-  Image,
-  Linking,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Image, Linking, ScrollView, Share, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppIcon, C, IconName, PageHeader } from '../components/ProfileShared';
 import { Dialog } from '@/shared/components/Dialog';

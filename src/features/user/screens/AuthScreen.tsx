@@ -1,9 +1,7 @@
+import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 // Customer Auth Screen â€” Role-aware account design
 import { useEffect, useRef, useState } from 'react';
-import {
-  Animated, Easing, Image, KeyboardAvoidingView, Linking, Platform,
-   Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View,
-} from 'react-native';
+import { Animated, Easing, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   GoogleSignin,
@@ -322,6 +320,7 @@ export function UserAuthScreen({
     try {
       const data = await authApi.sendOtp(cleanPhone, role);
       setLPhone(cleanPhone);
+      setUseOtpLogin(true);
       setOtpSentLogin(true);
       setOtpLoginPhone(cleanPhone);
       setDialog({ visible: true, variant: 'success', title: tx('OTP Sent'), message: data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP') });
@@ -552,6 +551,7 @@ export function UserAuthScreen({
         typeof verification?.signupVerificationToken === 'string'
           ? verification.signupVerificationToken.trim()
           : '';
+      if (!verificationToken) throw new Error(tx('OTP verification failed. Please try again.'));
       setSignupVerificationToken(verificationToken);
       signupVerificationTokenRef.current = verificationToken;
       signupOtpVerifiedRef.current = true;
@@ -580,7 +580,7 @@ export function UserAuthScreen({
   const signup = async () => {
     if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
     if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
-    if (!otpSentSignup || signupStep !== 'details' || !signupOtpVerifiedRef.current) {
+    if (normalizePhone(sPhone) !== otpSignupPhone || !(signupVerificationTokenRef.current || signupVerificationToken)) {
       setDialog({ visible: true, variant: 'info', title: '', message: tx('Please verify your OTP first') });
       return;
     }
@@ -1084,7 +1084,7 @@ export function UserAuthScreen({
             {isLogin && useOtpLogin && otpSentLogin && (
               <>
                 <Input label={tx('Enter OTP')} value={lOtp} onChange={setLOtp}
-                  placeholder={tx('6-digit OTP')} icon={<LockIcon c={P1} />}
+                  placeholder={tx('4-digit OTP')} icon={<LockIcon c={P1} />}
                   keyboard="number-pad" ref={lOtpRef}
                   onSubmit={login}
                   returnKey="done" darkMode={darkMode} accentColor={P1} />

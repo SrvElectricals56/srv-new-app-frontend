@@ -1,16 +1,6 @@
+import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Animated, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';

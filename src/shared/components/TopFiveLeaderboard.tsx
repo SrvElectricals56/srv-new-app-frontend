@@ -1,5 +1,6 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { leaderboardApi, type TopFiveMember } from '@/shared/api/services';
 import { clearCache } from '@/shared/api/client';
 import type { UserRole } from '@/shared/types/navigation';

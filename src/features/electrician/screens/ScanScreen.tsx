@@ -1,22 +1,9 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog } from '@/shared/components/Dialog';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, CameraView } from 'expo-camera';
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  Image,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { scanQrFromGalleryImage } from '@/shared/utils/qrImageScanner';
@@ -703,12 +690,12 @@ export function ScanScreen({
     try {
       const decodedValue = await scanQrFromGalleryImage(asset);
       if (decodedValue) {
-        void completeScan(decodedValue);
+        await completeScan(decodedValue);
         return;
       }
-      setDialog({ visible: true, variant: 'info', title: tx('Scan QR Code'), message: tx('Align QR code within the frame') });
+      setDialog({ visible: true, variant: 'info', title: tx('Scan QR Code'), message: tx('No readable QR code was found in this image. Choose the original image with the complete QR code visible.') });
     } catch {
-      setDialog({ visible: true, variant: 'info', title: tx('Scan QR Code'), message: tx('Align QR code within the frame') });
+      setDialog({ visible: true, variant: 'info', title: tx('Scan QR Code'), message: tx('No readable QR code was found in this image. Choose the original image with the complete QR code visible.') });
     }
   };
 

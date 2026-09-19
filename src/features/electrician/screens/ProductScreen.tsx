@@ -1,22 +1,10 @@
+import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
+import { ProductImageCarousel } from '@/shared/components/ProductImageCarousel';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Dialog } from '@/shared/components/Dialog';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, Animated, Easing, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAppData } from '@/shared/context/AppDataContext';
@@ -603,7 +591,6 @@ function ProductDetailView({
   onQtyChange: (qty: number) => void;
 }) {
   const { tx } = usePreferenceContext();
-  const { width } = useWindowDimensions();
   const bg = darkMode ? '#0B1220' : '#FFFFFF';
   const card = darkMode ? '#111827' : '#FFFFFF';
   const text = darkMode ? '#F8FAFC' : premium.ink;
@@ -628,11 +615,7 @@ function ProductDetailView({
         <LinearGradient colors={darkMode ? ['#111827', '#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFD', '#F5F7FB']} style={[styles.detailImagePanel, { borderColor: border }]}>
           {product.badge ? <Text style={[styles.detailBadge, { backgroundColor: roleTheme.primary, color: roleTheme.onPrimary }]}>{product.badge}</Text> : null}
           {discount > 0 ? <Text style={styles.detailDiscount}>{discount}% OFF</Text> : null}
-          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }}>
-            {product.imageUrls.map((imageUrl, index) => (
-              <Image key={`${imageUrl}-${index}`} source={{ uri: imageUrl }} style={[styles.detailImage, { width: Math.max(280, Math.min(width - 28, 680)) }]} contentFit="contain" transition={200} />
-            ))}
-          </ScrollView>
+          <ProductImageCarousel images={product.imageUrls} />
           {product.imageUrls.length > 1 ? <Text style={[styles.detailHeaderSub, { color: muted }]}>{product.imageUrls.length} {tx('images')} · {tx('Swipe to view')}</Text> : null}
         </LinearGradient>
 

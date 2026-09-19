@@ -1,21 +1,9 @@
+import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import * as ImagePicker from 'expo-image-picker';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import type { Screen, UserRole } from '@/shared/types/navigation';
@@ -253,6 +241,29 @@ export function ProfileScreen({
   const [draftTaxIdentity, setDraftTaxIdentity] = useState(getTaxIdentityValue(buildProfileFromAuth));
   const [draftTaxHolder, setDraftTaxHolder] = useState(getTaxHolderValue(buildProfileFromAuth));
   const [isSaving, setIsSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [phoneOtpTarget, setPhoneOtpTarget] = useState('');
+  const [phoneVerification, setPhoneVerification] = useState<{ phone: string; token: string } | null>(null);
+  const [phoneOtpBusy, setPhoneOtpBusy] = useState(false);
+  const phoneChanged = currentRole === 'user' && draft.phone.trim() !== profile.phone.trim();
+  const verifyProfilePhone = async (send: boolean) => {
+    const phone = draft.phone.trim();
+    if (!/^[6-9]\d{9}$/.test(phone)) { setProfileError(tx('Please enter a valid Indian mobile number')); return; }
+    setPhoneOtpBusy(true); setProfileError('');
+    try {
+      if (send) {
+        await authApi.sendSignupOtp(phone, 'user');
+        setPhoneOtpTarget(phone); setPhoneOtp(''); setPhoneVerification(null);
+      } else {
+        if (phoneOtpTarget !== phone) throw new Error(tx('Please request a new OTP for this phone number.'));
+        const proof = await authApi.verifySignupOtp(phone, 'user', phoneOtp.trim());
+        if (!proof.signupVerificationToken) throw new Error(tx('OTP verification failed. Please try again.'));
+        setPhoneVerification({ phone, token: proof.signupVerificationToken });
+      }
+    } catch (error: any) { setProfileError(tx(error?.message || 'Please try again.')); }
+    finally { setPhoneOtpBusy(false); }
+  };
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   const lastProfileResetKeyRef = useRef(profileResetKey);
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
@@ -524,6 +535,8 @@ export function ProfileScreen({
   };
 
   const updateDraftField = (key: keyof Profile, value: string) => {
+    setProfileError('');
+    if (key === 'phone') { setPhoneVerification(null); setPhoneOtpTarget(''); setPhoneOtp(''); }
     let nextValue = value;
     if (
       key === 'name' ||
@@ -533,7 +546,7 @@ export function ProfileScreen({
       key === 'gstHolderName' ||
       key === 'panHolderName'
     ) {
-      nextValue = value.replace(/[^A-Za-z ]/g, '');
+      nextValue = value.replace(/[^\p{L}\p{M} .'-]/gu, '');
     } else if (key === 'phone' || key === 'pincode') {
       nextValue =
         key === 'phone'
@@ -547,32 +560,37 @@ export function ProfileScreen({
   };
 
   const saveProfile = () => {
-    if (draft.name.trim() && !/^[A-Za-z ]+$/.test(draft.name.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid name'), message: tx('Name should contain only alphabets and spaces.') }); return;
+    if (isSaving) return;
+    setProfileError('');
+    if (phoneChanged && (!phoneVerification || phoneVerification.phone !== draft.phone.trim())) {
+      setProfileError(tx('Verify your new phone number before saving.')); return;
+    }
+    if (draft.name.trim() && !/^[\p{L}\p{M} .'-]+$/u.test(draft.name.trim())) {
+      setProfileError(tx('Name should contain only alphabets and spaces.')); return;
     }
     if (draft.phone.trim() && !/^\d+$/.test(draft.phone.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid phone number'), message: tx('Phone number should contain only integers.') }); return;
+      setProfileError(tx('Phone number should contain only integers.')); return;
     }
     if (draft.phone.trim() && draft.phone.trim().length !== 10) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid phone number'), message: tx('Please enter a valid 10-digit phone number.') }); return;
+      setProfileError(tx('Please enter a valid 10-digit phone number.')); return;
     }
-    if (draft.email.trim() && !/^[^\s@]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/.test(draft.email.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid email'), message: tx('Please enter a valid email address.') }); return;
+    if (draft.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) {
+      setProfileError(tx('Please enter a valid email address.')); return;
     }
-    if (draft.city.trim() && !/^[A-Za-z ]+$/.test(draft.city.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid city'), message: tx('City should contain only alphabets and spaces.') }); return;
+    if (draft.city.trim() && !/^[\p{L}\p{M} .'-]+$/u.test(draft.city.trim())) {
+      setProfileError(tx('City should contain only alphabets and spaces.')); return;
     }
-    if (draft.state.trim() && !/^[A-Za-z ]+$/.test(draft.state.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid state'), message: tx('State should contain only alphabets and spaces.') }); return;
+    if (draft.state.trim() && !/^[\p{L}\p{M} .'-]+$/u.test(draft.state.trim())) {
+      setProfileError(tx('State should contain only alphabets and spaces.')); return;
     }
-    if (draft.district.trim() && !/^[A-Za-z ]+$/.test(draft.district.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid district'), message: tx('District should contain only alphabets and spaces.') }); return;
+    if (draft.district.trim() && !/^[\p{L}\p{M} .'-]+$/u.test(draft.district.trim())) {
+      setProfileError(tx('District should contain only alphabets and spaces.')); return;
     }
     if (draft.pincode.trim() && !/^\d+$/.test(draft.pincode.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid pincode'), message: tx('Pincode should contain only integers.') }); return;
+      setProfileError(tx('Pincode should contain only integers.')); return;
     }
-    if (draftTaxHolder.trim() && !/^[A-Za-z ]+$/.test(draftTaxHolder.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid holder name'), message: tx('GST / PAN holder name should contain only alphabets and spaces.') }); return;
+    if (draftTaxHolder.trim() && !/^[\p{L}\p{M} .'-]+$/u.test(draftTaxHolder.trim())) {
+      setProfileError(tx('GST / PAN holder name should contain only alphabets and spaces.')); return;
     }
 
     const nextProfile: Profile =
@@ -602,12 +620,6 @@ export function ProfileScreen({
     }
 
     const commitProfileUpdate = () => {
-      // Save locally first (instant UI update)
-      setProfile(nextProfile);
-      onProfilePhotoChange(draftPhotoUri);
-      setPendingDraftImage(null);
-      setShowEdit(false);
-
       // Save to backend
       setIsSaving(true);
       const apiData = currentRole === 'dealer'
@@ -631,10 +643,15 @@ export function ProfileScreen({
             pincode: nextProfile.pincode,
           };
 
-      void authApi.updateProfile(apiData)
+      void authApi.updateProfile({ ...apiData, ...(phoneChanged ? { phone: nextProfile.phone.trim(), phoneVerificationToken: phoneVerification?.token } : {}) })
         .then(async (updatedUser) => {
           // Update auth context immediately so UI reflects changes
           updateUser(updatedUser);
+          setProfile({ ...nextProfile, phone: updatedUser.phone ?? nextProfile.phone });
+          onProfilePhotoChange(draftPhotoUri);
+          setPendingDraftImage(null);
+          setShowEdit(false);
+          setPhoneVerification(null);
           await storage.setUserProfile(updatedUser);
           if (photoChanged) {
             await syncRemoteProfilePhoto(draftPhotoUri);
@@ -642,22 +659,15 @@ export function ProfileScreen({
             await refreshProfile();
           }
         })
-        .catch(async () => {
-          setDialog({ visible: true, variant: 'error', title: tx('Unable to save changes'), message: tx('Please try again.') });
+        .catch(async (error: any) => {
+          setProfileError(tx(error?.message || 'Unable to save changes'));
           // Revert local state back to what's in auth context
           await refreshProfile();
         })
         .finally(() => setIsSaving(false));
     };
 
-    setDialog({
-      visible: true,
-      variant: 'confirm',
-      title: tx('Save profile changes?'),
-      message: tx('Are you sure you want to update your profile details?'),
-      confirmLabel: tx('Save'),
-      onConfirm: commitProfileUpdate,
-    });
+    commitProfileUpdate();
   };
 
   const pickDraftPhoto = async (source: 'camera' | 'gallery') => {
@@ -1528,6 +1538,28 @@ export function ProfileScreen({
                       />
                     </View>
                   ))}
+                  {phoneChanged && (
+                    <View style={styles.field}>
+                      {phoneVerification?.phone === draft.phone.trim() ? (
+                        <Text style={{ color: '#059669' }}>{tx('Phone number verified')}</Text>
+                      ) : (
+                        <>
+                          <Pressable disabled={phoneOtpBusy} onPress={() => void verifyProfilePhone(true)} style={[styles.saveBtn, { backgroundColor: accentAction }]}>
+                            <Text style={styles.saveTxt}>{tx(phoneOtpBusy ? 'Please wait...' : phoneOtpTarget ? 'Resend OTP' : 'Verify Phone Number')}</Text>
+                          </Pressable>
+                          {phoneOtpTarget === draft.phone.trim() && (
+                            <>
+                              <TextInput value={phoneOtp} onChangeText={value => setPhoneOtp(value.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" placeholder={tx('Enter OTP')} style={[styles.input, { color: theme.textPrimary, borderColor: theme.border }]} />
+                              <Pressable disabled={phoneOtpBusy || phoneOtp.length < 4} onPress={() => void verifyProfilePhone(false)} style={[styles.saveBtn, { backgroundColor: accentAction }]}>
+                                <Text style={styles.saveTxt}>{tx('Verify OTP')}</Text>
+                              </Pressable>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  )}
+                  {profileError ? <Text accessibilityRole="alert" style={{ color: '#DC2626', padding: 12 }}>{profileError}</Text> : null}
                   {currentRole === 'dealer' ? (
                     <>
                       <View style={styles.field}>

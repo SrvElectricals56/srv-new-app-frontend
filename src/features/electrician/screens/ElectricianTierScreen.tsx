@@ -1,14 +1,7 @@
+import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef } from 'react';
-import {
-  Animated,
-  Easing,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Animated, Easing, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAuth } from '@/shared/context/AuthContext';
@@ -157,11 +150,7 @@ export function ElectricianTierScreen({
 }) {
   const { user } = useAuth();
   const { darkMode, tx } = usePreferenceContext();
-  const points = Math.max(
-    Number(totalPoints ?? 0),
-    Number(user?.totalPoints ?? 0),
-    Number(user?.walletBalance ?? 0),
-  );
+  const points = Number(totalPoints ?? user?.totalPoints ?? user?.walletBalance ?? 0);
   const currentTier = useMemo(() => getElectricianTier(points), [points]);
   const pulse = useRef(new Animated.Value(0)).current;
   const floatY = useRef(new Animated.Value(0)).current;

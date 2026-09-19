@@ -1,17 +1,6 @@
+import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import { useState, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  Pressable,
-  ActivityIndicator,
-  Image,
-  Modal,
-  Platform,
-} from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Pressable, ActivityIndicator, Image, Modal, Platform } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';

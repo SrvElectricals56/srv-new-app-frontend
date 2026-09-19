@@ -1,5 +1,6 @@
+import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import { useCallback, useEffect, useState } from 'react';
-import { Text, TextInput } from 'react-native';
+import {  } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { AuthProvider } from '../shared/context/AuthContext';

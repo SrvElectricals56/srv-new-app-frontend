@@ -50,6 +50,12 @@
       "android": {
         "buildType": "apk"
       }
+    },
+    "android-testing": {
+      "extends": "android-production"
+    },
+    "ios-testing": {
+      "extends": "production"
     }
   },
   "submit": {
@@ -60,6 +66,22 @@
       },
       "ios": {
         "ascAppId": "6752710193"
+      }
+    },
+    "testing": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "completed",
+        "serviceAccountKeyPath": "./.credentials/google-play-testing.json"
+      },
+      "ios": {
+        "ascAppId": "6752710193",
+        "ascApiKeyPath": "./.credentials/AuthKey_J4GPKZAAJL.p8",
+        "ascApiKeyId": "J4GPKZAAJL",
+        "ascApiKeyIssuerId": "a829fb1c-a0b0-43c3-8ebd-d17a4afbb17e",
+        "groups": [
+          "SRV"
+        ]
       }
     }
   }

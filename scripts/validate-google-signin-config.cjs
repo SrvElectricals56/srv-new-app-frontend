@@ -4,7 +4,7 @@ const path = require('path');
 
 const profile = String(process.env.EAS_BUILD_PROFILE || '').toLowerCase();
 const platform = String(process.env.EAS_BUILD_PLATFORM || '').toLowerCase();
-if (!['production', 'android-production', 'production-apk'].includes(profile)) {
+if (!['production', 'android-production', 'production-apk', 'android-testing', 'ios-testing'].includes(profile)) {
   process.exit(0);
 }
 

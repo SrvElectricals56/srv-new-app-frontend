@@ -1127,6 +1127,12 @@ export type TransferRecipient = {
 };
 
 export type AppSettings = {
+  minRedemptionPoints?: number;
+  minTransferPoints?: number;
+  maxPointsPerDay?: number;
+  referrerBonus?: number;
+  refereeBonus?: number;
+  transferPointsEnabled?: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
   supportPhone: string;

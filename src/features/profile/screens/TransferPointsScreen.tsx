@@ -34,7 +34,8 @@ export function TransferPointsPage({
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const targetRole = currentRole === 'counterboy' ? 'counterboy' : 'electrician';
   const targetRoleLabel = currentRole === 'counterboy' ? tx('Counter Boy') : tx('Electrician');
-  const canTransferPoints = currentRole === 'electrician' || currentRole === 'counterboy';
+  const canTransferPoints = appSettings?.transferPointsEnabled !== false && (currentRole === 'electrician' || currentRole === 'counterboy');
+  const minimumTransfer = appSettings?.minTransferPoints ?? 100;
 
   const availablePoints = Math.max(
     Number(user?.totalPoints ?? 0),
@@ -99,6 +100,7 @@ export function TransferPointsPage({
     if (!foundUser) { setDialog({ visible: true, variant: 'info', title: tx('Search first'), message: tx('Please search for a user first.') }); return; }
     if (foundUser.role !== targetRole) { setDialog({ visible: true, variant: 'info', title: tx('Invalid receiver'), message: `${tx('Points can only be transferred to another')} ${tx(targetRoleLabel)}.` }); return; }
     if (!pts || pts <= 0) { setDialog({ visible: true, variant: 'info', title: tx('Invalid amount'), message: tx('Enter valid points to transfer.') }); return; }
+    if (pts < minimumTransfer) { setDialog({ visible: true, variant: 'info', title: tx('Minimum transfer'), message: `${tx('Minimum transfer is')} ${minimumTransfer} ${tx('points')}.` }); return; }
     if (pts > availablePoints) { setDialog({ visible: true, variant: 'info', title: tx('Insufficient points'), message: tx('You do not have enough points.') }); return; }
 
     setTransferring(true);
@@ -120,6 +122,9 @@ export function TransferPointsPage({
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <PageHeader title={pageContent.pageTitle || t('transferPoint')} onBack={onBack} />
+      <Text style={{ color: theme.textMuted, paddingHorizontal: 20, paddingBottom: 8 }}>
+        {appSettings?.transferPointsEnabled === false ? tx('Points transfers are currently disabled') : `${tx('Minimum transfer')}: ${minimumTransfer} ${tx('points')}`}
+      </Text>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

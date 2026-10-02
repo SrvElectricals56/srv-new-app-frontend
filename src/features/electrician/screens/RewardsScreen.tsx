@@ -153,7 +153,7 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
   const isDealer = role === 'dealer';
-  const currentPoints = wallet?.totalPoints ?? walletSummary?.totalPoints ?? 0;
+  const currentPoints = wallet?.balance ?? walletSummary?.balance ?? 0;
   const cardW = Math.floor((width - 32 - 12) / 2);
 
   // Auto-filter by user role — no tabs needed
@@ -172,15 +172,6 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
   }, [refreshAll]);
 
   const handleRedeem = (gift: GiftProduct) => {
-    if (currentPoints < 100) {
-      setDialog({
-        visible: true, variant: 'info', title: tx('Minimum Points Required'),
-        message: isDealer
-          ? `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Your bonus grows as your electricians redeem more!')}`
-          : `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Scan SRV products to earn more!')}`,
-      });
-      return;
-    }
     if (currentPoints < gift.pointsRequired) {
       setDialog({
         visible: true, variant: 'info', title: tx('Not Enough Points'),

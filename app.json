@@ -3,7 +3,7 @@
     "name": "SRV Electricals",
     "slug": "srv-electricals",
     "scheme": "srv-electricals",
-    "version": "2.0.4",
+    "version": "2.0.5",
     "icon": "./assets/srv-app-icon-final-v2.png",
     "plugins": [
       "expo-router",
@@ -60,11 +60,11 @@
       "icon": "./assets/srv-app-icon-final-v2.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.srvelectricals.app",
-      "buildNumber": "33"
+      "buildNumber": "34"
     },
     "android": {
       "icon": "./assets/srv-app-icon-final-v2.png",
-      "versionCode": 34,
+      "versionCode": 35,
       "allowBackup": false,
       "googleServicesFile": "./android/app/google-services.json",
       "softwareKeyboardLayoutMode": "resize",

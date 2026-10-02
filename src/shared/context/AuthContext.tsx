@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
 import { authApi, profileApi, type UserProfile } from '../api/services';
+import { clearCache } from '../api/client';
 import { storage } from '../api/storage';
 import type { UserRole } from '@/shared/types/navigation';
 import { useAppPreviewState } from '../preview/appPreviewStore';
@@ -149,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback((user: UserProfile, role: UserRole) => {
+    clearCache();
     setState({
       isLoading: false,
       isAuthenticated: true,
@@ -159,9 +161,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     const accessToken = await storage.getAccessToken();
+    try { await authApi.logout(accessToken); } catch { /* local logout still succeeds */ }
     await storage.clearAll();
+    clearCache();
     setState({ isLoading: false, isAuthenticated: false, user: null, role: null });
-    void authApi.logout(accessToken);
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -169,6 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await storage.getAccessToken();
       if (!token) return;
       const profile = await profileApi.get();
+      if (await storage.getAccessToken() !== token) return;
       const normalizedProfile = normalizeProfile(profile);
       if (!normalizedProfile) return;
       await storage.setUserProfile(normalizedProfile);
@@ -176,8 +180,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       // Session expired — force logout
       if (err?.message === 'SESSION_EXPIRED') {
-        await storage.clearAll();
-        setState({ isLoading: false, isAuthenticated: false, user: null, role: null });
+        const currentToken = await storage.getAccessToken();
+        if (!currentToken) {
+          setState({ isLoading: false, isAuthenticated: false, user: null, role: null });
+        }
       }
       // Other errors: silently fail — use cached profile
     }

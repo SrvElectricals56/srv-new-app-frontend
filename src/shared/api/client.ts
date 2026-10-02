@@ -9,6 +9,7 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
+let cacheEpoch = 0;
 const DEFAULT_TTL = 60_000; // 60 seconds
 const PUBLIC_CONTENT_TTL = 5 * 60_000;
 const LEADERBOARD_TTL = 2 * 60_000;
@@ -43,7 +44,12 @@ function setCache(key: string, data: unknown, ttl = DEFAULT_TTL) {
 }
 
 export function clearCache(pattern?: string) {
-  if (!pattern) { cache.clear(); return; }
+  if (!pattern) {
+    cache.clear();
+    inflightRequests.clear();
+    cacheEpoch += 1;
+    return;
+  }
   for (const key of cache.keys()) {
     if (key.includes(pattern)) cache.delete(key);
   }
@@ -130,16 +136,14 @@ async function fetchFromApiBases(
 }
 
 let refreshPromise: Promise<string> | null = null;
+let refreshPromiseToken: string | null = null;
 
 export async function refreshAccessToken(): Promise<string> {
-  if (refreshPromise) return refreshPromise;
+  const refreshToken = await storage.getRefreshToken();
+  if (!refreshToken) throw new Error('SESSION_EXPIRED');
+  if (refreshPromise && refreshPromiseToken === refreshToken) return refreshPromise;
 
-  refreshPromise = (async () => {
-    const refreshToken = await storage.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('SESSION_EXPIRED');
-    }
-
+  const currentPromise = (async () => {
     const refreshRes = await fetchFromApiBases('/mobile/auth/refresh', undefined, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -158,14 +162,23 @@ export async function refreshAccessToken(): Promise<string> {
       throw new Error('SESSION_EXPIRED');
     }
 
+    // A signup or login may have replaced the session while this refresh was in flight.
+    if (await storage.getRefreshToken() !== refreshToken) {
+      return (await storage.getAccessToken()) ?? nextAccessToken;
+    }
     await storage.setTokens(nextAccessToken, nextRefreshToken);
     return nextAccessToken;
   })();
+  refreshPromise = currentPromise;
+  refreshPromiseToken = refreshToken;
 
   try {
-    return await refreshPromise;
+    return await currentPromise;
   } finally {
-    refreshPromise = null;
+    if (refreshPromise === currentPromise) {
+      refreshPromise = null;
+      refreshPromiseToken = null;
+    }
   }
 }
 
@@ -196,6 +209,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     const token = await storage.getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
+  const requestAuthorization = headers.Authorization;
 
   try {
     const response = await fetchFromApiBases(path, params, {
@@ -207,32 +221,39 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
     if (response.status === 401 && auth) {
       debugLog('Token expired, attempting refresh...');
+      const currentToken = await storage.getAccessToken();
+      const accessTokenChanged = Boolean(currentToken && `Bearer ${currentToken}` !== requestAuthorization);
+      let accessToken: string;
       try {
-        const accessToken = await refreshAccessToken();
-        headers.Authorization = `Bearer ${accessToken}`;
-        debugLog('Token refreshed successfully');
-        const retryRes = await fetchFromApiBases(path, params, {
-          method,
-          headers,
-          ...(body ? { body: JSON.stringify(body) } : {}),
-        });
-        if (!retryRes.ok) {
-          const err = await retryRes.json().catch(() => ({}));
-          logApiWarning(`Retry failed (${retryRes.status}).`, err);
-          if (retryRes.status === 401) {
-            await storage.clearAll();
-            sessionEvents.emitExpired();
-            throw new Error('SESSION_EXPIRED');
-          }
-          throw createApiError(retryRes.status, err, `Request failed: ${retryRes.status}`);
-        }
-        return retryRes.json() as Promise<T>;
+        accessToken = accessTokenChanged ? currentToken! : await refreshAccessToken();
       } catch (refreshError) {
         logApiWarning('Token refresh failed.', refreshError);
-        await storage.clearAll();
-        sessionEvents.emitExpired();
-        throw new Error('SESSION_EXPIRED');
+        if ((refreshError as Error)?.message !== 'SESSION_EXPIRED') throw refreshError;
+        if (await storage.getAccessToken() === currentToken) {
+          await storage.clearAll();
+          sessionEvents.emitExpired();
+        }
+        throw refreshError;
       }
+      headers.Authorization = `Bearer ${accessToken}`;
+      const retryRes = await fetchFromApiBases(path, params, {
+        method,
+        headers,
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      if (!retryRes.ok) {
+        const err = await retryRes.json().catch(() => ({}));
+        logApiWarning(`Retry failed (${retryRes.status}).`, err);
+        if (retryRes.status === 401) {
+          if (await storage.getAccessToken() === accessToken) {
+            await storage.clearAll();
+            sessionEvents.emitExpired();
+          }
+          throw new Error('SESSION_EXPIRED');
+        }
+        throw createApiError(retryRes.status, err, `Request failed: ${retryRes.status}`);
+      }
+      return retryRes.json() as Promise<T>;
     }
 
     if (!response.ok) {
@@ -264,12 +285,13 @@ export const api = {
     const inflight = inflightRequests.get(key) as Promise<T> | undefined;
     if (inflight) return inflight;
 
+    const epoch = cacheEpoch;
     const promise = request<T>(path, { method: 'GET', params, auth }).then((data) => {
-      setCache(key, data, getCacheTtl(path));
-      inflightRequests.delete(key);
+      if (epoch === cacheEpoch) setCache(key, data, getCacheTtl(path));
+      if (inflightRequests.get(key) === promise) inflightRequests.delete(key);
       return data;
     }).catch((err) => {
-      inflightRequests.delete(key);
+      if (inflightRequests.get(key) === promise) inflightRequests.delete(key);
       throw err;
     });
 

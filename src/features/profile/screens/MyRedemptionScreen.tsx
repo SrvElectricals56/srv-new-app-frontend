@@ -47,17 +47,10 @@ function formatDate(value?: string | null) {
   return result || 'Recent';
 }
 
-function addDays(value: string | null | undefined, days: number) {
-  const base = value ? new Date(value) : new Date();
-  if (Number.isNaN(base.getTime())) return null;
-  const next = new Date(base);
-  next.setDate(next.getDate() + days);
-  return next.toISOString();
-}
-
 function toStatusLabel(status?: string | null) {
   const normalized = String(status ?? '').trim().toLowerCase();
-  if (!normalized || normalized === 'pending' || normalized === 'approved') return 'Order Place';
+  if (!normalized || normalized === 'pending') return 'Order Placed';
+  if (normalized === 'approved') return 'Approved';
   if (normalized === 'shipped') return 'Dispatched';
   return normalized
     .split(/[_\s-]+/)
@@ -86,10 +79,6 @@ function getStatusColors(status?: string | null) {
   return { background: '#DCFCE7', text: '#166534' };
 }
 
-function getExpectedDeliveryDate(order: GiftStoreOrder) {
-  return order.estimatedDeliveryAt ?? addDays(order.processedAt ?? order.rawDate, 5);
-}
-
 function getTabLabel(tab: RedemptionTab) {
   return tab === 'Buy Gift' ? 'Gift Order' : tab;
 }
@@ -103,7 +92,7 @@ function getGiftTrackingSteps(order: GiftStoreOrder) {
     {
       label: 'Processing',
       value: rejected ? 'Rejected by admin' : 'Gift order confirmed',
-      done: !rejected && ['pending', 'approved', 'completed', 'shipped', 'delivered'].includes(status),
+      done: !rejected && ['approved', 'completed', 'shipped', 'delivered'].includes(status),
     },
     {
       label: 'Dispatched',
@@ -113,8 +102,8 @@ function getGiftTrackingSteps(order: GiftStoreOrder) {
     {
       label: rejected ? 'Refund' : 'Delivery',
       value: rejected
-        ? 'Points will be restored after admin review.'
-        : (order.deliveredAt ? formatDate(order.deliveredAt) : `Expected ${formatDate(getExpectedDeliveryDate(order))}`),
+        ? 'Points refunded to your wallet.'
+        : (order.deliveredAt ? formatDate(order.deliveredAt) : order.estimatedDeliveryAt ? `Expected ${formatDate(order.estimatedDeliveryAt)}` : 'Waiting for delivery'),
       done: rejected || status === 'delivered',
     },
   ];
@@ -142,6 +131,8 @@ export function RedemptionPage({
   const [activeFilter, setActiveFilter] = useState<FilterRange>(initialFilter);
   const [loading, setLoading] = useState(true);
   const [redemptions, setRedemptions] = useState<GiftStoreOrder[]>([]);
+  const [historyError, setHistoryError] = useState(false);
+  const [historyReload, setHistoryReload] = useState(0);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const tabs: RedemptionTab[] =
@@ -166,8 +157,16 @@ export function RedemptionPage({
   }, [giftProducts]);
 
   useEffect(() => {
-    redemptionsApi.getHistory(1, 50).then((res) => {
-      const data = res.data ?? [];
+    let cancelled = false;
+    setLoading(true);
+    setHistoryError(false);
+    void (async () => {
+      const firstPage = await redemptionsApi.getHistory(1, 100);
+      const data = [...(firstPage.data ?? [])];
+      for (let page = 2; page <= firstPage.totalPages; page += 1) {
+        const nextPage = await redemptionsApi.getHistory(page, 100);
+        data.push(...(nextPage.data ?? []));
+      }
       const mapped = data.map((r: any, index: number) => {
         let tabType: RedemptionTab = 'Buy Gift';
         const t = (r.type ?? '').toLowerCase();
@@ -175,7 +174,7 @@ export function RedemptionPage({
         else if (t.includes('dealer') || t.includes('bonus')) tabType = 'Dealer Bonus';
         else if (t.includes('point')) tabType = 'Transfer Point';
 
-        const isCredit = r.status === 'approved' || r.status === 'completed';
+        const isCredit = tabType !== 'Buy Gift' && (r.status === 'approved' || r.status === 'completed');
         const title = r.giftName ?? r.title ?? r.type ?? 'Redemption';
         const directImage = resolveImageUrl(r.giftImage ?? r.imageUrl ?? r.productImage ?? null);
         return {
@@ -183,7 +182,7 @@ export function RedemptionPage({
           type: tabType,
           title,
           imageUrl: directImage ?? (tabType === 'Buy Gift' ? giftImageByName.get(normalizeName(title)) ?? null : null),
-          points: isCredit ? `+${r.points}` : `-${r.points}`,
+          points: tabType === 'Buy Gift' ? `${r.points} pts` : isCredit ? `+${r.points}` : `-${r.points}`,
           rawDate: r.requestedAt ?? '',
           date: formatISTDate(r.requestedAt),
           status: r.status ?? 'pending',
@@ -197,9 +196,10 @@ export function RedemptionPage({
           shippingAddress: r.shippingAddress ?? null,
         };
       });
-      setRedemptions(mapped);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [giftImageByName]);
+      if (!cancelled) setRedemptions(mapped);
+    })().catch(() => { if (!cancelled) setHistoryError(true); }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [giftImageByName, historyReload]);
 
   const filteredItems = useMemo(() => {
     const now = new Date();
@@ -359,12 +359,19 @@ export function RedemptionPage({
 
         {loading ? (
           <ActivityIndicator color={theme.accent} style={{ marginTop: 32 }} />
+        ) : historyError ? (
+          <View style={[styles.emptyState, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>{tx('Could not load gift orders. Please try again.')}</Text>
+            <TouchableOpacity onPress={() => setHistoryReload((value) => value + 1)} activeOpacity={0.8}>
+              <Text style={{ color: theme.accent, fontWeight: '700', marginTop: 12 }}>{tx('Retry')}</Text>
+            </TouchableOpacity>
+          </View>
         ) : filteredItems.length > 0 ? (
           filteredItems.map((item) => {
             const expanded = expandedOrderId === item.id;
             const trackingSteps = getGiftTrackingSteps(item);
             const statusColors = getStatusColors(item.status);
-            const showExpectedDelivery = item.type === 'Buy Gift' && !['delivered', 'rejected', 'cancelled'].includes(String(item.status).toLowerCase());
+            const showExpectedDelivery = item.type === 'Buy Gift' && Boolean(item.estimatedDeliveryAt) && !['delivered', 'rejected', 'cancelled'].includes(String(item.status).toLowerCase());
             return (
             <TouchableOpacity
               key={item.id}
@@ -433,7 +440,7 @@ export function RedemptionPage({
               {showExpectedDelivery && (
                 <View style={[styles.expectedBox, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}>
                   <Text style={styles.expectedLabel}>{tx('Expected Delivery')}</Text>
-                  <Text style={styles.expectedValue}>{formatDate(getExpectedDeliveryDate(item))}</Text>
+                  <Text style={styles.expectedValue}>{formatDate(item.estimatedDeliveryAt)}</Text>
                 </View>
               )}
               {expanded && (

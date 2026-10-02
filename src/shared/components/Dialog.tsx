@@ -1,6 +1,6 @@
 import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { type ReactElement, type ReactNode, useEffect, useRef } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
@@ -109,6 +109,8 @@ export function Dialog({
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView style={styles.keyboardArea} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.scrollArea} keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
       <Pressable style={styles.overlay} onPress={choices ? () => {} : onClose}>
         <Animated.View style={[styles.card, { backgroundColor: theme.surface, transform: [{ scale: scaleAnim }] }]}>
           <Pressable onPress={() => {}}>
@@ -170,13 +172,18 @@ export function Dialog({
           </Pressable>
         </Animated.View>
       </Pressable>
+      </ScrollView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardArea: { flex: 1 },
+  scrollArea: { flexGrow: 1 },
   overlay: {
     flex: 1,
+    minHeight: '100%',
     backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',

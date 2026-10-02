@@ -95,8 +95,8 @@ android {
         applicationId 'com.srvelectricals.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 34
-        versionName "2.0.4"
+        versionCode 35
+        versionName "2.0.5"
         resValue "string", "app_name", isStagingBuild ? "SRV Electricals Staging" : "SRV Electricals"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""

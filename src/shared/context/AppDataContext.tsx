@@ -41,6 +41,7 @@ import {
 } from '../api/services';
 import { storage } from '../api/storage';
 import { clearCache } from '../api/client';
+import { sessionEvents } from '../api/sessionEvents';
 import { useAuth } from './AuthContext';
 import { useAppPreviewState } from '../preview/appPreviewStore';
 
@@ -168,7 +169,7 @@ const defaultCtx: AppDataContextType = {
 const AppDataContext = createContext<AppDataContextType>(defaultCtx);
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user, role, logout } = useAuth();
+  const { isAuthenticated, user, role } = useAuth();
   const previewState = useAppPreviewState();
   const appStateRef = useRef(AppState.currentState);
   const backgroundedAtRef = useRef(0);
@@ -298,10 +299,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   // ?? Private data (auth required) ─────────────────────────────────────────
   const handleSessionExpired = useCallback(async () => {
-    debugLog('🔐 Session expired — logging out');
-    await storage.clearAll();
-    await logout();
-  }, [logout]);
+    // The API client clears only the session that actually expired. An older
+    // request must never sign out an account that logged in while it was pending.
+    if (!(await storage.getAccessToken())) {
+      sessionEvents.emitExpired();
+    }
+  }, []);
 
   const loadPrivateData = useCallback(async () => {
     if (previewState.enabled) {

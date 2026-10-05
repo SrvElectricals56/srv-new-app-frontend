@@ -151,7 +151,11 @@ export async function refreshAccessToken(): Promise<string> {
     });
 
     if (!refreshRes.ok) {
-      throw new Error('SESSION_EXPIRED');
+      if (refreshRes.status === 401 || refreshRes.status === 403) {
+        throw new Error('SESSION_EXPIRED');
+      }
+      const errorBody = await refreshRes.json().catch(() => ({}));
+      throw createApiError(refreshRes.status, errorBody, `Token refresh failed: ${refreshRes.status}`);
     }
 
     const refreshData = await refreshRes.json().catch(() => ({}));

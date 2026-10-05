@@ -833,10 +833,15 @@ export const profileApi = {
           token = await refreshAccessToken();
           const result = await sendUpload(token);
           return result.url as string;
-        } catch {
-          await storage.clearAll();
-          sessionEvents.emitExpired();
-          throw new Error('Session expired. Please login again.');
+        } catch (retryError: any) {
+          if (retryError?.message === 'UNAUTHORIZED' || retryError?.message === 'SESSION_EXPIRED') {
+            if ((await storage.getAccessToken()) === token) {
+              await storage.clearAll();
+              sessionEvents.emitExpired();
+            }
+            throw new Error('Session expired. Please login again.');
+          }
+          throw retryError;
         }
       }
       throw error;

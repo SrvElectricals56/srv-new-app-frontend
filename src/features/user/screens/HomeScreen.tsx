@@ -15,6 +15,7 @@ import {
 import type { Screen } from '@/shared/types/navigation';
 import { usePreferenceContext } from '@/shared/preferences';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
+import { HomeHeaderContact } from '@/shared/components/HomeHeaderContact';
 import { createShadow } from '@/shared/theme/shadows';
 import { premium, premiumShadow } from '@/shared/theme/premium';
 import {
@@ -834,7 +835,7 @@ export function HomeScreen({
               <Image source={logoImage} style={styles.logoImage} resizeMode="contain" />
             </View>
           </View>
-          <Text style={styles.srvBrandTitle} numberOfLines={1}>SRV Electricals</Text>
+          <HomeHeaderContact accent="#8A5A0A" />
 
           <View style={styles.topActions}>
             {showNotifications ? (
@@ -1009,21 +1010,6 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    overflow: 'hidden',
-  },
-  srvBrandTitle: {
-    flex: 1,
-    textAlign: 'center',
-    color: '#8A5A0A',
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.4,
-    marginHorizontal: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    textTransform: 'uppercase',
     overflow: 'hidden',
   },
   heroGuestBannerWrap: {

@@ -205,6 +205,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           return result;
         }).catch((err) => {
           logDataWarning('Products API failed.', err?.message ?? err);
+          setCatalogLoading(false);
           return { data: [] as Product[] };
         }),
         catalogApi.getCategories().then((result) => {
@@ -546,7 +547,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           productsApi.getAll().catch(() => null),
         ]);
         if (bans?.data) setBanners(bans.data);
-        if (prods?.data) setProducts(prods.data);
+        if (prods?.data) {
+          setProducts(prods.data);
+          setCatalogLoading(false);
+        }
       } catch {
         // silently ignore poll errors
       }

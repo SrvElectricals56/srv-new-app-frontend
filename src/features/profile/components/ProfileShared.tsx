@@ -66,7 +66,6 @@ export type SubPage =
   | 'Need Help'
   | 'Offers & Promotions'
   | 'Notifications'
-  | 'Password'
   | 'App Settings'
   | 'Scan History'
   | 'Contact Support'

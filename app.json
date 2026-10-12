@@ -54,7 +54,7 @@
     "splash": {
       "image": "./assets/srv-app-icon-final-v2.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#080F27"
     },
     "ios": {
       "icon": "./assets/srv-app-icon-final-v2.png",

@@ -69,11 +69,6 @@ import {
   useAppPreviewState,
 } from '@/shared/preview/appPreviewStore';
 
-type OnboardingStartOptions = {
-  passwordConfigured?: boolean;
-  passwordValue?: string;
-};
-
 type GuestAuthMode = 'login' | 'signup';
 
 function getRoleLabel(role: UserRole) {
@@ -160,7 +155,7 @@ function resolvePreviewTarget(
     case 'privacy_policy':
       return { screen: 'profile', subPage: 'Privacy Policy' };
     case 'password':
-      return { screen: 'profile', subPage: 'Password' };
+      return { screen: 'profile', subPage: null };
     case 'app_settings':
       return { screen: 'profile', subPage: 'App Settings' };
     case 'rate_us':
@@ -190,25 +185,11 @@ function AppContent() {
   const [guestAuthInitialMode, setGuestAuthInitialMode] = useState<GuestAuthMode | null>(null);
   const [guestAuthPromptRole, setGuestAuthPromptRole] = useState<UserRole | null>(null);
   const [reviewPromptVisible, setReviewPromptVisible] = useState(false);
-  const [passwordConfiguredByRole, setPasswordConfiguredByRole] = useState<
-    Record<UserRole, boolean>
-  >({
-    dealer: false,
-    electrician: false,
-    user: false,
-    counterboy: false,
-  });
   const [profilePhotoByRole, setProfilePhotoByRole] = useState<Record<UserRole, string | null>>({
     dealer: null,
     electrician: null,
     user: null,
     counterboy: null,
-  });
-  const [passwordValueByRole, setPasswordValueByRole] = useState<Record<UserRole, string>>({
-    dealer: '',
-    electrician: '',
-    user: '',
-    counterboy: '',
   });
   const [electricianRewardPoints, setElectricianRewardPoints] = useState(
     resolveRewardPoints(user)
@@ -274,33 +255,6 @@ function AppContent() {
   const resolvedCurrentScreen = isPreviewMode || isRoleFeatureEnabled(rolePageControls, currentRole, currentScreen)
     ? currentScreen
     : 'home';
-
-  useEffect(() => {
-    if (isPreviewMode) {
-      return;
-    }
-
-    void (async () => {
-      const roles: UserRole[] = ['electrician', 'user', 'dealer'];
-      const entries = await Promise.all(
-        roles.map(async (role) => [role, await storage.getPasswordConfigured(role)] as const)
-      );
-
-      setPasswordConfiguredByRole((current) => {
-        const next = { ...current };
-        let changed = false;
-
-        for (const [role, configured] of entries) {
-          if (next[role] !== configured) {
-            next[role] = configured;
-            changed = true;
-          }
-        }
-
-        return changed ? next : current;
-      });
-    })();
-  }, [isPreviewMode]);
 
   // Once auth loading is done, set initial state
   useEffect(() => {
@@ -992,16 +946,8 @@ function AppContent() {
     setShowOnboarding(false);
   }, []);
 
-  const handlePasswordConfiguredChange = useCallback((role: UserRole, configured: boolean) => {
-    setPasswordConfiguredByRole((current) => ({ ...current, [role]: configured }));
-    if (!configured) {
-      setPasswordValueByRole((current) => ({ ...current, [role]: '' }));
-    }
-    void storage.setPasswordConfigured(role, configured);
-  }, []);
-
   const handleAuthenticatedRoleStart = useCallback(
-    (role: UserRole, options?: OnboardingStartOptions) => {
+    (role: UserRole) => {
       if (role === 'counterboy') {
         setCurrentRole('electrician');
         setCurrentScreen('home');
@@ -1010,17 +956,6 @@ function AppContent() {
         setGuestAuthPromptRole(null);
         setShowOnboarding(true);
         return;
-      }
-
-      if (typeof options?.passwordConfigured === 'boolean') {
-        handlePasswordConfiguredChange(role, options.passwordConfigured);
-      }
-
-      if (typeof options?.passwordValue === 'string') {
-        setPasswordValueByRole((current) => ({
-          ...current,
-          [role]: options.passwordValue,
-        }));
       }
 
       const realUser = (globalThis as typeof globalThis & { __srvLoginUser?: typeof user }).__srvLoginUser;
@@ -1050,7 +985,7 @@ function AppContent() {
       setGuestAuthPromptRole(null);
       setShowOnboarding(false);
     },
-    [handlePasswordConfiguredChange, login]
+    [login]
   );
 
   const renderGuestFeatureGate = useCallback(
@@ -1158,7 +1093,7 @@ function AppContent() {
         dealer: {
           wallet: { title: 'Dealer Wallet', description: 'Login or signup to view your bonus wallet, payouts and linked account details.' },
           notification: { title: 'Dealer Notifications', description: 'Login or signup to see dealer alerts, updates and account messages.' },
-          profile: { title: 'Dealer Profile', description: 'Login or signup to manage your dealer profile, password and app preferences.' },
+          profile: { title: 'Dealer Profile', description: 'Login or signup to manage your dealer profile and app preferences.' },
           electricians: { title: 'Associated Electricians', description: 'Login or signup to manage your electrician network and dealer relationships.' },
           call_electrician: { title: 'Call Electrician', description: 'Login or signup to access your connected electricians and outreach tools.' },
           dealer_tier: { title: 'Dealer Tier', description: 'Login or signup to check your dealer growth level and next tier progress.' },
@@ -1169,7 +1104,7 @@ function AppContent() {
         user: {
           wallet: { title: 'Wallet', description: 'Login or signup to see your wallet balance, points and activity.' },
           notification: { title: 'Notifications', description: 'Login or signup to see your latest alerts, offers and updates.' },
-          profile: { title: 'Profile', description: 'Login or signup to manage your profile, password and personal settings.' },
+          profile: { title: 'Profile', description: 'Login or signup to manage your profile and personal settings.' },
           rewards: { title: 'Gift Store', description: 'Login or signup to redeem rewards and explore member-only benefits.' },
           bank_details: { title: 'Bank Transfer', description: 'Login or signup to request bank payouts and review your linked account details.' },
           transfer_points: { title: 'Transfers', description: 'Login or signup to access point transfer and wallet actions.' },
@@ -1177,7 +1112,7 @@ function AppContent() {
         counterboy: {
           wallet: { title: 'Wallet', description: 'Login or signup to view your points, rewards and account-linked wallet details.' },
           notification: { title: 'Notifications', description: 'Login or signup to read counter boy alerts, offers and updates.' },
-          profile: { title: 'Profile', description: 'Login or signup to manage your profile, password and app preferences.' },
+          profile: { title: 'Profile', description: 'Login or signup to manage your profile and app preferences.' },
           rewards: { title: 'Gift Store', description: 'Login or signup to redeem gifts and explore rewards with your earned points.' },
           bank_details: { title: 'Bank Transfer', description: 'Login or signup to request bank payouts and review your linked account details.' },
           transfer_points: { title: 'Transfers', description: 'Login or signup to access wallet-linked transfer actions.' },
@@ -1185,7 +1120,7 @@ function AppContent() {
         electrician: {
           wallet: { title: 'Wallet', description: 'Login or signup to see your points, rewards history and linked account details.' },
           notification: { title: 'Notifications', description: 'Login or signup to read your latest alerts, offers and scan updates.' },
-          profile: { title: 'Profile', description: 'Login or signup to manage your profile, password and electrician preferences.' },
+          profile: { title: 'Profile', description: 'Login or signup to manage your profile and electrician preferences.' },
           rewards: { title: 'Rewards', description: 'Login or signup to redeem gifts and access your earned member rewards.' },
           scan: { title: 'Scan & Earn', description: 'Login or signup to scan products, earn points and track scan history.' },
           electrician_tier: { title: 'Member Tier', description: 'Login or signup to view your tier progress and reward level benefits.' },
@@ -1295,14 +1230,6 @@ function AppContent() {
             <DealerProfileScreen
               onNavigate={handleNavigate}
               onSignOut={handleSignOut}
-              hasPasswordConfigured={passwordConfiguredByRole.dealer}
-              storedPassword={passwordValueByRole.dealer}
-              onPasswordConfiguredChange={(configured) =>
-                handlePasswordConfiguredChange('dealer', configured)
-              }
-              onPasswordChange={(password) =>
-                setPasswordValueByRole((current) => ({ ...current, dealer: password }))
-              }
               language={language}
               onLanguageChange={setLanguage}
               darkMode={darkMode}
@@ -1430,14 +1357,6 @@ function AppContent() {
             <UserProfileScreen
               onNavigate={handleNavigate}
               onSignOut={handleSignOut}
-              hasPasswordConfigured={passwordConfiguredByRole.user}
-              storedPassword={passwordValueByRole.user}
-              onPasswordConfiguredChange={(configured) =>
-                handlePasswordConfiguredChange('user', configured)
-              }
-              onPasswordChange={(password) =>
-                setPasswordValueByRole((current) => ({ ...current, user: password }))
-              }
               language={language}
               onLanguageChange={setLanguage}
               darkMode={darkMode}
@@ -1566,14 +1485,6 @@ function AppContent() {
             <CounterBoyProfileScreen
               onNavigate={handleNavigate}
               onSignOut={handleSignOut}
-              hasPasswordConfigured={passwordConfiguredByRole.counterboy}
-              storedPassword={passwordValueByRole.counterboy}
-              onPasswordConfiguredChange={(configured) =>
-                handlePasswordConfiguredChange('counterboy', configured)
-              }
-              onPasswordChange={(password) =>
-                setPasswordValueByRole((current) => ({ ...current, counterboy: password }))
-              }
               language={language}
               onLanguageChange={setLanguage}
               darkMode={darkMode}
@@ -1702,14 +1613,6 @@ function AppContent() {
           <ElectricianProfileScreen
             onNavigate={handleNavigate}
             onSignOut={handleSignOut}
-            hasPasswordConfigured={passwordConfiguredByRole.electrician}
-            storedPassword={passwordValueByRole.electrician}
-            onPasswordConfiguredChange={(configured) =>
-              handlePasswordConfiguredChange('electrician', configured)
-            }
-            onPasswordChange={(password) =>
-              setPasswordValueByRole((current) => ({ ...current, electrician: password }))
-            }
             language={language}
             onLanguageChange={setLanguage}
             darkMode={darkMode}
@@ -1790,18 +1693,10 @@ function AppContent() {
     isUser,
     isCounterBoy,
     isAuthenticated,
-    passwordConfiguredByRole.dealer,
-    passwordConfiguredByRole.electrician,
-    passwordConfiguredByRole.user,
-    passwordConfiguredByRole.counterboy,
     profilePhotoByRole.dealer,
     profilePhotoByRole.electrician,
     profilePhotoByRole.user,
     profilePhotoByRole.counterboy,
-    passwordValueByRole.dealer,
-    passwordValueByRole.electrician,
-    passwordValueByRole.user,
-    passwordValueByRole.counterboy,
     electricianRewardHistory,
     electricianRewardPoints,
     electricianRewardScans,
@@ -1812,7 +1707,6 @@ function AppContent() {
     handleNavigate,
     handleOpenScanHistory,
     handleOpenProductCategory,
-    handlePasswordConfiguredChange,
     handleSignOut,
     handleNotificationsSeen,
     handleBuyNow,

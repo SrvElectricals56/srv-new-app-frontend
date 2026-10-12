@@ -7,10 +7,6 @@ import type { Screen } from '@/shared/types/navigation';
 export function ProfileScreen({
   onNavigate,
   onSignOut,
-  hasPasswordConfigured,
-  storedPassword,
-  onPasswordConfiguredChange,
-  onPasswordChange,
   language,
   onLanguageChange,
   darkMode,
@@ -24,10 +20,6 @@ export function ProfileScreen({
 }: {
   onNavigate: (screen: Screen) => void;
   onSignOut: () => void;
-  hasPasswordConfigured: boolean;
-  storedPassword: string;
-  onPasswordConfiguredChange: (configured: boolean) => void;
-  onPasswordChange: (password: string) => void;
   language: AppLanguage;
   onLanguageChange: (language: AppLanguage) => void;
   darkMode: boolean;
@@ -44,10 +36,6 @@ export function ProfileScreen({
       currentRole="dealer"
       onNavigate={onNavigate}
       onSignOut={onSignOut}
-      hasPasswordConfigured={hasPasswordConfigured}
-      storedPassword={storedPassword}
-      onPasswordConfiguredChange={onPasswordConfiguredChange}
-      onPasswordChange={onPasswordChange}
       language={language}
       onLanguageChange={onLanguageChange}
       darkMode={darkMode}

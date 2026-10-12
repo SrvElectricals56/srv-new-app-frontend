@@ -1,14 +1,17 @@
 import { LocalizedAlert as Alert, LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StatusBar, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Animated, AppState, Easing, Image, Keyboard, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StatusBar, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
 import Svg, { Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { SRV_LOGO } from '@/shared/assets';
 import { usePreferenceContext } from '@/shared/preferences';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { authApi, dealerApi } from '@/shared/api';
+import { useSmsOtpAutofill } from '@/shared/auth/useSmsOtpAutofill';
+import { useKeyboardReveal } from '@/shared/hooks/useKeyboardReveal';
 import {
   isValidOptionalEmail,
   isValidOptionalGstOrPanNumber,
@@ -18,7 +21,7 @@ import {
 import type { UserRole } from '@/shared/types/navigation';
 type IntroStep = 'language' | 'role' | 'auth';
 type AuthMode = 'login' | 'signup';
-type LoginStep = 'phone' | 'otp' | 'password';
+type LoginStep = 'phone' | 'otp';
 type SignupStep =
   | 'name'
   | 'email'
@@ -30,15 +33,9 @@ type SignupStep =
   | 'terms'
   | 'phone'
   | 'otp'
-  | 'password';
+  | 'consent';
 
-const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters and include one capital letter and one special character.';
-const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
-const cleanPasswordInput = (value: string) => value.replace(/\s/g, '');
-const showPasswordRuleAlert = () => {
-  Alert.alert('Password Required', PASSWORD_RULE_MESSAGE);
-};
-type LoginMethod = 'otp' | 'password' | null;
+const OTP_AUTO_COMPLETE = Platform.OS === 'android' ? 'sms-otp' : 'one-time-code';
 
 const C = {
   bg: '#EEF3F8',
@@ -124,13 +121,13 @@ const dealerSignupMeta: Partial<
   holders: {
     stepLabel: 'Step 4 of 5',
     title: 'Mobile Verification',
-    description: 'Verify the dealer mobile number before moving to the final security step.',
-    buttonLabel: 'Continue to Security',
+    description: 'Verify the dealer mobile number before the final step.',
+    buttonLabel: 'Continue',
   },
-  password: {
+  consent: {
     stepLabel: 'Step 5 of 5',
-    title: 'Password & Consent',
-    description: 'Create a password if you want and finish the account setup securely.',
+    title: 'Consent',
+    description: 'Accept the terms to finish creating your account.',
     buttonLabel: 'Create Account',
   },
 };
@@ -183,62 +180,6 @@ function Info({ text, kind }: { text: string; kind: 'error' | 'success' | 'warni
         {tx(text)}
       </Text>
     </View>
-  );
-}
-
-function EyeIcon({ open }: { open: boolean }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      {open ? (
-        <>
-          <Path
-            d="M2 12C3.9 8.3 7.5 6 12 6C16.5 6 20.1 8.3 22 12C20.1 15.7 16.5 18 12 18C7.5 18 3.9 15.7 2 12Z"
-            stroke="#5C6F91"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M12 15.2C13.7673 15.2 15.2 13.7673 15.2 12C15.2 10.2327 13.7673 8.8 12 8.8C10.2327 8.8 8.8 10.2327 8.8 12C8.8 13.7673 10.2327 15.2 12 15.2Z"
-            stroke="#5C6F91"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </>
-      ) : (
-        <>
-          <Path
-            d="M3 3L21 21"
-            stroke="#5C6F91"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M10.6 6.3C11.05 6.1 11.52 6 12 6C16.5 6 20.1 8.3 22 12C21.2 13.56 20.11 14.88 18.8 15.89"
-            stroke="#5C6F91"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M6.17 8.22C4.54 9.16 3.18 10.44 2 12C3.9 15.7 7.5 18 12 18C13.76 18 15.37 17.65 16.79 17.03"
-            stroke="#5C6F91"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M9.9 9.92C9.32 10.5 8.96 11.3 8.96 12.18C8.96 13.94 10.38 15.36 12.14 15.36C13.02 15.36 13.82 15 14.4 14.42"
-            stroke="#5C6F91"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </>
-      )}
-    </Svg>
   );
 }
 
@@ -462,6 +403,7 @@ function Field({
   maxLength,
   inputTestID,
   actionTestID,
+  autoComplete,
 }: {
   label: string;
   value: string;
@@ -471,7 +413,7 @@ function Field({
   secureTextEntry?: boolean;
   prefix?: string;
   error?: string;
-  onFocus?: () => void;
+  onFocus?: (input: TextInput | null) => void;
   onSubmitEditing?: () => void;
   actionLabel?: string;
   onActionPress?: () => void;
@@ -485,8 +427,10 @@ function Field({
   maxLength?: number;
   inputTestID?: string;
   actionTestID?: string;
+  autoComplete?: 'sms-otp' | 'one-time-code';
 }) {
   const { tx, darkMode } = usePreferenceContext();
+  const fieldInputRef = useRef<TextInput | null>(null);
   const hasAction = Boolean(actionLabel || actionContent);
   const isVerifyAction = Boolean(actionLabel) && !actionContent && (actionLabel === 'Verify' || actionLabel === tx('Verify') || actionTestID?.includes('phone-verify'));
   const hasInlineAction = hasAction && !isVerifyAction;
@@ -503,7 +447,10 @@ function Field({
         ) : null}
         <View style={[s.inputWrap, hasInlineAction ? s.inputWrapWithAction : null]}>
           <TextInput
-            ref={inputRef}
+            ref={(node) => {
+              fieldInputRef.current = node;
+              if (inputRef) inputRef.current = node;
+            }}
             testID={inputTestID}
             style={[
               s.input,
@@ -519,13 +466,14 @@ function Field({
             secureTextEntry={secureTextEntry}
             autoCapitalize="none"
             autoCorrect={false}
-            onFocus={onFocus}
+            onFocus={() => onFocus?.(fieldInputRef.current)}
             onSubmitEditing={onSubmitEditing}
             returnKeyType={returnKeyType ?? 'done'}
             blurOnSubmit={blurOnSubmit ?? returnKeyType !== 'next'}
             editable={editable ?? true}
             onPressIn={onPressIn}
             maxLength={maxLength}
+            autoComplete={autoComplete}
           />
         </View>
         {hasInlineAction ? (
@@ -717,10 +665,7 @@ export function OnboardingScreen({
   initialPhase,
   onCancel,
 }: {
-  onGetStarted: (
-    role: UserRole,
-    options?: { passwordConfigured?: boolean; passwordValue?: string }
-  ) => void;
+  onGetStarted: (role: UserRole) => void;
   fixedRole?: UserRole;
   initialMode?: AuthMode;
   initialPhase?: IntroStep;
@@ -728,15 +673,17 @@ export function OnboardingScreen({
 }): React.ReactElement {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
+  const initialHeightRef = useRef(height);
   const { language, setLanguage, tx, darkMode } = usePreferenceContext();
   const reveal = useReveal();
-  const scrollRef = useRef<ScrollView | null>(null);
+  const { scrollRef, onInputFocus: scrollToForm, onScroll: trackScroll, onViewportLayout, onContentSizeChange, keyboardInset } = useKeyboardReveal();
   const loginPhoneRef = useRef<TextInput | null>(null);
   const loginOtpRef = useRef<TextInput | null>(null);
-  const loginPassRef = useRef<TextInput | null>(null);
   const signupDealerRef = useRef<TextInput | null>(null);
+  const signupEmailRef = useRef<TextInput | null>(null);
   const signupPhoneRef = useRef<TextInput | null>(null);
   const signupOtpRef = useRef<TextInput | null>(null);
+  const signupAddressRef = useRef<TextInput | null>(null);
   const signupStateRef = useRef<TextInput | null>(null);
   const signupCityRef = useRef<TextInput | null>(null);
   const signupPincodeRef = useRef<TextInput | null>(null);
@@ -744,36 +691,26 @@ export function OnboardingScreen({
   const signupPanNumberRef = useRef<TextInput | null>(null);
   const signupGstHolderRef = useRef<TextInput | null>(null);
   const signupPanHolderRef = useRef<TextInput | null>(null);
-  const signupPassRef = useRef<TextInput | null>(null);
-  const signupConfirmPassRef = useRef<TextInput | null>(null);
   const electricianPhoneAutoRequestedRef = useRef(false);
+  const electricianAddressAutoRequestedRef = useRef(false);
+  const locationRequestInFlightRef = useRef(false);
+  const retryLocationOnResumeRef = useRef(false);
+  const addressDirtyRef = useRef(false);
+  const stateDirtyRef = useRef(false);
+  const cityDirtyRef = useRef(false);
+  const pincodeDirtyRef = useRef(false);
   const resolvedInitialPhase = initialPhase ?? (fixedRole ? 'auth' : 'language');
   const [phase, setPhase] = useState<IntroStep>(resolvedInitialPhase);
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [role, setRole] = useState<UserRole>(fixedRole ?? 'electrician');
   const directAuthEntry = Boolean(fixedRole && resolvedInitialPhase === 'auth');
   const [authSelectionOpen, setAuthSelectionOpen] = useState(resolvedInitialPhase === 'auth');
-  const [electricianLoginMethod, setElectricianLoginMethod] = useState<LoginMethod>(null);
-  const [dealerLoginMethod, setDealerLoginMethod] = useState<LoginMethod>(null);
-  const activeLoginMethod = role === 'electrician' ? electricianLoginMethod : dealerLoginMethod;
   const [loading, setLoading] = useState(false);
   const otpVerificationInFlightRef = useRef(false);
+  const dealerVerificationRequestRef = useRef(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [forgotVisible, setForgotVisible] = useState(false);
-  const [forgotStep, setForgotStep] = useState<'phone' | 'otp' | 'password'>('phone');
-  const [forgotPhone, setForgotPhone] = useState('');
-  const [forgotOtp, setForgotOtp] = useState('');
-  const [forgotOtpVerified, setForgotOtpVerified] = useState(false);
-  const [forgotPassword, setForgotPassword] = useState('');
-  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
-  const [forgotDevOtp, setForgotDevOtp] = useState('');
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-
   const [loginPhone, setLoginPhone] = useState('');
   const [loginOtp, setLoginOtp] = useState('');
-  const [loginPass, setLoginPass] = useState('');
   const [loginStep, setLoginStep] = useState<LoginStep>('phone');
   const [loginOtpVerified, setLoginOtpVerified] = useState(false);
   const [loginOtpCountdown, setLoginOtpCountdown] = useState(0);
@@ -781,6 +718,7 @@ export function OnboardingScreen({
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupDealerPhone, setSignupDealerPhone] = useState('');
+  const [signupAddress, setSignupAddress] = useState('');
   const [signupState, setSignupState] = useState('');
   const [signupCity, setSignupCity] = useState('');
   const [signupPincode, setSignupPincode] = useState('');
@@ -792,15 +730,19 @@ export function OnboardingScreen({
   const [signupOtpVerified, setSignupOtpVerified] = useState(false);
   const [signupVerificationToken, setSignupVerificationToken] = useState('');
   const [signupOtpCountdown, setSignupOtpCountdown] = useState(0);
-  const [signupPass, setSignupPass] = useState('');
-  const [signupConfirmPass, setSignupConfirmPass] = useState('');
   const [signupReferralCode, setSignupReferralCode] = useState('');
-  const [signupPasswordSkipped, setSignupPasswordSkipped] = useState(false);
   const [signupTermsAgreed, setSignupTermsAgreed] = useState(false);
   const [signupStep, setSignupStep] = useState<SignupStep>('name');
   const [dealerVerified, setDealerVerified] = useState(false);
+  const [dealerChecking, setDealerChecking] = useState(false);
   const [verifiedDealerName, setVerifiedDealerName] = useState('');
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationMessage, setLocationMessage] = useState('');
+  const smsOtpTargetRef = useRef<'login' | 'signup' | null>(null);
+  const startSmsOtpAutofill = useSmsOtpAutofill((code) => {
+    if (smsOtpTargetRef.current === 'login') setLoginOtp(code);
+    if (smsOtpTargetRef.current === 'signup') setSignupOtp(code);
+  });
 
   useEffect(() => {
     const captureReferral = (url?: string | null) => {
@@ -812,8 +754,7 @@ export function OnboardingScreen({
     const subscription = Linking.addEventListener('url', event => captureReferral(event.url));
     return () => subscription.remove();
   }, []);
-  const keyboardHeightRef = useRef(0);
-  const isCompactPhone = width <= 360 || height <= 760;
+  const isCompactPhone = width <= 360 || initialHeightRef.current <= 760;
   const authBackgroundColors: [string, string, string] = darkMode
     ? role === 'dealer'
       ? ['#0B1220', '#111827', '#0F172A']
@@ -825,23 +766,6 @@ export function OnboardingScreen({
       : role === 'counterboy'
         ? ['#F9F4ED', '#F5EDE4', '#F0DFD0']
         : ['#E5EEFF', '#F4F8FF', '#EAF2FF'];
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvent, (e) => {
-      keyboardHeightRef.current = e.endCoordinates.height;
-      setKeyboardVisible(true);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      keyboardHeightRef.current = 0;
-      setKeyboardVisible(false);
-    });
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   const screenTitle =
     phase === 'language'
@@ -876,6 +800,137 @@ export function OnboardingScreen({
     []
   );
 
+  const requestCurrentLocation = useCallback(async () => {
+    if (locationRequestInFlightRef.current) return;
+    locationRequestInFlightRef.current = true;
+    setLocationLoading(true);
+    setLocationMessage('');
+    setError('signupAddress');
+    try {
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (!permission.granted) permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        setError('signupAddress', 'Allow location access to fill your address, or enter it manually.');
+        if (!permission.canAskAgain) {
+          Alert.alert(
+            tx('Location permission needed'),
+            tx('Allow location access in app settings to fill your address automatically.'),
+            [
+              { text: tx('Cancel'), style: 'cancel' },
+              {
+                text: tx('Open Settings'),
+                onPress: () => {
+                  retryLocationOnResumeRef.current = true;
+                  void Linking.openSettings().catch(() => {
+                    retryLocationOnResumeRef.current = false;
+                  });
+                },
+              },
+            ]
+          );
+        }
+        return;
+      }
+
+      if (!(await Location.hasServicesEnabledAsync())) {
+        if (Platform.OS === 'android') {
+          try {
+            await Location.enableNetworkProviderAsync();
+          } catch {
+            // The device prompt can be dismissed; offer its settings page below.
+          }
+        }
+        if (!(await Location.hasServicesEnabledAsync())) {
+          setError('signupAddress', 'Turn on device location to fill your address, or enter it manually.');
+          Alert.alert(
+            tx('Turn on location'),
+            tx('Open device location settings to fill your address automatically.'),
+            [
+              { text: tx('Cancel'), style: 'cancel' },
+              {
+                text: tx('Open Settings'),
+                onPress: () => {
+                  retryLocationOnResumeRef.current = true;
+                  if (Platform.OS === 'android') {
+                    void Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS').catch(() => {
+                      retryLocationOnResumeRef.current = false;
+                    });
+                  } else {
+                    void Linking.openSettings().catch(() => {
+                      retryLocationOnResumeRef.current = false;
+                    });
+                  }
+                },
+              },
+            ]
+          );
+          return;
+        }
+      }
+
+      const position = (await Location.getLastKnownPositionAsync({
+        maxAge: 10 * 60 * 1000,
+        requiredAccuracy: 500,
+      })) ?? (await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        mayShowUserSettingsDialog: true,
+      }));
+      const [place] = await Location.reverseGeocodeAsync(position.coords);
+      if (!place) {
+        setError('signupAddress', 'Could not find your address. Please enter it manually.');
+        return;
+      }
+
+      const address = place.formattedAddress || [
+        place.name,
+        place.streetNumber,
+        place.street,
+        place.district,
+        place.city,
+        place.region,
+        place.postalCode,
+      ].filter(Boolean).join(', ');
+      const state = place.region || '';
+      const district = place.district || place.subregion || place.city || '';
+      const pincode = (place.postalCode || '').replace(/\D/g, '').slice(0, 6);
+      if (!address && !state && !district && !pincode) {
+        setError('signupAddress', 'Could not find your address. Please enter it manually.');
+        return;
+      }
+
+      if (address && !addressDirtyRef.current) setSignupAddress(address);
+      if (state && !stateDirtyRef.current) setSignupState(state);
+      if (district && !cityDirtyRef.current) setSignupCity(district);
+      if (pincode && !pincodeDirtyRef.current) setSignupPincode(pincode);
+      setLocationMessage('Address fetched. Please check the details before continuing.');
+    } catch {
+      setError('signupAddress', 'Could not fetch your location. Please enter the details manually.');
+    } finally {
+      locationRequestInFlightRef.current = false;
+      setLocationLoading(false);
+    }
+  }, [setError, tx]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state !== 'active' || !retryLocationOnResumeRef.current) return;
+      retryLocationOnResumeRef.current = false;
+      void requestCurrentLocation();
+    });
+    return () => subscription.remove();
+  }, [requestCurrentLocation]);
+
+  useEffect(() => {
+    if (
+      mode !== 'signup' ||
+      role !== 'electrician' ||
+      signupStep !== 'address' ||
+      electricianAddressAutoRequestedRef.current
+    ) return;
+    electricianAddressAutoRequestedRef.current = true;
+    void requestCurrentLocation();
+  }, [mode, requestCurrentLocation, role, signupStep]);
+
   useEffect(() => {
     if (loginStep === 'otp') {
       const timer = setTimeout(() => loginOtpRef.current?.focus(), 150);
@@ -892,12 +947,6 @@ export function OnboardingScreen({
     const timer = setTimeout(() => signupOtpRef.current?.focus(), 150);
     return () => clearTimeout(timer);
   }, [role, signupOtpSent, signupOtpVerified, signupStep]);
-
-  useEffect(() => {
-    if (loginOtpVerified || signupOtpVerified) {
-      dismissKeyboard();
-    }
-  }, [loginOtpVerified, signupOtpVerified]);
 
   useEffect(() => {
     if (
@@ -940,25 +989,18 @@ export function OnboardingScreen({
     return () => clearInterval(timer);
   }, [signupOtpCountdown]);
 
-  const scrollToForm = () =>
-    setTimeout(() => {
-      // Scroll enough so the focused field clears the keyboard.
-      // Use keyboard height if available, otherwise fall back to a safe offset.
-      const kbHeight = keyboardHeightRef.current || 320;
-      const safeY = Math.max(height - kbHeight - 120, 160);
-      scrollRef.current?.scrollTo({ y: safeY, animated: true });
-    }, 150);
   const handleName = (setter: (value: string) => void) => (value: string) =>
     setter(value.replace(/[^A-Za-z ]/g, ''));
-  const dismissKeyboard = () => {
+  const dismissKeyboard = useCallback(() => {
     Keyboard.dismiss();
     [
       loginPhoneRef,
       loginOtpRef,
-      loginPassRef,
       signupDealerRef,
+      signupEmailRef,
       signupPhoneRef,
       signupOtpRef,
+      signupAddressRef,
       signupStateRef,
       signupCityRef,
       signupPincodeRef,
@@ -966,27 +1008,34 @@ export function OnboardingScreen({
       signupPanNumberRef,
       signupGstHolderRef,
       signupPanHolderRef,
-      signupPassRef,
-      signupConfirmPassRef,
     ].forEach((ref) => ref.current?.blur());
-  };
+  }, []);
+
+  useEffect(() => {
+    if (loginOtpVerified || signupOtpVerified) dismissKeyboard();
+  }, [loginOtpVerified, signupOtpVerified, dismissKeyboard]);
 
   const resetForm = () => {
+    dealerVerificationRequestRef.current += 1;
     electricianPhoneAutoRequestedRef.current = false;
+    electricianAddressAutoRequestedRef.current = false;
+    retryLocationOnResumeRef.current = false;
+    addressDirtyRef.current = false;
+    stateDirtyRef.current = false;
+    cityDirtyRef.current = false;
+    pincodeDirtyRef.current = false;
     setErrors({});
+    setLocationMessage('');
     setLoading(false);
-    setShowPassword(false);
     setAuthSelectionOpen(false);
-    setElectricianLoginMethod(null);
-    setDealerLoginMethod(null);
     setLoginPhone('');
     setLoginOtp('');
-    setLoginPass('');
     setLoginStep('phone');
     setLoginOtpVerified(false);
     setSignupName('');
     setSignupEmail('');
     setSignupDealerPhone('');
+    setSignupAddress('');
     setSignupState('');
     setSignupCity('');
     setSignupPincode('');
@@ -997,10 +1046,9 @@ export function OnboardingScreen({
     setSignupOtpSent(false);
     setSignupOtpVerified(false);
     setSignupVerificationToken('');
-    setSignupPass('');
-    setSignupConfirmPass('');
     setSignupStep('name');
     setDealerVerified(false);
+    setDealerChecking(false);
     setVerifiedDealerName('');
   };
 
@@ -1035,7 +1083,7 @@ export function OnboardingScreen({
         return 'location';
       case 'holders':
         return 'identity';
-      case 'password':
+      case 'consent':
         return 'holders';
       default:
         return null;
@@ -1045,6 +1093,12 @@ export function OnboardingScreen({
     const previousStep = previousDealerSignupStep(signupStep);
     if (!previousStep) return;
     dismissKeyboard();
+    if (signupStep === 'consent') {
+      setSignupOtp('');
+      setSignupOtpSent(false);
+      setSignupOtpVerified(false);
+      setSignupVerificationToken('');
+    }
     setSignupStep(previousStep);
   };
   const previousElectricianSignupStep = (step: SignupStep): SignupStep | null => {
@@ -1054,11 +1108,9 @@ export function OnboardingScreen({
       case 'otp':
         return 'phone';
       case 'address':
-        return 'otp';
+        return 'phone';
       case 'dealer':
         return 'address';
-      case 'password':
-        return 'dealer';
       default:
         return null;
     }
@@ -1067,110 +1119,29 @@ export function OnboardingScreen({
     const previousStep = previousElectricianSignupStep(signupStep);
     if (!previousStep) return;
     dismissKeyboard();
+    if (signupStep === 'address') {
+      setSignupOtp('');
+      setSignupOtpSent(false);
+      setSignupOtpVerified(false);
+      setSignupVerificationToken('');
+    }
     setSignupStep(previousStep);
   };
-  const getPasswordError = (pass: string) => {
-    if (pass.length === 0) return '';
-    if (!isValidPassword(pass)) return PASSWORD_RULE_MESSAGE;
-    return '';
-  };
-
-  const signupPasswordReady = signupPasswordSkipped ||
-    (signupPass.length > 0 && isValidPassword(signupPass) && signupConfirmPass === signupPass);
-
-  const togglePasswordSkip = () => {
-    setSignupPasswordSkipped((current) => {
-      const next = !current;
-      if (next) {
-        setSignupPass('');
-        setSignupConfirmPass('');
-        setError('signupPass');
-        setError('signupConfirmPass');
-      }
-      return next;
-    });
-  };
-
   const canContinue = useMemo(() => {
-    if (mode === 'login') {
-      if (activeLoginMethod === 'otp')
-        return loginPhone.length === 10 && loginOtp.length === 4 && loginOtpVerified;
-      if (activeLoginMethod === 'password')
-        return loginPhone.length === 10 && loginStep === 'password' && loginPass.length >= 8;
-      return false;
-    }
-    if (role === 'dealer') {
-      return (
-        signupName.trim().length >= 3 &&
-        signupState.trim().length >= 2 &&
-        signupCity.trim().length >= 2 &&
-        signupPincode.trim().length === 6 &&
-        signupPhone.length === 10 &&
-        signupOtpVerified &&
-        signupPasswordReady &&
-        signupTermsAgreed
-      );
-    }
-    if (role === 'counterboy' || role === 'user') {
-      return (
-        signupName.trim().length >= 3 &&
-        signupState.trim().length >= 2 &&
-        signupCity.trim().length >= 2 &&
-        signupPincode.trim().length === 6 &&
-        signupPhone.length === 10 &&
-        signupOtpVerified &&
-        signupPasswordReady &&
-        signupTermsAgreed
-      );
-    }
-    return (
-      signupName.trim().length >= 3 &&
-      dealerVerified &&
-      signupState.trim().length >= 2 &&
-      signupCity.trim().length >= 2 &&
-      signupPincode.trim().length === 6 &&
-      signupPhone.length === 10 &&
-      signupOtpVerified &&
-      signupPasswordReady &&
-      signupTermsAgreed
-    );
-  }, [
-    activeLoginMethod,
-    dealerVerified,
-    loginOtp,
-    loginOtpVerified,
-    loginPass,
-    loginPhone,
-    loginStep,
-    mode,
-    role,
-    signupState,
-    signupCity,
-    signupName,
-    signupOtpVerified,
-    signupPasswordReady,
-    signupPincode,
-    signupPhone,
-    signupTermsAgreed,
-  ]);
+    if (mode === 'login') return loginPhone.length === 10 && loginOtpVerified;
+    const detailsReady = signupName.trim().length >= 3 && signupState.trim().length >= 2 &&
+      signupCity.trim().length >= 2 && signupPincode.trim().length === 6 &&
+      signupPhone.length === 10 && signupOtpVerified && signupTermsAgreed;
+    return role === 'electrician' ? detailsReady && dealerVerified : detailsReady;
+  }, [mode, role, loginPhone, loginOtpVerified, signupName, signupState, signupCity,
+    signupPincode, signupPhone, signupOtpVerified, signupTermsAgreed, dealerVerified]);
   const dealerSignupContent =
     role === 'dealer' ? (dealerSignupMeta[signupStep] ?? dealerSignupMeta.name) : null;
 
   const submitAuth = async () => {
     dismissKeyboard();
-    if (mode === 'login') {
-      if (activeLoginMethod === 'otp') {
-        if (!loginOtpVerified)
-          return setError('loginOtp', 'Please verify the OTP before logging in.');
-        setError('loginOtp');
-      }
-      if (activeLoginMethod === 'password') {
-        if (loginPass.length < 8)
-          return setError('loginPass', PASSWORD_RULE_MESSAGE);
-        setError('loginPass');
-      }
-      if (!activeLoginMethod) return setError('loginMode', 'Please choose a login option.');
-    }
+    if (mode === 'login' && !loginOtpVerified)
+      return setError('loginOtp', 'Please enter the OTP to log in.');
     if (mode === 'signup' && role === 'dealer') {
       if (signupPhone.length !== 10)
         return setError('signupPhone', 'Please enter a valid 10-digit mobile number.');
@@ -1179,139 +1150,63 @@ export function OnboardingScreen({
       setError('signupPhone');
       setError('signupOtp');
     }
-    if (mode === 'signup' && (signupPass.length > 0 || signupConfirmPass.length > 0)) {
-      if (!isValidPassword(signupPass)) {
-        setError('signupPass', PASSWORD_RULE_MESSAGE);
-        showPasswordRuleAlert();
-        return;
-      }
-      if (signupConfirmPass !== signupPass)
-        return setError(
-          'signupConfirmPass',
-          'Passwords do not match. Please re-enter the same password.'
-        );
-    }
-    setError('loginPass');
-    setError('loginMode');
-    setError('signupPass');
-    setError('signupConfirmPass');
     setLoading(true);
 
     const finishLogin = (resolvedUser?: unknown) => {
-      if (resolvedUser) {
-        (globalThis as any).__srvLoginUser = resolvedUser;
-      }
-      const passwordConfigured =
-        mode === 'signup'
-          ? signupPass.length >= 8
-          : activeLoginMethod === 'password'
-            ? true
-            : undefined;
-      const passwordValue =
-        mode === 'signup'
-          ? signupPass.length >= 8 ? signupPass : ''
-          : loginPass.length >= 8 ? loginPass : undefined;
-      onGetStarted(
-        role,
-        typeof passwordConfigured === 'boolean'
-          ? { passwordConfigured, passwordValue }
-          : typeof passwordValue === 'string'
-            ? { passwordValue }
-            : undefined
-      );
+      if (resolvedUser) (globalThis as any).__srvLoginUser = resolvedUser;
+      onGetStarted(role);
     };
 
     try {
       if (mode === 'login') {
-        if (activeLoginMethod === 'password') {
-          const res = await authApi.loginWithPassword(loginPhone, role, loginPass);
-          finishLogin(res.user);
-          return;
-        }
-
-        // OTP login: token/user already saved during OTP verification.
         finishLogin((globalThis as any).__srvLoginUser);
         return;
       }
 
       if (role === 'dealer') {
         const res = await authApi.registerDealer({
-          name: signupName.trim(),
-          phone: signupPhone,
+          name: signupName.trim(), phone: signupPhone,
           email: sanitizeEmailInput(signupEmail).trim() || undefined,
-          town: signupCity.trim(),
-          district: signupCity.trim(),
-          state: signupState.trim(),
+          town: signupCity.trim(), district: signupCity.trim(), state: signupState.trim(),
           address: `${signupCity.trim()}, ${signupState.trim()}`,
           pincode: signupPincode.trim() || undefined,
           gstNumber: normalizeGstOrPanNumber(signupGstNumber) || undefined,
-          password: signupPass.trim() || undefined,
-          signupVerificationToken,
-          referralCode: signupReferralCode.trim() || undefined,
+          signupVerificationToken, referralCode: signupReferralCode.trim() || undefined,
         });
         finishLogin(res.user);
         return;
       }
 
-      if (role === 'counterboy') {
-        const res = await authApi.registerCounterBoy({
-          name: signupName.trim(),
-          phone: signupPhone,
+      if (role === 'counterboy' || role === 'user') {
+        const payload = {
+          name: signupName.trim(), phone: signupPhone,
           email: sanitizeEmailInput(signupEmail).trim() || undefined,
-          city: signupCity.trim() || undefined,
-          district: signupCity.trim() || undefined,
-          state: signupState.trim() || undefined,
-          address: undefined,
+          city: signupCity.trim() || undefined, district: signupCity.trim() || undefined,
+          state: signupState.trim() || undefined, address: undefined,
           pincode: signupPincode.trim() || undefined,
-          password: signupPass.trim() || undefined,
-          signupVerificationToken,
-          referralCode: signupReferralCode.trim() || undefined,
-        });
-        finishLogin(res.user);
-        return;
-      }
-
-      if (role === 'user') {
-        const res = await authApi.registerUser({
-          name: signupName.trim(),
-          phone: signupPhone,
-          email: sanitizeEmailInput(signupEmail).trim() || undefined,
-          city: signupCity.trim() || undefined,
-          district: signupCity.trim() || undefined,
-          state: signupState.trim() || undefined,
-          address: undefined,
-          pincode: signupPincode.trim() || undefined,
-          password: signupPass.trim() || undefined,
-          signupVerificationToken,
-          referralCode: signupReferralCode.trim() || undefined,
-        });
+          signupVerificationToken, referralCode: signupReferralCode.trim() || undefined,
+        };
+        const res = role === 'counterboy'
+          ? await authApi.registerCounterBoy(payload)
+          : await authApi.registerUser(payload);
         finishLogin(res.user);
         return;
       }
 
       const res = await authApi.registerElectrician({
-        name: signupName.trim(),
-        phone: signupPhone,
+        name: signupName.trim(), phone: signupPhone,
         email: sanitizeEmailInput(signupEmail).trim() || undefined,
-        city: signupCity.trim(),
-        district: signupCity.trim(),
-        state: signupState.trim(),
-        address: undefined,
+        city: signupCity.trim(), district: signupCity.trim(), state: signupState.trim(),
+        address: signupAddress.trim() || undefined,
         pincode: signupPincode.trim() || undefined,
         dealerPhone: signupDealerPhone,
-        password: signupPass.trim() || undefined,
-        signupVerificationToken,
-        referralCode: signupReferralCode.trim() || undefined,
+        signupVerificationToken, referralCode: signupReferralCode.trim() || undefined,
       });
       finishLogin(res.user);
     } catch (err: any) {
       const message = err?.message || tx('Something went wrong. Please try again.');
       if (mode === 'login') {
-        if (activeLoginMethod === 'password') {
-          setError('loginPass', message);
-        } else {
-          setError('loginOtp', message);
-        }
+        setError('loginOtp', message);
       } else if (message.toLowerCase().includes('otp')) {
         setError('signupOtp', message);
       } else if (role === 'electrician' && message.toLowerCase().includes('dealer')) {
@@ -1335,9 +1230,11 @@ export function OnboardingScreen({
 
     const doSendOtp = (userRole: UserRole) => {
       setLoading(true);
-      authApi.sendOtp(loginPhone, userRole)
+      smsOtpTargetRef.current = 'login';
+      void startSmsOtpAutofill().then(() => authApi.sendOtp(loginPhone, userRole))
         .then((res) => {
           setLoginOtpCountdown(50);
+          if (res.devOtp) setLoginOtp(res.devOtp.replace(/\D/g, '').slice(0, 4));
           setLoginStep('otp');
           // Show dev OTP hint if returned
           if (res.devOtp) {
@@ -1351,99 +1248,12 @@ export function OnboardingScreen({
         .finally(() => setLoading(false));
     };
 
-    if (!activeLoginMethod) return setError('loginMode', 'Please choose a login option.');
-    setError('loginMode');
     setLoginOtp('');
-    setLoginPass('');
     setLoginOtpVerified(false);
-    if (activeLoginMethod === 'otp') {
-      doSendOtp(role);
-    } else {
-      setLoginStep('password');
-    }
+    doSendOtp(role);
   };
 
-  const openForgotPassword = () => {
-    dismissKeyboard();
-    setForgotPhone(loginPhone.length === 10 ? loginPhone : '');
-    setForgotOtp('');
-    setForgotOtpVerified(false);
-    setForgotPassword('');
-    setForgotConfirmPassword('');
-    setForgotDevOtp('');
-    setForgotStep('phone');
-    setShowForgotPassword(false);
-    setForgotVisible(true);
-  };
-
-  const sendForgotOtp = () => {
-    dismissKeyboard();
-    if (forgotPhone.length !== 10) {
-      Alert.alert(tx('Invalid Mobile Number'), tx('Please enter a valid 10-digit mobile number.'));
-      return;
-    }
-    setForgotLoading(true);
-    authApi.sendPasswordResetOtp(forgotPhone, role)
-      .then((res) => {
-        setForgotDevOtp(res.devOtp ? `Dev OTP: ${res.devOtp}` : '');
-        setForgotOtp('');
-        setForgotOtpVerified(false);
-        setForgotPassword('');
-        setForgotConfirmPassword('');
-        setForgotStep('otp');
-      })
-      .catch((err: Error) => Alert.alert(tx('Could not send OTP'), err.message || tx('Please try again.')))
-      .finally(() => setForgotLoading(false));
-  };
-
-  const verifyForgotOtp = () => {
-    dismissKeyboard();
-    if (forgotOtp.trim().length < 4) {
-      Alert.alert(tx('OTP Required'), tx('Enter the OTP sent to your mobile number.'));
-      return;
-    }
-    setForgotLoading(true);
-    authApi.verifyPasswordResetOtp(forgotPhone, role, forgotOtp.trim())
-      .then(() => {
-        setForgotOtpVerified(true);
-        setForgotStep('password');
-        Alert.alert(tx('OTP Verified'), tx('Now create your new password.'));
-      })
-      .catch((err: Error) => Alert.alert(tx('Invalid OTP'), err.message || tx('Please try again.')))
-      .finally(() => setForgotLoading(false));
-  };
-
-  const confirmForgotPassword = () => {
-    dismissKeyboard();
-    if (!forgotOtpVerified) {
-      Alert.alert(tx('OTP Verification Required'), tx('Please verify OTP before updating password.'));
-      setForgotStep('otp');
-      return;
-    }
-    if (!isValidPassword(forgotPassword.trim())) {
-      Alert.alert(tx('Password Required'), tx(PASSWORD_RULE_MESSAGE));
-      return;
-    }
-    if (forgotPassword.trim() !== forgotConfirmPassword.trim()) {
-      Alert.alert(tx('Password Mismatch'), tx('Passwords do not match. Please re-enter the same password.'));
-      return;
-    }
-    setForgotLoading(true);
-    authApi.resetPasswordWithOtp(forgotPhone, role, forgotOtp.trim(), forgotPassword.trim())
-      .then(() => {
-        setLoginPhone(forgotPhone);
-        setLoginPass(forgotPassword.trim());
-        setLoginStep('password');
-        if (role === 'electrician') setElectricianLoginMethod('password');
-        else setDealerLoginMethod('password');
-        setForgotVisible(false);
-        Alert.alert(tx('Password Updated'), tx('You can now login with your new password.'));
-      })
-      .catch((err: Error) => Alert.alert(tx('Could not reset password'), err.message || tx('Please try again.')))
-      .finally(() => setForgotLoading(false));
-  };
-
-  const verifyLoginOtp = () => {
+  const verifyLoginOtp = useCallback(() => {
     dismissKeyboard();
     if (otpVerificationInFlightRef.current) return;
     if (loginOtp.length !== 4) return setError('loginOtp', 'Enter the 4-digit OTP to continue.');
@@ -1454,30 +1264,34 @@ export function OnboardingScreen({
       .then((res) => {
         setLoginOtpVerified(true);
         (globalThis as any).__srvLoginUser = res.user;
+        onGetStarted(role);
       })
       .catch((err: Error) => {
         setError('loginOtp', err.message || 'Invalid OTP. Please try again.');
+        setLoginOtp('');
       })
       .finally(() => {
         otpVerificationInFlightRef.current = false;
         setLoading(false);
       });
-  };
+  }, [dismissKeyboard, loginOtp, loginPhone, role, setError, onGetStarted]);
 
-  const verifyDealer = () => {
+  const verifyDealer = (phone = signupDealerPhone) => {
     dismissKeyboard();
-    if (signupDealerPhone.length !== 10)
+    if (phone.length !== 10)
       return setError('signupDealerPhone', 'Enter a valid 10-digit dealer number.');
-    if (role === 'electrician' && signupPhone === signupDealerPhone) {
+    if (role === 'electrician' && signupPhone === phone) {
       return setError(
         'signupDealerPhone',
         tx('Dealer number cannot be same as your phone number. Please enter a different dealer number.')
       );
     }
+    const requestId = ++dealerVerificationRequestRef.current;
     setError('signupDealerPhone');
-    setLoading(true);
-    dealerApi.getByPhone(signupDealerPhone)
+    setDealerChecking(true);
+    dealerApi.getByPhone(phone)
       .then((dealer) => {
+        if (requestId !== dealerVerificationRequestRef.current) return;
         const resolvedDealerName =
           dealer.businessName?.trim() ||
           dealer.contactPerson?.trim() ||
@@ -1485,18 +1299,23 @@ export function OnboardingScreen({
           '';
         setDealerVerified(true);
         setVerifiedDealerName(resolvedDealerName);
+        if (role === 'electrician') setSignupTermsAgreed(true);
       })
       .catch((err: Error) => {
+        if (requestId !== dealerVerificationRequestRef.current) return;
         const message = (err.message || '').toLowerCase();
         if (message.includes('not found') || message.includes('not registered')) {
           setDealerVerified(true);
           setVerifiedDealerName('SRV Dealer');
+          if (role === 'electrician') setSignupTermsAgreed(true);
           setError('signupDealerPhone');
           return;
         }
         setError('signupDealerPhone', err.message || 'Unable to verify dealer. Please try again.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (requestId === dealerVerificationRequestRef.current) setDealerChecking(false);
+      });
   };
 
   const sendSignupOtp = () => {
@@ -1509,11 +1328,12 @@ export function OnboardingScreen({
     setSignupOtpVerified(false);
     setSignupVerificationToken('');
     setLoading(true);
-    authApi
-      .sendSignupOtp(signupPhone, role)
+    smsOtpTargetRef.current = 'signup';
+    void startSmsOtpAutofill().then(() => authApi.sendSignupOtp(signupPhone, role))
       .then((res) => {
         setSignupOtpSent(true);
         setSignupOtpCountdown(50);
+        if (res.devOtp) setSignupOtp(res.devOtp.replace(/\D/g, '').slice(0, 4));
         if (res.devOtp) {
           setError('signupPhone', `Dev OTP: ${res.devOtp}`);
         }
@@ -1525,7 +1345,7 @@ export function OnboardingScreen({
       .finally(() => setLoading(false));
   };
 
-  const verifySignupOtp = () => {
+  const verifySignupOtp = useCallback(() => {
     dismissKeyboard();
     if (otpVerificationInFlightRef.current) return;
     if (!signupOtpSent) return setError('signupOtp', 'Please verify your mobile number first.');
@@ -1539,16 +1359,17 @@ export function OnboardingScreen({
       .then((result) => {
         setSignupVerificationToken(result.signupVerificationToken);
         setSignupOtpVerified(true);
-        setSignupStep(role === 'dealer' ? 'password' : 'address');
+        setSignupStep(role === 'dealer' ? 'consent' : 'address');
       })
       .catch((err: Error) => {
         setError('signupOtp', err.message || 'Invalid OTP. Please try again.');
+        setSignupOtp('');
       })
       .finally(() => {
         otpVerificationInFlightRef.current = false;
         setLoading(false);
       });
-  };
+  }, [dismissKeyboard, signupOtpSent, signupOtp, signupPhone, role, setError]);
 
   const continueSignup = () => {
     dismissKeyboard();
@@ -1597,11 +1418,8 @@ export function OnboardingScreen({
           sendSignupOtp();
           return;
         }
-        if (!signupOtpVerified) {
-          verifySignupOtp();
-          return;
-        }
-        setSignupStep('password');
+        if (!signupOtpVerified) return;
+        setSignupStep('consent');
       }
       return;
     }
@@ -1628,20 +1446,33 @@ export function OnboardingScreen({
       setError('signupState');
       setError('signupCity');
       setError('signupPincode');
-      setSignupStep(role === 'electrician' ? 'dealer' : 'password');
+      setSignupStep(role === 'electrician' ? 'dealer' : 'consent');
       return;
     }
     if (signupStep === 'dealer') {
       if (!dealerVerified)
         return setError('signupDealerPhone', 'Please verify the dealer number before continuing.');
       setError('signupDealerPhone');
-      setSignupStep('password');
+      if (role === 'electrician') {
+        if (!signupTermsAgreed)
+          return setError('terms', 'Please agree to the Terms & Conditions and Privacy Policy.');
+        setError('terms');
+        void submitAuth();
+      } else {
+        setSignupStep('consent');
+      }
       return;
     }
-    if (signupStep === 'otp') {
-      verifySignupOtp();
-    }
   };
+
+  useEffect(() => {
+    if (mode === 'login' && loginStep === 'otp' && !loginOtpVerified && loginOtp.length === 4) verifyLoginOtp();
+  }, [mode, loginStep, loginOtp, loginOtpVerified, verifyLoginOtp]);
+
+  useEffect(() => {
+    if (mode === 'signup' && signupOtpSent && !signupOtpVerified && signupOtp.length === 4 &&
+        (signupStep === 'otp' || (role === 'dealer' && signupStep === 'holders'))) verifySignupOtp();
+  }, [mode, role, signupStep, signupOtpSent, signupOtpVerified, signupOtp, verifySignupOtp]);
 
   const skipIdentityStep = () => {
     setError('signupGstNumber');
@@ -1688,8 +1519,7 @@ export function OnboardingScreen({
         )}
         <KeyboardAvoidingView
           style={s.kav}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={s.dismissSurface}>
             <ScrollView
@@ -1697,18 +1527,8 @@ export function OnboardingScreen({
               contentContainerStyle={[
                 s.content,
                 {
-                  paddingTop:
-                    phase === 'auth'
-                      ? keyboardVisible
-                        ? insets.top + 8
-                        : insets.top + 14
-                      : insets.top + 18,
-                  paddingBottom:
-                    phase === 'auth'
-                      ? keyboardVisible
-                        ? insets.bottom + 320
-                        : insets.bottom + 72
-                      : insets.bottom + 40,
+                  paddingTop: insets.top + (phase === 'auth' ? 6 : 18),
+                  paddingBottom: insets.bottom + (phase === 'auth' ? 72 + keyboardInset : 40),
                 },
                 phase !== 'auth' ? s.contentRole : null,
               ]}
@@ -1718,20 +1538,21 @@ export function OnboardingScreen({
               scrollEnabled={true}
               bounces={false}
               overScrollMode="never"
-              automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-              onScrollBeginDrag={dismissKeyboard}
+              onScroll={trackScroll}
+              onLayout={onViewportLayout}
+              onContentSizeChange={onContentSizeChange}
+              scrollEventThrottle={16}
             >
               <Animated.View style={[reveal, phase !== 'auth' ? s.revealRole : null]}>
                 <View
                   style={[
                     s.topRow,
-                    isCompactPhone || (phase === 'auth' && keyboardVisible) ? s.topRowCompact : null,
+                    isCompactPhone ? s.topRowCompact : null,
                     phase === 'auth' ? s.topRowAuth : null,
-                    phase === 'auth' && keyboardVisible ? s.topRowAuthKeyboard : null,
                   ]}
                 >
                   <View style={[s.brandRow, s.brandRowCentered]}>
-                    <View style={[s.logoWrap, isCompactPhone ? s.logoWrapCompact : null]}>
+                    <View style={[s.logoWrap, isCompactPhone ? s.logoWrapCompact : null, phase === 'auth' ? s.logoWrapAuth : null]}>
                       <Image
                         source={SRV_LOGO}
                         style={s.logo}
@@ -1769,7 +1590,6 @@ export function OnboardingScreen({
                     s.welcomeRow,
                     s.welcomeRowCentered,
                     phase === 'auth' ? s.welcomeRowAuth : null,
-                    phase === 'auth' && keyboardVisible ? s.welcomeRowAuthHidden : null,
                   ]}
                 >
                   <View style={s.welcomeBadge}>
@@ -1805,6 +1625,7 @@ export function OnboardingScreen({
                   style={[
                     s.bigTitle,
                     isCompactPhone ? s.bigTitleCompact : null,
+                    phase === 'auth' ? s.bigTitleAuth : null,
                     phase === 'language' ? s.bigTitleLanguage : null,
                     phase === 'auth'
                       ? role === 'electrician'
@@ -1821,7 +1642,6 @@ export function OnboardingScreen({
                     s.subtext,
                     isCompactPhone ? s.subtextCompact : null,
                     phase === 'auth' ? s.subtextAuth : null,
-                    phase === 'auth' && keyboardVisible ? s.subtextAuthHidden : null,
                   ]}
                 >
                   {screenSubtitle}
@@ -1966,7 +1786,7 @@ export function OnboardingScreen({
                         </Text>
                         <Text style={[s.sectionTextAuth, s.sectionTextAuthElectrician]}>
                           {mode === 'login'
-                            ? tx('Choose a secure login method and continue with your account.')
+                            ? tx('Enter your mobile number to log in with OTP.')
                             : tx('Complete the account setup flow and create your electrician profile.')}
                         </Text>
                       </LinearGradient>
@@ -2037,358 +1857,42 @@ export function OnboardingScreen({
 
                     {!authSelectionOpen ? null : mode === 'login' ? (
                       <View style={s.form}>
-                        {role === 'electrician' ? (
-                          <>
-                            <View style={s.loginChoiceRow}>
-                              <Pressable
-                                onPress={() => {
-                                  setElectricianLoginMethod('otp');
-                                  setLoginStep('phone');
-                                  setLoginOtp('');
-                                  setLoginPass('');
-                                  setLoginOtpVerified(false);
-                                  setError('loginMode');
-                                  setError('loginOtp');
-                                  setError('loginPass');
-                                }}
-                                style={[
-                                  s.loginChoiceCard,
-                                  electricianLoginMethod === 'otp' ? s.loginChoiceCardActive : null,
-                                  darkMode && electricianLoginMethod !== 'otp' ? { backgroundColor: '#1E293B', borderColor: '#334155' } : null,
-                                ]}
-                                testID="onboarding-login-method-otp"
-                              >
-                                <Text
-                                  style={[
-                                    s.loginChoiceText,
-                                    electricianLoginMethod === 'otp'
-                                      ? s.loginChoiceTextActive
-                                      : null,
-                                  ]}
-                                >
-                                  {tx('Login with OTP')}
-                                </Text>
-                              </Pressable>
-                              <Pressable
-                                onPress={() => {
-                                  setElectricianLoginMethod('password');
-                                  setLoginStep('password');
-                                  setLoginOtp('');
-                                  setLoginPass('');
-                                  setLoginOtpVerified(false);
-                                  setError('loginMode');
-                                  setError('loginPhone');
-                                  setError('loginOtp');
-                                  setError('loginPass');
-                                }}
-                                style={[
-                                  s.loginChoiceCard,
-                                  electricianLoginMethod === 'password'
-                                    ? s.loginChoiceCardActive
-                                    : null,
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    s.loginChoiceText,
-                                    electricianLoginMethod === 'password'
-                                      ? s.loginChoiceTextActive
-                                      : null,
-                                  ]}
-                                >
-                                  {tx('Login with Password')}
-                                </Text>
-                              </Pressable>
-                            </View>
-                            {errors.loginMode ? (
-                              <Info text={errors.loginMode} kind="error" />
-                            ) : null}
-                            {electricianLoginMethod ? (
-                              <>
-                                <Field
-                                  label={tx('Mobile Number')}
-                                  value={loginPhone}
-                                  onChangeText={handlePhone(setLoginPhone)}
-                                  placeholder={tx('Enter mobile number')}
-                                  keyboardType="phone-pad"
-                                  prefix="+91"
-                                  error={errors.loginPhone}
-                                  onFocus={scrollToForm}
-                                  inputRef={loginPhoneRef}
-                                  onSubmitEditing={
-                                    electricianLoginMethod === 'otp'
-                                      ? continueLoginPhone
-                                      : undefined
-                                  }
-                                  actionLabel={
-                                    electricianLoginMethod === 'otp' && loginStep === 'phone'
-                                      ? tx('Verify')
-                                      : undefined
-                                  }
-                                  onActionPress={
-                                    electricianLoginMethod === 'otp'
-                                      ? continueLoginPhone
-                                      : undefined
-                                  }
-                                  inputTestID="onboarding-login-phone-input"
-                                  actionTestID="onboarding-login-phone-verify"
-                                  actionDisabled={
-                                    electricianLoginMethod === 'otp'
-                                      ? loginPhone.length !== 10
-                                      : undefined
-                                  }
-                                  maxLength={10}
-                                />
-                                {electricianLoginMethod === 'otp' && loginStep !== 'phone' ? (
-                                  <Field
-                                    label={tx('OTP')}
-                                    value={loginOtp}
-                                    onChangeText={handleOtp(setLoginOtp)}
-                                    placeholder={tx('Enter 4 digit OTP')}
-                                    keyboardType="numeric"
-                                    error={errors.loginOtp}
-                                    onFocus={scrollToForm}
-                                    inputRef={loginOtpRef}
-                                    onSubmitEditing={verifyLoginOtp}
-                                    actionLabel={
-                                      loginOtpCountdown > 0
-                                        ? `0:${loginOtpCountdown >= 10 ? loginOtpCountdown : `0${loginOtpCountdown}`}`
-                                        : tx('Resend')
-                                    }
-                                    onActionPress={
-                                      loginOtpCountdown === 0 ? continueLoginPhone : undefined
-                                    }
-                                    inputTestID="onboarding-login-otp-input"
-                                    actionDisabled={loginOtpCountdown > 0}
-                                  />
-                                ) : null}
-                                {electricianLoginMethod === 'otp' &&
-                                loginStep !== 'phone' &&
-                                !loginOtpVerified ? (
-                                  <Button
-                                    label={tx('Verify OTP')}
-                                    onPress={verifyLoginOtp}
-                                    disabled={loginOtp.length !== 4}
-                                    testID="onboarding-login-verify-otp"
-                                    colors={['#173E80', '#355C95']}
-                                    shadowColor="#173E80"
-                                  />
-                                ) : null}
-                                {electricianLoginMethod === 'otp' && loginOtpVerified ? (
-                                  <Info text={tx('OTP verified successfully.')} kind="success" />
-                                ) : null}
-                                {electricianLoginMethod === 'otp' && loginOtpVerified ? (
-                                  <Button
-                                    label={loading ? tx('Logging In...') : tx('Login')}
-                                    onPress={submitAuth}
-                                    disabled={!canContinue || loading}
-                                    testID="onboarding-login-submit"
-                                    colors={['#173E80', '#355C95']}
-                                    shadowColor="#173E80"
-                                  />
-                                ) : null}
-                                {electricianLoginMethod === 'password' &&
-                                loginStep === 'password' ? (
-                                  <Field
-                                    label={tx('Password')}
-                                    value={loginPass}
-                                    onChangeText={(value) => setLoginPass(cleanPasswordInput(value))}
-                                    placeholder={tx('Enter at least 8 characters')}
-                                    secureTextEntry={!showPassword}
-                                    error={errors.loginPass}
-                                    onFocus={scrollToForm}
-                                    inputRef={loginPassRef}
-                                    actionContent={<EyeIcon open={showPassword} />}
-                                    onActionPress={() => setShowPassword((current) => !current)}
-                                  />
-                                ) : null}
-                                {electricianLoginMethod === 'password' &&
-                                loginStep === 'password' ? (
-                                  <Pressable onPress={openForgotPassword} style={s.forgotLinkWrap}>
-                                    <Text style={s.forgotLinkText}>{tx('Forgot Password?')}</Text>
-                                  </Pressable>
-                                ) : null}
-                                {electricianLoginMethod === 'password' &&
-                                loginStep === 'password' ? (
-                                  <Button
-                                    label={loading ? tx('Logging In...') : tx('Login')}
-                                    onPress={submitAuth}
-                                    disabled={!canContinue || loading}
-                                    colors={['#173E80', '#355C95']}
-                                    shadowColor="#173E80"
-                                  />
-                                ) : null}
-                              </>
-                            ) : null}
-                          </>
-                        ) : (
-                          <>
-                            <View style={s.loginChoiceRow}>
-                              <Pressable
-                                onPress={() => {
-                                  setDealerLoginMethod('otp');
-                                  setLoginStep('phone');
-                                  setLoginOtp('');
-                                  setLoginPass('');
-                                  setLoginOtpVerified(false);
-                                  setError('loginMode');
-                                  setError('loginOtp');
-                                  setError('loginPass');
-                                }}
-                                style={[
-                                  s.loginChoiceCard,
-                                  dealerLoginMethod === 'otp' ? s.loginChoiceCardActive : null,
-                                ]}
-                                testID="onboarding-login-method-otp"
-                              >
-                                <Text
-                                  style={[
-                                    s.loginChoiceText,
-                                    dealerLoginMethod === 'otp' ? s.loginChoiceTextActive : null,
-                                  ]}
-                                >
-                                  {tx('Login with OTP')}
-                                </Text>
-                              </Pressable>
-                              <Pressable
-                                onPress={() => {
-                                  setDealerLoginMethod('password');
-                                  setLoginStep('password');
-                                  setLoginOtp('');
-                                  setLoginPass('');
-                                  setLoginOtpVerified(false);
-                                  setError('loginMode');
-                                  setError('loginPhone');
-                                  setError('loginOtp');
-                                  setError('loginPass');
-                                }}
-                                style={[
-                                  s.loginChoiceCard,
-                                  dealerLoginMethod === 'password' ? s.loginChoiceCardActive : null,
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    s.loginChoiceText,
-                                    dealerLoginMethod === 'password'
-                                      ? s.loginChoiceTextActive
-                                      : null,
-                                  ]}
-                                >
-                                  {tx('Login with Password')}
-                                </Text>
-                              </Pressable>
-                            </View>
-                            {errors.loginMode ? (
-                              <Info text={errors.loginMode} kind="error" />
-                            ) : null}
-                            {dealerLoginMethod ? (
-                              <>
-                                <Field
-                                  label={tx('Mobile Number')}
-                                  value={loginPhone}
-                                  onChangeText={handlePhone(setLoginPhone)}
-                                  placeholder={tx('Enter mobile number')}
-                                  keyboardType="phone-pad"
-                                  prefix="+91"
-                                  error={errors.loginPhone}
-                                  onFocus={scrollToForm}
-                                  inputRef={loginPhoneRef}
-                                  onSubmitEditing={
-                                    dealerLoginMethod === 'otp' ? continueLoginPhone : undefined
-                                  }
-                                  actionLabel={
-                                    dealerLoginMethod === 'otp' && loginStep === 'phone'
-                                      ? tx('Verify')
-                                      : undefined
-                                  }
-                                  onActionPress={
-                                    dealerLoginMethod === 'otp' ? continueLoginPhone : undefined
-                                  }
-                                  inputTestID="onboarding-login-phone-input"
-                                  actionTestID="onboarding-login-phone-verify"
-                                  actionDisabled={
-                                    dealerLoginMethod === 'otp'
-                                      ? loginPhone.length !== 10
-                                      : undefined
-                                  }
-                                  maxLength={10}
-                                />
-                                {dealerLoginMethod === 'otp' && loginStep !== 'phone' ? (
-                                  <Field
-                                    label={tx('OTP')}
-                                    value={loginOtp}
-                                    onChangeText={handleOtp(setLoginOtp)}
-                                    placeholder={tx('Enter 4 digit OTP')}
-                                    keyboardType="numeric"
-                                    error={errors.loginOtp}
-                                    onFocus={scrollToForm}
-                                    inputRef={loginOtpRef}
-                                    onSubmitEditing={verifyLoginOtp}
-                                    actionLabel={
-                                      loginOtpCountdown > 0
-                                        ? `0:${loginOtpCountdown >= 10 ? loginOtpCountdown : `0${loginOtpCountdown}`}`
-                                        : tx('Resend')
-                                    }
-                                    onActionPress={
-                                      loginOtpCountdown === 0 ? continueLoginPhone : undefined
-                                    }
-                                    inputTestID="onboarding-login-otp-input"
-                                    actionDisabled={loginOtpCountdown > 0}
-                                  />
-                                ) : null}
-                                {dealerLoginMethod === 'otp' &&
-                                loginStep !== 'phone' &&
-                                !loginOtpVerified ? (
-                                  <Button
-                                    label={tx('Verify OTP')}
-                                    onPress={verifyLoginOtp}
-                                    disabled={loginOtp.length !== 4}
-                                    testID="onboarding-login-verify-otp"
-                                    secondary
-                                  />
-                                ) : null}
-                                {dealerLoginMethod === 'otp' && loginOtpVerified ? (
-                                  <Info text={tx('OTP verified successfully.')} kind="success" />
-                                ) : null}
-                                {dealerLoginMethod === 'otp' && loginOtpVerified ? (
-                                  <Button
-                                    label={loading ? tx('Logging In...') : tx('Login')}
-                                    onPress={submitAuth}
-                                    disabled={!canContinue || loading}
-                                    testID="onboarding-login-submit"
-                                  />
-                                ) : null}
-                                {dealerLoginMethod === 'password' && loginStep === 'password' ? (
-                                  <Field
-                                    label={tx('Password')}
-                                    value={loginPass}
-                                    onChangeText={(value) => setLoginPass(cleanPasswordInput(value))}
-                                    placeholder={tx('Enter at least 8 characters')}
-                                    secureTextEntry={!showPassword}
-                                    error={errors.loginPass}
-                                    onFocus={scrollToForm}
-                                    inputRef={loginPassRef}
-                                    actionContent={<EyeIcon open={showPassword} />}
-                                    onActionPress={() => setShowPassword((current) => !current)}
-                                  />
-                                ) : null}
-                                {dealerLoginMethod === 'password' && loginStep === 'password' ? (
-                                  <Pressable onPress={openForgotPassword} style={s.forgotLinkWrap}>
-                                    <Text style={s.forgotLinkText}>{tx('Forgot Password?')}</Text>
-                                  </Pressable>
-                                ) : null}
-                                {dealerLoginMethod === 'password' && loginStep === 'password' ? (
-                                  <Button
-                                    label={loading ? tx('Logging In...') : tx('Login')}
-                                    onPress={submitAuth}
-                                    disabled={!canContinue || loading}
-                                  />
-                                ) : null}
-                              </>
-                            ) : null}
-                          </>
-                        )}
+                        <Field
+                          label={tx('Mobile Number')}
+                          value={loginPhone}
+                          onChangeText={handlePhone(setLoginPhone)}
+                          placeholder={tx('Enter mobile number')}
+                          keyboardType="phone-pad"
+                          prefix="+91"
+                          error={errors.loginPhone}
+                          onFocus={scrollToForm}
+                          inputRef={loginPhoneRef}
+                          onSubmitEditing={continueLoginPhone}
+                          actionLabel={loginStep === 'phone' ? tx('Send OTP') : undefined}
+                          onActionPress={continueLoginPhone}
+                          inputTestID="onboarding-login-phone-input"
+                          actionTestID="onboarding-login-phone-verify"
+                          actionDisabled={loginPhone.length !== 10 || loading}
+                          maxLength={10}
+                        />
+                        {loginStep === 'otp' ? (
+                          <Field
+                            label={tx('OTP')}
+                            value={loginOtp}
+                            onChangeText={handleOtp(setLoginOtp)}
+                            placeholder={tx('Enter 4 digit OTP')}
+                            keyboardType="numeric"
+                            autoComplete={OTP_AUTO_COMPLETE}
+                            maxLength={4}
+                            error={errors.loginOtp}
+                            onFocus={scrollToForm}
+                            inputRef={loginOtpRef}
+                            actionLabel={loginOtpCountdown > 0 ? String(loginOtpCountdown) : tx('Resend')}
+                            onActionPress={loginOtpCountdown === 0 ? continueLoginPhone : undefined}
+                            inputTestID="onboarding-login-otp-input"
+                            actionDisabled={loginOtpCountdown > 0}
+                          />
+                        ) : null}
                       </View>
                     ) : (
                       <View style={s.form}>
@@ -2429,7 +1933,7 @@ export function OnboardingScreen({
                                   onFocus={scrollToForm}
                                   returnKeyType="next"
                                   blurOnSubmit={false}
-                                  onSubmitEditing={() => scrollToForm()}
+                                  onSubmitEditing={() => signupEmailRef.current?.focus()}
                                 />
                                 <Field
                                   label={tx('Email Address (Optional)')}
@@ -2438,9 +1942,8 @@ export function OnboardingScreen({
                                   placeholder="name@business.com"
                                   error={errors.signupEmail}
                                   onFocus={scrollToForm}
-                                  returnKeyType="next"
-                                  blurOnSubmit={false}
-                                  onSubmitEditing={() => scrollToForm()}
+                                  inputRef={signupEmailRef}
+                                  onSubmitEditing={continueSignup}
                                 />
                                 <Button
                                   label={dealerSignupContent?.buttonLabel ?? tx('Continue')}
@@ -2585,11 +2088,12 @@ export function OnboardingScreen({
                                     onChangeText={handleOtp(setSignupOtp)}
                                     placeholder={tx('Enter 4 digit OTP')}
                                     keyboardType="numeric"
+                                    autoComplete={OTP_AUTO_COMPLETE}
+                                    maxLength={4}
                                     error={errors.signupOtp}
                                     onFocus={scrollToForm}
                                     inputRef={signupOtpRef}
-                                    onSubmitEditing={verifySignupOtp}
-                                    actionLabel={
+                                                                        actionLabel={
                                       signupOtpCountdown > 0
                                         ? `0:${signupOtpCountdown >= 10 ? signupOtpCountdown : `0${signupOtpCountdown}`}`
                                         : tx('Resend')
@@ -2600,18 +2104,9 @@ export function OnboardingScreen({
                                     actionDisabled={signupOtpCountdown > 0}
                                   />
                                 ) : null}
-                                {signupOtpSent && !signupOtpVerified ? (
-                                  <Button
-                                    label={tx('Verify OTP')}
-                                    onPress={verifySignupOtp}
-                                    disabled={signupOtp.length !== 4}
-                                    secondary
-                                  />
-                                ) : null}
                               </>
                             ) : null}
-
-                            {signupStep === 'password' ? (
+                            {signupStep === 'consent' ? (
                               <>
                                 {signupOtpVerified ? (
                                   <Info
@@ -2619,11 +2114,6 @@ export function OnboardingScreen({
                                     kind="success"
                                   />
                                 ) : null}
-                                <Text style={s.helperText}>
-                                  {tx(
-                                    'Password is optional. Leave both fields blank if you want to skip it.'
-                                  )}
-                                </Text>
                                 <Field
                                   label={tx('Referral Code (Optional)')}
                                   value={signupReferralCode}
@@ -2632,50 +2122,6 @@ export function OnboardingScreen({
                                   onFocus={scrollToForm}
                                 />
                                 <Info text={tx('After signup, you and your friend will each receive 20 points.')} kind="hint" />
-                                <Field
-                                  label={tx('Password (Optional)')}
-                                  value={signupPass}
-                                  onChangeText={(value) => {
-                                    const nextPassword = cleanPasswordInput(value);
-                                    setSignupPasswordSkipped(false);
-                                    setSignupPass(nextPassword);
-                                    setError('signupPass', getPasswordError(nextPassword));
-                                  }}
-                                  placeholder={tx('Create a password (minimum 8 characters)')}
-                                  secureTextEntry={!showPassword}
-                                  error={getPasswordError(signupPass)}
-                                  onFocus={scrollToForm}
-                                  inputRef={signupPassRef}
-                                  returnKeyType="next"
-                                  blurOnSubmit={false}
-                                  onSubmitEditing={() => signupConfirmPassRef.current?.focus()}
-                                  actionContent={<EyeIcon open={showPassword} />}
-                                  onActionPress={() => setShowPassword((current) => !current)}
-                                />
-                                <Field
-                                  label={tx('Confirm Password (Optional)')}
-                                  value={signupConfirmPass}
-                                  onChangeText={(value) => {
-                                    const nextPassword = cleanPasswordInput(value);
-                                    setSignupConfirmPass(nextPassword);
-                                    if (signupPass.length > 0 && nextPassword !== signupPass) {
-                                      setError('signupConfirmPass', 'Passwords do not match.');
-                                    } else {
-                                      setError('signupConfirmPass');
-                                    }
-                                  }}
-                                  placeholder={tx('Re-enter password')}
-                                  secureTextEntry={!showPassword}
-                                  error={errors.signupConfirmPass}
-                                  onFocus={scrollToForm}
-                                  inputRef={signupConfirmPassRef}
-                                  actionContent={<EyeIcon open={showPassword} />}
-                                  onActionPress={() => setShowPassword((current) => !current)}
-                                />
-                                <Pressable style={s.skipBtn} onPress={togglePasswordSkip}>
-                                  <Text style={s.skipBtnText}>{tx(signupPasswordSkipped ? 'Add Password Instead' : 'Skip for Now')}</Text>
-                                </Pressable>
-                                {signupPasswordSkipped ? <Info text={tx('Password skipped. Accept the terms below to continue.')} kind="success" /> : null}
                                 <Pressable
                                   style={[
                                     s.checkboxCard,
@@ -2696,7 +2142,7 @@ export function OnboardingScreen({
                                   </View>
                                 </Pressable>
                                 {errors.terms ? <Info text={errors.terms} kind="error" /> : null}
-                                {signupTermsAgreed && signupPasswordReady ? (
+                                {signupTermsAgreed ? (
                                 <Button
                                   label={
                                     loading
@@ -2779,9 +2225,33 @@ export function OnboardingScreen({
                             {signupStep === 'address' ? (
                               <>
                                 <Field
+                                  label={tx('Address')}
+                                  value={signupAddress}
+                                  onChangeText={(value) => {
+                                    addressDirtyRef.current = true;
+                                    setSignupAddress(value);
+                                    setLocationMessage('');
+                                    setError('signupAddress');
+                                  }}
+                                  placeholder={locationLoading ? tx('Fetching current address...') : tx('Enter your complete address')}
+                                  error={errors.signupAddress}
+                                  onFocus={scrollToForm}
+                                  inputRef={signupAddressRef}
+                                  actionLabel={locationLoading ? tx('Locating') : tx('Current Address')}
+                                  onActionPress={() => {
+                                    addressDirtyRef.current = false;
+                                    stateDirtyRef.current = false;
+                                    cityDirtyRef.current = false;
+                                    pincodeDirtyRef.current = false;
+                                    void requestCurrentLocation();
+                                  }}
+                                  actionDisabled={locationLoading}
+                                />
+                                {locationMessage ? <Info text={locationMessage} kind="success" /> : null}
+                                <Field
                                   label={tx('State')}
                                   value={signupState}
-                                  onChangeText={handleName((v) => { setSignupState(v); setError('signupState'); })}
+                                  onChangeText={handleName((v) => { stateDirtyRef.current = true; setSignupState(v); setError('signupState'); })}
                                   placeholder={tx('State')}
                                   error={errors.signupState}
                                   onFocus={scrollToForm}
@@ -2793,7 +2263,7 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('District')}
                                   value={signupCity}
-                                  onChangeText={handleName((v) => { setSignupCity(v); setError('signupCity'); })}
+                                  onChangeText={handleName((v) => { cityDirtyRef.current = true; setSignupCity(v); setError('signupCity'); })}
                                   placeholder={tx('District')}
                                   error={errors.signupCity}
                                   onFocus={scrollToForm}
@@ -2806,6 +2276,7 @@ export function OnboardingScreen({
                                   label={tx('Pincode')}
                                   value={signupPincode}
                                   onChangeText={(value) => {
+                                    pincodeDirtyRef.current = true;
                                     setSignupPincode(value.replace(/\D/g, '').slice(0, 6));
                                     setError('signupPincode');
                                   }}
@@ -2822,7 +2293,7 @@ export function OnboardingScreen({
                               <Button
                                 label={tx('Continue')}
                                 onPress={continueSignup}
-                                disabled={false}
+                                disabled={locationLoading}
                                 secondary
                               />
                             ) : null}
@@ -2832,27 +2303,27 @@ export function OnboardingScreen({
                                 label={tx('Dealer Verification Number')}
                                 value={signupDealerPhone}
                                 onChangeText={(value) => {
-                                  handlePhone(setSignupDealerPhone)(value);
+                                  const nextPhone = value.replace(/\D/g, '').slice(0, 10);
+                                  dealerVerificationRequestRef.current += 1;
+                                  setSignupDealerPhone(nextPhone);
                                   setDealerVerified(false);
                                   setVerifiedDealerName('');
+                                  setSignupTermsAgreed(false);
+                                  setDealerChecking(false);
                                   setError('signupDealerPhone');
+                                  if (nextPhone.length === 10) verifyDealer(nextPhone);
                                 }}
                                 placeholder={tx('Enter dealer mobile number')}
                                 keyboardType="phone-pad"
                                 error={errors.signupDealerPhone}
                                 onFocus={scrollToForm}
                                 inputRef={signupDealerRef}
-                                onSubmitEditing={verifyDealer}
+                                onSubmitEditing={dismissKeyboard}
                                 maxLength={10}
                               />
                             ) : null}
-                            {signupStep === 'dealer' && !dealerVerified ? (
-                              <Button
-                                label={tx('Verify')}
-                                onPress={verifyDealer}
-                                disabled={signupDealerPhone.length !== 10}
-                                secondary
-                              />
+                            {signupStep === 'dealer' && dealerChecking && !dealerVerified ? (
+                              <Info text="Checking dealer number..." kind="hint" />
                             ) : null}
                             {signupStep === 'dealer' && dealerVerified ? (
                               <View style={s.verifiedDealerCard}>
@@ -2864,54 +2335,7 @@ export function OnboardingScreen({
                               </View>
                             ) : null}
                             {dealerVerified && signupStep === 'dealer' ? (
-                              <Button
-                                label={tx('Continue')}
-                                onPress={continueSignup}
-                                disabled={!dealerVerified}
-                                secondary
-                              />
-                            ) : null}
-                            {signupStep === 'otp' && signupOtpSent && !signupOtpVerified ? (
-                              <Info
-                                text={`${tx('OTP sent to')} +91 ${signupPhone}.`}
-                                kind="success"
-                              />
-                            ) : null}
-                            {signupStep === 'otp' && signupOtpSent && !signupOtpVerified ? (
-                              <Field
-                                label={tx('OTP')}
-                                value={signupOtp}
-                                onChangeText={handleOtp(setSignupOtp)}
-                                placeholder={tx('Enter 4 digit OTP')}
-                                keyboardType="numeric"
-                                error={errors.signupOtp}
-                                onFocus={scrollToForm}
-                                inputRef={signupOtpRef}
-                                onSubmitEditing={verifySignupOtp}
-                                actionLabel={
-                                  signupOtpCountdown > 0
-                                    ? `0:${signupOtpCountdown >= 10 ? signupOtpCountdown : `0${signupOtpCountdown}`}`
-                                    : tx('Resend')
-                                }
-                                onActionPress={signupOtpCountdown === 0 ? sendSignupOtp : undefined}
-                                actionDisabled={signupOtpCountdown > 0}
-                              />
-                            ) : null}
-                            {signupStep === 'otp' ? (
-                              <Button
-                                label={tx('Verify OTP')}
-                                onPress={continueSignup}
-                                disabled={signupOtp.length !== 4}
-                                secondary
-                              />
-                            ) : null}
-                            {signupStep === 'password' ? (
                               <>
-                                <Text style={s.helperText}>
-                                  {tx(
-                                    'Password is optional. Leave both fields blank if you want to skip it.'
-                                  )}
-                                </Text>
                                 <Field
                                   label={tx('Referral Code (Optional)')}
                                   value={signupReferralCode}
@@ -2920,56 +2344,12 @@ export function OnboardingScreen({
                                   onFocus={scrollToForm}
                                 />
                                 <Info text={tx('After signup, you and your friend will each receive 20 points.')} kind="hint" />
-                                <Field
-                                  label={tx('Password (Optional)')}
-                                  value={signupPass}
-                                  onChangeText={(value) => {
-                                    const nextPassword = cleanPasswordInput(value);
-                                    setSignupPasswordSkipped(false);
-                                    setSignupPass(nextPassword);
-                                    setError('signupPass', getPasswordError(nextPassword));
-                                  }}
-                                  placeholder={tx('Create a password (minimum 8 characters)')}
-                                  secureTextEntry={!showPassword}
-                                  error={getPasswordError(signupPass)}
-                                  onFocus={scrollToForm}
-                                  inputRef={signupPassRef}
-                                  returnKeyType="next"
-                                  blurOnSubmit={false}
-                                  onSubmitEditing={() => signupConfirmPassRef.current?.focus()}
-                                  actionContent={<EyeIcon open={showPassword} />}
-                                  onActionPress={() => setShowPassword((current) => !current)}
-                                />
-                                <Field
-                                  label={tx('Confirm Password (Optional)')}
-                                  value={signupConfirmPass}
-                                  onChangeText={(value) => {
-                                    const nextPassword = cleanPasswordInput(value);
-                                    setSignupConfirmPass(nextPassword);
-                                    if (signupPass.length > 0 && nextPassword !== signupPass) {
-                                      setError('signupConfirmPass', 'Passwords do not match.');
-                                    } else {
-                                      setError('signupConfirmPass');
-                                    }
-                                  }}
-                                  placeholder={tx('Re-enter password')}
-                                  secureTextEntry={!showPassword}
-                                  error={errors.signupConfirmPass}
-                                  onFocus={scrollToForm}
-                                  inputRef={signupConfirmPassRef}
-                                  actionContent={<EyeIcon open={showPassword} />}
-                                  onActionPress={() => setShowPassword((current) => !current)}
-                                />
-                                <Pressable style={s.skipBtn} onPress={togglePasswordSkip}>
-                                  <Text style={s.skipBtnText}>{tx(signupPasswordSkipped ? 'Add Password Instead' : 'Skip for Now')}</Text>
-                                </Pressable>
-                                {signupPasswordSkipped ? <Info text={tx('Password skipped. Accept the terms below to continue.')} kind="success" /> : null}
                                 <Pressable
-                                  style={[
-                                    s.checkboxCard,
-                                    signupTermsAgreed && s.checkboxCardActive,
-                                  ]}
-                                  onPress={() => setSignupTermsAgreed(!signupTermsAgreed)}
+                                  style={[s.checkboxCard, signupTermsAgreed && s.checkboxCardActive]}
+                                  onPress={() => {
+                                    setSignupTermsAgreed(!signupTermsAgreed);
+                                    setError('terms');
+                                  }}
                                 >
                                   <View style={[s.checkbox, signupTermsAgreed && s.checkboxOn]}>
                                     {signupTermsAgreed ? <CheckIcon /> : null}
@@ -2984,26 +2364,41 @@ export function OnboardingScreen({
                                   </View>
                                 </Pressable>
                                 {errors.terms ? <Info text={errors.terms} kind="error" /> : null}
-                                {signupTermsAgreed && signupPasswordReady ? (
                                 <Button
                                   label={loading ? tx('Creating Account...') : tx('Create Account')}
-                                  onPress={() => {
-                                    if (!signupTermsAgreed)
-                                      return setError(
-                                        'terms',
-                                        tx(
-                                          'Please agree to the Terms & Conditions and Privacy Policy.'
-                                        )
-                                      );
-                                    setError('terms');
-                                    submitAuth();
-                                  }}
+                                  onPress={continueSignup}
                                   disabled={!canContinue || loading}
                                   colors={['#173E80', '#355C95']}
                                   shadowColor="#173E80"
                                 />
-                                ) : null}
                               </>
+                            ) : null}
+                            {signupStep === 'otp' && signupOtpSent && !signupOtpVerified ? (
+                              <Info
+                                text={`${tx('OTP sent to')} +91 ${signupPhone}.`}
+                                kind="success"
+                              />
+                            ) : null}
+                            {signupStep === 'otp' && signupOtpSent && !signupOtpVerified ? (
+                              <Field
+                                label={tx('OTP')}
+                                value={signupOtp}
+                                onChangeText={handleOtp(setSignupOtp)}
+                                placeholder={tx('Enter 4 digit OTP')}
+                                keyboardType="numeric"
+                                autoComplete={OTP_AUTO_COMPLETE}
+                                maxLength={4}
+                                error={errors.signupOtp}
+                                onFocus={scrollToForm}
+                                inputRef={signupOtpRef}
+                                                                actionLabel={
+                                  signupOtpCountdown > 0
+                                    ? `0:${signupOtpCountdown >= 10 ? signupOtpCountdown : `0${signupOtpCountdown}`}`
+                                    : tx('Resend')
+                                }
+                                onActionPress={signupOtpCountdown === 0 ? sendSignupOtp : undefined}
+                                actionDisabled={signupOtpCountdown > 0}
+                              />
                             ) : null}
                           </>
                         )}
@@ -3016,103 +2411,6 @@ export function OnboardingScreen({
           </View>
         </KeyboardAvoidingView>
       </LinearGradient>
-      <Modal visible={forgotVisible} transparent animationType="fade" onRequestClose={() => setForgotVisible(false)}>
-        <View style={s.forgotOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setForgotVisible(false)} />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={s.forgotKav}
-          >
-          <ScrollView
-            style={s.forgotScroll}
-            contentContainerStyle={s.forgotCard}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={s.forgotHandle} />
-            <Text style={s.forgotTitle}>{tx('Forgot Password')}</Text>
-            <Text style={s.forgotSubtitle}>
-              {forgotStep === 'phone'
-                ? tx('Enter your registered mobile number to receive an OTP.')
-                : forgotStep === 'otp'
-                  ? tx('Enter and verify the OTP sent to your mobile number.')
-                  : tx('OTP verified. Now create a new password for your account.')}
-            </Text>
-            <Field
-              label={tx('Mobile Number')}
-              value={forgotPhone}
-              onChangeText={handlePhone(setForgotPhone)}
-              placeholder={tx('Enter mobile number')}
-              keyboardType="phone-pad"
-              prefix="+91"
-              maxLength={10}
-              editable={forgotStep === 'phone'}
-            />
-            {forgotStep !== 'phone' ? (
-              <>
-                {forgotDevOtp ? <Info text={forgotDevOtp} kind="success" /> : null}
-                <Field
-                  label={tx('OTP')}
-                  value={forgotOtp}
-                  onChangeText={handleOtp(setForgotOtp)}
-                  placeholder={tx('Enter 4 digit OTP')}
-                  keyboardType="numeric"
-                  maxLength={4}
-                  editable={forgotStep === 'otp'}
-                />
-                {forgotOtpVerified ? <Info text={tx('OTP verified successfully.')} kind="success" /> : null}
-              </>
-            ) : null}
-            {forgotStep === 'password' ? (
-              <>
-                <Field
-                  label={tx('New Password')}
-                  value={forgotPassword}
-                  onChangeText={(value) => setForgotPassword(cleanPasswordInput(value))}
-                  placeholder={tx('Create a password (minimum 8 characters)')}
-                  secureTextEntry={!showForgotPassword}
-                  actionContent={<EyeIcon open={showForgotPassword} />}
-                  onActionPress={() => setShowForgotPassword((current) => !current)}
-                />
-                <Field
-                  label={tx('Confirm Password')}
-                  value={forgotConfirmPassword}
-                  onChangeText={(value) => setForgotConfirmPassword(cleanPasswordInput(value))}
-                  placeholder={tx('Re-enter new password')}
-                  secureTextEntry={!showForgotPassword}
-                />
-              </>
-            ) : null}
-            <Button
-              label={
-                forgotLoading
-                  ? tx('Please wait...')
-                  : forgotStep === 'phone'
-                    ? tx('Send OTP')
-                    : forgotStep === 'otp'
-                      ? tx('Verify OTP')
-                      : tx('Update Password')
-              }
-              onPress={
-                forgotStep === 'phone'
-                  ? sendForgotOtp
-                  : forgotStep === 'otp'
-                    ? verifyForgotOtp
-                    : confirmForgotPassword
-              }
-              disabled={forgotLoading}
-              colors={['#173E80', '#355C95']}
-              shadowColor="#173E80"
-            />
-            {forgotStep !== 'phone' ? (
-              <Pressable onPress={sendForgotOtp} style={s.forgotResendBtn} disabled={forgotLoading}>
-                <Text style={s.forgotResendText}>{tx('Resend OTP')}</Text>
-              </Pressable>
-            ) : null}
-          </ScrollView>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -3184,12 +2482,12 @@ const s = StyleSheet.create({
     paddingTop: 18,
   },
   topRowCompact: { marginBottom: 8, minHeight: 96, paddingTop: 18 },
-  topRowAuth: { minHeight: 88, marginBottom: 6, paddingTop: 10 },
-  topRowAuthKeyboard: { minHeight: 74, marginBottom: 2, paddingTop: 4 },
+  topRowAuth: { minHeight: 64, marginBottom: 2, paddingTop: 0 },
   brandRow: { width: '100%', alignItems: 'center', justifyContent: 'center' },
   brandRowCentered: { flexDirection: 'row' },
   logoWrap: { width: 156, height: 88, alignItems: 'center', justifyContent: 'center' },
   logoWrapCompact: { width: 134, height: 76 },
+  logoWrapAuth: { width: 116, height: 64 },
   logo: { width: '100%', height: '100%' },
   back: {
     position: 'absolute',
@@ -3226,7 +2524,7 @@ const s = StyleSheet.create({
     minHeight: 22,
   },
   welcomeRowCentered: { justifyContent: 'center' },
-  welcomeRowAuth: { marginTop: 2, marginBottom: 10 },
+  welcomeRowAuth: { marginTop: 0, marginBottom: 5 },
   welcomeRowAuthHidden: { minHeight: 0, marginTop: 0, marginBottom: 2, opacity: 0.15 },
   welcomeLanguageWrap: { marginLeft: 'auto', alignItems: 'flex-end' },
   welcomeLanguageWrapFloating: { position: 'absolute', right: 0, top: 0, alignItems: 'flex-end' },
@@ -3326,6 +2624,7 @@ const s = StyleSheet.create({
   },
   bigTitle: { fontSize: 32, fontWeight: '900', marginTop: 8, marginBottom: 8, letterSpacing: -0.4 },
   bigTitleCompact: { fontSize: 26, marginTop: 6, marginBottom: 6 },
+  bigTitleAuth: { fontSize: 27, marginTop: 4, marginBottom: 4 },
   bigTitleLanguage: { fontSize: 27, letterSpacing: -0.3 },
   bigTitleNeutral: { color: C.title },
   bigTitleElectrician: { color: '#274C77' },
@@ -3339,7 +2638,7 @@ const s = StyleSheet.create({
     maxWidth: '96%',
   },
   subtextCompact: { fontSize: 12.5, lineHeight: 18, marginTop: 4, marginBottom: 10 },
-  subtextAuth: { maxWidth: '88%', marginBottom: 14, color: '#6B7280' },
+  subtextAuth: { maxWidth: '88%', marginTop: 0, marginBottom: 8, color: '#6B7280' },
   subtextAuthHidden: { maxHeight: 0, opacity: 0, marginTop: 0, marginBottom: 0 },
   card: {
     backgroundColor: C.white,

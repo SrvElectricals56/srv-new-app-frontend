@@ -29,7 +29,6 @@ import { RedemptionPage, type GiftStoreOrderFilter } from './MyRedemptionScreen'
 import { NeedHelpPage } from './NeedHelpScreen';
 import { NotificationsPage } from './NotificationsScreen';
 import { OffersPage } from './OffersScreen';
-import { PasswordSettingsPage } from './PasswordSettingsScreen';
 import { PartnerCommissionPage } from './PartnerCommissionScreen';
 import { PrivacyPolicyPage } from './PrivacyPolicyScreen';
 import { RolePlayVideosScreen } from './RolePlayVideosScreen';
@@ -89,7 +88,6 @@ const PROFILE_MENU_FEATURE_MAP: Record<string, AppFeatureKey> = {
 
 const SETTINGS_FEATURE_MAP: Record<string, AppFeatureKey> = {
   Notifications: 'notification',
-  Password: 'password',
   'Rate Us': 'rate_us',
   'App Settings': 'app_settings',
   'Scan History': 'scan_history',
@@ -126,10 +124,6 @@ export function ProfileScreen({
   currentRole,
   onNavigate,
   onSignOut,
-  hasPasswordConfigured,
-  storedPassword,
-  onPasswordConfiguredChange,
-  onPasswordChange,
   language,
   onLanguageChange,
   darkMode,
@@ -146,10 +140,6 @@ export function ProfileScreen({
   currentRole: UserRole;
   onNavigate: (screen: Screen) => void;
   onSignOut: () => void;
-  hasPasswordConfigured: boolean;
-  storedPassword: string;
-  onPasswordConfiguredChange: (configured: boolean) => void;
-  onPasswordChange: (password: string) => void;
   language: AppLanguage;
   onLanguageChange: (language: AppLanguage) => void;
   darkMode: boolean;
@@ -772,15 +762,6 @@ export function ProfileScreen({
     'Need Help': <NeedHelpPage onBack={() => setSubPage(null)} />,
     'Offers & Promotions': <OffersPage onBack={() => setSubPage(null)} />,
     Notifications: <NotificationsPage onBack={() => setSubPage(null)} />,
-    Password: (
-      <PasswordSettingsPage
-        onBack={() => setSubPage(null)}
-        hasPasswordConfigured={hasPasswordConfigured}
-        storedPassword={storedPassword}
-        onPasswordConfiguredChange={onPasswordConfiguredChange}
-        onPasswordChange={onPasswordChange}
-      />
-    ),
     'App Settings': <AppSettingsPage onBack={() => setSubPage(null)} />,
     'Scan History': <ScanHistoryPage onBack={() => setSubPage(null)} />,
     'Contact Support': <ContactSupportPage onBack={() => setSubPage(null)} />,

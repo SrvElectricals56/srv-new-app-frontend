@@ -100,12 +100,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
         bankLinked: true,
       });
       updateUser(updated);
-      setDialog({
-        visible: true,
-        variant: 'success',
-        title: tx('Saved'),
-        message: tx('Bank details saved successfully!'),
-      });
+      onBack();
     } catch {
       setDialog({
         visible: true,

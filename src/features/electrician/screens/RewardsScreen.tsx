@@ -283,14 +283,17 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
         confirmLabel={dialog.confirmLabel}
         icon={dialog.icon}
         content={dialog.variant === 'confirm' ? (
-          <TextInput
-            value={shippingAddress}
-            onChangeText={(value) => { shippingAddressRef.current = value; setShippingAddress(value); }}
-            placeholder={tx('Enter complete delivery address')}
-            placeholderTextColor={theme.textMuted}
-            multiline
-            style={[styles.addressInput, { color: theme.textPrimary, borderColor: theme.border, backgroundColor: theme.soft }]}
-          />
+          <View style={styles.addressDialogContent}>
+            <Text style={[styles.addressLabel, { color: theme.textPrimary }]}>{tx('Delivery Address')}</Text>
+            <TextInput
+              value={shippingAddress}
+              onChangeText={(value) => { shippingAddressRef.current = value; setShippingAddress(value); }}
+              placeholder={tx('Enter complete delivery address')}
+              placeholderTextColor={theme.textMuted}
+              multiline
+              style={[styles.addressInput, { color: theme.textPrimary, borderColor: theme.border, backgroundColor: theme.soft }]}
+            />
+          </View>
         ) : null}
         confirmDisabled={dialog.variant === 'confirm' && shippingAddress.trim().length < 10}
         onConfirm={dialog.onConfirm}
@@ -302,7 +305,9 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  addressInput: { minHeight: 86, marginTop: 14, borderWidth: 1, borderRadius: 12, padding: 12, textAlignVertical: 'top' },
+  addressDialogContent: { width: '100%', marginTop: 4, marginBottom: 20 },
+  addressLabel: { fontSize: 12, fontWeight: '800', marginBottom: 8 },
+  addressInput: { minHeight: 92, borderWidth: 1, borderRadius: 12, padding: 12, textAlignVertical: 'top' },
   scroll: { padding: 16, paddingBottom: 120 },
 
   // Points banner

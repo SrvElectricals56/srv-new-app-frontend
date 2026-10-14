@@ -1,14 +1,9 @@
 import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 // Customer Auth Screen â€” Role-aware account design
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  GoogleSignin,
-  isErrorWithCode,
-  isSuccessResponse,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
+import Constants from 'expo-constants';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -16,6 +11,8 @@ import { SRV_LOGO } from '@/shared/assets';
 import { authApi } from '@/shared/api';
 import { isValidOptionalEmail, sanitizeEmailInput } from '@/shared/utils/validation';
 import { Dialog } from '@/shared/components/Dialog';
+import { useSmsOtpAutofill } from '@/shared/auth/useSmsOtpAutofill';
+import { useKeyboardReveal } from '@/shared/hooks/useKeyboardReveal';
 
 // Role-based color themes - Customer theme updated
 const THEMES = {
@@ -25,11 +22,11 @@ const THEMES = {
   counterboy:  { p1: '#8B3C2A', p2: '#6F4E37', soft: '#F5EDE4', orb: '#EDE0D4' },
 };
 
-const PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters long and include one capital letter and one special character.';
-const isValidPassword = (value: string) => /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])\S{8,}$/.test(value);
+const OTP_AUTO_COMPLETE = Platform.OS === 'android' ? 'sms-otp' : 'one-time-code';
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() ?? '';
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? '';
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '';
+const supportsNativeGoogleSignIn = Platform.OS !== 'web' && Constants.executionEnvironment !== 'storeClient';
 
 
 // â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -72,14 +69,17 @@ function Orbs({ color }: { color: string }) {
 function Input({
   label, value, onChange, placeholder, icon, keyboard = 'default',
   secure = false, toggleSecure, autoCap = 'none', ref: inputRef,
-  onSubmit, returnKey = 'next', darkMode, accentColor = '#6A2F12', maxLength,
+  onSubmit, returnKey = 'next', darkMode, accentColor = '#6A2F12', maxLength, autoComplete, onInputFocus,
 }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder: string; icon: React.ReactNode;
   keyboard?: any; secure?: boolean; toggleSecure?: () => void;
   autoCap?: any; ref?: React.RefObject<TextInput | null>;
   onSubmit?: () => void; returnKey?: any; darkMode: boolean; accentColor?: string; maxLength?: number;
+  autoComplete?: 'sms-otp' | 'one-time-code';
+  onInputFocus?: (input: TextInput | null) => void;
 }) {
+  const fieldInputRef = useRef<TextInput | null>(null);
   const [focused, setFocused] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
   const focus = () => { setFocused(true);  Animated.timing(anim, { toValue: 1, duration: 180, useNativeDriver: false }).start(); };
@@ -92,14 +92,18 @@ function Input({
       <Animated.View style={[S.inputRow, { backgroundColor: bg, borderColor }]}>
         <View style={S.inputIcon}>{icon}</View>
         <TextInput
-          ref={inputRef as any}
+          ref={(node) => {
+            fieldInputRef.current = node;
+            if (inputRef) inputRef.current = node;
+          }}
           style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
           value={value} onChangeText={onChange} placeholder={placeholder}
           placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
           keyboardType={keyboard} secureTextEntry={secure}
-          autoCapitalize={autoCap} onFocus={focus} onBlur={blur}
+          autoCapitalize={autoCap} onFocus={() => { focus(); onInputFocus?.(fieldInputRef.current); }} onBlur={blur}
           onSubmitEditing={onSubmit} returnKeyType={returnKey}
           maxLength={maxLength}
+          autoComplete={autoComplete}
         />
         {toggleSecure && (
           <Pressable onPress={toggleSecure} style={{ padding: 6 }}>
@@ -118,25 +122,18 @@ export function UserAuthScreen({
   role = 'user',
   initialMode = 'landing',
 }: {
-  onAuthenticated: (role: any, options?: { passwordConfigured?: boolean; passwordValue?: string }) => void;
+  onAuthenticated: (role: any) => void;
   onBack?: () => void;
   role?: 'user' | 'dealer' | 'electrician' | 'counterboy';
   initialMode?: 'landing' | 'login' | 'signup';
 }) {
   const { tx, darkMode } = usePreferenceContext();
   const insets = useSafeAreaInsets();
+  const { scrollRef, onInputFocus, onScroll: trackScroll, onViewportLayout, onContentSizeChange, keyboardInset } = useKeyboardReveal();
   const { width, height } = useWindowDimensions();
   const compactPhone = width <= 375 || height <= 760;
-  const [mode, setMode] = useState<'landing' | 'login' | 'signup' | 'forgot'>(initialMode);
+  const [mode, setMode] = useState<'landing' | 'login' | 'signup'>(initialMode);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
-      iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
-      offlineAccess: false,
-    });
-  }, []);
 
   const theme = THEMES[role];
   const P1   = theme.p1;
@@ -154,33 +151,18 @@ export function UserAuthScreen({
   }, [mode, slideY, fadeO]);
 
   const [lPhone, setLPhone] = useState('');
-  const [lPwd,   setLPwd]   = useState('');
   const [lOtp,   setLOtp]   = useState('');
-  const [showLP, setShowLP] = useState(false);
-  const [useOtpLogin, setUseOtpLogin] = useState(false);
   const [otpSentLogin, setOtpSentLogin] = useState(false);
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
-  const lPwdRef = useRef<TextInput>(null);
   const lOtpRef = useRef<TextInput>(null);
-  const [fStep, setFStep] = useState<'phone' | 'otp' | 'password'>('phone');
-  const [fPhone, setFPhone] = useState('');
-  const [fOtp, setFOtp] = useState('');
-  const [fOtpVerified, setFOtpVerified] = useState(false);
-  const [fPwd, setFPwd] = useState('');
-  const [fConfirmPwd, setFConfirmPwd] = useState('');
-  const [fDevOtp, setFDevOtp] = useState('');
-  const [showFP, setShowFP] = useState(false);
-  const [showFCP, setShowFCP] = useState(false);
-  const fOtpRef = useRef<TextInput>(null);
-  const fPwdRef = useRef<TextInput>(null);
-  const fConfirmPwdRef = useRef<TextInput>(null);
+  const loginVerificationInFlightRef = useRef(false);
+  const loginVerificationCompletedRef = useRef(false);
+  const signupVerificationInFlightRef = useRef(false);
 
   const [sName,  setSName]  = useState('');
   const [sPhone, setSPhone] = useState('');
   const [sEmail, setSEmail] = useState('');
   const [sOtp,   setSOtp]   = useState('');
-  const [sPwd,   setSPwd]   = useState('');
-  const [showSP, setShowSP] = useState(false);
   const [otpSentSignup, setOtpSentSignup] = useState(false);
   const [otpSignupPhone, setOtpSignupPhone] = useState('');
   const [signupVerificationToken, setSignupVerificationToken] = useState('');
@@ -190,7 +172,6 @@ export function UserAuthScreen({
   const sPhoneRef = useRef<TextInput>(null);
   const sEmailRef = useRef<TextInput>(null);
   const sOtpRef   = useRef<TextInput>(null);
-  const sPwdRef   = useRef<TextInput>(null);
   const sStateRef  = useRef<TextInput>(null);
   const sCityRef    = useRef<TextInput>(null);
   const sPincodeRef = useRef<TextInput>(null);
@@ -202,15 +183,20 @@ export function UserAuthScreen({
   const sReferralRef = useRef<TextInput>(null);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
+  const smsOtpTargetRef = useRef<'login' | 'signup' | null>(null);
+  const startSmsOtpAutofill = useSmsOtpAutofill((code) => {
+    if (smsOtpTargetRef.current === 'login') setLOtp(code);
+    if (smsOtpTargetRef.current === 'signup') setSOtp(code);
+  });
 
-  const normalizePhone = (value: string) => {
+  const normalizePhone = useCallback((value: string) => {
     const digits = value.trim().replace(/\D/g, '');
     if (digits.length > 10 && digits.startsWith('91')) {
       return digits.slice(2).slice(-10);
     }
     return digits.slice(-10);
-  };
-  const isValidIndianMobile = (value: string) => /^[6-9]\d{9}$/.test(normalizePhone(value));
+  }, []);
+  const isValidIndianMobile = useCallback((value: string) => /^[6-9]\d{9}$/.test(normalizePhone(value)), [normalizePhone]);
   const handleSignupEmail = (value: string) => {
     setSEmail(value);
   };
@@ -249,12 +235,10 @@ export function UserAuthScreen({
 
   useEffect(() => {
     if (mode !== 'login') {
-      setUseOtpLogin(false);
       setOtpSentLogin(false);
       setOtpLoginPhone('');
       setLOtp('');
-      setLPwd('');
-      setShowLP(false);
+      loginVerificationCompletedRef.current = false;
     }
 
     if (mode !== 'signup') {
@@ -267,18 +251,9 @@ export function UserAuthScreen({
       setSState('');
       setSCity('');
       setSPincode('');
-      setShowSP(false);
       setSignupStep('identity');
     }
   }, [mode]);
-
-  useEffect(() => {
-    if (!useOtpLogin) {
-      setOtpSentLogin(false);
-      setOtpLoginPhone('');
-      setLOtp('');
-    }
-  }, [useOtpLogin]);
 
   useEffect(() => {
     if (otpSentLogin && normalizePhone(lPhone) !== otpLoginPhone) {
@@ -286,7 +261,7 @@ export function UserAuthScreen({
       setOtpLoginPhone('');
       setLOtp('');
     }
-  }, [lPhone, otpLoginPhone, otpSentLogin]);
+  }, [lPhone, otpLoginPhone, otpSentLogin, normalizePhone]);
 
   useEffect(() => {
     if (otpSentSignup && normalizePhone(sPhone) !== otpSignupPhone) {
@@ -298,7 +273,7 @@ export function UserAuthScreen({
       setSOtp('');
       setSignupStep('identity');
     }
-  }, [sPhone, otpSentSignup, otpSignupPhone]);
+  }, [sPhone, otpSentSignup, otpSignupPhone, normalizePhone]);
 
   useEffect(() => {
     if (!otpSentLogin) return;
@@ -318,11 +293,15 @@ export function UserAuthScreen({
     if (!isValidIndianMobile(cleanPhone)) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid Indian mobile number') }); return; }
     setLoading(true);
     try {
+      smsOtpTargetRef.current = 'login';
+      loginVerificationCompletedRef.current = false;
+      setLOtp('');
+      await startSmsOtpAutofill();
       const data = await authApi.sendOtp(cleanPhone, role);
       setLPhone(cleanPhone);
-      setUseOtpLogin(true);
       setOtpSentLogin(true);
       setOtpLoginPhone(cleanPhone);
+      if (data.devOtp) setLOtp(data.devOtp.replace(/\D/g, '').slice(0, 4));
       setDialog({ visible: true, variant: 'success', title: tx('OTP Sent'), message: data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP') });
     } catch (e: any) {
       const msg = e?.message ?? '';
@@ -343,6 +322,9 @@ export function UserAuthScreen({
     if (!isValidIndianMobile(cleanPhone)) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid Indian mobile number') }); return; }
     setLoading(true);
     try {
+      smsOtpTargetRef.current = 'signup';
+      setSOtp('');
+      await startSmsOtpAutofill();
       const data = await authApi.sendSignupOtp(cleanPhone, role);
       setSPhone(cleanPhone);
       setSignupVerificationToken('');
@@ -350,6 +332,7 @@ export function UserAuthScreen({
       signupVerificationTokenRef.current = '';
       setOtpSentSignup(true);
       setOtpSignupPhone(cleanPhone);
+      if (data.devOtp) setSOtp(data.devOtp.replace(/\D/g, '').slice(0, 4));
       setSignupStep('otp');
       setDialog({ visible: true, variant: 'success', title: tx('OTP Sent'), message: data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP') });
     } catch (e: any) {
@@ -364,55 +347,36 @@ export function UserAuthScreen({
     finally { setLoading(false); }
   };
 
-  const login = async () => {
-    if (!lPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
+  const login = useCallback(async () => {
+    if (loginVerificationInFlightRef.current || loginVerificationCompletedRef.current || !otpSentLogin || lOtp.length !== 4) return;
     const cleanPhone = normalizePhone(lPhone);
-    if (!isValidIndianMobile(cleanPhone)) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid Indian mobile number') }); return; }
-    
-    if (useOtpLogin) {
-      if (!lOtp.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter the OTP') }); return; }
-      setLoading(true);
-      try {
-        const data = await authApi.verifyOtp(cleanPhone, role, lOtp.trim());
-        (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = data.user;
-        onAuthenticated(role, { passwordValue: '' });
-      } catch (e: any) {
-        const msg = e?.message ?? '';
-        if (msg.toLowerCase().includes('expired')) {
-          setDialog({ visible: true, variant: 'info', title: tx('OTP Expired'), message: tx('Your OTP has expired. Please request a new one.') });
-          setOtpSentLogin(false);
-          setLOtp('');
-        } else if (msg.toLowerCase().includes('invalid')) {
-          setDialog({ visible: true, variant: 'info', title: tx('Invalid OTP'), message: tx('The OTP you entered is incorrect. Please try again.') });
-          setLOtp('');
-        } else {
-          setDialog({ visible: true, variant: 'error', title: tx('Login Failed'), message: msg || tx('Something went wrong. Please try again.') });
-        }
+    if (!isValidIndianMobile(cleanPhone) || cleanPhone !== otpLoginPhone) return;
+    loginVerificationInFlightRef.current = true;
+    setLoading(true);
+    try {
+      const data = await authApi.verifyOtp(cleanPhone, role, lOtp);
+      (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = data.user;
+      loginVerificationCompletedRef.current = true;
+      onAuthenticated(role);
+    } catch (e: any) {
+      const msg = e?.message ?? '';
+      if (msg.toLowerCase().includes('expired')) {
+        setDialog({ visible: true, variant: 'info', title: tx('OTP Expired'), message: tx('Your OTP has expired. Please request a new one.') });
+        setOtpSentLogin(false);
+      } else if (msg.toLowerCase().includes('invalid')) {
+        setDialog({ visible: true, variant: 'info', title: tx('Invalid OTP'), message: tx('The OTP you entered is incorrect. Please try again.') });
+      } else {
+        setDialog({ visible: true, variant: 'error', title: tx('Login Failed'), message: msg || tx('Something went wrong. Please try again.') });
       }
-      finally { setLoading(false); }
-    } else {
-      if (!lPwd.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your password') }); return; }
-      setLoading(true);
-      try {
-        const res = await authApi.login({ phone: cleanPhone, password: lPwd.trim(), role });
-        (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = res.user;
-        onAuthenticated(role, { passwordConfigured: true, passwordValue: lPwd.trim() });
-      } catch (e: any) {
-        const msg = e?.message ?? '';
-        if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not registered')) {
-          setDialog({ visible: true, variant: 'info', title: tx('Not Registered'), message: tx('This phone number is not registered. Please create an account first.') });
-          setMode('signup');
-        } else if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('password')) {
-          setDialog({ visible: true, variant: 'info', title: tx('Wrong Password'), message: tx('Incorrect password. Try again or use OTP login.') });
-        } else {
-          setDialog({ visible: true, variant: 'error', title: tx('Login Failed'), message: msg || tx('Check your credentials and try again.') });
-        }
-      }
-      finally { setLoading(false); }
+      setLOtp('');
+    } finally {
+      loginVerificationInFlightRef.current = false;
+      setLoading(false);
     }
-  };
+  }, [lPhone, lOtp, otpSentLogin, otpLoginPhone, role, onAuthenticated, tx, normalizePhone, isValidIndianMobile]);
 
   const continueWithGoogle = async () => {
+    if (!supportsNativeGoogleSignIn) return;
     if (role !== 'user') {
       setDialog({ visible: true, variant: 'info', title: tx('Customer only'), message: tx('Google signup is available for customer accounts only.') });
       return;
@@ -424,7 +388,15 @@ export function UserAuthScreen({
     }
 
     setLoading(true);
+    let googleSignInModule: typeof import('@react-native-google-signin/google-signin') | null = null;
     try {
+      googleSignInModule = await import('@react-native-google-signin/google-signin');
+      const { GoogleSignin, isSuccessResponse } = googleSignInModule;
+      GoogleSignin.configure({
+        webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
+        iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
+        offlineAccess: false,
+      });
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       }
@@ -438,12 +410,13 @@ export function UserAuthScreen({
       }
       const res = await authApi.loginWithGoogleCustomer({ idToken, accessToken });
       (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = res.user;
-      onAuthenticated('user', { passwordConfigured: Boolean(res.user?.hasPassword), passwordValue: '' });
+      onAuthenticated('user');
     } catch (e: any) {
-      if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) return;
-      const message = isErrorWithCode(e) && e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE
+      const isGoogleError = googleSignInModule?.isErrorWithCode(e) ?? false;
+      if (isGoogleError && e.code === googleSignInModule?.statusCodes.SIGN_IN_CANCELLED) return;
+      const message = isGoogleError && e.code === googleSignInModule?.statusCodes.PLAY_SERVICES_NOT_AVAILABLE
         ? tx('Google Play Services is unavailable or needs an update on this device.')
-        : isErrorWithCode(e) && e.code === statusCodes.IN_PROGRESS
+        : isGoogleError && e.code === googleSignInModule?.statusCodes.IN_PROGRESS
           ? tx('Google sign-in is already in progress.')
           : e?.message || tx('Please try again.');
       setDialog({ visible: true, variant: 'error', title: tx('Google Sign-In Failed'), message });
@@ -452,98 +425,15 @@ export function UserAuthScreen({
     }
   };
 
-  const openForgotPassword = () => {
-    const cleanPhone = normalizePhone(lPhone);
-    setFPhone(isValidIndianMobile(cleanPhone) ? cleanPhone : '');
-    setFOtp('');
-    setFOtpVerified(false);
-    setFPwd('');
-    setFConfirmPwd('');
-    setFDevOtp('');
-    setShowFP(false);
-    setShowFCP(false);
-    setFStep('phone');
-    setMode('forgot');
-  };
-
-  const sendForgotOtp = async () => {
-    const cleanPhone = normalizePhone(fPhone);
-    if (!isValidIndianMobile(cleanPhone)) {
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid Mobile Number'), message: tx('Please enter a valid 10-digit mobile number.') });
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await authApi.sendPasswordResetOtp(cleanPhone, role);
-      setFPhone(cleanPhone);
-      setFOtp('');
-      setFOtpVerified(false);
-      setFPwd('');
-      setFConfirmPwd('');
-      setFDevOtp(data.devOtp ? `Dev OTP: ${data.devOtp}` : '');
-      setFStep('otp');
-      setDialog({ visible: true, variant: 'success', title: tx('OTP Sent'), message: data.devOtp ? `${tx('OTP sent successfully')}. Dev OTP: ${data.devOtp}` : tx('Please check your phone for the OTP') });
-    } catch (e: any) {
-      setDialog({ visible: true, variant: 'error', title: tx('Could not send OTP'), message: e?.message || tx('Please try again.') });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const verifyForgotOtp = async () => {
-    if (fOtp.trim().length < 4) {
-      setDialog({ visible: true, variant: 'info', title: tx('OTP Required'), message: tx('Enter the OTP sent to your mobile number.') });
-      return;
-    }
-    setLoading(true);
-    try {
-      await authApi.verifyPasswordResetOtp(fPhone, role, fOtp.trim());
-      setFOtpVerified(true);
-      setFStep('password');
-      setDialog({ visible: true, variant: 'success', title: tx('OTP Verified'), message: tx('Now create your new password.') });
-    } catch (e: any) {
-      setDialog({ visible: true, variant: 'error', title: tx('Invalid OTP'), message: e?.message || tx('Please try again.') });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const confirmForgotPassword = async () => {
-    if (!fOtpVerified) {
-      setDialog({ visible: true, variant: 'info', title: tx('OTP Verification Required'), message: tx('Please verify OTP before updating password.') });
-      setFStep('otp');
-      return;
-    }
-    if (!isValidPassword(fPwd.trim())) {
-      setDialog({ visible: true, variant: 'info', title: tx('Password Required'), message: tx(PASSWORD_RULE_MESSAGE) });
-      return;
-    }
-    if (fPwd.trim() !== fConfirmPwd.trim()) {
-      setDialog({ visible: true, variant: 'info', title: tx('Password Mismatch'), message: tx('Passwords do not match. Please re-enter the same password.') });
-      return;
-    }
-    setLoading(true);
-    try {
-      await authApi.resetPasswordWithOtp(fPhone, role, fOtp.trim(), fPwd.trim());
-      setLPhone(fPhone);
-      setLPwd(fPwd.trim());
-      setUseOtpLogin(false);
-      setMode('login');
-      setDialog({ visible: true, variant: 'success', title: tx('Password Updated'), message: tx('You can now login with your new password.') });
-    } catch (e: any) {
-      setDialog({ visible: true, variant: 'error', title: tx('Could not reset password'), message: e?.message || tx('Please try again.') });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const verifySignup = async () => {
+  const verifySignup = useCallback(async () => {
     if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
     if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
-    if (!sOtp.trim())   { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter the OTP') }); return; }
+    if (signupVerificationInFlightRef.current || sOtp.length !== 4 || !otpSentSignup) return;
     const cleanPhone = normalizePhone(sPhone);
     if (!isValidIndianMobile(cleanPhone)) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter a valid Indian mobile number') }); return; }
+    if (cleanPhone !== otpSignupPhone) return;
 
+    signupVerificationInFlightRef.current = true;
     setLoading(true);
     try {
       const verification = await authApi.verifySignupOtp(cleanPhone, role, sOtp.trim());
@@ -571,11 +461,21 @@ export function UserAuthScreen({
         setSOtp('');
       } else {
         setDialog({ visible: true, variant: 'error', title: tx('OTP Error'), message: msg || tx('OTP verification failed. Please try again.') });
+        setSOtp('');
       }
     } finally {
+      signupVerificationInFlightRef.current = false;
       setLoading(false);
     }
-  };
+  }, [sName, sPhone, sOtp, otpSentSignup, otpSignupPhone, role, tx, normalizePhone, isValidIndianMobile]);
+
+  useEffect(() => {
+    if (mode === 'login' && otpSentLogin && lOtp.length === 4) void login();
+  }, [mode, otpSentLogin, lOtp, login]);
+
+  useEffect(() => {
+    if (mode === 'signup' && signupStep === 'otp' && otpSentSignup && sOtp.length === 4) void verifySignup();
+  }, [mode, signupStep, otpSentSignup, sOtp, verifySignup]);
 
   const signup = async () => {
     if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
@@ -609,7 +509,6 @@ export function UserAuthScreen({
         name: sName.trim(),
         phone: cleanPhone,
         email: sanitizeEmailInput(sEmail).trim() || undefined,
-        password: sPwd.trim() || undefined,
         role,
         address: undefined,
         state: sState.trim(),
@@ -620,7 +519,7 @@ export function UserAuthScreen({
         referralCode: sReferralCode.trim() || undefined,
       });
       (globalThis as typeof globalThis & { __srvLoginUser?: unknown }).__srvLoginUser = registerData.user;
-      onAuthenticated(role, { passwordConfigured: !!sPwd.trim(), passwordValue: sPwd.trim() });
+      onAuthenticated(role);
     } catch (e: any) {
       const msg = e?.message ?? '';
       if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('conflict')) {
@@ -675,7 +574,7 @@ export function UserAuthScreen({
             <Text style={[S.btnOutlineText, { color: P1 }]}>{tx('Create New Account')}</Text>
           </Pressable>
 
-          {role === 'user' && Platform.OS !== 'web' ? (
+          {role === 'user' && supportsNativeGoogleSignIn ? (
             <Pressable
               onPress={continueWithGoogle}
               disabled={loading}
@@ -725,134 +624,6 @@ export function UserAuthScreen({
     );
   }
 
-  if (mode === 'forgot') {
-    return (
-      <KeyboardAvoidingView style={[S.screen, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}>
-        <LinearGradient colors={[P1, P2]} style={[S.formHeader, { paddingTop: insets.top }]}>
-          <View style={S.formHeaderLogoWrap}>
-            <Image source={SRV_LOGO} style={S.formHeaderLogo} resizeMode="contain" />
-          </View>
-          <Text style={S.formHeaderTitle}>{tx('Forgot Password')}</Text>
-          <Text style={S.formHeaderSub}>{tx('Verify OTP first, then create your new password')}</Text>
-        </LinearGradient>
-
-        <ScrollView contentContainerStyle={[S.formBody, { paddingBottom: insets.bottom + 120 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <Animated.View style={{ transform: [{ translateY: slideY }], opacity: fadeO }}>
-            <View style={[S.formCard, { backgroundColor: card, borderColor: bdr }]}>
-              {fStep === 'phone' ? (
-                <>
-                  <Input
-                    label={tx('Phone Number')}
-                    value={fPhone}
-                    onChange={(v) => setFPhone(normalizePhone(v))}
-                    placeholder={tx('10-digit mobile number')}
-                    icon={<PhoneIcon c={P1} />}
-                    keyboard="phone-pad"
-                    maxLength={10}
-                    onSubmit={sendForgotOtp}
-                    returnKey="done"
-                    darkMode={darkMode}
-                    accentColor={P1}
-                  />
-                  <Pressable onPress={sendForgotOtp} disabled={loading || !isValidIndianMobile(fPhone)} style={[S.btnShell, (loading || !isValidIndianMobile(fPhone)) && { opacity: 0.55 }]}>
-                    <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
-                      <Text style={S.btnPrimaryText}>{loading ? tx('Sending...') : tx('Send OTP')}</Text>
-                      {!loading && <ArrowRight s={18} />}
-                    </LinearGradient>
-                  </Pressable>
-                </>
-              ) : null}
-
-              {fStep === 'otp' ? (
-                <>
-                  <View style={[S.infoBox, { backgroundColor: SOFT, borderColor: `${P1}25` }]}>
-                    <Text style={[S.switchText, { color: P1, fontWeight: '800' }]}>{tx('OTP sent to')} +91 {fPhone}</Text>
-                    {fDevOtp ? <Text style={[S.switchText, { color: P1, marginTop: 4 }]}>{fDevOtp}</Text> : null}
-                  </View>
-                  <Input
-                    label={tx('Enter OTP')}
-                    value={fOtp}
-                    onChange={(v) => setFOtp(v.replace(/\D/g, '').slice(0, 6))}
-                    placeholder={tx('6-digit OTP')}
-                    icon={<LockIcon c={P1} />}
-                    keyboard="number-pad"
-                    maxLength={6}
-                    ref={fOtpRef}
-                    onSubmit={verifyForgotOtp}
-                    returnKey="done"
-                    darkMode={darkMode}
-                    accentColor={P1}
-                  />
-                  <Pressable onPress={verifyForgotOtp} disabled={loading || fOtp.trim().length < 4} style={[S.btnShell, (loading || fOtp.trim().length < 4) && { opacity: 0.55 }]}>
-                    <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
-                      <Text style={S.btnPrimaryText}>{loading ? tx('Verifying...') : tx('Verify OTP')}</Text>
-                      {!loading && <ArrowRight s={18} />}
-                    </LinearGradient>
-                  </Pressable>
-                  <Pressable onPress={sendForgotOtp} style={{ alignSelf: 'flex-end' }}>
-                    <Text style={[S.switchText, { color: P1, fontWeight: '800' }]}>{tx('Resend OTP')}</Text>
-                  </Pressable>
-                </>
-              ) : null}
-
-              {fStep === 'password' ? (
-                <>
-                  <Input
-                    label={tx('New Password')}
-                    value={fPwd}
-                    onChange={(v) => setFPwd(v.replace(/\s/g, ''))}
-                    placeholder={tx('Enter at least 8 characters')}
-                    icon={<LockIcon c={P1} />}
-                    secure={!showFP}
-                    toggleSecure={() => setShowFP((v) => !v)}
-                    ref={fPwdRef}
-                    onSubmit={() => fConfirmPwdRef.current?.focus()}
-                    darkMode={darkMode}
-                    accentColor={P1}
-                  />
-                  <Text style={[S.switchText, { color: tm, marginTop: -8 }]}>{tx(PASSWORD_RULE_MESSAGE)}</Text>
-                  <Input
-                    label={tx('Confirm New Password')}
-                    value={fConfirmPwd}
-                    onChange={(v) => setFConfirmPwd(v.replace(/\s/g, ''))}
-                    placeholder={tx('Re-enter the same password')}
-                    icon={<LockIcon c={P1} />}
-                    secure={!showFCP}
-                    toggleSecure={() => setShowFCP((v) => !v)}
-                    ref={fConfirmPwdRef}
-                    onSubmit={confirmForgotPassword}
-                    returnKey="done"
-                    darkMode={darkMode}
-                    accentColor={P1}
-                  />
-                  <Pressable onPress={confirmForgotPassword} disabled={loading} style={[S.btnShell, loading && { opacity: 0.7 }]}>
-                    <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
-                      <Text style={S.btnPrimaryText}>{loading ? tx('Updating...') : tx('Update Password')}</Text>
-                      {!loading && <ArrowRight s={18} />}
-                    </LinearGradient>
-                  </Pressable>
-                </>
-              ) : null}
-            </View>
-
-            <Pressable onPress={() => setMode('login')} style={S.switchRow}>
-              <Text style={[S.switchText, { color: tm }]}>
-                {tx('Back to Login')}
-              </Text>
-            </Pressable>
-          </Animated.View>
-        </ScrollView>
-        <Dialog
-          visible={dialog.visible}
-          variant={dialog.variant}
-          title={dialog.title}
-          message={dialog.message}
-          onClose={closeDialog}
-        />
-      </KeyboardAvoidingView>
-    );
-  }
-
   const isLogin = mode === 'login';
   const isSignup = mode === 'signup';
   const isSignupOtpStep = isSignup && signupStep === 'otp';
@@ -860,7 +631,7 @@ export function UserAuthScreen({
 
   // â”€â”€ LOGIN / SIGNUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
-    <KeyboardAvoidingView style={[S.screen, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}>
+    <KeyboardAvoidingView style={[S.screen, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Compact header */}
       <LinearGradient colors={[P1, P2]} style={[S.formHeader, { paddingTop: insets.top }]}>
         <View style={S.formHeaderLogoWrap}>
@@ -870,7 +641,7 @@ export function UserAuthScreen({
         <Text style={S.formHeaderSub}>{isLogin ? tx('Welcome back to SRV Electricals') : tx('Join SRV Electricals today')}</Text>
       </LinearGradient>
 
-      <ScrollView contentContainerStyle={[S.formBody, { paddingBottom: insets.bottom + 120 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} onScroll={trackScroll} onLayout={onViewportLayout} onContentSizeChange={onContentSizeChange} scrollEventThrottle={16} contentContainerStyle={[S.formBody, { paddingBottom: insets.bottom + 120 + keyboardInset }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Animated.View style={{ transform: [{ translateY: slideY }], opacity: fadeO }}>
 
           {/* Card */}
@@ -878,7 +649,7 @@ export function UserAuthScreen({
             {isSignup && !isSignupDetailsStep && (
               <Input label={tx('Full Name')} value={sName} onChange={setSName}
                 placeholder={tx('Your full name')} icon={<UserIcon c={P1} />}
-                autoCap="words" onSubmit={() => sPhoneRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
+                autoCap="words" onSubmit={() => sPhoneRef.current?.focus()} onInputFocus={onInputFocus} darkMode={darkMode} accentColor={P1} />
             )}
             
             {(isLogin || !isSignupDetailsStep) && (
@@ -888,8 +659,8 @@ export function UserAuthScreen({
               keyboard="phone-pad"
               maxLength={10}
               ref={isLogin ? undefined : sPhoneRef}
-              onSubmit={isLogin ? (useOtpLogin ? () => {} : () => lPwdRef.current?.focus()) : sendOtpSignup}
-              darkMode={darkMode} accentColor={P1} />
+              onSubmit={isLogin ? sendOtpLogin : sendOtpSignup}
+              onInputFocus={onInputFocus} darkMode={darkMode} accentColor={P1} />
             )}
             
             {/* Signup: Send OTP Button */}
@@ -910,18 +681,12 @@ export function UserAuthScreen({
                   <Text style={[S.stepBadgeText, { color: P1 }]}>{tx('Step 1 of 2')}</Text>
                 </View>
                 <Text style={[S.stepTitle, { color: tp }]}>{tx('Verify your phone number')}</Text>
-                <Text style={[S.stepSub, { color: tm }]}>{tx('Enter the OTP and verify before continuing to the remaining details.')}</Text>
-                <Input label={tx('Enter OTP')} value={sOtp} onChange={setSOtp}
+                <Text style={[S.stepSub, { color: tm }]}>{tx('Enter the OTP to continue automatically to the remaining details.')}</Text>
+                <Input label={tx('Enter OTP')} value={sOtp} onChange={(v) => setSOtp(v.replace(/\D/g, '').slice(0, 4))}
                   placeholder={tx('4-digit OTP')} icon={<LockIcon c={P1} />}
-                  keyboard="number-pad" ref={sOtpRef}
-                  onSubmit={verifySignup} darkMode={darkMode} accentColor={P1} />
-                <Pressable onPress={verifySignup} disabled={loading || !sOtp.trim()}
-                  android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-                  style={[S.btnShell, { marginTop: 4 }, (loading || !sOtp.trim()) && { opacity: 0.5 }]}>
-                  <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[S.btnPrimary, { height: 44 }]}>
-                    <Text style={[S.btnPrimaryText, { fontSize: 13 }]}>{loading ? tx('Verifying...') : tx('Verify OTP')}</Text>
-                  </LinearGradient>
-                </Pressable>
+                  keyboard="number-pad" maxLength={4} ref={sOtpRef}
+                  autoComplete={OTP_AUTO_COMPLETE}
+                  onInputFocus={onInputFocus} darkMode={darkMode} accentColor={P1} />
               </View>
             )}
 
@@ -938,14 +703,21 @@ export function UserAuthScreen({
                 </View>
                 <Text style={[S.stepTitle, { color: tp }]}>{tx('Complete your profile')}</Text>
                 <Text style={[S.stepSub, { color: tm }]}>{tx('Add the remaining details below to finish creating your account.')}</Text>
-                <Pressable onPress={() => setSignupStep('otp')} style={[S.stepBackRow, { borderColor: `${P1}20`, backgroundColor: SOFT }]}>
+                <Pressable onPress={() => {
+                  setSignupStep('identity');
+                  setOtpSentSignup(false);
+                  setSOtp('');
+                  setSignupVerificationToken('');
+                  signupVerificationTokenRef.current = '';
+                  signupOtpVerifiedRef.current = false;
+                }} style={[S.stepBackRow, { borderColor: `${P1}20`, backgroundColor: SOFT }]}>
                   <ArrowLeft c={P1} s={16} />
                   <Text style={[S.switchText, { color: P1, fontSize: 12, fontWeight: '700' }]}>{tx('Previous')}</Text>
                 </Pressable>
                 <Input label={`${tx('Email')} (${tx('optional')})`} value={sEmail} onChange={handleSignupEmail}
                   placeholder={tx('your@email.com')} icon={<MailIcon c={P1} />}
                   keyboard="email-address" ref={sEmailRef}
-                  onSubmit={() => sStateRef.current?.focus()} darkMode={darkMode} accentColor={P1} />
+                  onSubmit={() => sStateRef.current?.focus()} onInputFocus={onInputFocus} darkMode={darkMode} accentColor={P1} />
               </View>
             )}
             
@@ -957,6 +729,7 @@ export function UserAuthScreen({
                   <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
                     <TextInput
                       ref={sStateRef}
+                      onFocus={() => onInputFocus(sStateRef.current)}
                       style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
                       value={sState}
                       onChangeText={(v) => setSState(v.replace(/[^A-Za-z ]/g, ''))}
@@ -974,6 +747,7 @@ export function UserAuthScreen({
                     <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
                       <TextInput
                         ref={sCityRef}
+                        onFocus={() => onInputFocus(sCityRef.current)}
                         style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
                         value={sCity}
                         onChangeText={(v) => setSCity(v.replace(/[^A-Za-z ]/g, ''))}
@@ -990,6 +764,7 @@ export function UserAuthScreen({
                     <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
                       <TextInput
                         ref={sPincodeRef}
+                        onFocus={() => onInputFocus(sPincodeRef.current)}
                         style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
                         value={sPincode}
                         onChangeText={(v) => setSPincode(v.replace(/\D/g, '').slice(0, 6))}
@@ -1012,6 +787,7 @@ export function UserAuthScreen({
                 <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
                   <TextInput
                     ref={sReferralRef}
+                    onFocus={() => onInputFocus(sReferralRef.current)}
                     style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
                     value={sReferralCode}
                     onChangeText={value => setSReferralCode(value.replace(/\s/g, '').toUpperCase().slice(0, 80))}
@@ -1019,59 +795,16 @@ export function UserAuthScreen({
                     placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
                     autoCapitalize="characters"
                     autoCorrect={false}
-                    onSubmitEditing={() => sPwdRef.current?.focus()}
-                    returnKeyType="next"
+                    onSubmitEditing={signup}
+                    returnKeyType="done"
                   />
                 </View>
                 <Text style={[S.stepSub, { color: tm }]}>{tx('After signup, you and your friend will each receive 20 points.')}</Text>
               </View>
             )}
 
-            {isSignupDetailsStep && (
-              <Input
-                label={`${tx('Password')} (${tx('optional')})`}
-                value={sPwd}
-                onChange={setSPwd}
-                placeholder={tx('Create a password')}
-                icon={<LockIcon c={P1} />}
-                secure={!showSP}
-                toggleSecure={() => setShowSP(v => !v)}
-                ref={sPwdRef}
-                onSubmit={signup}
-                returnKey="done" darkMode={darkMode} accentColor={P1} />
-            )}
-            
-            {/* Login: Toggle between Password and OTP */}
-            {isLogin && (
-              <Pressable onPress={() => setUseOtpLogin(v => !v)} style={{ marginTop: 8, marginBottom: 8 }}>
-                <Text style={[S.switchText, { color: P1, textAlign: 'center', fontSize: 12, fontWeight: '700' }]}>
-                  {useOtpLogin ? tx('Login with Password instead') : tx('Login with OTP instead')}
-                </Text>
-              </Pressable>
-            )}
-            
-            {/* Login: Password Input */}
-            {isLogin && !useOtpLogin && (
-              <>
-                <Input
-                  label={tx('Password')}
-                  value={lPwd}
-                  onChange={setLPwd}
-                  placeholder={tx('Enter password')}
-                  icon={<LockIcon c={P1} />}
-                  secure={!showLP}
-                  toggleSecure={() => setShowLP(v => !v)}
-                  ref={lPwdRef}
-                  onSubmit={login}
-                  returnKey="done" darkMode={darkMode} accentColor={P1} />
-                <Pressable onPress={openForgotPassword} style={{ alignSelf: 'flex-end', marginTop: -8 }}>
-                  <Text style={[S.switchText, { color: P1, fontSize: 12, fontWeight: '800' }]}>{tx('Forgot Password?')}</Text>
-                </Pressable>
-              </>
-            )}
-            
             {/* Login: OTP Section */}
-            {isLogin && useOtpLogin && !otpSentLogin && (
+            {isLogin && !otpSentLogin && (
               <Pressable onPress={sendOtpLogin} disabled={loading || !lPhone.trim()}
                 android_ripple={{ color: 'rgba(255,255,255,0.2)' }} 
                 style={[S.btnShell, { marginTop: 8 }, (loading || !lPhone.trim()) && { opacity: 0.5 }]}>
@@ -1081,13 +814,13 @@ export function UserAuthScreen({
               </Pressable>
             )}
             
-            {isLogin && useOtpLogin && otpSentLogin && (
+            {isLogin && otpSentLogin && (
               <>
-                <Input label={tx('Enter OTP')} value={lOtp} onChange={setLOtp}
+                <Input label={tx('Enter OTP')} value={lOtp} onChange={(v) => setLOtp(v.replace(/\D/g, '').slice(0, 4))}
                   placeholder={tx('4-digit OTP')} icon={<LockIcon c={P1} />}
-                  keyboard="number-pad" ref={lOtpRef}
-                  onSubmit={login}
-                  returnKey="done" darkMode={darkMode} accentColor={P1} />
+                  keyboard="number-pad" maxLength={4} ref={lOtpRef}
+                  autoComplete={OTP_AUTO_COMPLETE}
+                  returnKey="done" onInputFocus={onInputFocus} darkMode={darkMode} accentColor={P1} />
                 <Pressable onPress={() => { setOtpSentLogin(false); setLOtp(''); }} style={{ alignSelf: 'flex-end', marginTop: -4 }}>
                   <Text style={{ color: P1, fontSize: 12, fontWeight: '700' }}>{tx('Resend OTP')}</Text>
                 </Pressable>
@@ -1095,20 +828,17 @@ export function UserAuthScreen({
             )}
           </View>
 
-          {/* Submit - Only show when ready */}
-          {((isLogin && (!useOtpLogin || otpSentLogin)) || isSignupDetailsStep) && (
-            <Pressable onPress={isLogin ? login : signup} disabled={loading}
+          {isSignupDetailsStep && (
+            <Pressable onPress={signup} disabled={loading}
               android_ripple={{ color: 'rgba(255,255,255,0.2)' }} style={[S.btnShell, S.formActionButton, loading && { opacity: 0.7 }]}>
               <LinearGradient colors={[P1, P2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={S.btnPrimary}>
-                <Text style={S.btnPrimaryText}>
-                  {loading ? (isLogin ? tx('Logging in...') : tx('Creating...')) : (isLogin ? tx('Login') : tx('Create Account'))}
-                </Text>
+                <Text style={S.btnPrimaryText}>{loading ? tx('Creating...') : tx('Create Account')}</Text>
                 {!loading && <ArrowRight s={18} />}
               </LinearGradient>
             </Pressable>
           )}
 
-          {role === 'user' && Platform.OS !== 'web' && (isLogin || isSignup) ? (
+          {role === 'user' && supportsNativeGoogleSignIn && (isLogin || isSignup) ? (
             <Pressable
               onPress={continueWithGoogle}
               disabled={loading}
@@ -1154,7 +884,7 @@ const S = StyleSheet.create({
   landingViewport: { flex: 1 },
   hero: {
     paddingHorizontal: 20,
-    paddingBottom: 18,
+    paddingBottom: 10,
     overflow: 'hidden',
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
@@ -1226,18 +956,18 @@ const S = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   formHeaderLogoWrap: {
-    width: 56, height: 56, borderRadius: 16,
+    width: 46, height: 46, borderRadius: 14,
     backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
-    marginTop: 8, marginBottom: 8,
+    marginTop: 4, marginBottom: 4,
     elevation: 4,
   },
-  formHeaderLogo: { width: 44, height: 44 },
-  formHeaderTitle: { fontSize: 22, fontWeight: '900', color: '#FFFFFF', textAlign: 'center' },
+  formHeaderLogo: { width: 38, height: 38 },
+  formHeaderTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', textAlign: 'center' },
   formHeaderSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', textAlign: 'center', marginTop: 2 },
 
   // Form body
-  formBody: { padding: 16, paddingTop: 22, gap: 18 },
+  formBody: { padding: 16, paddingTop: 16, gap: 18 },
   formWelcome: { gap: 4, alignItems: 'center' },
   formWelcomeTitle: { fontSize: 22, fontWeight: '900', textAlign: 'center' },
   formWelcomeSub: { fontSize: 13, lineHeight: 18, textAlign: 'center' },

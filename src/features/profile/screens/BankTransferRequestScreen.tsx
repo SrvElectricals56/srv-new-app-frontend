@@ -18,7 +18,8 @@ export function BankTransferRequestPage({
 }) {
   const { theme, tx } = usePreferenceContext();
   const { user, role, refreshProfile } = useAuth();
-  const { wallet, dealerBonus, refreshAll } = useAppData();
+  const { wallet, dealerBonus, refreshAll, appSettings } = useAppData();
+  const minimumWithdrawal = appSettings?.minRedemptionPoints ?? 500;
   const currentRole = (role ?? 'electrician') as 'dealer' | 'electrician' | 'user' | 'counterboy';
   const pageContent = useAppPageContent(currentRole, 'bank_details');
   const [amount, setAmount] = useState('');
@@ -101,6 +102,9 @@ export function BankTransferRequestPage({
     if (!amount.trim() || Number.isNaN(numericAmount) || numericAmount <= 0) {
       setDialog({ visible: true, variant: 'info', title: tx('Invalid amount'), message: tx('Please enter a valid withdrawal amount.') }); return;
     }
+    if (numericAmount < minimumWithdrawal) {
+      setDialog({ visible: true, variant: 'info', title: tx('Minimum withdrawal'), message: `${tx('Minimum withdrawal is')} ${minimumWithdrawal} ${tx('points')}.` }); return;
+    }
     if (numericAmount > availableBalance) {
       setDialog({
         visible: true, variant: 'info', title: tx('Insufficient balance'),
@@ -132,7 +136,7 @@ export function BankTransferRequestPage({
     }
   };
 
-  const quickAmounts = isDealer ? ['500', '1000', '2500'] : ['100', '500', '1000'];
+  const quickAmounts = [...new Set([String(Math.max(1, minimumWithdrawal)), ...(isDealer ? ['500', '1000', '2500'] : ['100', '500', '1000'])])].filter(value => Number(value) >= minimumWithdrawal).slice(0, 3);
 
   return (
     <KeyboardAvoidingView
@@ -141,6 +145,9 @@ export function BankTransferRequestPage({
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <PageHeader title={pageContent.pageTitle || tx('Bank Transfer')} onBack={onBack} />
+      <Text style={{ color: theme.textMuted, paddingHorizontal: 20, paddingBottom: 8 }}>
+        {tx('Minimum withdrawal')}: {minimumWithdrawal} {tx('points')}
+      </Text>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: keyboardHeight + 140 }]}

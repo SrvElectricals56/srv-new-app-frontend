@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
+import { HomeHeaderContact } from '@/shared/components/HomeHeaderContact';
 import {
   TESTIMONIAL_FALLBACK_COPY,
   getTestimonialTheme,
@@ -819,7 +820,7 @@ export function HomeScreen({
           <View style={[styles.logoWrap, darkMode ? styles.logoWrapDark : null]}>
             <Image source={logoImage} style={styles.logoImage} resizeMode="contain" />
           </View>
-          <Text style={styles.srvBrandTitle} numberOfLines={1}>SRV Electricals</Text>
+          <HomeHeaderContact accent="#173E80" />
           {showNotifications ? (
             <TouchableOpacity
               onPress={() => onNavigate('notification')}
@@ -977,21 +978,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderBottomWidth: 1,
     borderBottomColor: premium.line,
-  },
-  srvBrandTitle: {
-    flex: 1,
-    textAlign: 'center',
-    color: '#173E80',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.4,
-    marginHorizontal: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    textTransform: 'uppercase',
-    overflow: 'hidden',
   },
   heroGlowOne: {
     position: 'absolute',

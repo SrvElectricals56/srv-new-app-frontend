@@ -22,6 +22,7 @@ import {
 } from '@/shared/components/TestimonialShowcase';
 import { WebsitePromoSection } from '@/shared/components/WebsitePromoSection';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
+import { HomeHeaderContact } from '@/shared/components/HomeHeaderContact';
 import type { Screen } from '@/shared/types/navigation';
 import { useAppPageContent, useAppPageSections } from '@/shared/hooks';
 import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
@@ -495,7 +496,7 @@ export function HomeScreen({
               <Image source={logoImage} style={styles.logoImage} resizeMode="contain" />
             </View>
           </View>
-          <Text style={styles.srvBrandTitle} numberOfLines={1}>SRV Electricals</Text>
+          <HomeHeaderContact accent={CB_PRIMARY} />
           {showNotifications ? (
             <TouchableOpacity
               onPress={() => onNavigate('notification')}
@@ -551,21 +552,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderBottomWidth: 1,
     borderBottomColor: cb.border,
-  },
-  srvBrandTitle: {
-    flex: 1,
-    textAlign: 'center',
-    color: CB_PRIMARY,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.4,
-    marginHorizontal: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    textTransform: 'uppercase',
-    overflow: 'hidden',
   },
   heroGlowOne: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(139,60,42,0.12)', top: -60, right: -40, display: 'none' },
   heroGlowTwo: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(111,78,55,0.12)', bottom: -30, left: -20, display: 'none' },

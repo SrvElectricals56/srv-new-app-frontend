@@ -12,7 +12,7 @@ import { useAppData } from '@/shared/context/AppDataContext';
 import { scanApi, type DuplicateScanDetails } from '@/shared/api';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { resolveFirstScanVisibility } from '@/shared/utils/firstScanVisibility';
-import type { RewardHistoryItem, ScanMode } from '@/shared/types/rewards';
+import type { RewardHistoryItem } from '@/shared/types/rewards';
 import type { Screen } from '@/shared/types/navigation';
 
 const Colors = {
@@ -63,17 +63,17 @@ const normalizeDuplicateScan = (payload: any): DuplicateScanDetails | null => {
   };
 };
 
-const resolveRewardFromCode = async (value?: string, mode: ScanMode = 'single'): Promise<ScanResolveResult> => {
+const resolveRewardFromCode = async (value?: string): Promise<ScanResolveResult> => {
   if (!value) return { reward: null, errorType: 'invalid', duplicate: null };
   const scannedText = value.trim();
   try {
-    const result = await scanApi.submit(scannedText, mode);
+    const result = await scanApi.submit(scannedText, 'multi');
     return {
       reward: {
         code: scannedText,
         label: result.scan.productName,
         points: result.pointsEarned,
-        mode,
+        mode: 'multi',
       },
       errorType: null,
       duplicate: null,
@@ -148,18 +148,6 @@ function BackArrowIcon({ size = 20, color = Colors.textDark }: { size?: number; 
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </Svg>
-  );
-}
-
-function SingleScanIcon({ size = 20, color = Colors.primary }: { size?: number; color?: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="3" width="18" height="18" rx="3" stroke={color} strokeWidth={2} />
-      <Rect x="6" y="6" width="4" height="4" rx="1" fill={color} />
-      <Rect x="14" y="6" width="4" height="4" rx="1" fill={color} />
-      <Rect x="6" y="14" width="4" height="4" rx="1" fill={color} />
-      <Rect x="11" y="11" width="2" height="2" rx="0.5" fill={color} />
     </Svg>
   );
 }
@@ -268,7 +256,6 @@ export function ScanScreen({
   const [flashlightOn, setFlashlightOn] = useState(false);
   const [cameraGranted, setCameraGranted] = useState<boolean | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [scanMode, setScanMode] = useState<ScanMode>('single');
   const [detectedLabel, setDetectedLabel] = useState('SRV MCB 32A detected');
   const [earnedPoints, setEarnedPoints] = useState(0);
   const [batchItems, setBatchItems] = useState<PendingRewardItem[]>([]);
@@ -501,7 +488,7 @@ export function ScanScreen({
         ])
       );
       glowLoopRef.current.start();
-      if (scanMode === 'multi') startBatchPulse();
+      startBatchPulse();
     } else if (!scanned) {
       startLaser(false);
       startCornerIdle();
@@ -518,7 +505,6 @@ export function ScanScreen({
     batchPulse,
     frameGlow,
     laserOpacity,
-    scanMode,
     scanned,
     scanning,
     startBatchPulse,
@@ -565,38 +551,13 @@ export function ScanScreen({
     }
   }, [scanned, frameGlow, laserOpacity, successOpacity, successScale]);
 
-  const resetScanner = async () => {
-    scanLockedRef.current = false;
-    autoTorchAttemptedRef.current = false;
-    animationTriggeredRef.current = false;
-    setScanned(false);
-    setProcessingScan(false);
-    setPreviewImage(null);
-    setDetectedLabel('SRV MCB 32A detected');
-    setEarnedPoints(0);
-    setScanErrorType(null);
-    setDuplicateScan(null);
-    if (scanMode === 'single') {
-      setBatchItems([]);
-    }
-    if (cameraGranted === true || (await requestCameraAccess())) {
-      setScanning(true);
-    }
-  };
-
-  const commitSingleScan = (reward: PendingRewardItem) => {
-    const committed = onCommitRewards([{ ...reward, mode: 'single' }]);
-    setEarnedPoints(committed.addedPoints);
-    setDetectedLabel(`${reward.label} detected`);
-  };
-
   const completeScan = async (data?: string) => {
     if (scanLockedRef.current) return;
     scanLockedRef.current = true;
     setProcessingScan(true);
     setScanning(false);
 
-    const result = await resolveRewardFromCode(data, scanMode);
+    const result = await resolveRewardFromCode(data);
     setProcessingScan(false);
 
     if (!result.reward) {
@@ -613,18 +574,14 @@ export function ScanScreen({
             : 'Scan Failed'
       );
 
-      if (scanMode === 'multi') {
-        setTimeout(() => {
-          scanLockedRef.current = false;
-          setScanned(false);
-          setScanErrorType(null);
-          setDuplicateScan(null);
-          setDetectedLabel('Scan next product');
-          setScanning(true);
-        }, 2000);
-      } else {
-        setScanning(false);
-      }
+      setTimeout(() => {
+        scanLockedRef.current = false;
+        setScanned(false);
+        setScanErrorType(null);
+        setDuplicateScan(null);
+        setDetectedLabel('Scan next product');
+        setScanning(true);
+      }, 2000);
       if (errType === 'request_failed') {
         setDialog({
           visible: true,
@@ -639,14 +596,6 @@ export function ScanScreen({
     setScanErrorType(null);
     setDuplicateScan(null);
 
-    if (scanMode === 'single') {
-      setScanning(false);
-      setScanned(true);
-      commitSingleScan(result.reward);
-      return;
-    }
-
-    // Multi mode
     setBatchItems((current) => [...current, { ...result.reward!, mode: 'multi' }]);
     onCommitRewards([{ ...result.reward, mode: 'multi' }]);
     setDetectedLabel(`${result.reward.label} added`);
@@ -734,8 +683,7 @@ export function ScanScreen({
       return;
     }
 
-    const committed = onCommitRewards(batchItems.map((item) => ({ ...item, mode: 'multi' })));
-    setEarnedPoints(committed.addedPoints);
+    setEarnedPoints(batchItems.reduce((sum, item) => sum + item.points, 0));
     setDetectedLabel(`${batchItems.length} products batch credited`);
     setBatchItems([]);
     setScanned(true);
@@ -785,86 +733,16 @@ export function ScanScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.scanModeSelector}>
-          <View style={[styles.modeSelectorBg, isDark ? styles.modeSelectorBgDark : null]}>
-            <View
-              style={[
-                styles.modeHighlight,
-                scanMode === 'single' ? styles.modeHighlightSingle : styles.modeHighlightMulti,
-                isDark ? styles.modeHighlightDark : null,
-              ]}
-            />
-            <TouchableOpacity
-              style={styles.modeTab}
-              onPress={() => {
-                if (scanMode !== 'single') {
-                  setScanMode('single');
-                  setBatchItems([]);
-                  void resetScanner();
-                }
-              }}
-              activeOpacity={0.8}
-            >
-              <SingleScanIcon
-                size={22}
-                color={scanMode === 'single' ? Colors.primary : isDark ? '#6B7280' : '#9CA3AF'}
-              />
-              <Text
-                style={[
-                  styles.modeTabText,
-                  scanMode === 'single'
-                    ? styles.modeTabTextActive
-                    : isDark
-                      ? styles.modeTabTextDark
-                      : null,
-                ]}
-              >
-                {tx('Single')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modeTab}
-              onPress={() => {
-                if (scanMode !== 'multi') {
-                  setScanMode('multi');
-                  setBatchItems([]);
-                  void resetScanner();
-                }
-              }}
-              activeOpacity={0.8}
-            >
-              <MultiScanIcon
-                size={22}
-                color={scanMode === 'multi' ? Colors.accent : isDark ? '#6B7280' : '#9CA3AF'}
-              />
-              <Text
-                style={[
-                  styles.modeTabText,
-                  scanMode === 'multi'
-                    ? styles.modeTabTextActiveMulti
-                    : isDark
-                      ? styles.modeTabTextDark
-                      : null,
-                ]}
-              >
-                {tx('Multi')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         <View style={styles.modeDescription}>
           <Text style={[styles.modeDescText, isDark ? styles.modeDescTextDark : null]}>
-            {scanMode === 'single'
-              ? tx('Scan one product, get instant points credited to your account')
-              : tx("Keep scanning multiple products and finish batch when you're done")}
+            {tx("Keep scanning multiple products and finish batch when you're done")}
           </Text>
         </View>
 
         <Animated.View
           style={[
             styles.scannerContainer,
-            { transform: [{ scale: scanMode === 'multi' && scanning ? batchPulse : 1 }] },
+            { transform: [{ scale: scanning ? batchPulse : 1 }] },
           ]}
         >
           <View style={[styles.scannerFrameOuter, isDark ? styles.scannerFrameOuterDark : null]}>
@@ -875,7 +753,7 @@ export function ScanScreen({
                 { width: frameSize, height: frameSize, borderColor: Colors.border },
               ]}
             >
-              {cameraGranted && !previewImage && (scanMode === 'multi' || !scanned) ? (
+              {cameraGranted && !previewImage ? (
                 <CameraView
                   style={StyleSheet.absoluteFillObject}
                   facing="back"
@@ -889,17 +767,6 @@ export function ScanScreen({
                   }}
                   onMountError={handleCameraMountError}
                 />
-              ) : cameraGranted && !previewImage && scanned && scanMode === 'single' ? (
-                <View
-                  style={[
-                    StyleSheet.absoluteFillObject,
-                    styles.cameraFallback,
-                    isDark ? styles.cameraFallbackDark : null,
-                    scanned && styles.cameraFallbackScanned,
-                  ]}
-                >
-                  <CameraIcon size={48} color={isDark ? '#F8FAFC' : Colors.primary} />
-                </View>
               ) : !cameraGranted || previewImage ? (
                 <View
                   style={[
@@ -949,9 +816,9 @@ export function ScanScreen({
                     width: frameSize - 40,
                     opacity: laserOpacity,
                     transform: [{ translateY: laserTranslate }],
-                    backgroundColor: scanMode === 'single' ? Colors.primary : Colors.accent,
+                    backgroundColor: Colors.accent,
                     ...createShadow({
-                      color: scanMode === 'single' ? Colors.primary : Colors.accent,
+                      color: Colors.accent,
                       offsetY: 0,
                       blur: 8,
                       opacity: 1,
@@ -967,7 +834,7 @@ export function ScanScreen({
                     width: frameSize - 40,
                     opacity: laserOpacity,
                     transform: [{ translateY: laserTranslate }],
-                    backgroundColor: scanMode === 'single' ? Colors.primary : Colors.accent,
+                    backgroundColor: Colors.accent,
                   },
                 ]}
               />
@@ -979,9 +846,7 @@ export function ScanScreen({
               ? Colors.warning          // yellow
               : scanned && hasScanFailure
                 ? '#EF4444'             // red
-                : scanMode === 'single'
-                  ? Colors.primary      // blue
-                  : Colors.accent;      // indigo
+                : Colors.accent;
 
           return (
             <>
@@ -989,7 +854,7 @@ export function ScanScreen({
                 <Animated.View
                   style={[
                     styles.successOverlay,
-                    scanMode === 'multi' ? styles.successOverlayMulti : null,
+                    styles.successOverlayMulti,
                     scanErrorType === 'already_scanned'
                       ? styles.successOverlayWarning
                       : hasScanFailure
@@ -998,45 +863,20 @@ export function ScanScreen({
                     { transform: [{ scale: successScale }], opacity: successOpacity },
                   ]}
                 >
-                  {scanMode === 'multi' ? (
-                    <View style={[
-                      styles.multiSuccessBadge,
-                      scanErrorType === 'already_scanned' ? styles.multiSuccessBadgeWarning
-                        : hasScanFailure ? styles.multiSuccessBadgeError : null,
-                    ]}>
-                      {scanErrorType === 'already_scanned' ? (
-                        <Text style={styles.multiSuccessIcon}>⚠️</Text>
-                      ) : hasScanFailure ? (
-                        <Text style={styles.multiSuccessIcon}>✕</Text>
-                      ) : (
-                        <CheckBadgeIcon size={20} color="#FFFFFF" />
-                      )}
-                      <Text style={styles.multiSuccessText}>{detectedLabel}</Text>
-                    </View>
-                  ) : (
-                    <>
-                      <View style={styles.successBadge}>
-                        {scanErrorType === 'already_scanned' ? (
-                          <Text style={{ fontSize: 48 }}>⚠️</Text>
-                        ) : hasScanFailure ? (
-                          <Text style={{ fontSize: 48 }}>❌</Text>
-                        ) : (
-                          <CheckBadgeIcon size={48} color={Colors.success} />
-                        )}
-                      </View>
-                      <Text style={[
-                        styles.verifiedText,
-                        scanErrorType === 'already_scanned' ? { color: Colors.warning }
-                          : hasScanFailure ? { color: '#EF4444' } : null,
-                      ]}>
-                        {scanErrorType === 'already_scanned'
-                          ? 'Already Scanned'
-                          : hasScanFailure
-                            ? scanErrorType === 'invalid' ? 'Invalid QR' : 'Scan Failed'
-                            : tx('Verified')}
-                      </Text>
-                    </>
-                  )}
+                  <View style={[
+                    styles.multiSuccessBadge,
+                    scanErrorType === 'already_scanned' ? styles.multiSuccessBadgeWarning
+                      : hasScanFailure ? styles.multiSuccessBadgeError : null,
+                  ]}>
+                    {scanErrorType === 'already_scanned' ? (
+                      <Text style={styles.multiSuccessIcon}>⚠️</Text>
+                    ) : hasScanFailure ? (
+                      <Text style={styles.multiSuccessIcon}>✕</Text>
+                    ) : (
+                      <CheckBadgeIcon size={20} color="#FFFFFF" />
+                    )}
+                    <Text style={styles.multiSuccessText}>{detectedLabel}</Text>
+                  </View>
                 </Animated.View>
               ) : null}
 
@@ -1095,7 +935,7 @@ export function ScanScreen({
                   <>
                     <CheckBadgeIcon size={18} color={Colors.success} />
                     <Text style={styles.statusSuccessText}>
-                      {tx(scanMode === 'multi' ? 'QR Code added to batch' : 'QR Code detected')}
+                      {tx('QR Code added to batch')}
                     </Text>
                   </>
                 )}
@@ -1216,8 +1056,7 @@ export function ScanScreen({
           </Animated.View>
         )}
 
-        {scanMode === 'multi' && (
-          <Animated.View style={[styles.batchCard, isDark ? styles.batchCardDark : null]}>
+        <Animated.View style={[styles.batchCard, isDark ? styles.batchCardDark : null]}>
             <View style={styles.batchHeader}>
               <View style={styles.batchHeaderLeft}>
                 <MultiScanIcon size={22} color={Colors.accent} />
@@ -1285,18 +1124,11 @@ export function ScanScreen({
                 </Text>
               </View>
             )}
-          </Animated.View>
-        )}
+        </Animated.View>
 
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            onPress={
-              scanned
-                ? scanMode === 'multi'
-                  ? handleContinueScanning
-                  : () => onNavigate('wallet')
-                : handleOpenCamera
-            }
+            onPress={scanned ? handleContinueScanning : handleOpenCamera}
             disabled={scanning && !scanned}
             style={[styles.primaryBtn, scanning && !scanned ? styles.primaryBtnDisabled : null]}
             activeOpacity={0.85}
@@ -1306,31 +1138,24 @@ export function ScanScreen({
                 <CameraIcon size={20} color="#FFFFFF" />
                 <Text style={styles.primaryBtnText}>{tx('Start Scanning')}</Text>
               </>
-            ) : scanMode === 'multi' ? (
+            ) : (
               <>
                 <MultiScanIcon size={20} color="#FFFFFF" />
                 <Text style={styles.primaryBtnText}>{tx('Continue Scanning')}</Text>
               </>
-            ) : (
-              <>
-                <CheckBadgeIcon size={20} color="#FFFFFF" />
-                <Text style={styles.primaryBtnText}>{tx('Done')}</Text>
-              </>
             )}
           </TouchableOpacity>
 
-          {scanMode === 'multi' && (
-            <TouchableOpacity
-              onPress={handleDoneBatch}
-              style={[styles.doneBtn, !batchItems.length ? styles.doneBtnDisabled : null]}
-              activeOpacity={0.85}
-              disabled={!batchItems.length}
-            >
-              <Text style={styles.doneBtnText}>
-                {tx('Done')} {batchItems.length > 0 ? `(${batchItems.length})` : ''}
-              </Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={handleDoneBatch}
+            style={[styles.doneBtn, !batchItems.length ? styles.doneBtnDisabled : null]}
+            activeOpacity={0.85}
+            disabled={!batchItems.length}
+          >
+            <Text style={styles.doneBtnText}>
+              {tx('Done')} {batchItems.length > 0 ? `(${batchItems.length})` : ''}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.secondaryActions}>
@@ -1377,26 +1202,17 @@ export function ScanScreen({
           {[
             {
               step: '1',
-              text:
-                scanMode === 'multi'
-                  ? 'Select Multi mode and scan products one by one'
-                  : 'Single and multiple scan mode for instant credit',
+              text: 'Scan products one by one',
               color: Colors.primary,
             },
             {
               step: '2',
-              text:
-                scanMode === 'multi'
-                  ? 'Keep scanning - camera stays open until you finish'
-                  : 'Point camera at QR sticker on SRV product',
+              text: 'Keep scanning - camera stays open until you finish',
               color: Colors.accent,
             },
             {
               step: '3',
-              text:
-                scanMode === 'multi'
-                  ? 'Tap Done button to add all points together'
-                  : 'Points are credited instantly to your wallet',
+              text: 'Tap Done button to add all points together',
               color: Colors.success,
             },
           ].map((item) => (
@@ -1537,40 +1353,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
 
-  scanModeSelector: { width: '100%' },
-  modeSelectorBg: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    padding: 6,
-    position: 'relative',
-    ...createShadow({ color: '#000', offsetY: 2, blur: 8, opacity: 0.06, elevation: 3 }),
-  },
-  modeSelectorBgDark: { backgroundColor: Colors.surfaceDark },
-  modeHighlight: {
-    position: 'absolute',
-    top: 6,
-    bottom: 6,
-    width: '50%',
-    borderRadius: 16,
-  },
-  modeHighlightSingle: { left: 6, backgroundColor: '#FFF0EE' },
-  modeHighlightMulti: { right: 6, backgroundColor: Colors.accentLight },
-  modeHighlightDark: { backgroundColor: 'rgba(99, 102, 241, 0.2)' },
-  modeTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    zIndex: 1,
-  },
-  modeTabText: { fontSize: 15, fontWeight: '700', color: Colors.textMuted },
-  modeTabTextActive: { color: Colors.primary },
-  modeTabTextActiveMulti: { color: Colors.accent },
-  modeTabTextDark: { color: '#6B7280' },
-
   modeDescription: { width: '100%' },
   modeDescText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
   modeDescTextDark: { color: '#94A3B8' },
@@ -1596,7 +1378,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF8F7',
   },
   cameraFallbackDark: { backgroundColor: '#0F172A' },
-  cameraFallbackScanned: { backgroundColor: 'rgba(0,0,0,0.5)' },
   cameraFallbackText: { fontSize: 16, fontWeight: '700', color: Colors.primary },
   cameraFallbackTextDark: { color: '#F8FAFC' },
   previewImageWrap: {
@@ -1636,15 +1417,6 @@ const styles = StyleSheet.create({
   successOverlayMulti: {
     top: 16,
   },
-  successBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...createShadow({ color: Colors.success, offsetY: 0, blur: 12, opacity: 0.4, elevation: 8 }),
-  },
   multiSuccessBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1656,7 +1428,6 @@ const styles = StyleSheet.create({
     ...createShadow({ color: Colors.success, offsetY: 4, blur: 8, opacity: 0.4, elevation: 6 }),
   },
   multiSuccessText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  verifiedText: { fontSize: 16, fontWeight: '800', color: Colors.success, marginTop: 4 },
   multiScanIndicator: { position: 'absolute', top: 16, right: 16, zIndex: 5 },
   multiScanBadge: {
     flexDirection: 'row',

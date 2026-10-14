@@ -833,10 +833,15 @@ export const profileApi = {
           token = await refreshAccessToken();
           const result = await sendUpload(token);
           return result.url as string;
-        } catch {
-          await storage.clearAll();
-          sessionEvents.emitExpired();
-          throw new Error('Session expired. Please login again.');
+        } catch (retryError: any) {
+          if (retryError?.message === 'UNAUTHORIZED' || retryError?.message === 'SESSION_EXPIRED') {
+            if ((await storage.getAccessToken()) === token) {
+              await storage.clearAll();
+              sessionEvents.emitExpired();
+            }
+            throw new Error('Session expired. Please login again.');
+          }
+          throw retryError;
         }
       }
       throw error;
@@ -1127,6 +1132,12 @@ export type TransferRecipient = {
 };
 
 export type AppSettings = {
+  minRedemptionPoints?: number;
+  minTransferPoints?: number;
+  maxPointsPerDay?: number;
+  referrerBonus?: number;
+  refereeBonus?: number;
+  transferPointsEnabled?: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
   supportPhone: string;

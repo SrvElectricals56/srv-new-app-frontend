@@ -26,16 +26,13 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
 
   const [accountHolderName, setAccountHolderName] = useState(user?.accountHolderName ?? '');
   const [googlePayNumber, setGooglePayNumber] = useState(user?.bankAccount ?? '');
-  const [upi, setUpi] = useState(user?.upiId ?? '');
   const [upiQrCodeImage, setUpiQrCodeImage] = useState(user?.upiQrCodeImage ?? '');
-  const [upiError, setUpiError] = useState('');
 
   useEffect(() => {
     setAccountHolderName(user?.accountHolderName ?? '');
     setGooglePayNumber(user?.bankAccount ?? '');
-    setUpi(user?.upiId ?? '');
     setUpiQrCodeImage(user?.upiQrCodeImage ?? '');
-  }, [role, user?.id, user?.accountHolderName, user?.bankAccount, user?.upiId, user?.upiQrCodeImage]);
+  }, [role, user?.id, user?.accountHolderName, user?.bankAccount, user?.upiQrCodeImage]);
 
   const pickUpiQrCode = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -61,15 +58,11 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const isValidUpi = (value: string) =>
-    /^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$/.test(value.trim());
-
   const handleSave = async () => {
     const holder = accountHolderName.trim();
     const gpay = googlePayNumber.trim();
-    const upiId = upi.trim();
 
-    if (!holder || !gpay || !upiId || !upiQrCodeImage) {
+    if (!holder || !gpay || !upiQrCodeImage) {
       setDialog({
         visible: true,
         variant: 'info',
@@ -96,14 +89,6 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
       });
       return;
     }
-    if (!isValidUpi(upiId)) {
-      const message = tx('Please enter a valid UPI ID in the format name@bank.');
-      setUpiError(message);
-      setDialog({ visible: true, variant: 'info', title: tx('Invalid UPI ID'), message });
-      return;
-    }
-
-    setUpiError('');
     setSaving(true);
     try {
       const updated = await authApi.updateProfile({
@@ -111,7 +96,6 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
         bankAccount: gpay,
         ifsc: null,
         bankName: null,
-        upiId,
         upiQrCodeImage,
         bankLinked: true,
       });
@@ -160,7 +144,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
             <View style={styles.headerCopy}>
               <Text style={[styles.title, { color: theme.textPrimary }]}>{t('bankDetails')}</Text>
               <Text style={[styles.sub, { color: theme.textMuted }]}>
-                {tx('Add Google Pay number and UPI ID for smooth payouts')}
+                {tx('Google Pay Number')} · {tx('UPI QR Code')}
               </Text>
             </View>
           </View>
@@ -195,34 +179,6 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
                 maxLength={10}
               />
             </View>
-          </View>
-
-          <View>
-            <Text style={[styles.label, { color: theme.textMuted }]}>{tx('UPI ID')} *</Text>
-            <View style={[
-              styles.inputWrap,
-              { backgroundColor: theme.soft, borderColor: theme.border },
-              upiError ? styles.inputWrapError : null,
-            ]}>
-              <AppIcon name="link" size={18} color={C.gold} />
-              <TextInput
-                style={[styles.input, { color: theme.textPrimary }]}
-                placeholder={tx('Enter UPI ID')}
-                placeholderTextColor={theme.textMuted}
-                value={upi}
-                onChangeText={(v) => {
-                  const next = v.replace(/\s/g, '');
-                  setUpi(next);
-                  if (upiError) {
-                    setUpiError(next && !isValidUpi(next)
-                      ? tx('Please enter a valid UPI ID in the format name@bank.')
-                      : '');
-                  }
-                }}
-                autoCapitalize="none"
-              />
-            </View>
-            {upiError ? <Text style={styles.errorText}>{upiError}</Text> : null}
           </View>
 
           <View>
@@ -300,9 +256,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     gap: 8,
   },
-  inputWrapError: { borderColor: '#B42318', backgroundColor: '#FFF4F2' },
   input: { flex: 1, fontSize: 15, fontWeight: '600' },
-  errorText: { marginTop: 7, fontSize: 12, fontWeight: '700', color: '#B42318', lineHeight: 18 },
   qrPicker: { minHeight: 180, borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   qrPreview: { width: '100%', height: 220, backgroundColor: '#FFFFFF' },
   qrEmpty: { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 7 },

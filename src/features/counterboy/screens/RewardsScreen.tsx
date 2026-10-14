@@ -132,7 +132,7 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
-  const currentPoints = wallet?.totalPoints ?? walletSummary?.totalPoints ?? 0;
+  const currentPoints = wallet?.balance ?? walletSummary?.balance ?? 0;
   const cardW = Math.floor((width - 32 - 12) / 2);
 
   // Show gifts for counterboy or 'all' (counterboy shares gifts with electrician)
@@ -149,13 +149,6 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
   }, [refreshAll]);
 
   const handleRedeem = (gift: GiftProduct) => {
-    if (currentPoints < 100) {
-      setDialog({
-        visible: true, variant: 'info', title: tx('Minimum Points Required'),
-        message: `${tx('You need at least 100 points to redeem. You have')} ${currentPoints} ${tx('points. Keep scanning to earn more!')}`,
-      });
-      return;
-    }
     if (currentPoints < gift.pointsRequired) {
       setDialog({
         visible: true, variant: 'info', title: tx('Not Enough Points'),

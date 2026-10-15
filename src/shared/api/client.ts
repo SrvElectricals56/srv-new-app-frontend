@@ -127,7 +127,7 @@ async function fetchFromApiBases(
       debugLog(`API ${options.method ?? 'GET'} retrying ${candidateUrl}`);
     }
     try {
-      return await fetchWithTimeout(candidateUrl, options);
+      return await fetchWithTimeout(candidateUrl, options, path.startsWith('/mobile/assistant/') ? 40_000 : 15_000);
     } catch (error) {
       lastError = error;
     }

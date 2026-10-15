@@ -59,6 +59,7 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { activityApi, ratingApi, storage } from '@/shared/api';
 import { Dialog } from '@/shared/components/Dialog';
+import { SrvChatLauncher, SrvChatModal } from '@/shared/components/SrvChat';
 import type { AppContentPage } from '@/shared/config/appPageContent';
 import {
   isRoleFeatureEnabled,
@@ -216,6 +217,7 @@ function AppContent() {
   const electricianCartCount = useMemo(() => electricianCartItems.reduce((total, item) => total + item.qty, 0), [electricianCartItems]);
   const [checkoutItem, setCheckoutItem] = useState<CheckoutItem | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [srvChatVisible, setSrvChatVisible] = useState(false);
   const [profileInitialSubPage, setProfileInitialSubPage] = useState<Exclude<SubPage, null> | null>(
     null
   );
@@ -1799,6 +1801,14 @@ function AppContent() {
             <ElectricianBottomNav currentScreen={resolvedCurrentScreen} onNavigate={handleNavigate} />
           )
         ) : null}
+        {!pendingApprovalRole && !keyboardVisible && !srvChatVisible ? (
+          <SrvChatLauncher onPress={() => setSrvChatVisible(true)} />
+        ) : null}
+        <SrvChatModal
+          visible={srvChatVisible}
+          onClose={() => setSrvChatVisible(false)}
+          supportWhatsApp={appSettings?.whatsappNumber}
+        />
         <Dialog
           visible={Boolean(guestAuthPromptRole)}
           onClose={() => setGuestAuthPromptRole(null)}

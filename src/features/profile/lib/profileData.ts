@@ -145,7 +145,6 @@ export const settingsItems: (ProfileMenuItem & { screen: SubPage; badge?: boolea
     screen: 'Notifications',
     route: 'notification',
   },
-  { label: 'Password', icon: 'lock', color: C.blue, bg: C.blueLight, screen: 'Password' },
   { label: 'Rate Us', icon: 'star', color: '#F59E0B', bg: '#FEF3C7', screen: 'Rate Us' },
   {
     label: 'App Settings',

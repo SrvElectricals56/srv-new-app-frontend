@@ -32,7 +32,10 @@ export function ReferFriendPage({ onBack }: { onBack: () => void }) {
     () => withReferralCode(referral?.link || appSettings?.playStoreUrl || DEFAULT_APP_LINK, referCode),
     [appSettings?.playStoreUrl, referral?.link, referCode],
   );
-  const shareMessage = `Hello, join SRV Electricals app with my referral code ${referCode}. You get 20 points after successful account creation, and I also get 20 points. App link: ${referralLink}`;
+  const referrerBonus = appSettings?.referrerBonus ?? 500;
+  const refereeBonus = appSettings?.refereeBonus ?? 250;
+  const rewardMessage = `After successful account creation, you receive ${referrerBonus} points and your friend receives ${refereeBonus} points.`;
+  const shareMessage = `Hello, join SRV Electricals app with my referral code ${referCode}. You get ${refereeBonus} points after successful account creation, and I get ${referrerBonus} points. App link: ${referralLink}`;
 
   const copyCode = async () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -71,7 +74,7 @@ export function ReferFriendPage({ onBack }: { onBack: () => void }) {
             <Text style={styles.heroEyebrow}>{tx('SRV Referral Rewards')}</Text>
             <Text style={styles.heroTitle}>{tx('Invite a friend. Both earn points.')}</Text>
             <Text style={styles.heroSub}>
-              {tx('When your friend creates an account successfully from your referral, both of you receive 20 reward points.')}
+              {tx(rewardMessage)}
             </Text>
           </View>
           <View style={styles.heroImageWrap}>
@@ -81,8 +84,8 @@ export function ReferFriendPage({ onBack }: { onBack: () => void }) {
 
         <View style={styles.rewardRow}>
           {[
-            { title: 'You get', value: '+20', caption: 'after friend joins', icon: 'star' as IconName, bg: '#FEF3C7', color: '#B45309' },
-            { title: 'Friend gets', value: '+20', caption: 'after signup', icon: 'refer' as IconName, bg: '#DBEAFE', color: '#1D4ED8' },
+            { title: 'You get', value: `+${referrerBonus}`, caption: 'after friend joins', icon: 'star' as IconName, bg: '#FEF3C7', color: '#B45309' },
+            { title: 'Friend gets', value: `+${refereeBonus}`, caption: 'after signup', icon: 'refer' as IconName, bg: '#DBEAFE', color: '#1D4ED8' },
           ].map((item) => (
             <View key={item.title} style={[styles.rewardCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <View style={[styles.rewardIcon, { backgroundColor: item.bg }]}>
@@ -125,7 +128,7 @@ export function ReferFriendPage({ onBack }: { onBack: () => void }) {
           {[
             ['Share your app referral link with your friend.', 'link'],
             ['Friend installs SRV app and creates account successfully.', 'message'],
-            ['After successful account creation, both wallets receive 20 points.', 'star'],
+            [rewardMessage, 'star'],
           ].map(([text, icon], index) => (
             <View key={text} style={styles.stepRow}>
               <View style={[styles.stepNo, { backgroundColor: theme.accentSoft }]}>

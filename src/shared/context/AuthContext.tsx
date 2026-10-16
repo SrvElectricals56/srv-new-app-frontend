@@ -1,7 +1,9 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { authApi, profileApi, type UserProfile } from '../api/services';
+import { clearCache } from '../api/client';
 import { storage } from '../api/storage';
+import { sessionEvents } from '../api/sessionEvents';
 import type { UserRole } from '@/shared/types/navigation';
 import { useAppPreviewState } from '../preview/appPreviewStore';
 
@@ -113,6 +115,7 @@ function buildPreviewUser(role: UserRole): UserProfile {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const previewState = useAppPreviewState();
+  const sessionGeneration = useRef(0);
   const [state, setState] = useState<AuthState>({
     isLoading: true,
     isAuthenticated: false,
@@ -122,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On app start — restore session from storage
   useEffect(() => {
+    const generation = sessionGeneration.current;
     (async () => {
       try {
         const [token, profile, role] = await Promise.all([
@@ -132,23 +136,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (token && profile && role) {
           const normalizedProfile = normalizeProfile(profile);
-          setState({
+          setState((current) => generation === sessionGeneration.current ? {
             isLoading: false,
             isAuthenticated: true,
             user: normalizedProfile,
             role: role as UserRole,
-          });
+          } : current);
         } else {
-          setState((s) => ({ ...s, isLoading: false }));
+          setState((s) => generation === sessionGeneration.current ? { ...s, isLoading: false } : s);
         }
       } catch {
         // Storage unavailable — start fresh
-        setState((s) => ({ ...s, isLoading: false }));
+        setState((s) => generation === sessionGeneration.current ? { ...s, isLoading: false } : s);
       }
     })();
   }, []);
 
+  useEffect(() => sessionEvents.onExpired(() => {
+    const generation = sessionGeneration.current;
+    void storage.getAccessToken().then((token) => {
+      if (token || generation !== sessionGeneration.current) return;
+      clearCache();
+      setState((current) => generation === sessionGeneration.current
+        ? { isLoading: false, isAuthenticated: false, user: null, role: null }
+        : current);
+    });
+  }), []);
+
   const login = useCallback((user: UserProfile, role: UserRole) => {
+    sessionGeneration.current += 1;
+    clearCache();
     setState({
       isLoading: false,
       isAuthenticated: true,
@@ -158,10 +175,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    sessionGeneration.current += 1;
     const accessToken = await storage.getAccessToken();
+    try { await authApi.logout(accessToken); } catch { /* local logout still succeeds */ }
     await storage.clearAll();
+    clearCache();
     setState({ isLoading: false, isAuthenticated: false, user: null, role: null });
-    void authApi.logout(accessToken);
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -169,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await storage.getAccessToken();
       if (!token) return;
       const profile = await profileApi.get();
+      if (await storage.getAccessToken() !== token) return;
       const normalizedProfile = normalizeProfile(profile);
       if (!normalizedProfile) return;
       await storage.setUserProfile(normalizedProfile);
@@ -176,8 +196,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       // Session expired — force logout
       if (err?.message === 'SESSION_EXPIRED') {
-        await storage.clearAll();
-        setState({ isLoading: false, isAuthenticated: false, user: null, role: null });
+        const currentToken = await storage.getAccessToken();
+        if (!currentToken) {
+          setState({ isLoading: false, isAuthenticated: false, user: null, role: null });
+        }
       }
       // Other errors: silently fail — use cached profile
     }

@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 const ENV_URL = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -8,15 +9,41 @@ const DEFAULT_URL_BY_PLATFORM: Record<string, string> = {
   ios: 'http://127.0.0.1:3001/api/v1',
 };
 
-// Physical devices should set EXPO_PUBLIC_API_URL to your machine's LAN URL.
 const fallbackUrl = DEFAULT_URL_BY_PLATFORM[Platform.OS] ?? 'http://127.0.0.1:3001/api/v1';
-const devLanUrl = 'http://10.255.222.231:3001/api/v1';
+const isLanHost = (host: string) =>
+  /^10\.|^192\.168\.|^172\.(?:1[6-9]|2\d|3[01])\./.test(host);
 
-export const API_BASE_URL: string = ENV_URL && ENV_URL.length > 0 ? ENV_URL : fallbackUrl;
+const getDevelopmentApiUrl = (): string | null => {
+  if (!__DEV__ || Platform.OS === 'web') return null;
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (!hostUri) return null;
+  try {
+    const host = new URL(hostUri.includes('://') ? hostUri : `http://${hostUri}`).hostname;
+    return isLanHost(host) ? `http://${host}:3001/api/v1` : null;
+  } catch {
+    return null;
+  }
+};
+
+const developmentApiUrl = getDevelopmentApiUrl();
+const envIsLocalLan = (() => {
+  if (!ENV_URL) return false;
+  try {
+    const url = new URL(ENV_URL);
+    return url.protocol === 'http:' && isLanHost(url.hostname);
+  } catch {
+    return false;
+  }
+})();
+
+// In Expo Go, Metro and the local API run on the same computer. Its current
+// address takes priority over a LAN IP saved before the Wi-Fi network changed.
+export const API_BASE_URL: string =
+  developmentApiUrl && (!ENV_URL || envIsLocalLan)
+    ? developmentApiUrl
+    : ENV_URL || fallbackUrl;
 const developmentFallbackUrls = __DEV__
-  ? Platform.OS === 'android' || Platform.OS === 'ios'
-    ? [devLanUrl, fallbackUrl]
-    : [fallbackUrl]
+  ? [developmentApiUrl, ENV_URL, fallbackUrl]
   : [];
 export const API_BASE_URLS: string[] = Array.from(new Set([
   API_BASE_URL,

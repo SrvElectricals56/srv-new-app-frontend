@@ -29,10 +29,7 @@ export function AuthLandingScreen({
   initialMode,
 }: {
   role: UserRole;
-  onAuthenticated: (
-    role: UserRole,
-    options?: { passwordConfigured?: boolean; passwordValue?: string }
-  ) => void;
+  onAuthenticated: (role: UserRole) => void;
   onBack?: () => void;
   initialMode?: 'login' | 'signup';
 }) {

@@ -480,7 +480,11 @@ export function UserAuthScreen({
   const signup = async () => {
     if (!sName.trim())  { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your name') }); return; }
     if (!sPhone.trim()) { setDialog({ visible: true, variant: 'info', title: '', message: tx('Please enter your phone number') }); return; }
-    if (normalizePhone(sPhone) !== otpSignupPhone || !(signupVerificationTokenRef.current || signupVerificationToken)) {
+    // The signup verification token is bound to the phone number by the API.
+    // Keep the token as the proof here and let the registration endpoint reject
+    // a token used with a different number; the local phone snapshot can become
+    // stale while the signup form advances between steps.
+    if (!(signupVerificationTokenRef.current || signupVerificationToken)) {
       setDialog({ visible: true, variant: 'info', title: '', message: tx('Please verify your OTP first') });
       return;
     }

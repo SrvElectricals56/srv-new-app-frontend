@@ -31,8 +31,11 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
   const hasPan = authUser?.panDocument || draftPan;
   const hasGst = authUser?.gstDocument || draftGst;
   const isDealer = currentRole === 'dealer';
+  const isElectrician = currentRole === 'electrician';
   const hasDraftChanges = Boolean(draftAadhar || draftPan || draftGst);
-  const kycComplete = hasAadhar && (isDealer ? (hasPan || hasGst) : true);
+  // Electricians must submit Aadhaar and PAN. Dealers can submit Aadhaar with
+  // either PAN or GST, as their KYC requirements differ.
+  const kycComplete = hasAadhar && (isDealer ? (hasPan || hasGst) : isElectrician ? hasPan : true);
   const kycStatus = authUser?.kycStatus || 'not_submitted';
   const canShowSubmit = kycStatus !== 'verified' || hasDraftChanges;
   const submitLabel = (kycStatus === 'pending' || kycStatus === 'rejected') && (authUser?.aadharFrontImage || authUser?.panDocument || authUser?.gstDocument)
@@ -46,6 +49,10 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
 
     if (isDealer && !hasPan && !hasGst) {
       setDialog({ visible: true, variant: 'info', title: tx('Error'), message: tx('Please upload either PAN Card or GST Number') }); return;
+    }
+
+    if (isElectrician && !hasPan) {
+      setDialog({ visible: true, variant: 'info', title: tx('Error'), message: tx('Please upload PAN Card') }); return;
     }
 
     // Capture before async — first submit if no docs existed before AND status is not_submitted
@@ -166,9 +173,11 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
         <View style={[styles.infoCard, { backgroundColor: roleSoft, borderColor: roleColor }]}>
           <AppIcon name="info" size={20} color={roleColor} />
           <Text style={[styles.infoText, { color: roleColor }]}>
-            {isDealer 
+            {isDealer
               ? tx('Upload Aadhar Card and either PAN Card or GST Number for verification')
-              : tx('Upload Aadhar Card for KYC verification')}
+              : isElectrician
+                ? tx('Upload Aadhar Card and PAN Card for verification')
+                : tx('Upload Aadhar Card for KYC verification')}
           </Text>
         </View>
 
@@ -188,14 +197,16 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
             roleSoft={roleSoft}
           />
 
-          {isDealer && (
+          {(isDealer || isElectrician) && (
             <>
-              <Text style={[styles.helperText, { color: theme.textMuted }]}>
-                ℹ️ {tx('Choose one from both PAN Card or GST Number')}
-              </Text>
+              {isDealer && (
+                <Text style={[styles.helperText, { color: theme.textMuted }]}>
+                  ℹ️ {tx('Choose one from both PAN Card or GST Number')}
+                </Text>
+              )}
 
               <DocumentUpload
-                label="PAN Card (Optional)"
+                label={isElectrician ? 'PAN Card' : 'PAN Card (Optional)'}
                 documentType="pan"
                 currentUrl={authUser?.panDocument}
                 onUploadSuccess={(url) => setDraftPan(url)}
@@ -204,15 +215,17 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
                 roleSoft={roleSoft}
               />
 
-              <DocumentUpload
-                label="GST Number (Optional)"
-                documentType="gst"
-                currentUrl={authUser?.gstDocument}
-                onUploadSuccess={(url) => setDraftGst(url)}
-                theme={theme}
-                roleColor={roleColor}
-                roleSoft={roleSoft}
-              />
+              {isDealer && (
+                <DocumentUpload
+                  label="GST Number (Optional)"
+                  documentType="gst"
+                  currentUrl={authUser?.gstDocument}
+                  onUploadSuccess={(url) => setDraftGst(url)}
+                  theme={theme}
+                  roleColor={roleColor}
+                  roleSoft={roleSoft}
+                />
+              )}
             </>
           )}
         </View>
@@ -234,15 +247,15 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
             </Text>
           </View>
 
-          {isDealer && (
+          {(isDealer || isElectrician) && (
             <View style={styles.progressItem}>
-              <AppIcon 
-                name={(hasPan || hasGst) ? 'check' : 'circle'} 
-                size={20} 
-                color={(hasPan || hasGst) ? '#10B981' : theme.textMuted} 
+              <AppIcon
+                name={(isDealer ? hasPan || hasGst : hasPan) ? 'check' : 'circle'}
+                size={20}
+                color={(isDealer ? hasPan || hasGst : hasPan) ? '#10B981' : theme.textMuted}
               />
               <Text style={[styles.progressText, { color: theme.textPrimary }]}>
-                {tx('PAN Card or GST Number')}
+                {isDealer ? tx('PAN Card or GST Number') : tx('PAN Card')}
               </Text>
             </View>
           )}

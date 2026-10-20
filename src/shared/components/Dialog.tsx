@@ -113,7 +113,7 @@ export function Dialog({
       <ScrollView contentContainerStyle={styles.scrollArea} keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
       <Pressable style={styles.overlay} onPress={choices ? () => {} : onClose}>
         <Animated.View style={[styles.card, { backgroundColor: theme.surface, transform: [{ scale: scaleAnim }] }]}>
-          <Pressable onPress={() => {}}>
+          <Pressable onPress={() => {}} style={styles.cardContent}>
             <View style={[styles.iconWrap, { backgroundColor: meta.accent + '14' }]}>
               <Text style={styles.icon}>{displayIcon}</Text>
             </View>
@@ -196,6 +196,9 @@ const styles = StyleSheet.create({
     padding: 28,
     alignItems: 'center',
     ...createShadow({ color: '#000', offsetY: 16, blur: 48, opacity: 0.3, elevation: 20 }),
+  },
+  cardContent: {
+    width: '100%',
   },
   iconWrap: {
     width: 68,

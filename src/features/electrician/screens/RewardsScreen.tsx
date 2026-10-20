@@ -305,9 +305,18 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  addressDialogContent: { width: '100%', marginTop: 4, marginBottom: 20 },
+  addressDialogContent: { width: '100%', alignSelf: 'stretch', marginTop: 4, marginBottom: 20 },
   addressLabel: { fontSize: 12, fontWeight: '800', marginBottom: 8 },
-  addressInput: { minHeight: 92, borderWidth: 1, borderRadius: 12, padding: 12, textAlignVertical: 'top' },
+  addressInput: {
+    width: '100%',
+    height: 108,
+    minHeight: 108,
+    maxHeight: 108,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    textAlignVertical: 'top',
+  },
   scroll: { padding: 16, paddingBottom: 120 },
 
   // Points banner

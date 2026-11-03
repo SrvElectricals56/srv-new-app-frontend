@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { Animated, Easing, Image, Pressable, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
@@ -444,7 +445,7 @@ export function HomeScreen({
   const [apiBannerSlides, setApiBannerSlides] = useState<{ image: { uri: string }; resizeMode: 'cover' | 'contain'; backgroundColor: string }[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
-  const homeScrollRef = useRef<ScrollView>(null);
+  const homeScrollRef = useRef<ScrollViewInstance>(null);
   useRegisterScrollToTop('home', homeScrollRef);
   const handleRefresh = async () => {
     setRefreshing(true);

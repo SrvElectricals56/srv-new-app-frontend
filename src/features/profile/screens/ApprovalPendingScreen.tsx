@@ -1,6 +1,7 @@
 import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { useMemo } from 'react';
-import { Image, Linking, Pressable, SafeAreaView, StyleSheet, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppIcon, type IconName } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';

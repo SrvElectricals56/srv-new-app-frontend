@@ -146,14 +146,22 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
   const { role, user } = useAuth();
   const { width } = useWindowDimensions();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
+  const redeemingRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [shippingAddress, setShippingAddress] = useState('');
   const shippingAddressRef = useRef('');
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
-  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
+  const closeDialog = () => {
+    if (!redeemingRef.current) setDialog((d) => ({ ...d, visible: false }));
+  };
 
   const isDealer = role === 'dealer';
-  const currentPoints = wallet?.balance ?? walletSummary?.balance ?? 0;
+  // Some older accounts have points in totalPoints while walletBalance is
+  // still zero. Match the backend's spendable-points fallback so the gift
+  // card state and checkout validation cannot disagree.
+  const storedBalance = Number(wallet?.balance ?? walletSummary?.balance ?? 0);
+  const recordedPoints = Number(wallet?.totalPoints ?? walletSummary?.totalPoints ?? 0);
+  const currentPoints = storedBalance > 0 || recordedPoints <= 0 ? storedBalance : recordedPoints;
   const cardW = Math.floor((width - 32 - 12) / 2);
 
   // Auto-filter by user role — no tabs needed
@@ -172,6 +180,7 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
   }, [refreshAll]);
 
   const handleRedeem = (gift: GiftProduct) => {
+    if (redeemingRef.current) return;
     if (currentPoints < gift.pointsRequired) {
       setDialog({
         visible: true, variant: 'info', title: tx('Not Enough Points'),
@@ -194,6 +203,8 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
       message: `${tx('This will use')} ${gift.pointsRequired} ${tx('points from your wallet.')}`,
       confirmLabel: tx('Confirm'),
       onConfirm: async () => {
+        if (redeemingRef.current) return;
+        redeemingRef.current = true;
         try {
           setRedeemingId(gift.id);
           await redeemReward({ schemeId: gift.id, note: gift.name, giftImage: gift.imageUrl ?? undefined, shippingAddress: shippingAddressRef.current.trim() });
@@ -204,6 +215,7 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
         } catch (err: any) {
           setDialog({ visible: true, variant: 'error', title: tx('Redemption Failed'), message: err?.message ?? tx('Please try again.') });
         } finally {
+          redeemingRef.current = false;
           setRedeemingId(null);
         }
       },
@@ -292,7 +304,8 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
             style={[styles.addressInput, { color: theme.textPrimary, borderColor: theme.border, backgroundColor: theme.soft }]}
           />
         ) : null}
-        confirmDisabled={dialog.variant === 'confirm' && shippingAddress.trim().length < 10}
+        confirmDisabled={dialog.variant === 'confirm' && (shippingAddress.trim().length < 10 || redeemingId !== null)}
+        closeOnConfirm={dialog.variant !== 'confirm'}
         onConfirm={dialog.onConfirm}
         onClose={closeDialog}
       />
@@ -302,7 +315,16 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  addressInput: { minHeight: 86, marginTop: 14, borderWidth: 1, borderRadius: 12, padding: 12, textAlignVertical: 'top' },
+  addressInput: {
+    width: '100%',
+    height: 96,
+    marginTop: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    textAlignVertical: 'top',
+  },
   scroll: { padding: 16, paddingBottom: 120 },
 
   // Points banner

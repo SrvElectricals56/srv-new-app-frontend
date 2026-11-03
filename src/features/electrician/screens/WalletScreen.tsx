@@ -2,6 +2,7 @@ import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { uniqueWalletTransactions } from '@/shared/utils/walletTransactions';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
@@ -295,7 +296,7 @@ export function WalletScreen({
   const contentRole = role === 'user' ? 'user' : role;
   const pageContent = useAppPageContent(contentRole as any, 'wallet');
 
-  const walletScrollRef = useRef<ScrollView>(null);
+  const walletScrollRef = useRef<ScrollViewInstance>(null);
   useRegisterScrollToTop('wallet', walletScrollRef);
   const [currentPage, setCurrentPage] = useState(1);
   const [activityDate, setActivityDate] = useState('');

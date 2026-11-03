@@ -7,6 +7,15 @@
     "icon": "./assets/srv-app-icon-final-v2.png",
     "plugins": [
       "expo-router",
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/srv-app-icon-final-v2.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#080F27"
+        }
+      ],
       [
         "expo-audio",
         {
@@ -18,8 +27,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow SRV Electricals to access only the photos you choose for profile, document, and support uploads.",
-          "cameraPermission": "Allow SRV Electricals to use your camera when you choose to take a photo.",
-          "microphonePermission": false
+          "cameraPermission": "Allow SRV Electricals to use your camera when you choose to take a photo."
         }
       ],
       [
@@ -51,18 +59,9 @@
     },
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "androidNavigationBar": {
-      "backgroundColor": "#FFFFFF",
-      "barStyle": "dark-content"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
-    "splash": {
-      "image": "./assets/srv-app-icon-final-v2.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#080F27"
-    },
     "ios": {
       "icon": "./assets/srv-app-icon-final-v2.png",
       "supportsTablet": true,
@@ -73,7 +72,7 @@
       "icon": "./assets/srv-app-icon-final-v2.png",
       "versionCode": 36,
       "allowBackup": false,
-      "googleServicesFile": "./android/app/google-services.json",
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "ACCESS_COARSE_LOCATION",

@@ -11,6 +11,7 @@ import { useAppData } from '@/shared/context/AppDataContext';
 import { scanApi, type DuplicateScanDetails } from '@/shared/api';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { resolveFirstScanVisibility } from '@/shared/utils/firstScanVisibility';
+import { classifyQrScanError } from '@/shared/utils/qrScanError';
 import type { RewardHistoryItem, ScanMode } from '@/shared/types/rewards';
 import type { Screen } from '@/shared/types/navigation';
 import { Dialog } from '@/shared/components/Dialog';
@@ -79,20 +80,14 @@ const resolveRewardFromCode = async (value?: string): Promise<ScanResolveResult>
       },
     };
   } catch (err: any) {
-    const payload = err?.data ?? {};
-    const message = String(err?.message ?? payload?.message ?? '');
-    if (
-      payload?.code === 'QR_ALREADY_REDEEMED' ||
-      err?.status === 409 ||
-      message.toLowerCase().includes('already')
-    ) {
-      return { type: 'duplicate', duplicate: normalizeDuplicateScan(payload) };
+    const classified = classifyQrScanError(err);
+    if (classified.kind === 'duplicate') {
+      return { type: 'duplicate', duplicate: normalizeDuplicateScan(classified.payload) };
     }
-    const status = Number(err?.status ?? err?.response?.status ?? 0);
-    if (status === 400 || status === 404 || status === 422) {
+    if (classified.kind === 'invalid') {
       return { type: 'invalid' };
     }
-    return { type: 'failed', message: message || 'Unable to verify this QR right now. Please try again.' };
+    return { type: 'failed', message: classified.message };
   }
 };
 
@@ -292,6 +287,7 @@ export function ScanScreen({
   const successOpacity = useRef(new Animated.Value(0)).current;
   const batchPulse = useRef(new Animated.Value(1)).current;
   const scanLockedRef = useRef(false);
+  const lastDuplicateCodeRef = useRef<string | null>(null);
   const animationTriggeredRef = useRef(false);
   const autoTorchAttemptedRef = useRef(false);
 
@@ -560,6 +556,7 @@ export function ScanScreen({
 
   const resetScanner = async () => {
     scanLockedRef.current = false;
+    lastDuplicateCodeRef.current = null;
     autoTorchAttemptedRef.current = false;
     animationTriggeredRef.current = false;
     setScanned(false);
@@ -597,22 +594,12 @@ export function ScanScreen({
     setProcessingScan(false);
 
     if (resolved.type === 'duplicate') {
+      lastDuplicateCodeRef.current = data ?? null;
       setScanned(true);
       setEarnedPoints(0);
       setDuplicateScan(resolved.duplicate);
       setDetectedLabel('Already Scanned');
 
-      if (scanMode === 'multi') {
-        setTimeout(() => {
-          scanLockedRef.current = false;
-          setScanned(false);
-          setDuplicateScan(null);
-          setDetectedLabel('Scan next product');
-          setScanning(true);
-        }, 2500);
-      } else {
-        setScanning(false);
-      }
       return;
     }
 
@@ -712,6 +699,8 @@ export function ScanScreen({
 
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (!scanning || scanLockedRef.current) return;
+    if (data === lastDuplicateCodeRef.current) return;
+    lastDuplicateCodeRef.current = null;
     void completeScan(data);
   };
 
@@ -877,7 +866,7 @@ export function ScanScreen({
             >
               {cameraGranted && !previewImage && (scanMode === 'multi' || !scanned) ? (
                 <CameraView
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                   facing="back"
                   autofocus="on"
                   zoom={0.08}
@@ -892,7 +881,7 @@ export function ScanScreen({
               ) : cameraGranted && !previewImage && scanned && scanMode === 'single' ? (
                 <View
                   style={[
-                    StyleSheet.absoluteFillObject,
+                    StyleSheet.absoluteFill,
                     styles.cameraFallback,
                     isDark ? styles.cameraFallbackDark : null,
                     scanned && styles.cameraFallbackScanned,
@@ -903,7 +892,7 @@ export function ScanScreen({
               ) : !cameraGranted || previewImage ? (
                 <View
                   style={[
-                    StyleSheet.absoluteFillObject,
+                    StyleSheet.absoluteFill,
                     styles.cameraFallback,
                     isDark ? styles.cameraFallbackDark : null,
                   ]}
@@ -936,7 +925,7 @@ export function ScanScreen({
 
               <View
                 style={[
-                  StyleSheet.absoluteFillObject,
+                  StyleSheet.absoluteFill,
                   scanned ? styles.frameShadeScanned : styles.frameShade,
                   { pointerEvents: 'none' },
                 ]}
@@ -1151,6 +1140,15 @@ export function ScanScreen({
                 )}
               </View>
             ) : null}
+            {scanMode === 'multi' && detectedLabel === 'Already Scanned' ? (
+              <TouchableOpacity
+                onPress={handleContinueScanning}
+                style={[styles.primaryBtn, { marginTop: 14 }]}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryBtnText}>{tx('Next')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </Animated.View>
         )}
 
@@ -1247,7 +1245,9 @@ export function ScanScreen({
             ) : scanMode === 'multi' ? (
               <>
                 <MultiScanIcon size={20} color="#FFFFFF" />
-                <Text style={styles.primaryBtnText}>{tx('Continue Scanning')}</Text>
+                <Text style={styles.primaryBtnText}>
+                  {tx(detectedLabel === 'Already Scanned' ? 'Next' : 'Continue Scanning')}
+                </Text>
               </>
             ) : (
               <>
@@ -1797,7 +1797,7 @@ const styles = StyleSheet.create({
   helpText: { flex: 1, fontSize: 13, lineHeight: 20, color: Colors.textMuted },
   helpTextDark: { color: '#94A3B8' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)' },
   modalContent: {
     backgroundColor: Colors.surface,
     borderTopLeftRadius: 28,
@@ -1867,7 +1867,7 @@ const styles = StyleSheet.create({
   modalItemCodeDark: { color: '#94A3B8' },
   modalItemPoints: { fontSize: 16, fontWeight: '800', color: Colors.success },
   allItemsOverlay: { flex: 1 },
-  allItemsBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  allItemsBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
   allItemsContainer: {
     position: 'absolute',
     bottom: 0,

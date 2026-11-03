@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import { useMemo, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { useAppPageContent } from '@/shared/hooks';
@@ -571,7 +572,7 @@ export function ProductScreen({
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<UiProduct | null>(null);
-  const categoryTabsRef = useRef<ScrollView>(null);
+  const categoryTabsRef = useRef<ScrollViewInstance>(null);
 
   const catalogProducts = useMemo(() => apiProducts.map(mapApiToUi), [apiProducts]);
   const catalogCategories = useMemo(

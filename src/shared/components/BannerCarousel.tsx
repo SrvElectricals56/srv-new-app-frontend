@@ -154,7 +154,7 @@ export function BannerCarousel({
             <Animated.View
               key={index}
               style={[
-                StyleSheet.absoluteFillObject,
+                StyleSheet.absoluteFill,
                 styles.slide,
                 slide.backgroundColor
                   ? { backgroundColor: slide.backgroundColor }

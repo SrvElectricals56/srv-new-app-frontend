@@ -290,7 +290,7 @@ function DetailCard({
   return (
     <Modal transparent animationType="fade" visible onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View
           style={[
             styles.detailCard,

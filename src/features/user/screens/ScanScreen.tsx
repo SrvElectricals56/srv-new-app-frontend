@@ -12,6 +12,7 @@ import { scanApi, type DuplicateScanDetails } from '@/shared/api';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { Dialog } from '@/shared/components/Dialog';
 import { resolveFirstScanVisibility } from '@/shared/utils/firstScanVisibility';
+import { classifyQrScanError } from '@/shared/utils/qrScanError';
 import type { RewardHistoryItem, ScanMode } from '@/shared/types/rewards';
 import type { Screen } from '@/shared/types/navigation';
 
@@ -78,24 +79,18 @@ const resolveRewardFromCode = async (value?: string): Promise<ScanResolveResult>
       },
     };
   } catch (err: any) {
-    const payload = err?.data ?? {};
-    const message = String(err?.message ?? payload?.message ?? '');
-    if (
-      payload?.code === 'QR_ALREADY_REDEEMED' ||
-      err?.status === 409 ||
-      message.toLowerCase().includes('already')
-    ) {
+    const classified = classifyQrScanError(err);
+    if (classified.kind === 'duplicate') {
       return {
         type: 'duplicate',
-        duplicate: normalizeDuplicateScan(payload),
-        message: message || 'QR code is already redeemed',
+        duplicate: normalizeDuplicateScan(classified.payload),
+        message: classified.message || 'QR code is already redeemed',
       };
     }
-    const status = Number(err?.status ?? err?.response?.status ?? 0);
-    if (status === 400 || status === 404 || status === 422) {
+    if (classified.kind === 'invalid') {
       return { type: 'invalid' };
     }
-    return { type: 'failed', message: message || 'Unable to verify this QR right now. Please try again.' };
+    return { type: 'failed', message: classified.message };
   }
 };
 
@@ -880,7 +875,7 @@ export function ScanScreen({
             >
               {cameraGranted && !previewImage && (scanMode === 'multi' || !scanned) ? (
                 <CameraView
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                   facing="back"
                   autofocus="on"
                   zoom={0.08}
@@ -895,7 +890,7 @@ export function ScanScreen({
               ) : cameraGranted && !previewImage && scanned && scanMode === 'single' ? (
                 <View
                   style={[
-                    StyleSheet.absoluteFillObject,
+                    StyleSheet.absoluteFill,
                     styles.cameraFallback,
                     isDark ? styles.cameraFallbackDark : null,
                     scanned && styles.cameraFallbackScanned,
@@ -906,7 +901,7 @@ export function ScanScreen({
               ) : !cameraGranted || previewImage ? (
                 <View
                   style={[
-                    StyleSheet.absoluteFillObject,
+                    StyleSheet.absoluteFill,
                     styles.cameraFallback,
                     isDark ? styles.cameraFallbackDark : null,
                   ]}
@@ -939,7 +934,7 @@ export function ScanScreen({
 
               <View
                 style={[
-                  StyleSheet.absoluteFillObject,
+                  StyleSheet.absoluteFill,
                   scanned ? styles.frameShadeScanned : styles.frameShade,
                   { pointerEvents: 'none' },
                 ]}
@@ -1785,7 +1780,7 @@ const styles = StyleSheet.create({
   helpText: { flex: 1, fontSize: 13, lineHeight: 20, color: Colors.textMuted },
   helpTextDark: { color: '#94A3B8' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)' },
   modalContent: {
     backgroundColor: Colors.surface,
     borderTopLeftRadius: 28,
@@ -1855,7 +1850,7 @@ const styles = StyleSheet.create({
   modalItemCodeDark: { color: '#94A3B8' },
   modalItemPoints: { fontSize: 16, fontWeight: '800', color: Colors.success },
   allItemsOverlay: { flex: 1 },
-  allItemsBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  allItemsBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
   allItemsContainer: {
     position: 'absolute',
     bottom: 0,

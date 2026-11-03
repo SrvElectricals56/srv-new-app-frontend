@@ -71,7 +71,6 @@ export type SubPage =
   | 'Contact Support'
   | 'Privacy Policy'
   | 'Request Account Deletion'
-  | 'Rate Us'
   | 'KYC Verification';
 
 export type IconName =

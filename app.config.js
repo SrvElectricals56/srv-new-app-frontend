@@ -5,6 +5,26 @@ module.exports = ({ config }) => {
     ...config,
     name: isStaging ? 'SRV Electricals Staging' : config.name,
     icon: './assets/srv-app-icon-final-v2.png',
+    plugins: [
+      ...(config.plugins ?? []),
+      'expo-image',
+      'expo-sharing',
+      [
+        'expo-awesome-app-icon',
+        {
+          icons: {
+            diwali: {
+              ios: { light: './assets/app-icons/diwali.png' },
+              android: { image: './assets/app-icons/diwali.png' },
+            },
+            'republic-day': {
+              ios: { light: './assets/app-icons/republic-day.png' },
+              android: { image: './assets/app-icons/republic-day.png' },
+            },
+          },
+        },
+      ],
+    ],
     ios: {
       ...config.ios,
       icon: './assets/srv-app-icon-final-v2.png',
@@ -19,6 +39,7 @@ module.exports = ({ config }) => {
     },
     android: {
       ...config.android,
+      package: isStaging ? 'com.srvelectricals.app.staging' : config.android.package,
       icon: './assets/srv-app-icon-final-v2.png',
       adaptiveIcon: {
         foregroundImage: './assets/srv-app-icon-final-v2.png',

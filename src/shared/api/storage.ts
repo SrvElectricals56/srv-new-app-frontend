@@ -49,7 +49,6 @@ const KEYS = {
   SEEN_NOTIFICATION_IDS_PREFIX: 'srv_seen_notification_ids',
   CLEARED_NOTIFICATION_IDS_PREFIX: 'srv_cleared_notification_ids',
   PUSH_NOTIFICATIONS_ENABLED: 'srv_push_notifications_enabled',
-  REVIEW_PROMPT_PREFIX: 'srv_review_prompt',
 };
 
 export const storage = {
@@ -111,18 +110,6 @@ export const storage = {
 
   async getPushNotificationsEnabled(): Promise<boolean> {
     return (await safeGet(KEYS.PUSH_NOTIFICATIONS_ENABLED)) !== 'false';
-  },
-
-  buildReviewPromptKey(userId: string) {
-    return `${KEYS.REVIEW_PROMPT_PREFIX}:${userId}`;
-  },
-
-  async getLastReviewPromptAt(userId: string): Promise<string | null> {
-    return safeGet(this.buildReviewPromptKey(userId));
-  },
-
-  async setLastReviewPromptAt(userId: string, value = new Date().toISOString()): Promise<void> {
-    await safeSet(this.buildReviewPromptKey(userId), value);
   },
 
   async clearAll() {

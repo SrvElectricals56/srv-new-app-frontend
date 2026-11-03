@@ -57,7 +57,7 @@ import { formatISTDateTime } from '@/shared/utils/dateIST';
 import { GetStartedScreen } from '@/features/onboarding/GetStartedScreen';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
-import { activityApi, ratingApi, storage } from '@/shared/api';
+import { activityApi, storage } from '@/shared/api';
 import { Dialog } from '@/shared/components/Dialog';
 import { SrvChatLauncher, SrvChatModal } from '@/shared/components/SrvChat';
 import type { AppContentPage } from '@/shared/config/appPageContent';
@@ -159,8 +159,6 @@ function resolvePreviewTarget(
       return { screen: 'profile', subPage: null };
     case 'app_settings':
       return { screen: 'profile', subPage: 'App Settings' };
-    case 'rate_us':
-      return { screen: 'profile', subPage: 'Rate Us' };
     default:
       return { screen: 'home', subPage: null };
   }
@@ -185,7 +183,6 @@ function AppContent() {
   const [guestAuthRole, setGuestAuthRole] = useState<UserRole | null>(null);
   const [guestAuthInitialMode, setGuestAuthInitialMode] = useState<GuestAuthMode | null>(null);
   const [guestAuthPromptRole, setGuestAuthPromptRole] = useState<UserRole | null>(null);
-  const [reviewPromptVisible, setReviewPromptVisible] = useState(false);
   const [profilePhotoByRole, setProfilePhotoByRole] = useState<Record<UserRole, string | null>>({
     dealer: null,
     electrician: null,
@@ -274,6 +271,11 @@ function AppContent() {
 
     if (!authLoading && !authResolved) {
       setAuthResolved(true);
+      // A normal app launch must always begin on Home. Authentication restore
+      // and retained notification state must not reopen the previous screen.
+      setCurrentScreen('home');
+      setProfileInitialSubPage(null);
+      setCheckoutItem(null);
       if (isAuthenticated && user && authRole) {
         const availableRole = resolveAvailableAppRole(authRole as UserRole);
         if (authRole === 'counterboy') {
@@ -301,27 +303,6 @@ function AppContent() {
     logout,
     user,
   ]);
-
-  useEffect(() => {
-    if (!authResolved || !isAuthenticated || !user?.id || isPreviewMode || showOnboarding || pendingApprovalRole) return;
-    let active = true;
-    void (async () => {
-      const accountStartValue = user.firstAppLoginAt ?? user.joinedDate ?? user.createdAt ?? null;
-      const accountStart = accountStartValue ? new Date(accountStartValue).getTime() : Number.NaN;
-      if (!Number.isFinite(accountStart) || Date.now() - accountStart < 7 * 24 * 60 * 60 * 1000) return;
-
-      const [existingRating, lastPromptAt] = await Promise.all([
-        ratingApi.get().catch(() => null),
-        storage.getLastReviewPromptAt(user.id),
-      ]);
-      if (existingRating || !active) return;
-
-      const lastPromptTime = lastPromptAt ? new Date(lastPromptAt).getTime() : Number.NaN;
-      if (Number.isFinite(lastPromptTime) && Date.now() - lastPromptTime < 7 * 24 * 60 * 60 * 1000) return;
-      setReviewPromptVisible(true);
-    })();
-    return () => { active = false; };
-  }, [authResolved, isAuthenticated, isPreviewMode, pendingApprovalRole, showOnboarding, user]);
 
   // Keep points/scans in sync when user profile updates (admin changes reflected)
   // Always use server value — admin can increase OR decrease points
@@ -657,7 +638,7 @@ function AppContent() {
     navigateFromNotificationRef.current = handleNavigate;
   }, [handleNavigate]);
 
-  // Handle notification taps in foreground, background, and cold-start states.
+  // Handle new notification taps without replaying a saved tap at app startup.
   // Update notifications carry an HTTPS actionUrl and open the appropriate store;
   // ordinary notifications continue to the in-app notification center.
   useEffect(() => {
@@ -681,9 +662,11 @@ function AppContent() {
     void (async () => {
       const Notifications = await getNativeNotifications();
       if (!Notifications || !active) return;
+      // Expo retains the last tapped notification across launches. Replaying it
+      // here would move every new app session from Home to Notifications.
+      await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+      if (!active) return;
       subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
-      const initialResponse = await Notifications.getLastNotificationResponseAsync();
-      if (initialResponse && active) handleResponse(initialResponse);
     })();
 
     return () => {
@@ -1825,35 +1808,6 @@ function AppContent() {
               onPress: () => openGuestAuth(guestAuthPromptRole, 'signup'),
             },
           ] : []}
-        />
-        <Dialog
-          visible={reviewPromptVisible}
-          onClose={() => {
-            if (user?.id) void storage.setLastReviewPromptAt(user.id);
-            setReviewPromptVisible(false);
-          }}
-          title={preferenceValue.tx('How is your SRV app experience?')}
-          message={preferenceValue.tx('You have used the app for a week. Share an honest review to help other SRV members and improve the app.')}
-          variant="info"
-          choices={[
-            {
-              label: preferenceValue.tx('Rate now'),
-              onPress: () => {
-                if (user?.id) void storage.setLastReviewPromptAt(user.id);
-                setReviewPromptVisible(false);
-                setProfileInitialSubPage('Rate Us');
-                setProfileResetKey((key) => key + 1);
-                setCurrentScreen('profile');
-              },
-            },
-            {
-              label: preferenceValue.tx('Maybe later'),
-              onPress: () => {
-                if (user?.id) void storage.setLastReviewPromptAt(user.id);
-                setReviewPromptVisible(false);
-              },
-            },
-          ]}
         />
         {notificationBanner ? (
           <Animated.View

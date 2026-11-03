@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(15,23,42,0.45)',
   },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject },
+  modalBackdrop: { ...StyleSheet.absoluteFill },
   detailModalCard: {
     margin: 14,
     borderRadius: 24,

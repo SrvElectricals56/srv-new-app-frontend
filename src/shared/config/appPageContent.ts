@@ -29,7 +29,6 @@ export type AppContentPage =
   | 'privacy_policy'
   | 'password'
   | 'app_settings'
-  | 'rate_us'
   | 'support';
 
 export type AppPageContentFieldKey =

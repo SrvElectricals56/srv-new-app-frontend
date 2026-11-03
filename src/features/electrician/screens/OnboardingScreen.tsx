@@ -474,6 +474,8 @@ function Field({
             onPressIn={onPressIn}
             maxLength={maxLength}
             autoComplete={autoComplete}
+            textContentType={autoComplete ? 'oneTimeCode' : undefined}
+            importantForAutofill={autoComplete ? 'yes' : 'auto'}
           />
         </View>
         {hasInlineAction ? (
@@ -730,7 +732,6 @@ export function OnboardingScreen({
   const [signupOtpVerified, setSignupOtpVerified] = useState(false);
   const [signupVerificationToken, setSignupVerificationToken] = useState('');
   const [signupOtpCountdown, setSignupOtpCountdown] = useState(0);
-  const [signupReferralCode, setSignupReferralCode] = useState('');
   const [signupTermsAgreed, setSignupTermsAgreed] = useState(false);
   const [signupStep, setSignupStep] = useState<SignupStep>('name');
   const [dealerVerified, setDealerVerified] = useState(false);
@@ -744,16 +745,6 @@ export function OnboardingScreen({
     if (smsOtpTargetRef.current === 'signup') setSignupOtp(code);
   });
 
-  useEffect(() => {
-    const captureReferral = (url?: string | null) => {
-      const match = String(url ?? '').match(/[?&]ref=([^&#]+)/i);
-      if (!match?.[1]) return;
-      try { setSignupReferralCode(decodeURIComponent(match[1]).trim().toUpperCase()); } catch { /* ignore malformed link */ }
-    };
-    void Linking.getInitialURL().then(captureReferral);
-    const subscription = Linking.addEventListener('url', event => captureReferral(event.url));
-    return () => subscription.remove();
-  }, []);
   const isCompactPhone = width <= 360 || initialHeightRef.current <= 760;
   const authBackgroundColors: [string, string, string] = darkMode
     ? role === 'dealer'
@@ -1171,7 +1162,7 @@ export function OnboardingScreen({
           address: `${signupCity.trim()}, ${signupState.trim()}`,
           pincode: signupPincode.trim() || undefined,
           gstNumber: normalizeGstOrPanNumber(signupGstNumber) || undefined,
-          signupVerificationToken, referralCode: signupReferralCode.trim() || undefined,
+          signupVerificationToken,
         });
         finishLogin(res.user);
         return;
@@ -1184,7 +1175,7 @@ export function OnboardingScreen({
           city: signupCity.trim() || undefined, district: signupCity.trim() || undefined,
           state: signupState.trim() || undefined, address: undefined,
           pincode: signupPincode.trim() || undefined,
-          signupVerificationToken, referralCode: signupReferralCode.trim() || undefined,
+          signupVerificationToken,
         };
         const res = role === 'counterboy'
           ? await authApi.registerCounterBoy(payload)
@@ -1200,7 +1191,7 @@ export function OnboardingScreen({
         address: signupAddress.trim() || undefined,
         pincode: signupPincode.trim() || undefined,
         dealerPhone: signupDealerPhone,
-        signupVerificationToken, referralCode: signupReferralCode.trim() || undefined,
+        signupVerificationToken,
       });
       finishLogin(res.user);
     } catch (err: any) {
@@ -1580,8 +1571,11 @@ export function OnboardingScreen({
                         setPhase('language');
                       }}
                       style={s.backRight}
+                      accessibilityRole="button"
+                      accessibilityLabel={tx('Back')}
                     >
                       <BackArrowIcon />
+                      <Text style={s.backButtonText}>{tx('Back')}</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -1805,7 +1799,7 @@ export function OnboardingScreen({
                         </Text>
                         <Text style={[s.sectionTextAuth, s.sectionTextAuthElectrician]}>
                           {mode === 'login'
-                            ? tx('Choose a secure login method and continue with your dealer account.')
+                            ? tx('Enter your registered mobile number to receive an OTP.')
                             : tx('Complete the account setup flow and create your dealer profile.')}
                         </Text>
                       </LinearGradient>
@@ -1910,8 +1904,11 @@ export function OnboardingScreen({
                                     <Pressable
                                       onPress={goToPreviousDealerSignupStep}
                                       style={s.stepBackBtn}
+                                      accessibilityRole="button"
+                                      accessibilityLabel={tx('Back')}
                                     >
                                       <BackArrowIcon />
+                                      <Text style={s.backButtonText}>{tx('Back')}</Text>
                                     </Pressable>
                                   ) : null}
                                 </View>
@@ -2114,14 +2111,6 @@ export function OnboardingScreen({
                                     kind="success"
                                   />
                                 ) : null}
-                                <Field
-                                  label={tx('Referral Code (Optional)')}
-                                  value={signupReferralCode}
-                                  onChangeText={value => setSignupReferralCode(value.replace(/\s/g, '').toUpperCase().slice(0, 80))}
-                                  placeholder={tx('Enter your friend’s referral code')}
-                                  onFocus={scrollToForm}
-                                />
-                                <Info text={tx('After signup, you and your friend will each receive 20 points.')} kind="hint" />
                                 <Pressable
                                   style={[
                                     s.checkboxCard,
@@ -2173,8 +2162,11 @@ export function OnboardingScreen({
                                 <Pressable
                                   onPress={goToPreviousElectricianSignupStep}
                                   style={s.stepBackBtn}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={tx('Back')}
                                 >
                                   <BackArrowIcon />
+                                  <Text style={s.backButtonText}>{tx('Back')}</Text>
                                 </Pressable>
                               </View>
                             ) : null}
@@ -2336,14 +2328,6 @@ export function OnboardingScreen({
                             ) : null}
                             {dealerVerified && signupStep === 'dealer' ? (
                               <>
-                                <Field
-                                  label={tx('Referral Code (Optional)')}
-                                  value={signupReferralCode}
-                                  onChangeText={value => setSignupReferralCode(value.replace(/\s/g, '').toUpperCase().slice(0, 80))}
-                                  placeholder={tx('Enter your friend’s referral code')}
-                                  onFocus={scrollToForm}
-                                />
-                                <Info text={tx('After signup, you and your friend will each receive 20 points.')} kind="hint" />
                                 <Pressable
                                   style={[s.checkboxCard, signupTermsAgreed && s.checkboxCardActive]}
                                   onPress={() => {
@@ -2417,7 +2401,7 @@ export function OnboardingScreen({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.heroA },
-  bg: { ...StyleSheet.absoluteFillObject },
+  bg: { ...StyleSheet.absoluteFill },
   kav: { flex: 1 },
   dismissSurface: { flex: 1 },
   forgotOverlay: {
@@ -2504,16 +2488,19 @@ const s = StyleSheet.create({
   },
   backRight: {
     position: 'absolute',
-    right: 0,
+    left: 0,
     top: 30,
-    width: 42,
+    minWidth: 76,
     height: 42,
     borderRadius: 21,
+    paddingHorizontal: 12,
     backgroundColor: 'rgba(255,255,255,0.96)',
     borderWidth: 1,
     borderColor: 'rgba(148,163,184,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 5,
   },
   welcomeRow: {
     flexDirection: 'row',
@@ -2944,15 +2931,19 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
   },
   stepBackBtn: {
-    width: 34,
+    minWidth: 70,
     height: 34,
+    paddingHorizontal: 9,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#D8E7FB',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 4,
   },
+  backButtonText: { color: '#152238', fontSize: 12, fontWeight: '800' },
   formStepTitle: { color: C.title, fontSize: 16, fontWeight: '900' },
   formStepText: { color: C.muted, fontSize: 12.5, lineHeight: 18 },
   group: { gap: 6 },

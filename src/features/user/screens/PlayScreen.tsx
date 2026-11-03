@@ -153,7 +153,9 @@ function YouTubePlayer({
   videoId: string;
   isActive: boolean;
 }) {
-  const webviewRef = useRef<WebView>(null);
+  // react-native-webview 14.0.1 defaults its generic props to undefined, which
+  // makes every JSX prop `never`; explicitly select the empty extension.
+  const webviewRef = useRef<WebView<{}>>(null);
   const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=${isActive ? 1 : 0}&playsinline=1&rel=0&modestbranding=1&controls=1&enablejsapi=1&mute=0`;
 
   useEffect(() => {
@@ -165,7 +167,7 @@ function YouTubePlayer({
   }, [isActive]);
 
   return (
-    <WebView
+    <WebView<{}>
       ref={webviewRef}
       source={{ uri: embedUrl }}
       style={StyleSheet.absoluteFill}
@@ -1075,7 +1077,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   videoFrameShade: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   videoFrameMeta: {
     position: 'absolute',
@@ -1127,7 +1129,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   previewOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(15,23,42,0.24)',
@@ -1143,7 +1145,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.55)',
   },
   controlOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1306,7 +1308,7 @@ const styles = StyleSheet.create({
     paddingRight: 6,
   },
   overlayShade: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(3, 7, 18, 0.34)',
   },
   overlayHeroTopRow: {

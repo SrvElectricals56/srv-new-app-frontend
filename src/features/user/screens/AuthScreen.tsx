@@ -3,7 +3,7 @@ import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -26,7 +26,7 @@ const OTP_AUTO_COMPLETE = Platform.OS === 'android' ? 'sms-otp' : 'one-time-code
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() ?? '';
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? '';
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '';
-const supportsNativeGoogleSignIn = Platform.OS !== 'web' && Constants.executionEnvironment !== 'storeClient';
+const supportsNativeGoogleSignIn = Platform.OS !== 'web' && !isRunningInExpoGo();
 
 
 // â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -634,6 +634,15 @@ export function UserAuthScreen({
     <KeyboardAvoidingView style={[S.screen, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Compact header */}
       <LinearGradient colors={[P1, P2]} style={[S.formHeader, { paddingTop: insets.top }]}>
+        <Pressable
+          onPress={() => setMode('landing')}
+          style={[S.formBackButton, { top: insets.top + 10 }]}
+          accessibilityRole="button"
+          accessibilityLabel={tx('Back')}
+        >
+          <ArrowLeft c="#FFFFFF" s={17} />
+          <Text style={S.formBackText}>{tx('Back')}</Text>
+        </Pressable>
         <View style={S.formHeaderLogoWrap}>
           <Image source={SRV_LOGO} style={S.formHeaderLogo} resizeMode="contain" />
         </View>
@@ -955,6 +964,23 @@ const S = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
+  formBackButton: {
+    position: 'absolute',
+    left: 14,
+    zIndex: 2,
+    minWidth: 76,
+    height: 38,
+    paddingHorizontal: 10,
+    borderRadius: 19,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
+  },
+  formBackText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   formHeaderLogoWrap: {
     width: 46, height: 46, borderRadius: 14,
     backgroundColor: '#FFFFFF',

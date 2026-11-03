@@ -972,7 +972,7 @@ const styles = StyleSheet.create({
   activityEmpty: { borderRadius: 16, paddingVertical: 18, textAlign: 'center', fontSize: 12, fontWeight: '600' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12,26,49,0.38)' },
   modalOverlayDark: { backgroundColor: 'rgba(2,6,23,0.72)' },
-  modalBackdropTapArea: { ...StyleSheet.absoluteFillObject },
+  modalBackdropTapArea: { ...StyleSheet.absoluteFill },
   modalKeyboard: { width: '100%', maxHeight: '92%', justifyContent: 'flex-end' },
   modalCard: {
     backgroundColor: '#FFFFFF',

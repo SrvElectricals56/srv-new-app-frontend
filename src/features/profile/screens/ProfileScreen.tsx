@@ -32,7 +32,6 @@ import { OffersPage } from './OffersScreen';
 import { PartnerCommissionPage } from './PartnerCommissionScreen';
 import { PrivacyPolicyPage } from './PrivacyPolicyScreen';
 import { RolePlayVideosScreen } from './RolePlayVideosScreen';
-import { RateUsPage } from './RateUsScreen';
 import { ReferFriendPage } from './ReferFriendScreen';
 import { ScanHistoryPage } from './ScanHistoryScreen';
 import { TransferPointsPage } from './TransferPointsScreen';
@@ -88,7 +87,6 @@ const PROFILE_MENU_FEATURE_MAP: Record<string, AppFeatureKey> = {
 
 const SETTINGS_FEATURE_MAP: Record<string, AppFeatureKey> = {
   Notifications: 'notification',
-  'Rate Us': 'rate_us',
   'App Settings': 'app_settings',
   'Scan History': 'scan_history',
   'Contact Support': 'contact_support',
@@ -767,7 +765,6 @@ export function ProfileScreen({
     'Contact Support': <ContactSupportPage onBack={() => setSubPage(null)} />,
     'Privacy Policy': <PrivacyPolicyPage onBack={() => setSubPage(null)} />,
     'Request Account Deletion': <AccountDeletionPage onBack={() => setSubPage(null)} />,
-    'Rate Us': <RateUsPage onBack={() => setSubPage(null)} onHome={() => onNavigate('home')} />,
     'KYC Verification': <KYCVerificationScreen onBack={() => setSubPage(null)} currentRole={currentRole} />,
   };
 

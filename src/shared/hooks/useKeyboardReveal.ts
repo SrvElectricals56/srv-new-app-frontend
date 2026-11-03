@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
-import type { NativeScrollEvent, NativeSyntheticEvent, ScrollView, TextInput } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent, ScrollViewInstance, TextInputInstance } from 'react-native';
 
 /** Scroll only the distance needed to keep the focused field above the keyboard. */
 export function useKeyboardReveal() {
-  const scrollRef = useRef<ScrollView | null>(null);
-  const focusedInputRef = useRef<TextInput | null>(null);
+  const scrollRef = useRef<ScrollViewInstance | null>(null);
+  const focusedInputRef = useRef<TextInputInstance | null>(null);
   const scrollOffsetRef = useRef(0);
   const keyboardVisibleRef = useRef(false);
   const keyboardTopRef = useRef<number | null>(null);
@@ -79,7 +79,7 @@ export function useKeyboardReveal() {
     };
   }, [measureKeyboardOverlap, scheduleReveal]);
 
-  const onInputFocus = useCallback((input: TextInput | null) => {
+  const onInputFocus = useCallback((input: TextInputInstance | null) => {
     focusedInputRef.current = input;
     scheduleReveal(keyboardVisibleRef.current ? 60 : 260);
   }, [scheduleReveal]);

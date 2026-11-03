@@ -47,7 +47,7 @@ export function SrvLogoLoader({ visible }: Props) {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 999,
     elevation: 999,
     backgroundColor: 'transparent',

@@ -47,7 +47,6 @@ const APP_CONTENT_PAGES: AppContentPage[] = [
   'privacy_policy',
   'password',
   'app_settings',
-  'rate_us',
   'support',
 ];
 

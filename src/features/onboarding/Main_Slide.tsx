@@ -1,6 +1,7 @@
 import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import React from 'react';
-import { Image, type ImageSourcePropType, Pressable, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, type ImageSourcePropType, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
@@ -200,7 +201,7 @@ function RoleCard({
           locations={[0, 0.45, 0.58, 0.72, 1]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
         <View pointerEvents="none" style={styles.rolePhotoPolish} />
         <View style={styles.roleContent}>
@@ -540,7 +541,7 @@ const styles = StyleSheet.create({
     width: '53%',
   },
   rolePhotoPolish: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.02)',
   },
   roleContent: {

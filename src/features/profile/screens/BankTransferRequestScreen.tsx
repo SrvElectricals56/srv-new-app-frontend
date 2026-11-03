@@ -1,6 +1,7 @@
 import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
 import { walletApi } from '@/shared/api';
@@ -28,7 +29,7 @@ export function BankTransferRequestPage({
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const [freshBalance, setFreshBalance] = useState<number | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<ScrollViewInstance | null>(null);
 
   useEffect(() => {
     if (currentRole !== 'dealer') {

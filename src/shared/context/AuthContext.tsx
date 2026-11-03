@@ -135,6 +135,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ]);
 
         if (token && profile && role) {
+          // Validate the saved session before rendering authenticated screens.
+          // Otherwise every private widget fires a 401 at once when a phone
+          // reopens the app with an expired refresh token.
+          try {
+            await profileApi.get();
+          } catch (error) {
+            if ((error as Error)?.message === 'SESSION_EXPIRED') {
+              setState((current) => generation === sessionGeneration.current ? {
+                isLoading: false,
+                isAuthenticated: false,
+                user: null,
+                role: null,
+              } : current);
+              return;
+            }
+            // Keep the cached session available during a temporary outage.
+          }
+          if (!(await storage.getAccessToken())) {
+            setState((current) => generation === sessionGeneration.current ? {
+              isLoading: false,
+              isAuthenticated: false,
+              user: null,
+              role: null,
+            } : current);
+            return;
+          }
           const normalizedProfile = normalizeProfile(profile);
           setState((current) => generation === sessionGeneration.current ? {
             isLoading: false,

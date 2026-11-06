@@ -7,7 +7,7 @@ import { usePreferenceContext } from '@/shared/preferences';
 import { authApi, profileApi } from '@/shared/api';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppPageContent } from '@/shared/hooks';
-import { Dialog } from '@/shared/components/Dialog';
+import { Dialog, type Choice } from '@/shared/components/Dialog';
 import { resolveImageUrl } from '@/shared/api/config';
 import { prepareKycUpload } from '../lib/kycUpload';
 
@@ -23,6 +23,8 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
     variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info';
     title: string;
     message?: string;
+    choices?: Choice[];
+    cancelButton?: boolean;
   }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
 
@@ -37,7 +39,23 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
     setUpiQrCodeImage(user?.upiQrCodeImage ?? '');
   }, [role, user?.id, user?.accountHolderName, user?.bankAccount, user?.upiQrCodeImage]);
 
-  const pickUpiQrCode = async () => {
+  const uploadQrAsset = async (asset: ImagePicker.ImagePickerAsset) => {
+    setUploadingQr(true);
+    try {
+      const prepared = await prepareKycUpload({
+        uri: asset.uri,
+        mimeType: asset.mimeType,
+        name: asset.fileName || 'upi-qr-code',
+        size: asset.fileSize,
+      }, 'upi-qr-code');
+      const uploadedUrl = await profileApi.uploadDocument(prepared, 'pan');
+      setUpiQrCodeImage(uploadedUrl);
+    } finally {
+      setUploadingQr(false);
+    }
+  };
+
+  const pickQrFromGallery = async () => {
     try {
       if (Platform.OS === 'ios') {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -55,21 +73,44 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
       });
       if (result.canceled || !result.assets?.length) return;
 
-      setUploadingQr(true);
-      const asset = result.assets[0];
-      const prepared = await prepareKycUpload({
-        uri: asset.uri,
-        mimeType: asset.mimeType,
-        name: asset.fileName || 'upi-qr-code',
-        size: asset.fileSize,
-      }, 'upi-qr-code');
-      const uploadedUrl = await profileApi.uploadDocument(prepared, 'pan');
-      setUpiQrCodeImage(uploadedUrl);
+      await uploadQrAsset(result.assets[0]);
     } catch (error: any) {
       setDialog({ visible: true, variant: 'error', title: tx('Upload failed'), message: error?.message || tx('Could not read this image. Please choose another one.') });
-    } finally {
-      setUploadingQr(false);
     }
+  };
+
+  const takeQrPhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setDialog({ visible: true, variant: 'info', title: tx('Permission needed'), message: tx('Allow camera access to take a UPI QR photo.') });
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      await uploadQrAsset(result.assets[0]);
+    } catch (error: any) {
+      setDialog({ visible: true, variant: 'error', title: tx('Camera unavailable'), message: error?.message || tx('Could not take the QR photo. Please try again.') });
+    }
+  };
+
+  const pickUpiQrCode = () => {
+    setDialog({
+      visible: true,
+      variant: 'info',
+      title: tx('Add UPI QR Code'),
+      message: tx('Take a new photo or choose an existing QR image.'),
+      choices: [
+        { label: tx('Camera'), icon: 'camera', onPress: () => void takeQrPhoto() },
+        { label: tx('Gallery'), icon: 'image', onPress: () => void pickQrFromGallery() },
+      ],
+      cancelButton: true,
+    });
   };
 
   const handleSave = async () => {
@@ -211,7 +252,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
                 <View style={styles.qrEmpty}>
                   <AppIcon name="gallery" size={28} color={C.gold} />
                   <Text style={[styles.qrTitle, { color: theme.textPrimary }]}>{uploadingQr ? tx('Uploading...') : tx('Upload UPI QR Code')}</Text>
-                  <Text style={[styles.qrHint, { color: theme.textMuted }]}>{tx('Select a clear square QR image from your gallery')}</Text>
+                  <Text style={[styles.qrHint, { color: theme.textMuted }]}>{tx('Take a photo or select a clear square QR image')}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -241,6 +282,8 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
         variant={dialog.variant}
         title={dialog.title}
         message={dialog.message}
+        choices={dialog.choices}
+        cancelButton={dialog.cancelButton}
         onClose={closeDialog}
       />
     </KeyboardAvoidingView>

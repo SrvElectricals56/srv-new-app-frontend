@@ -293,7 +293,6 @@ export function ScanScreen({
   const batchPulse = useRef(new Animated.Value(1)).current;
   const scanLockedRef = useRef(false);
   const animationTriggeredRef = useRef(false);
-  const autoTorchAttemptedRef = useRef(false);
 
   const laserLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const cornerLoopRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -449,7 +448,7 @@ export function ScanScreen({
     if (!permission.granted) {
       setCameraGranted(false);
       setScanning(false);
-      setDialog({ visible: true, variant: 'info', title: tx('Permission Required'), message: tx('Camera permission is required to scan QR codes.') });
+      setDialog({ visible: true, variant: 'info', title: tx('Permission Required'), message: tx('Camera permission is required to scan QR codes and barcodes.') });
       return false;
     }
     setCameraGranted(true);
@@ -521,15 +520,6 @@ export function ScanScreen({
   ]);
 
   useEffect(() => {
-    if (!scanning || flashlightOn || autoTorchAttemptedRef.current || previewImage) return;
-    const timer = setTimeout(() => {
-      autoTorchAttemptedRef.current = true;
-      if (!scanLockedRef.current) setFlashlightOn(true);
-    }, 1400);
-    return () => clearTimeout(timer);
-  }, [flashlightOn, previewImage, scanning]);
-
-  useEffect(() => {
     if (scanned && !animationTriggeredRef.current) {
       animationTriggeredRef.current = true;
       laserLoopRef.current?.stop();
@@ -560,7 +550,7 @@ export function ScanScreen({
 
   const resetScanner = async () => {
     scanLockedRef.current = false;
-    autoTorchAttemptedRef.current = false;
+    setFlashlightOn(false);
     animationTriggeredRef.current = false;
     setScanned(false);
     setProcessingScan(false);
@@ -772,7 +762,7 @@ export function ScanScreen({
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, isDark ? styles.headerTitleDark : null]}>
-            {tx('Scan QR Code')}
+            {tx('Scan QR / Barcode')}
           </Text>
         </View>
         <View style={{ width: 40 }} />
@@ -880,7 +870,7 @@ export function ScanScreen({
                   autofocus="on"
                   zoom={0.08}
                   enableTorch={flashlightOn}
-                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                  barcodeScannerSettings={{ barcodeTypes: ['qr', 'code39', 'code128'] }}
                   onBarcodeScanned={scanning ? handleBarcodeScanned : undefined}
                   onCameraReady={() => {
                     if (!scanLockedRef.current && !scanned) setScanning(true);
@@ -1025,7 +1015,7 @@ export function ScanScreen({
             {processingScan ? (
               <View style={styles.statusScanning}>
                 <ActivityIndicator size="small" color={Colors.primary} />
-                <Text style={styles.statusActive}>{tx('QR detected — verifying and redeeming...')}</Text>
+                <Text style={styles.statusActive}>{tx('Code detected — verifying and redeeming...')}</Text>
               </View>
             ) : scanning ? (
               <View style={styles.statusScanning}>
@@ -1035,7 +1025,7 @@ export function ScanScreen({
             ) : null}
             {!processingScan && !scanning && !scanned ? (
               <Text style={[styles.statusIdle, isDark ? styles.statusIdleDark : null]}>
-                {tx('Align QR code within the frame')}
+                {tx('Align the complete QR code or barcode within the frame')}
               </Text>
             ) : null}
             {scanned ? (

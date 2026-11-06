@@ -1161,6 +1161,7 @@ function AppContent() {
               onUpdateQty={handleDealerUpdateCartQty}
               onRemove={handleDealerRemoveFromCart}
               onNavigate={handleNavigate}
+              onBack={() => setCurrentScreen('product')}
               onCheckout={handleDealerCartCheckout}
               onCheckoutItem={handleBuyNow}
               role="dealer"
@@ -1331,6 +1332,7 @@ function AppContent() {
               onUpdateQty={handleUpdateCartQty}
               onRemove={handleRemoveFromCart}
               onNavigate={handleNavigate}
+              onBack={() => setCurrentScreen('categories')}
               onCheckout={handleCartCheckout}
               onCheckoutItem={handleBuyNow}
             />
@@ -1431,6 +1433,7 @@ function AppContent() {
               onUpdateQty={handleCounterboyUpdateCartQty}
               onRemove={handleCounterboyRemoveFromCart}
               onNavigate={handleNavigate}
+              onBack={() => setCurrentScreen('product')}
               onCheckout={handleCounterboyCartCheckout}
               onCheckoutItem={handleBuyNow}
               role="counterboy"
@@ -1566,6 +1569,7 @@ function AppContent() {
             onUpdateQty={handleElectricianUpdateCartQty}
             onRemove={handleElectricianRemoveFromCart}
             onNavigate={handleNavigate}
+            onBack={() => setCurrentScreen('product')}
             onCheckout={handleElectricianCartCheckout}
             onCheckoutItem={handleBuyNow}
             role="electrician"

@@ -169,7 +169,9 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
   // but walletBalance has not been synchronized yet.
   const storedBalance = Number(wallet?.balance ?? walletSummary?.balance ?? 0);
   const recordedPoints = Number(wallet?.totalPoints ?? walletSummary?.totalPoints ?? 0);
-  const currentPoints = storedBalance > 0 || recordedPoints <= 0 ? storedBalance : recordedPoints;
+  // Match the backend reconciliation for legacy accounts whose totalPoints
+  // and walletBalance were saved at different times.
+  const currentPoints = Math.max(storedBalance, recordedPoints);
   const isCustomer = role === 'user';
   const cardW = Math.floor((width - 32 - 12) / 2);
 

@@ -148,7 +148,7 @@ export function KYCPendingWalletScreen({ onGoToKYC, onBack }: KYCPendingWalletSc
       : 'Re-upload correct documents to unlock wallet.'
     : isPending
     ? 'Documents submitted. Our team reviews within 24–48 hrs.'
-    : 'Upload Aadhar + PAN/GST to verify your identity.';
+    : 'Upload Aadhar, PAN, or GST to verify your identity.';
 
   const ctaLabel = isRejected
     ? 'Re-upload Documents'
@@ -156,8 +156,7 @@ export function KYCPendingWalletScreen({ onGoToKYC, onBack }: KYCPendingWalletSc
     ? 'View KYC Status'
     : 'Complete KYC Now';
 
-  const hasAadhar = !!user?.aadharFrontImage;
-  const hasPanOrGst = !!(user?.panDocument || user?.gstDocument);
+  const hasIdentityDocument = !!(user?.aadharFrontImage || user?.panDocument || user?.gstDocument);
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom }]}>
@@ -228,8 +227,7 @@ export function KYCPendingWalletScreen({ onGoToKYC, onBack }: KYCPendingWalletSc
           <View style={styles.stepsCard}>
             <Text style={styles.stepsTitle}>Steps to unlock wallet</Text>
             <StepRow icon="📋" text="Register as a Dealer" done />
-            <StepRow icon="🪪" text="Upload Aadhar Card" done={hasAadhar} />
-            <StepRow icon="📄" text="Upload PAN Card or GST Number" done={hasPanOrGst} />
+            <StepRow icon="🪪" text="Upload Aadhar, PAN, or GST document" done={hasIdentityDocument} />
             <StepRow icon="✅" text="SRV Team verifies your KYC" done={false} last />
           </View>
         )}

@@ -100,6 +100,17 @@ test('SRV Chat voice mode uses Expo 58 uploads and resumes listening after each 
   assert.match(source, /testID="srv-chat-voice-orb"/);
   assert.match(source, /testID="srv-chat-voice-pause"/);
   assert.match(source, /testID="srv-chat-voice-end"/);
+  assert.match(source, /voiceMode: true/);
+  assert.match(source, /keyboardDismissMode=\{Platform\.OS === 'ios' \? 'interactive' : 'on-drag'\}/);
+});
+
+test('KYC lets every role submit either Aadhaar or PAN while preserving dealer GST', () => {
+  const kyc = fs.readFileSync(path.join(root, 'src', 'features', 'profile', 'screens', 'KYCVerificationScreen.tsx'), 'utf8');
+  assert.match(kyc, /hasAadhar \|\| hasPan \|\| \(isDealer && hasGst\)/);
+  assert.match(kyc, /label="Aadhar Card \(Optional\)"/);
+  assert.match(kyc, /label="PAN Card \(Optional\)"/);
+  assert.match(kyc, /\{isDealer && \([\s\S]*?label="GST Number \(Optional\)"/);
+  assert.doesNotMatch(kyc, /const kycComplete = hasAadhar &&/);
 });
 
 test('iOS and Android runtime code never requires the optional ExpoFetchModule', () => {

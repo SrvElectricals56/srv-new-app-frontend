@@ -32,7 +32,9 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
   const hasGst = authUser?.gstDocument || draftGst;
   const isDealer = currentRole === 'dealer';
   const hasDraftChanges = Boolean(draftAadhar || draftPan || draftGst);
-  const kycComplete = hasAadhar && (isDealer ? (hasPan || hasGst) : true);
+  // Every role can verify with either Aadhaar or PAN. Dealers keep GST as an
+  // additional option so the existing dealer workflow remains available.
+  const kycComplete = Boolean(hasAadhar || hasPan || (isDealer && hasGst));
   const kycStatus = authUser?.kycStatus || 'not_submitted';
   const canShowSubmit = kycStatus !== 'verified' || hasDraftChanges;
   const submitLabel = (kycStatus === 'pending' || kycStatus === 'rejected') && (authUser?.aadharFrontImage || authUser?.panDocument || authUser?.gstDocument)
@@ -40,12 +42,16 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
     : 'Submit for Verification';
 
   const handleSubmit = async () => {
-    if (!hasAadhar) {
-      setDialog({ visible: true, variant: 'info', title: tx('Error'), message: tx('Please upload Aadhar Card') }); return;
-    }
-
-    if (isDealer && !hasPan && !hasGst) {
-      setDialog({ visible: true, variant: 'info', title: tx('Error'), message: tx('Please upload either PAN Card or GST Number') }); return;
+    if (!kycComplete) {
+      setDialog({
+        visible: true,
+        variant: 'info',
+        title: tx('Error'),
+        message: tx(isDealer
+          ? 'Please upload Aadhar Card, PAN Card, or GST document'
+          : 'Please upload Aadhar Card or PAN Card'),
+      });
+      return;
     }
 
     // Capture before async — first submit if no docs existed before AND status is not_submitted
@@ -167,8 +173,8 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
           <AppIcon name="info" size={20} color={roleColor} />
           <Text style={[styles.infoText, { color: roleColor }]}>
             {isDealer 
-              ? tx('Upload Aadhar Card and either PAN Card or GST Number for verification')
-              : tx('Upload Aadhar Card for KYC verification')}
+              ? tx('Upload Aadhar Card, PAN Card, or GST document for verification')
+              : tx('Upload Aadhar Card or PAN Card for KYC verification')}
           </Text>
         </View>
 
@@ -178,8 +184,14 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
             📄 {tx('Required Documents')}
           </Text>
 
+          <Text style={[styles.helperText, { color: theme.textMuted }]}>
+            ℹ️ {tx(isDealer
+              ? 'Choose any one: Aadhar Card, PAN Card, or GST document'
+              : 'Choose either Aadhar Card or PAN Card')}
+          </Text>
+
           <DocumentUpload
-            label="Aadhar Card"
+            label="Aadhar Card (Optional)"
             documentType="aadhar-front"
             currentUrl={authUser?.aadharFrontImage}
             onUploadSuccess={(url) => setDraftAadhar(url)}
@@ -188,32 +200,26 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
             roleSoft={roleSoft}
           />
 
+          <DocumentUpload
+            label="PAN Card (Optional)"
+            documentType="pan"
+            currentUrl={authUser?.panDocument}
+            onUploadSuccess={(url) => setDraftPan(url)}
+            theme={theme}
+            roleColor={roleColor}
+            roleSoft={roleSoft}
+          />
+
           {isDealer && (
-            <>
-              <Text style={[styles.helperText, { color: theme.textMuted }]}>
-                ℹ️ {tx('Choose one from both PAN Card or GST Number')}
-              </Text>
-
-              <DocumentUpload
-                label="PAN Card (Optional)"
-                documentType="pan"
-                currentUrl={authUser?.panDocument}
-                onUploadSuccess={(url) => setDraftPan(url)}
-                theme={theme}
-                roleColor={roleColor}
-                roleSoft={roleSoft}
-              />
-
-              <DocumentUpload
-                label="GST Number (Optional)"
-                documentType="gst"
-                currentUrl={authUser?.gstDocument}
-                onUploadSuccess={(url) => setDraftGst(url)}
-                theme={theme}
-                roleColor={roleColor}
-                roleSoft={roleSoft}
-              />
-            </>
+            <DocumentUpload
+              label="GST Number (Optional)"
+              documentType="gst"
+              currentUrl={authUser?.gstDocument}
+              onUploadSuccess={(url) => setDraftGst(url)}
+              theme={theme}
+              roleColor={roleColor}
+              roleSoft={roleSoft}
+            />
           )}
         </View>
 
@@ -225,27 +231,14 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
           
           <View style={styles.progressItem}>
             <AppIcon 
-              name={hasAadhar ? 'check' : 'circle'} 
-              size={20} 
-              color={hasAadhar ? '#10B981' : theme.textMuted} 
+              name={kycComplete ? 'check' : 'circle'}
+              size={20}
+              color={kycComplete ? '#10B981' : theme.textMuted}
             />
             <Text style={[styles.progressText, { color: theme.textPrimary }]}>
-              {tx('Aadhar Card')}
+              {tx(isDealer ? 'Aadhar, PAN, or GST document' : 'Aadhar Card or PAN Card')}
             </Text>
           </View>
-
-          {isDealer && (
-            <View style={styles.progressItem}>
-              <AppIcon 
-                name={(hasPan || hasGst) ? 'check' : 'circle'} 
-                size={20} 
-                color={(hasPan || hasGst) ? '#10B981' : theme.textMuted} 
-              />
-              <Text style={[styles.progressText, { color: theme.textPrimary }]}>
-                {tx('PAN Card or GST Number')}
-              </Text>
-            </View>
-          )}
 
           <View style={[styles.progressBar, { backgroundColor: theme.soft }]}>
             <View 
@@ -253,7 +246,7 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
                 styles.progressFill, 
                 { 
                   backgroundColor: roleColor,
-                  width: kycComplete ? '100%' : hasAadhar ? '50%' : '0%'
+                  width: kycComplete ? '100%' : '0%'
                 }
               ]} 
             />

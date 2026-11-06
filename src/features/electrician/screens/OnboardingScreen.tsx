@@ -18,6 +18,7 @@ import {
   normalizeGstOrPanNumber,
   sanitizeEmailInput,
 } from '@/shared/utils/validation';
+import { normalizeIndianState } from '@/shared/utils/indianState';
 import type { UserRole } from '@/shared/types/navigation';
 type IntroStep = 'language' | 'role' | 'auth';
 type AuthMode = 'login' | 'signup';
@@ -881,7 +882,7 @@ export function OnboardingScreen({
         place.region,
         place.postalCode,
       ].filter(Boolean).join(', ');
-      const state = place.region || '';
+      const state = normalizeIndianState(place.region);
       const district = place.district || place.subregion || place.city || '';
       const pincode = (place.postalCode || '').replace(/\D/g, '').slice(0, 6);
       if (!address && !state && !district && !pincode) {

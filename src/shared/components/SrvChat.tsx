@@ -1,6 +1,6 @@
 import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import type { ScrollViewInstance } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
@@ -118,6 +118,7 @@ export function SrvChatLauncher({ onPress }: { onPress: () => void }) {
 export function SrvChatModal({ visible, onClose, supportWhatsApp }: {
   visible: boolean; onClose: () => void; supportWhatsApp?: string | null;
 }) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { language: appLanguage } = usePreferenceContext();
   const [language, setLanguage] = useState<AppLanguage>(appLanguage);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -341,7 +342,7 @@ export function SrvChatModal({ visible, onClose, supportWhatsApp }: {
       setVoiceTranscript(transcript);
       const history = messages.slice(-8).map(({ role, content }) => ({ role, content }));
       setMessages((previous) => [...previous, { id: nextId.current++, role: 'user', content: transcript }]);
-      const result = await api.post<ChatResponse>('/mobile/assistant/chat', { message: transcript, language, history });
+      const result = await api.post<ChatResponse>('/mobile/assistant/chat', { message: transcript, language, history, voiceMode: true });
       if (!voiceModeActiveRef.current) return;
       setMessages((previous) => [...previous, { id: nextId.current++, role: 'assistant', content: result.reply }]);
       setVoiceReply(result.reply);
@@ -514,31 +515,44 @@ export function SrvChatModal({ visible, onClose, supportWhatsApp }: {
   const meterStrength = voicePhase === 'listening'
     ? Math.max(0.15, Math.min(1, ((recorderState.metering ?? -60) + 60) / 35))
     : voicePhase === 'speaking' ? 0.75 : 0.25;
+  const compactVoiceLayout = screenHeight < 720 || screenWidth < 375;
+  const compactChatLayout = screenHeight < 700 || screenWidth < 375;
+  const voiceOuterSize = Math.max(150, Math.min(compactVoiceLayout ? 176 : 214, screenWidth - 88));
+  const voiceTouchSize = voiceOuterSize + 10;
+  const voiceInnerSize = Math.round(voiceOuterSize * 0.82);
+  const voiceCoreSize = Math.round(voiceOuterSize * 0.66);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={close} statusBarTranslucent={false}>
-      <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
+      onRequestClose={close}
+      statusBarTranslucent={false}
+    >
+      <SafeAreaView style={styles.screen} edges={['top', 'bottom', 'left', 'right']}>
         {voiceModeVisible ? (
-          <LinearGradient colors={['#071B42', '#162D72', '#5143A3']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={styles.voiceModeScreen}>
-            <View style={styles.voiceModeHeader}>
+          <LinearGradient colors={['#071B42', '#162D72', '#5143A3']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={[styles.voiceModeScreen, compactVoiceLayout && styles.voiceModeScreenCompact]}>
+            <View style={[styles.voiceModeHeader, compactVoiceLayout && styles.voiceModeHeaderCompact]}>
               <Pressable onPress={closeVoiceMode} accessibilityRole="button" accessibilityLabel={copy.end} style={styles.voiceModeClose}>
                 <Text style={styles.voiceModeCloseText}>×</Text>
               </Pressable>
               <View style={styles.voiceModeHeading}>
-                <Text style={styles.voiceModeTitle}>{copy.voiceTitle}</Text>
+                <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={styles.voiceModeTitle}>{copy.voiceTitle}</Text>
                 <Text style={styles.voiceModeLanguage}>{language === 'English' ? 'English' : language === 'Hindi' ? 'हिन्दी' : 'ਪੰਜਾਬੀ'}</Text>
               </View>
               <View style={styles.voiceLiveBadge}><View style={styles.voiceLiveDot} /><Text style={styles.voiceLiveText}>LIVE</Text></View>
             </View>
 
-            <View style={styles.voiceModeBody}>
+            <ScrollView style={styles.voiceModeScroller} contentContainerStyle={[styles.voiceModeBody, compactVoiceLayout && styles.voiceModeBodyCompact]} showsVerticalScrollIndicator={false} bounces={false}>
               <Text style={styles.voiceBrand}>SRV</Text>
-              <Text style={styles.voiceAssistantName}>Chat Voice</Text>
-              <Pressable testID="srv-chat-voice-orb" onPress={() => void handleVoiceOrbPress()} disabled={voicePhase === 'processing'} accessibilityRole="button" accessibilityLabel={voiceStatusText} style={styles.voiceOrbTouch}>
-                <View style={[styles.voiceOrbRingOuter, voicePhase === 'listening' && styles.voiceOrbListening]}>
-                  <View style={styles.voiceOrbRingInner}>
-                    <LinearGradient colors={voicePhase === 'error' ? ['#D9435F', '#9F3157'] : ['#50D5E7', '#5965E8', '#9C58D9']} style={styles.voiceOrb}>
-                      {voicePhase === 'processing' ? <ActivityIndicator color="#FFFFFF" size="large" /> : <MicIcon color="#FFFFFF" size={48} />}
+              <Text style={[styles.voiceAssistantName, compactVoiceLayout && styles.voiceAssistantNameCompact]}>Chat Voice</Text>
+              <Pressable testID="srv-chat-voice-orb" onPress={() => void handleVoiceOrbPress()} disabled={voicePhase === 'processing'} accessibilityRole="button" accessibilityLabel={voiceStatusText} style={[styles.voiceOrbTouch, { width: voiceTouchSize, height: voiceTouchSize, borderRadius: voiceTouchSize / 2 }]}>
+                <View style={[styles.voiceOrbRingOuter, { width: voiceOuterSize, height: voiceOuterSize, borderRadius: voiceOuterSize / 2 }, voicePhase === 'listening' && styles.voiceOrbListening]}>
+                  <View style={[styles.voiceOrbRingInner, { width: voiceInnerSize, height: voiceInnerSize, borderRadius: voiceInnerSize / 2 }]}>
+                    <LinearGradient colors={voicePhase === 'error' ? ['#D9435F', '#9F3157'] : ['#50D5E7', '#5965E8', '#9C58D9']} style={[styles.voiceOrb, { width: voiceCoreSize, height: voiceCoreSize, borderRadius: voiceCoreSize / 2 }]}>
+                      {voicePhase === 'processing' ? <ActivityIndicator color="#FFFFFF" size="large" /> : <MicIcon color="#FFFFFF" size={compactVoiceLayout ? 40 : 48} />}
                     </LinearGradient>
                   </View>
                 </View>
@@ -549,7 +563,7 @@ export function SrvChatModal({ visible, onClose, supportWhatsApp }: {
                   <View key={index} style={[styles.voiceWaveBar, { height: 8 + 34 * meterStrength * factor }]} />
                 ))}
               </View>
-              <Text style={styles.voiceModeStatus}>{voiceStatusText}</Text>
+              <Text maxFontSizeMultiplier={1.25} style={styles.voiceModeStatus}>{voiceStatusText}</Text>
               <Text style={styles.voiceModeHint}>{voicePhase === 'speaking' ? copy.interrupt : copy.voiceHint}</Text>
 
               {voiceTranscript || voiceReply ? (
@@ -559,7 +573,7 @@ export function SrvChatModal({ visible, onClose, supportWhatsApp }: {
                 </View>
               ) : null}
               {error ? <Text style={styles.voiceModeError}>{error}</Text> : null}
-            </View>
+            </ScrollView>
 
             <View style={styles.voiceModeControls}>
               <Pressable testID="srv-chat-voice-pause" onPress={() => void toggleVoicePause()} accessibilityRole="button" accessibilityLabel={voicePaused ? copy.resume : copy.mute} style={styles.voiceControlButton}>
@@ -574,27 +588,34 @@ export function SrvChatModal({ visible, onClose, supportWhatsApp }: {
             <Text style={styles.voicePrivacy}>{copy.privacy}</Text>
           </LinearGradient>
         ) : (
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <LinearGradient colors={['#0C2C65', '#233E91', '#5751AF']} style={styles.header}>
+        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
+          <LinearGradient colors={['#0C2C65', '#233E91', '#5751AF']} style={[styles.header, compactChatLayout && styles.headerCompact]}>
             <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Close SRV Chat" style={styles.close}><Text style={styles.closeText}>‹</Text></Pressable>
             <View style={styles.headerIcon}><ChatIcon size={27} /></View>
             <View style={styles.headerCopy}>
               <Text style={styles.title}>SRV Chat</Text>
-              <Text style={styles.subtitle}>{copy.hint}</Text>
+              <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={styles.subtitle}>{copy.hint}</Text>
             </View>
             <View style={styles.onlineDot} />
           </LinearGradient>
 
-          <View style={styles.languages}>
+          <View style={[styles.languages, compactChatLayout && styles.languagesCompact]}>
             {(['English', 'Hindi', 'Punjabi'] as AppLanguage[]).map((item) => (
               <Pressable key={item} onPress={() => setLanguage(item)} style={[styles.languageChoice, language === item && styles.languageActive]}>
-                <Text style={[styles.languageText, language === item && styles.languageTextActive]}>{item === 'English' ? 'English' : item === 'Hindi' ? 'हिन्दी' : 'ਪੰਜਾਬੀ'}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82} style={[styles.languageText, language === item && styles.languageTextActive]}>{item === 'English' ? 'English' : item === 'Hindi' ? 'हिन्दी' : 'ਪੰਜਾਬੀ'}</Text>
               </Pressable>
             ))}
           </View>
 
-          <ScrollView ref={scrollRef} style={styles.conversation} contentContainerStyle={styles.conversationContent}
-            keyboardShouldPersistTaps="handled" onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
+          <ScrollView
+            ref={scrollRef}
+            style={styles.conversation}
+            contentContainerStyle={[styles.conversationContent, compactChatLayout && styles.conversationContentCompact]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            contentInsetAdjustmentBehavior="never"
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+          >
             <View style={styles.assistantBubble}><Text style={styles.assistantText}>{copy.welcome}</Text></View>
             {messages.map((item) => (
               <View key={item.id} style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.assistantBubble]}>
@@ -620,12 +641,14 @@ export function SrvChatModal({ visible, onClose, supportWhatsApp }: {
           </ScrollView>
 
           <Pressable onPress={() => void openWhatsAppSupport(supportWhatsApp, 'Hello SRV Electricals, I need help with my QR scan or product.')} style={styles.supportLink}>
-            <Text style={styles.supportText}>{copy.support}  ·  {String(supportWhatsApp ?? '8837684004').replace(/^91/, '')}  ↗</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82} style={styles.supportText}>{copy.support}  ·  {String(supportWhatsApp ?? '8837684004').replace(/^91/, '')}  ↗</Text>
           </Pressable>
-          <View style={styles.composer}>
+          <View style={[styles.composer, compactChatLayout && styles.composerCompact]}>
             <TextInput
               testID="srv-chat-input" value={draft} onChangeText={setDraft} placeholder={copy.placeholder}
               placeholderTextColor="#909CB4" multiline maxLength={1200} style={styles.input}
+              scrollEnabled blurOnSubmit={false}
+              onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 180)}
               editable={!sending && !voiceBusy} accessibilityLabel={copy.placeholder}
             />
             {draft.trim() ? (
@@ -652,7 +675,9 @@ const styles = StyleSheet.create({
   launcherFill: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)' },
   screen: { flex: 1, backgroundColor: '#F3F6FC' },
   voiceModeScreen: { flex: 1, paddingHorizontal: 22, paddingTop: 8, paddingBottom: 12 },
+  voiceModeScreenCompact: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
   voiceModeHeader: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  voiceModeHeaderCompact: { minHeight: 52, gap: 8 },
   voiceModeClose: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.11)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   voiceModeCloseText: { color: '#FFFFFF', fontSize: 29, lineHeight: 31, fontWeight: '300' },
   voiceModeHeading: { flex: 1 },
@@ -661,9 +686,12 @@ const styles = StyleSheet.create({
   voiceLiveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.11)' },
   voiceLiveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#5EF0BC' },
   voiceLiveText: { color: '#DFFBF2', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  voiceModeBody: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 8 },
+  voiceModeScroller: { flex: 1 },
+  voiceModeBody: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 8 },
+  voiceModeBodyCompact: { justifyContent: 'flex-start', paddingTop: 4 },
   voiceBrand: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', letterSpacing: 4, opacity: 0.82 },
   voiceAssistantName: { color: '#D7E4FF', fontSize: 12, fontWeight: '700', marginTop: 2, marginBottom: 23 },
+  voiceAssistantNameCompact: { marginBottom: 8 },
   voiceOrbTouch: { width: 224, height: 224, borderRadius: 112, alignItems: 'center', justifyContent: 'center' },
   voiceOrbRingOuter: { width: 214, height: 214, borderRadius: 107, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,142,255,0.10)', borderWidth: 1, borderColor: 'rgba(167,192,255,0.18)' },
   voiceOrbListening: { backgroundColor: 'rgba(78,221,225,0.14)', borderColor: 'rgba(105,237,226,0.36)' },
@@ -691,6 +719,7 @@ const styles = StyleSheet.create({
   voiceReadyContent: { flex: 1, minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 4 },
   voiceReadyText: { color: '#3C4B6B', fontSize: 13, fontWeight: '700' },
   header: { flexDirection: 'row', alignItems: 'center', minHeight: 86, paddingHorizontal: 16, gap: 10 },
+  headerCompact: { minHeight: 68, paddingHorizontal: 12, gap: 8 },
   close: { width: 32, height: 40, justifyContent: 'center' },
   closeText: { color: '#FFFFFF', fontSize: 35, lineHeight: 40 },
   headerIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
@@ -698,13 +727,15 @@ const styles = StyleSheet.create({
   title: { color: '#FFFFFF', fontSize: 20, fontWeight: '900' },
   subtitle: { color: '#DBE7FF', fontSize: 11, marginTop: 2 },
   onlineDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#6EE7B7' },
-  languages: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingVertical: 11, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E8ECF5' },
-  languageChoice: { paddingHorizontal: 15, paddingVertical: 7, borderRadius: 20, backgroundColor: '#F1F3F8' },
+  languages: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E8ECF5' },
+  languagesCompact: { gap: 6, paddingHorizontal: 9, paddingVertical: 7 },
+  languageChoice: { flex: 1, maxWidth: 120, alignItems: 'center', paddingHorizontal: 8, paddingVertical: 7, borderRadius: 20, backgroundColor: '#F1F3F8' },
   languageActive: { backgroundColor: '#E5E6FF' },
   languageText: { color: '#66718B', fontSize: 12, fontWeight: '700' },
   languageTextActive: { color: '#333AA5' },
   conversation: { flex: 1 },
   conversationContent: { padding: 16, paddingBottom: 25, gap: 12 },
+  conversationContentCompact: { padding: 12, paddingBottom: 16, gap: 9 },
   bubble: { maxWidth: '87%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12 },
   assistantBubble: { alignSelf: 'flex-start', maxWidth: '87%', backgroundColor: '#FFFFFF', borderRadius: 18, borderTopLeftRadius: 5, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#E8ECF5' },
   userBubble: { alignSelf: 'flex-end', backgroundColor: '#3E4CBD', borderTopRightRadius: 5 },
@@ -720,7 +751,8 @@ const styles = StyleSheet.create({
   supportLink: { alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 8 },
   supportText: { color: '#3451A4', fontSize: 12, fontWeight: '800' },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginHorizontal: 12, marginTop: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 24, borderWidth: 1, borderColor: '#DEE4F2', backgroundColor: '#FFFFFF' },
-  input: { flex: 1, minHeight: 34, maxHeight: 100, color: '#203052', fontSize: 14, paddingVertical: 6 },
+  composerCompact: { gap: 7, marginHorizontal: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  input: { flex: 1, minWidth: 0, minHeight: 34, maxHeight: 100, color: '#203052', fontSize: 14, lineHeight: 20, paddingVertical: 6 },
   sendButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#3E4CBD', alignItems: 'center', justifyContent: 'center' },
   sendDisabled: { opacity: 0.4 },
   sendText: { color: '#FFFFFF', fontSize: 17 },

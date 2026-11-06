@@ -15,8 +15,8 @@ type SpeechProfile = {
 
 const PROFILES: Record<AppLanguage, SpeechProfile> = {
   English: { locale: 'en-IN', rate: 0.94, pitch: 1 },
-  Hindi: { locale: 'hi-IN', rate: 0.88, pitch: 1 },
-  Punjabi: { locale: 'pa-IN', rate: 0.86, pitch: 1 },
+  Hindi: { locale: 'hi-IN', rate: 0.91, pitch: 1 },
+  Punjabi: { locale: 'pa-IN', rate: 0.9, pitch: 1 },
 };
 
 export function getSpeechProfile(language: AppLanguage): SpeechProfile {
@@ -37,10 +37,10 @@ export function selectBestSpeechVoice(voices: SpeechVoice[], language: AppLangua
       const base = locale.split('-')[0];
       if (base !== targetBase) return { voice, score: -1, index };
 
-      let score = locale === target ? 100 : 60;
+      let score = locale === target ? 120 : 60;
       if (locale.endsWith('-in')) score += 10;
-      if (String(voice.quality).toLowerCase() === 'enhanced') score += 25;
-      if (/enhanced|premium|neural|natural/i.test(`${voice.name} ${voice.identifier}`)) score += 5;
+      if (String(voice.quality).toLowerCase() === 'enhanced') score += 35;
+      if (/enhanced|premium|neural|natural/i.test(`${voice.name} ${voice.identifier}`)) score += 15;
       return { voice, score, index };
     })
     .filter(({ score }) => score >= 0)

@@ -217,6 +217,7 @@ export function CartScreen({
   onUpdateQty,
   onRemove,
   onNavigate,
+  onBack,
   onCheckout,
   onCheckoutItem,
   role = 'customer',
@@ -225,6 +226,7 @@ export function CartScreen({
   onUpdateQty: (id: string, qty: number) => void;
   onRemove: (id: string) => void;
   onNavigate: (screen: any) => void;
+  onBack: () => void;
   onCheckout?: () => void;
   onCheckoutItem?: (item: CartItem) => void;
   role?: CartRole;
@@ -277,6 +279,15 @@ export function CartScreen({
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={tx('Back')}
+        onPress={onBack}
+        style={[styles.backButton, { marginTop: Math.max(insets.top, 8), backgroundColor: cardBg, borderColor }]}
+      >
+        <Text style={[styles.backArrow, { color: theme.primary }]}>←</Text>
+        <Text style={[styles.backLabel, { color: textPrimary }]}>{tx('Back')}</Text>
+      </Pressable>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -454,6 +465,20 @@ export function CartScreen({
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    alignSelf: 'flex-start',
+    minHeight: 42,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    borderRadius: 13,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  backArrow: { fontSize: 22, lineHeight: 24, fontWeight: '800' },
+  backLabel: { fontSize: 14, fontWeight: '800' },
   screen: { flex: 1 },
   heroCard: {
     margin: 14,

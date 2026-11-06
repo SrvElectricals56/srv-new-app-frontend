@@ -17,6 +17,7 @@ import {
   normalizeGstOrPanNumber,
   sanitizeEmailInput,
 } from '@/shared/utils/validation';
+import { normalizeIndianState } from '@/shared/utils/indianState';
 import type { UserRole } from '@/shared/types/navigation';
 type IntroStep = 'language' | 'role' | 'auth';
 type AuthMode = 'login' | 'signup';
@@ -934,7 +935,7 @@ export function OnboardingScreen({
         .filter(Boolean)
         .filter((part, index, parts) => parts.indexOf(part) === index)
         .join(', ');
-      const resolvedState = currentAddress.region || '';
+      const resolvedState = normalizeIndianState(currentAddress.region);
       const resolvedCity =
         currentAddress.city || currentAddress.district || currentAddress.subregion || '';
       const resolvedPincode = currentAddress.postalCode || '';

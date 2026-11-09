@@ -3,7 +3,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Pressable, ActivityIndicator, Image, Modal, Platform } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';
 import { LinearGradient } from 'expo-linear-gradient';
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -305,7 +305,7 @@ export function CheckoutScreen({
       if (Platform.OS === 'web') {
         throw new Error(tx('Online payment is available in the Android app.'));
       }
-      if (Constants.executionEnvironment === 'storeClient') {
+      if (isRunningInExpoGo()) {
         throw new Error(tx('Online payment requires the SRV Electricals app build.'));
       }
 

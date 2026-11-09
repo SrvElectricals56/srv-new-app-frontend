@@ -1,8 +1,8 @@
 /**
  * BannerCarousel
  *
- * All slides are always mounted and stacked (absoluteFill).
- * Transitions are pure cross-fades — no translateX, no unmount.
+ * Slides use native horizontal paging so the banner follows the user's finger.
+ * Auto-play resumes after a manual swipe and the indicator stays synchronized.
  *
  * Each image is rendered with resizeMode="cover" so it fills the
  * container edge-to-edge with no black bars. The container height
@@ -13,11 +13,12 @@
  * but is ignored when `aspectRatio` is provided.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
   Image,
-  PanResponder,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -45,18 +46,13 @@ export function BannerCarousel({
   borderRadius = 16,
 }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [previousIndex, setPreviousIndex] = useState<number | null>(null);
+  const [cardWidth, setCardWidth] = useState(0);
 
   const activeRef = useRef(0);
   const lenRef = useRef(slides.length);
+  const widthRef = useRef(0);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView> | null>(null);
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const opacities = useRef<Animated.Value[]>([]);
-  while (opacities.current.length < slides.length) {
-    opacities.current.push(
-      new Animated.Value(opacities.current.length === 0 ? 1 : 0)
-    );
-  }
 
   useEffect(() => {
     lenRef.current = slides.length;
@@ -64,10 +60,9 @@ export function BannerCarousel({
 
   useEffect(() => {
     if (slides.length === 0) return;
-    opacities.current.forEach((v, i) => v.setValue(i === 0 ? 1 : 0));
     activeRef.current = 0;
     setActiveIndex(0);
-    setPreviousIndex(null);
+    scrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [slides.length]);
 
   useEffect(() => {
@@ -78,26 +73,16 @@ export function BannerCarousel({
     }
   }, [activeIndex, slides]);
 
-  // ── Cross-fade ────────────────────────────────────────────────────────────
-  const goTo = useCallback((next: number) => {
+  const goTo = useCallback((next: number, animated = true) => {
     const len = lenRef.current;
     if (len < 2) return;
-    const prev = activeRef.current;
     const safeNext = ((next % len) + len) % len;
-    if (safeNext === prev) return;
-    const prevVal = opacities.current[prev];
-    const nextVal = opacities.current[safeNext];
-    if (!prevVal || !nextVal) return;
+    if (safeNext === activeRef.current && animated) return;
     activeRef.current = safeNext;
-    setPreviousIndex(prev);
     setActiveIndex(safeNext);
-    nextVal.setValue(0);
-    Animated.parallel([
-      Animated.timing(nextVal, { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.timing(prevVal, { toValue: 0, duration: 350, useNativeDriver: true }),
-    ]).start(({ finished }) => {
-      if (finished) setPreviousIndex(current => current === prev ? null : current);
-    });
+    if (widthRef.current > 0) {
+      scrollRef.current?.scrollTo({ x: safeNext * widthRef.current, animated });
+    }
   }, []);
 
   // ── Auto-play ─────────────────────────────────────────────────────────────
@@ -116,52 +101,55 @@ export function BannerCarousel({
     return stopAuto;
   }, [slides.length, startAuto, stopAuto]);
 
-  // ── Swipe ─────────────────────────────────────────────────────────────────
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 12 && Math.abs(gs.dx) > Math.abs(gs.dy) * 2,
-      onPanResponderGrant: () => stopAuto(),
-      onPanResponderRelease: (_, gs) => {
-        const len = lenRef.current;
-        if (len < 2) { startAuto(); return; }
-        if (gs.dx < -40) goTo(activeRef.current + 1);
-        else if (gs.dx > 40) goTo(activeRef.current - 1);
-        startAuto();
-      },
-      onPanResponderTerminate: () => startAuto(),
-    })
-  ).current;
+  const handleMomentumEnd = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const width = widthRef.current;
+    if (width <= 0) return;
+    const index = Math.max(0, Math.min(lenRef.current - 1, Math.round(event.nativeEvent.contentOffset.x / width)));
+    activeRef.current = index;
+    setActiveIndex(index);
+    startAuto();
+  }, [startAuto]);
 
   if (slides.length === 0) return null;
 
   return (
     <View>
-      {/* ── Banner card — fixed height ── */}
       <View
         style={[
           styles.card,
           { height, borderRadius },
         ]}
-        {...panResponder.panHandlers}
+        onLayout={(event) => {
+          const width = event.nativeEvent.layout.width;
+          if (width <= 0 || width === widthRef.current) return;
+          widthRef.current = width;
+          setCardWidth(width);
+          requestAnimationFrame(() => goTo(activeRef.current, false));
+        }}
       >
-        {slides.map((slide, index) => {
-          if (index !== activeIndex && index !== previousIndex) return null;
-          const opacity = opacities.current[index];
-          if (!opacity) return null;
-          return (
-            <Animated.View
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          bounces={false}
+          scrollEnabled={slides.length > 1}
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          onScrollBeginDrag={stopAuto}
+          onScrollEndDrag={startAuto}
+          onMomentumScrollEnd={handleMomentumEnd}
+          scrollEventThrottle={16}
+        >
+          {slides.map((slide, index) => (
+            <View
               key={index}
               style={[
-                StyleSheet.absoluteFillObject,
                 styles.slide,
+                { width: cardWidth || 1, height },
                 slide.backgroundColor
                   ? { backgroundColor: slide.backgroundColor }
                   : null,
-                { opacity },
               ]}
-              pointerEvents={index === activeIndex ? 'auto' : 'none'}
             >
               <Image
                 source={slide.image as any}
@@ -169,9 +157,9 @@ export function BannerCarousel({
                 resizeMode={slide.resizeMode ?? 'cover'}
                 fadeDuration={0}
               />
-            </Animated.View>
-          );
-        })}
+            </View>
+          ))}
+        </ScrollView>
       </View>
 
       {/* ── Dots ── */}

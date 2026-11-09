@@ -110,7 +110,7 @@ export function AnimatedLaunchScreen({ onFinished }: Props) {
 
   return (
     <Animated.View style={[styles.overlay, { opacity: fade }]} accessibilityViewIsModal accessible accessibilityLabel="SRV Electricals opening">
-      <StatusBar style="light" backgroundColor={INK} />
+      <StatusBar style="light" />
       <LinearGradient colors={['#060C21', '#101E49', '#060D25']} locations={[0, 0.52, 1]} style={StyleSheet.absoluteFill} />
 
       <Animated.View style={[styles.blueGlow, { opacity: atmosphere, transform: [{ scale: ringScale }] }]}>
@@ -174,7 +174,7 @@ export function AnimatedLaunchScreen({ onFinished }: Props) {
 }
 
 const styles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 9999, elevation: 9999, alignItems: 'center', justifyContent: 'center', backgroundColor: INK, overflow: 'hidden' },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 9999, elevation: 9999, alignItems: 'center', justifyContent: 'center', backgroundColor: INK, overflow: 'hidden' },
   glowFill: { flex: 1, borderRadius: 999 },
   blueGlow: { position: 'absolute', width: 480, height: 480, borderRadius: 240, top: '10%', left: '-35%' },
   pinkGlow: { position: 'absolute', width: 420, height: 420, borderRadius: 210, bottom: '4%', right: '-37%' },

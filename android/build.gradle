@@ -6,10 +6,11 @@ buildscript {
     mavenCentral()
   }
   dependencies {
+        classpath 'com.google.gms:google-services:4.4.4'
     classpath('com.android.tools.build:gradle')
     classpath('com.facebook.react:react-native-gradle-plugin')
-    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
-    classpath('com.google.gms:google-services:4.4.4')
+    def kotlinVersion = findProperty('android.kotlinVersion')
+    classpath(kotlinVersion ? "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion" : 'org.jetbrains.kotlin:kotlin-gradle-plugin')
   }
 }
 
@@ -18,20 +19,6 @@ allprojects {
     google()
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
-  }
-}
-
-// CMake shortens tool paths on Windows when the SDK lives under a user name
-// containing spaces. Clang then sees a name such as CLANG_~1.EXE instead of
-// clang++.exe and can omit libc++ while linking native React Native modules.
-// Explicit driver mode is harmless on other hosts and keeps local/EAS builds
-// consistent.
-subprojects { subproject ->
-  afterEvaluate {
-    if (subproject.plugins.hasPlugin('com.android.application') ||
-        subproject.plugins.hasPlugin('com.android.library')) {
-      subproject.android.defaultConfig.externalNativeBuild.cmake.cppFlags '--driver-mode=g++'
-    }
   }
 }
 

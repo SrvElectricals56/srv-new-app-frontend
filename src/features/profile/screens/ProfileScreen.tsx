@@ -1,6 +1,7 @@
 import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import * as ImagePicker from 'expo-image-picker';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -32,13 +33,13 @@ import { OffersPage } from './OffersScreen';
 import { PartnerCommissionPage } from './PartnerCommissionScreen';
 import { PrivacyPolicyPage } from './PrivacyPolicyScreen';
 import { RolePlayVideosScreen } from './RolePlayVideosScreen';
-import { RateUsPage } from './RateUsScreen';
 import { ReferFriendPage } from './ReferFriendScreen';
 import { ScanHistoryPage } from './ScanHistoryScreen';
 import { TransferPointsPage } from './TransferPointsScreen';
 import { premium, premiumShadow } from '@/shared/theme/premium';
 import { Dialog } from '@/shared/components/Dialog';
 import { KYCVerificationScreen } from './KYCVerificationScreen';
+import { ProfileCompletionPage } from './ProfileCompletionScreen';
 import { TierIcon } from '@/features/dealer/screens/MemberTierScreen';
 import { counterboyTheme as cbPalette } from '@/features/counterboy/theme';
 import { CUSTOMER_THEME as cuTheme } from '@/features/user/theme';
@@ -88,7 +89,6 @@ const PROFILE_MENU_FEATURE_MAP: Record<string, AppFeatureKey> = {
 
 const SETTINGS_FEATURE_MAP: Record<string, AppFeatureKey> = {
   Notifications: 'notification',
-  'Rate Us': 'rate_us',
   'App Settings': 'app_settings',
   'Scan History': 'scan_history',
   'Contact Support': 'contact_support',
@@ -221,6 +221,9 @@ export function ProfileScreen({
   const [profile, setProfile] = useState<Profile>(buildProfileFromAuth);
   const [draft, setDraft] = useState<Profile>(buildProfileFromAuth);
   const [subPage, setSubPage] = useState<SubPage>(null);
+  const [completionChildActive, setCompletionChildActive] = useState(false);
+  const [editReturnToCompletion, setEditReturnToCompletion] = useState(false);
+  const [photoReturnTarget, setPhotoReturnTarget] = useState<'profile' | 'edit' | 'completion'>('profile');
   const [giftStoreInitialFilter, setGiftStoreInitialFilter] = useState<GiftStoreOrderFilter>('This Month');
   const [showEdit, setShowEdit] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
@@ -281,6 +284,9 @@ export function ProfileScreen({
   useEffect(() => {
     if (lastProfileResetKeyRef.current !== profileResetKey) {
       setSubPage(null);
+      setCompletionChildActive(false);
+      setEditReturnToCompletion(false);
+      setPhotoReturnTarget('profile');
     }
     lastProfileResetKeyRef.current = profileResetKey;
   }, [profileResetKey]);
@@ -497,21 +503,56 @@ export function ProfileScreen({
     await refreshProfile();
   };
 
-  const openEdit = () => {
+  const prepareEdit = (returnToCompletion: boolean) => {
     setDraft(profile);
     setDraftPhotoUri(activeProfilePhoto);
     setPendingDraftImage(null);
     setDraftTaxIdentity(getTaxIdentityValue(profile));
     setDraftTaxHolder(getTaxHolderValue(profile));
     setShowImgPicker(false);
+    setEditReturnToCompletion(returnToCompletion);
     setShowEdit(true);
   };
 
-  const openPhotoPicker = () => {
+  const openEdit = () => prepareEdit(false);
+
+  const openEditFromCompletion = () => prepareEdit(true);
+
+  const openPhotoPicker = (returnTarget: 'profile' | 'completion' = 'profile') => {
     setDraft(profile);
     setDraftPhotoUri(activeProfilePhoto);
     setPendingDraftImage(null);
+    setPhotoReturnTarget(returnTarget);
     setShowImgPicker(true);
+  };
+
+  const openPhotoPickerFromEdit = () => {
+    setPhotoReturnTarget('edit');
+    setShowEdit(false);
+    setTimeout(() => setShowImgPicker(true), Platform.OS === 'ios' ? 350 : 0);
+  };
+
+  const restorePhotoCaller = () => {
+    const target = photoReturnTarget;
+    setPhotoReturnTarget('profile');
+    if (target === 'completion') {
+      setSubPage('Profile Completion');
+    } else if (target === 'edit') {
+      setTimeout(() => setShowEdit(true), Platform.OS === 'ios' ? 350 : 0);
+    }
+  };
+
+  const closePhotoPicker = () => {
+    setShowImgPicker(false);
+    restorePhotoCaller();
+  };
+
+  const finishEditFlow = () => {
+    setShowEdit(false);
+    if (editReturnToCompletion) {
+      setEditReturnToCompletion(false);
+      setSubPage('Profile Completion');
+    }
   };
 
   const closeEdit = () => {
@@ -521,7 +562,7 @@ export function ProfileScreen({
     setDraftTaxIdentity(getTaxIdentityValue(profile));
     setDraftTaxHolder(getTaxHolderValue(profile));
     setShowImgPicker(false);
-    setShowEdit(false);
+    finishEditFlow();
   };
 
   const updateDraftField = (key: keyof Profile, value: string) => {
@@ -605,7 +646,7 @@ export function ProfileScreen({
 
     if (!profileChanged && !photoChanged) {
       setPendingDraftImage(null);
-      setShowEdit(false);
+      finishEditFlow();
       return;
     }
 
@@ -640,7 +681,6 @@ export function ProfileScreen({
           setProfile({ ...nextProfile, phone: updatedUser.phone ?? nextProfile.phone });
           onProfilePhotoChange(draftPhotoUri);
           setPendingDraftImage(null);
-          setShowEdit(false);
           setPhoneVerification(null);
           await storage.setUserProfile(updatedUser);
           if (photoChanged) {
@@ -648,6 +688,7 @@ export function ProfileScreen({
           } else {
             await refreshProfile();
           }
+          finishEditFlow();
         })
         .catch(async (error: any) => {
           setProfileError(tx(error?.message || 'Unable to save changes'));
@@ -663,6 +704,18 @@ export function ProfileScreen({
   const pickDraftPhoto = async (source: 'camera' | 'gallery') => {
     try {
       setShowImgPicker(false);
+      if (Platform.OS === 'ios') {
+        // Let the source sheet finish dismissing before presenting an iOS system picker.
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+
+      const preparePhoto = async (asset: ImagePicker.ImagePickerAsset) => {
+        const context = ImageManipulator.manipulate(asset.uri);
+        const image = await context.renderAsync();
+        const jpeg = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 });
+        return jpeg.uri;
+      };
+
       if (source === 'camera') {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
@@ -677,9 +730,14 @@ export function ProfileScreen({
           quality: 1,
         });
 
-        if (!result.canceled && result.assets?.length) {
-          setPendingDraftImage(result.assets[0].uri);
-        }
+        if (!result.canceled && result.assets?.length) setPendingDraftImage(await preparePhoto(result.assets[0]));
+        else restorePhotoCaller();
+        return;
+      }
+
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setDialog({ visible: true, variant: 'info', title: tx('Permission needed'), message: tx('Allow photo access to update your profile photo.') });
         return;
       }
 
@@ -687,27 +745,41 @@ export function ProfileScreen({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 1,
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       });
 
-      if (!result.canceled && result.assets?.length) {
-        setPendingDraftImage(result.assets[0].uri);
-      }
+      if (!result.canceled && result.assets?.length) setPendingDraftImage(await preparePhoto(result.assets[0]));
+      else restorePhotoCaller();
     } catch {
       setDialog({ visible: true, variant: 'error', title: tx('Unable to update photo'), message: tx('Please try again.') });
     }
   };
 
-  const cancelDraftPhoto = () => setPendingDraftImage(null);
+  const cancelDraftPhoto = () => {
+    setPendingDraftImage(null);
+    restorePhotoCaller();
+  };
 
   const confirmDraftPhoto = () => {
     if (!pendingDraftImage) {
       return;
     }
-    if (showEdit) {
+    const confirmedImage = pendingDraftImage;
+    if (showEdit || photoReturnTarget === 'edit') {
       setDraftPhotoUri(pendingDraftImage);
+      setPhotoReturnTarget('profile');
+      setPendingDraftImage(null);
+      setTimeout(() => setShowEdit(true), Platform.OS === 'ios' ? 350 : 0);
+      return;
     } else {
       setIsSaving(true);
-      void syncRemoteProfilePhoto(pendingDraftImage)
+      void syncRemoteProfilePhoto(confirmedImage)
+        .then(() => {
+          if (photoReturnTarget === 'completion') {
+            setSubPage('Profile Completion');
+          }
+          setPhotoReturnTarget('profile');
+        })
         .catch(() => {
           setDialog({ visible: true, variant: 'error', title: tx('Unable to update photo'), message: tx('Please try again.') });
         })
@@ -716,13 +788,25 @@ export function ProfileScreen({
     setPendingDraftImage(null);
   };
 
+  const backFromCompletionChild = () => {
+    if (completionChildActive) {
+      setCompletionChildActive(false);
+      setSubPage('Profile Completion');
+      return;
+    }
+    setSubPage(null);
+  };
+
   const removeProfilePhoto = () => {
     setShowImgPicker(false);
     setPendingDraftImage(null);
     setDraftPhotoUri(null);
-    if (!showEdit) {
+    if (photoReturnTarget === 'edit') {
+      restorePhotoCaller();
+    } else if (!showEdit) {
       setIsSaving(true);
       void syncRemoteProfilePhoto(null)
+        .then(() => restorePhotoCaller())
         .catch(() => {
           setDialog({ visible: true, variant: 'error', title: tx('Unable to update photo'), message: tx('Please try again.') });
         })
@@ -757,7 +841,7 @@ export function ProfileScreen({
       />
     ),
     'My Orders': <MyOrdersPage onBack={() => setSubPage(null)} />,
-    'Bank Details': <BankDetailsPage onBack={() => setSubPage(null)} />,
+    'Bank Details': <BankDetailsPage onBack={backFromCompletionChild} />,
     'Refer To A Friend': <ReferFriendPage onBack={() => setSubPage(null)} />,
     'Need Help': <NeedHelpPage onBack={() => setSubPage(null)} />,
     'Offers & Promotions': <OffersPage onBack={() => setSubPage(null)} />,
@@ -767,8 +851,27 @@ export function ProfileScreen({
     'Contact Support': <ContactSupportPage onBack={() => setSubPage(null)} />,
     'Privacy Policy': <PrivacyPolicyPage onBack={() => setSubPage(null)} />,
     'Request Account Deletion': <AccountDeletionPage onBack={() => setSubPage(null)} />,
-    'Rate Us': <RateUsPage onBack={() => setSubPage(null)} onHome={() => onNavigate('home')} />,
-    'KYC Verification': <KYCVerificationScreen onBack={() => setSubPage(null)} currentRole={currentRole} />,
+    'KYC Verification': <KYCVerificationScreen onBack={backFromCompletionChild} currentRole={currentRole} />,
+    'Profile Completion': (
+      <ProfileCompletionPage
+        onBack={() => setSubPage(null)}
+        onAction={(action) => {
+          if (action === 'kyc') {
+            setCompletionChildActive(true);
+            setSubPage('KYC Verification');
+          } else if (action === 'bank') {
+            setCompletionChildActive(true);
+            setSubPage('Bank Details');
+          } else if (action === 'photo') {
+            setSubPage(null);
+            setTimeout(() => openPhotoPicker('completion'), Platform.OS === 'ios' ? 350 : 0);
+          } else {
+            setSubPage(null);
+            setTimeout(openEditFromCompletion, Platform.OS === 'ios' ? 350 : 0);
+          }
+        }}
+      />
+    ),
   };
 
   if (subPage) {
@@ -844,7 +947,7 @@ export function ProfileScreen({
       </TouchableOpacity>
       <View style={styles.heroTop}>
         <TouchableOpacity
-          onPress={openPhotoPicker}
+          onPress={() => openPhotoPicker('profile')}
           activeOpacity={0.85}
           style={styles.avatarWrap}
         >
@@ -1318,9 +1421,9 @@ export function ProfileScreen({
           visible={showImgPicker}
           animationType="slide"
           transparent
-          onRequestClose={() => setShowImgPicker(false)}
+          onRequestClose={closePhotoPicker}
         >
-          <Pressable style={styles.pickerOverlay} onPress={() => setShowImgPicker(false)}>
+          <Pressable style={styles.pickerOverlay} onPress={closePhotoPicker}>
             <Pressable style={styles.pickerSheet}>
               <View style={styles.handle} />
               <Text style={styles.pickerTitle}>{tx('updateProfilePhoto')}</Text>
@@ -1370,7 +1473,7 @@ export function ProfileScreen({
                   </TouchableOpacity>
                 ))}
               </View>
-              <TouchableOpacity style={styles.pickerCancel} onPress={() => setShowImgPicker(false)}>
+              <TouchableOpacity style={styles.pickerCancel} onPress={closePhotoPicker}>
                 <Text style={styles.pickerCancelTxt}>{tx('Cancel')}</Text>
               </TouchableOpacity>
             </Pressable>
@@ -1460,7 +1563,7 @@ export function ProfileScreen({
                       Profile Photo
                     </Text>
                     <TouchableOpacity
-                      onPress={() => setShowImgPicker(true)}
+                      onPress={openPhotoPickerFromEdit}
                       activeOpacity={0.8}
                       style={[
                         styles.uploadBox,

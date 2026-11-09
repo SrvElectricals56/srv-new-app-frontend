@@ -126,13 +126,20 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
+  const redeemingRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [shippingAddress, setShippingAddress] = useState('');
   const shippingAddressRef = useRef('');
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message: string; confirmLabel?: string; onConfirm?: () => void; icon?: string }>({ visible: false, variant: 'info', title: '', message: '' });
-  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
+  const closeDialog = () => {
+    if (!redeemingRef.current) setDialog((d) => ({ ...d, visible: false }));
+  };
 
-  const currentPoints = wallet?.balance ?? walletSummary?.balance ?? 0;
+  // Match backend checkout for legacy accounts whose totalPoints is populated
+  // but walletBalance has not been synchronized yet.
+  const storedBalance = Number(wallet?.balance ?? walletSummary?.balance ?? 0);
+  const recordedPoints = Number(wallet?.totalPoints ?? walletSummary?.totalPoints ?? 0);
+  const currentPoints = storedBalance > 0 || recordedPoints <= 0 ? storedBalance : recordedPoints;
   const cardW = Math.floor((width - 32 - 12) / 2);
 
   // Show gifts for counterboy or 'all' (counterboy shares gifts with electrician)
@@ -149,6 +156,7 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
   }, [refreshAll]);
 
   const handleRedeem = (gift: GiftProduct) => {
+    if (redeemingRef.current) return;
     if (currentPoints < gift.pointsRequired) {
       setDialog({
         visible: true, variant: 'info', title: tx('Not Enough Points'),
@@ -169,6 +177,8 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
       message: `${tx('This will use')} ${gift.pointsRequired} ${tx('points from your wallet.')}`,
       confirmLabel: tx('Confirm'),
       onConfirm: async () => {
+        if (redeemingRef.current) return;
+        redeemingRef.current = true;
         try {
           setRedeemingId(gift.id);
           await redeemReward({ schemeId: gift.id, note: gift.name, giftImage: gift.imageUrl ?? undefined, shippingAddress: shippingAddressRef.current.trim() });
@@ -179,6 +189,7 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
         } catch (err: any) {
           setDialog({ visible: true, variant: 'error', title: tx('Redemption Failed'), message: err?.message ?? tx('Please try again.') });
         } finally {
+          redeemingRef.current = false;
           setRedeemingId(null);
         }
       },
@@ -263,7 +274,8 @@ export function RewardsScreen({ onBack }: { onBack?: () => void }) {
             style={[styles.addressInput, { color: darkMode ? cb.darkText : cb.text, borderColor: darkMode ? cb.darkBorder : cb.border, backgroundColor: darkMode ? cb.darkSurface : cb.softBg }]}
           />
         ) : null}
-        confirmDisabled={dialog.variant === 'confirm' && shippingAddress.trim().length < 10}
+        confirmDisabled={dialog.variant === 'confirm' && (shippingAddress.trim().length < 10 || redeemingId !== null)}
+        closeOnConfirm={dialog.variant !== 'confirm'}
         onConfirm={dialog.onConfirm}
         onClose={closeDialog}
       />

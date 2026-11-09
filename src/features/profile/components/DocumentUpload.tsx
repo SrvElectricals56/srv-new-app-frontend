@@ -1,10 +1,12 @@
 import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
-import React, { useState } from 'react';
-import { View, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { profileApi } from '@/shared/api';
+import { resolveImageUrl } from '@/shared/api/config';
 import { Dialog, Choice } from '@/shared/components/Dialog';
+import { prepareKycUpload } from '../lib/kycUpload';
 
 type DocumentType = 'aadhar-front' | 'pan' | 'gst';
 
@@ -29,9 +31,18 @@ export function DocumentUpload({
 }: DocumentUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [localUri, setLocalUri] = useState<string | null>(currentUrl || null);
+  const [isPdf, setIsPdf] = useState(Boolean(currentUrl && /\.pdf(?:[?#]|$)/i.test(currentUrl)));
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void; choices?: Choice[]; cancelButton?: boolean }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const pickerAspect: [number, number] = documentType === 'aadhar-front' ? [4, 3] : [3, 2];
+  const previewUri = localUri && (/^https?:\/\//i.test(localUri) || localUri.startsWith('/uploads/'))
+    ? resolveImageUrl(localUri)
+    : localUri;
+
+  useEffect(() => {
+    setLocalUri(currentUrl || null);
+    setIsPdf(Boolean(currentUrl && /\.pdf(?:[?#]|$)/i.test(currentUrl)));
+  }, [currentUrl]);
 
   const pickDocument = async () => {
     try {
@@ -42,70 +53,90 @@ export function DocumentUpload({
   };
 
   const pickFromCamera = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      setDialog({ visible: true, variant: 'info', title: 'Permission needed', message: 'Allow camera access to upload documents.' });
-      return;
-    }
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setDialog({ visible: true, variant: 'info', title: 'Permission needed', message: 'Allow camera access to upload documents.' });
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: pickerAspect,
-      quality: 0.9,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: pickerAspect,
+        quality: 0.9,
+      });
 
-    if (!result.canceled && result.assets?.length) {
-      const localFileUri = result.assets[0].uri;
-      setLocalUri(localFileUri);
-      await uploadDocument(localFileUri, 'image/jpeg', `${documentType}.jpg`);
+      if (!result.canceled && result.assets?.length) {
+        const asset = result.assets[0];
+        await uploadDocument({ uri: asset.uri, mimeType: asset.mimeType, name: asset.fileName, size: asset.fileSize });
+      }
+    } catch (error: any) {
+      setDialog({ visible: true, variant: 'error', title: 'Camera unavailable', message: error?.message || 'Could not open the camera. Please try again.' });
     }
   };
 
   const pickFromGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      // Keep iOS on PHPicker, which grants access only to selected items.
-      allowsEditing: false,
-      quality: 0.9,
-      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-    });
+    try {
+      if (Platform.OS === 'ios') {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          setDialog({ visible: true, variant: 'info', title: 'Permission needed', message: 'Allow photo access to choose a document from your gallery.' });
+          return;
+        }
+      }
 
-    if (!result.canceled && result.assets?.length) {
-      const asset = result.assets[0];
-      const localFileUri = asset.uri;
-      setLocalUri(localFileUri);
-      await uploadDocument(localFileUri, asset.mimeType || 'image/jpeg', asset.fileName || `${documentType}.jpg`);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        // Compatible mode converts iCloud/HEIC assets into a locally readable
+        // representation before the Expo FileSystem upload starts.
+        allowsEditing: false,
+        quality: 0.9,
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+      });
+
+      if (!result.canceled && result.assets?.length) {
+        const asset = result.assets[0];
+        await uploadDocument({ uri: asset.uri, mimeType: asset.mimeType, name: asset.fileName, size: asset.fileSize });
+      }
+    } catch (error: any) {
+      setDialog({ visible: true, variant: 'error', title: 'Gallery unavailable', message: error?.message || 'Could not open the photo gallery. Please try again.' });
     }
   };
 
   const pickFromFiles = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['image/*', 'application/pdf'],
+        // Let Android/iOS document providers show files whose MIME type is
+        // missing or incorrectly reported. The app and backend validate the
+        // actual bytes after selection.
+        type: '*/*',
         copyToCacheDirectory: true,
       });
 
       if (result.canceled) return;
 
       const file = result.assets[0];
-      setLocalUri(file.uri);
-      await uploadDocument(file.uri, file.mimeType || 'application/pdf', file.name);
+      await uploadDocument({ uri: file.uri, mimeType: file.mimeType, name: file.name, size: file.size });
     } catch {
       setDialog({ visible: true, variant: 'error', title: 'Error', message: 'Failed to pick file' });
     }
   };
 
-  const uploadDocument = async (uri: string, type: string, name: string) => {
+  const uploadDocument = async (file: Parameters<typeof prepareKycUpload>[0]) => {
     try {
       setUploading(true);
-      const url = await profileApi.uploadDocument({ uri, type, name }, documentType);
+      const prepared = await prepareKycUpload(file, documentType);
+      setLocalUri(prepared.uri);
+      setIsPdf(prepared.type === 'application/pdf');
+      const url = await profileApi.uploadDocument(prepared, documentType);
       onUploadSuccess(url);
       setDialog({ visible: true, variant: 'success', title: 'Success', message: 'Document uploaded successfully' });
     } catch (error: any) {
       const msg = error?.message || 'Unknown error';
-      setDialog({ visible: true, variant: 'error', title: 'Upload Failed', message: `${msg}\n\nPlease check your connection and try again.` });
+      setDialog({ visible: true, variant: 'error', title: 'Upload Failed', message: msg });
       setLocalUri(currentUrl || null);
+      setIsPdf(Boolean(currentUrl && /\.pdf(?:[?#]|$)/i.test(currentUrl)));
     } finally {
       setUploading(false);
     }
@@ -131,12 +162,12 @@ export function DocumentUpload({
           </View>
         ) : localUri ? (
           <View style={styles.previewContainer}>
-            {localUri.endsWith('.pdf') ? (
+            {isPdf || /\.pdf(?:[?#]|$)/i.test(localUri) ? (
               <View style={[styles.pdfIcon, { backgroundColor: roleSoft }]}>
                 <Text style={[styles.pdfText, { color: roleColor }]}>PDF</Text>
               </View>
             ) : (
-              <Image source={{ uri: localUri }} style={styles.previewImage} />
+              <Image source={{ uri: previewUri || localUri }} style={styles.previewImage} />
             )}
             <Text style={[styles.uploadedText, { color: theme.textPrimary }]}>
               Tap to change

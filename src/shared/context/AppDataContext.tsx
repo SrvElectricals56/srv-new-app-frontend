@@ -8,13 +8,13 @@ import {
   catalogApi,
   electriciansApi,
   giftStoreApi,
+  launcherIconApi,
   notificationsApi,
   offersApi,
   productsApi,
   profileApi,
   redemptionsApi,
   referralApi,
-  ratingApi,
   rewardSchemesApi,
   scanApi,
   settingsApi,
@@ -41,9 +41,11 @@ import {
 } from '../api/services';
 import { storage } from '../api/storage';
 import { clearCache } from '../api/client';
+import { connectMobileRealtime } from '../api/realtime';
 import { sessionEvents } from '../api/sessionEvents';
 import { useAuth } from './AuthContext';
 import { useAppPreviewState } from '../preview/appPreviewStore';
+import { syncLauncherIcon } from '../native/launcherIcon';
 
 const debugLog = (...args: unknown[]) => {
   if (__DEV__) {
@@ -125,7 +127,6 @@ type AppDataContextType = {
   requestDealerBonusWithdrawal: (data: { amount: number }) => Promise<void>;
   submitSupportTicket: (data: { subject: string; comment: string; photoUrl?: string; photoUrls?: string[] }) => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
-  submitRating: (rating: number, review?: string) => Promise<void>;
 };
 
 const defaultCtx: AppDataContextType = {
@@ -163,16 +164,16 @@ const defaultCtx: AppDataContextType = {
   requestDealerBonusWithdrawal: async () => {},
   submitSupportTicket: async () => {},
   deleteNotification: async () => {},
-  submitRating: async () => {},
 };
 
 const AppDataContext = createContext<AppDataContextType>(defaultCtx);
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user, role } = useAuth();
+  const { isAuthenticated, user, role, refreshProfile } = useAuth();
   const previewState = useAppPreviewState();
   const appStateRef = useRef(AppState.currentState);
   const backgroundedAtRef = useRef(0);
+  const realtimeRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -244,6 +245,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         giftStoreApi.getProducts(role ?? undefined).catch((err) => {
           logDataWarning('Gift store API failed.', err?.message ?? err);
           return { data: [] as GiftProduct[] };
+        }),
+        launcherIconApi.getActive().then((icon) => syncLauncherIcon(icon?.nativeKey)).catch((err) => {
+          logDataWarning('Launcher icon sync failed.', err?.message ?? err);
+          return 'unsupported' as const;
         }),
       ]);
 
@@ -447,7 +452,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       if (next === 'background') {
         backgroundedAtRef.current = Date.now();
       }
-      if (/inactive|background/.test(prev) && next === 'active') {
+      if ((prev === 'inactive' || prev === 'background') && next === 'active') {
         const awayFor = Date.now() - backgroundedAtRef.current;
         if (awayFor > 120_000) {
           clearCache('/mobile/auth/profile');
@@ -523,6 +528,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         clearCache('/mobile/app-settings');
         const setts = await settingsApi.getAppSettings();
         if (setts) setAppSettings(setts);
+        const icon = await launcherIconApi.getActive();
+        await syncLauncherIcon(icon?.nativeKey);
       } catch {
         // silently ignore poll errors
       }
@@ -571,6 +578,65 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     clearCache('/mobile/referral');
     return loadPrivateData();
   }, [loadPrivateData]);
+
+  useEffect(() => {
+    if (previewState.enabled) return;
+
+    const publicScopes = new Set(['all', 'content', 'gifts', 'products', 'settings']);
+    const privateScopes = new Set([
+      'all',
+      'gifts',
+      'members',
+      'notifications',
+      'orders',
+      'scans',
+      'settings',
+      'support',
+      'wallet',
+    ]);
+
+    const disconnect = connectMobileRealtime((change) => {
+      // Mobile mutations already update their own local state. They are pushed
+      // primarily so the admin panel reflects app activity immediately.
+      if (change.source === 'mobile' || appStateRef.current !== 'active') return;
+
+      if (realtimeRefreshTimerRef.current) {
+        clearTimeout(realtimeRefreshTimerRef.current);
+      }
+      realtimeRefreshTimerRef.current = setTimeout(() => {
+        realtimeRefreshTimerRef.current = null;
+        const tasks: Promise<unknown>[] = [];
+        if (publicScopes.has(change.scope)) {
+          clearCache('/mobile/app-settings');
+          clearCache('/mobile/banners');
+          clearCache('/mobile/products');
+          clearCache('/mobile/testimonials');
+          clearCache('/mobile/offers');
+          clearCache('/mobile/reward-schemes');
+          clearCache('/mobile/gift-products');
+          tasks.push(loadPublicData());
+        }
+        if (isAuthenticated && privateScopes.has(change.scope)) {
+          clearCache('/mobile/auth/profile');
+          clearCache('/mobile/wallet');
+          clearCache('/mobile/scan-history');
+          clearCache('/mobile/notifications');
+          clearCache('/mobile/redemptions');
+          clearCache('/mobile/electricians');
+          tasks.push(loadPrivateData(), refreshProfile());
+        }
+        void Promise.allSettled(tasks);
+      }, 100);
+    });
+
+    return () => {
+      disconnect();
+      if (realtimeRefreshTimerRef.current) {
+        clearTimeout(realtimeRefreshTimerRef.current);
+        realtimeRefreshTimerRef.current = null;
+      }
+    };
+  }, [isAuthenticated, loadPrivateData, loadPublicData, previewState.enabled, refreshProfile]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const submitScan = useCallback(async (qrCode: string, mode: 'single' | 'multi'): Promise<ScanResult> => {
@@ -635,10 +701,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, [role, user?.id]);
 
-  const submitRating = useCallback(async (rating: number, review?: string) => {
-    await ratingApi.submit(rating, review);
-  }, []);
-
   const value = useMemo<AppDataContextType>(() => ({
     loading, profile, wallet, walletSummary: wallet, scanHistory, notifications, offers,
     products, catalogProducts: products, categories, catalogLoading, banners, giftProducts,
@@ -647,7 +709,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     refreshAll, submitScan, addElectrician, updateProfile, uploadProfilePhoto,
     removeProfilePhoto, updatePreferences, saveBankAccount, redeemReward,
     transferPoints, requestDealerBonusWithdrawal, submitSupportTicket,
-    deleteNotification, submitRating,
+    deleteNotification,
   }), [
     loading, profile, wallet, scanHistory, notifications, offers, products, categories,
     catalogLoading, banners, giftProducts, testimonials, electricians, redemptions, appSettings,
@@ -655,7 +717,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     refreshAll, submitScan, addElectrician, updateProfile, uploadProfilePhoto,
     removeProfilePhoto, updatePreferences, saveBankAccount, redeemReward,
     transferPoints, requestDealerBonusWithdrawal, submitSupportTicket,
-    deleteNotification, submitRating,
+    deleteNotification,
   ]);
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

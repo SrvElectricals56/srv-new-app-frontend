@@ -2,6 +2,7 @@ import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared
 import React, { useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Animated, Easing, ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import { AppIcon, C, PageHeader } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -18,7 +19,7 @@ export function PartnerCommissionPage({ onBack }: { onBack: () => void }) {
   const pageContent = useAppPageContent((role ?? 'dealer') as any, 'dealer_bonus');
   const glow = useRef(new Animated.Value(0)).current;
   const floatY = useRef(new Animated.Value(0)).current;
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<ScrollViewInstance | null>(null);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);

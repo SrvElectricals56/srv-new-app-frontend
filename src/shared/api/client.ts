@@ -15,6 +15,9 @@ const PUBLIC_CONTENT_TTL = 5 * 60_000;
 const LEADERBOARD_TTL = 2 * 60_000;
 
 function getCacheTtl(path: string) {
+  // Points and profile data can be changed from the admin panel while the
+  // app is open. Never serve a stale wallet/profile balance to redemption.
+  if (path.includes('/mobile/wallet') || path.includes('/mobile/auth/profile')) return 0;
   if (path.includes('/mobile/leaderboard/top-five')) return LEADERBOARD_TTL;
   if (
     path.includes('/mobile/products') ||
@@ -127,7 +130,7 @@ async function fetchFromApiBases(
       debugLog(`API ${options.method ?? 'GET'} retrying ${candidateUrl}`);
     }
     try {
-      return await fetchWithTimeout(candidateUrl, options);
+      return await fetchWithTimeout(candidateUrl, options, path.startsWith('/mobile/assistant/') ? 40_000 : 15_000);
     } catch (error) {
       lastError = error;
     }
@@ -202,6 +205,13 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1
   }
 }
 
+async function readSuccessResponse<T>(response: Response): Promise<T> {
+  // Nest sends an empty 200 response when a controller returns null (for
+  // example, a user who has not rated the app yet).
+  const body = await response.text();
+  return body.trim() ? JSON.parse(body) as T : null as T;
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, auth = false, params } = options;
 
@@ -257,7 +267,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
         }
         throw createApiError(retryRes.status, err, `Request failed: ${retryRes.status}`);
       }
-      return retryRes.json() as Promise<T>;
+      return readSuccessResponse<T>(retryRes);
     }
 
     if (!response.ok) {
@@ -266,12 +276,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       throw createApiError(response.status, err, `Request failed: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await readSuccessResponse<T>(response);
     debugLog(
       `API ${method} ${path} response:`,
       typeof data === 'object' && data !== null ? Object.keys(data) : 'primitive'
     );
-    return data as T;
+    return data;
   } catch (error: any) {
     logApiWarning(`API ${method} ${path} error.`, error?.message ?? error);
     throw error;

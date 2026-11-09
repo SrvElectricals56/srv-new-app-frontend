@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { Animated, Easing, Image, Pressable, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
@@ -16,6 +17,7 @@ import type { Screen } from '@/shared/types/navigation';
 import { formatCountText, usePreferenceContext } from '@/shared/preferences';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
 import { HomeHeaderContact } from '@/shared/components/HomeHeaderContact';
+import { ProfileCompletionBadge } from '@/shared/components/ProfileCompletionBadge';
 import { createShadow } from '@/shared/theme/shadows';
 import { premium, premiumShadow } from '@/shared/theme/premium';
 import {
@@ -418,6 +420,7 @@ export function HomeScreen({
   totalScans,
   hasUnreadNotif = false,
   unreadNotificationCount = 0,
+  onOpenProfileCompletion,
 }: {
   onNavigate: (screen: Screen) => void;
   onOpenProductCategory: (category: string) => void;
@@ -426,6 +429,7 @@ export function HomeScreen({
   totalScans: number;
   hasUnreadNotif?: boolean;
   unreadNotificationCount?: number;
+  onOpenProfileCompletion: () => void;
 }) {
   const { darkMode, tx, language } = usePreferenceContext();
   const {
@@ -444,7 +448,7 @@ export function HomeScreen({
   const [apiBannerSlides, setApiBannerSlides] = useState<{ image: { uri: string }; resizeMode: 'cover' | 'contain'; backgroundColor: string }[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
-  const homeScrollRef = useRef<ScrollView>(null);
+  const homeScrollRef = useRef<ScrollViewInstance>(null);
   useRegisterScrollToTop('home', homeScrollRef);
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -816,6 +820,7 @@ export function HomeScreen({
                 </View>
               </TouchableOpacity>
             ) : null}
+            <ProfileCompletionBadge onPress={onOpenProfileCompletion} />
           </View>
         </View>
 

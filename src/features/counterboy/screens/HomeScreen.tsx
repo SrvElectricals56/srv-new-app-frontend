@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { Image, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAppData } from '@/shared/context/AppDataContext';
@@ -23,6 +24,7 @@ import {
 import { WebsitePromoSection } from '@/shared/components/WebsitePromoSection';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
 import { HomeHeaderContact } from '@/shared/components/HomeHeaderContact';
+import { ProfileCompletionBadge } from '@/shared/components/ProfileCompletionBadge';
 import type { Screen } from '@/shared/types/navigation';
 import { useAppPageContent, useAppPageSections } from '@/shared/hooks';
 import { openWhatsAppSupport } from '@/shared/utils/whatsapp';
@@ -201,12 +203,14 @@ export function HomeScreen({
   profilePhotoUri,
   hasUnreadNotif = false,
   unreadNotificationCount = 0,
+  onOpenProfileCompletion,
 }: {
   onNavigate: (screen: Screen) => void;
   onOpenProductCategory: (category: string) => void;
   profilePhotoUri?: string | null;
   hasUnreadNotif?: boolean;
   unreadNotificationCount?: number;
+  onOpenProfileCompletion: () => void;
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const { user: authUser } = useAuth();
@@ -214,7 +218,7 @@ export function HomeScreen({
   const pageContent = useAppPageContent('counterboy', 'home');
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const homeScrollRef = useRef<ScrollView>(null);
+  const homeScrollRef = useRef<ScrollViewInstance>(null);
   useRegisterScrollToTop('home', homeScrollRef);
   const [apiBannerSlides, setApiBannerSlides] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -509,6 +513,7 @@ export function HomeScreen({
               {hasUnreadNotif && unreadNotificationCount > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</Text></View> : null}
             </TouchableOpacity>
           ) : null}
+          <ProfileCompletionBadge onPress={onOpenProfileCompletion} />
         </View>
 
         {authUser ? (

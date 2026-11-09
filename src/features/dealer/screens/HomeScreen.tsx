@@ -3,11 +3,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { Animated, Easing, Image, Pressable, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
 import { HomeHeaderContact } from '@/shared/components/HomeHeaderContact';
+import { ProfileCompletionBadge } from '@/shared/components/ProfileCompletionBadge';
 import {
   TESTIMONIAL_FALLBACK_COPY,
   getTestimonialTheme,
@@ -417,12 +419,14 @@ export function HomeScreen({
   profilePhotoUri,
   hasUnreadNotif = false,
   unreadNotificationCount = 0,
+  onOpenProfileCompletion,
 }: {
   onNavigate: (screen: Screen) => void;
   onOpenProductCategory: (category: string) => void;
   profilePhotoUri?: string | null;
   hasUnreadNotif?: boolean;
   unreadNotificationCount?: number;
+  onOpenProfileCompletion: () => void;
 }) {
   const { darkMode, tx, language } = usePreferenceContext();
   const { user: authUser } = useAuth();
@@ -439,7 +443,7 @@ export function HomeScreen({
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const statPulse = useRef(new Animated.Value(1)).current;
-  const homeScrollRef = useRef<ScrollView>(null);
+  const homeScrollRef = useRef<ScrollViewInstance>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [liveElectricianCount, setLiveElectricianCount] = useState<number | null>(null);
   const loadElectricianCount = async () => {
@@ -835,6 +839,7 @@ export function HomeScreen({
               </View>
             </TouchableOpacity>
           ) : null}
+          <ProfileCompletionBadge onPress={onOpenProfileCompletion} />
         </View>
 
         {authUser ? (

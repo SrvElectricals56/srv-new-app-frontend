@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
 import { Animated, Easing, Image, Pressable, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { withWebSafeNativeDriver } from '@/shared/animations/nativeDriver';
@@ -16,6 +17,7 @@ import type { Screen } from '@/shared/types/navigation';
 import { usePreferenceContext } from '@/shared/preferences';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
 import { HomeHeaderContact } from '@/shared/components/HomeHeaderContact';
+import { ProfileCompletionBadge } from '@/shared/components/ProfileCompletionBadge';
 import { createShadow } from '@/shared/theme/shadows';
 import { premium, premiumShadow } from '@/shared/theme/premium';
 import {
@@ -462,6 +464,7 @@ export function HomeScreen({
   totalScans,
   hasUnreadNotif = false,
   unreadNotificationCount = 0,
+  onOpenProfileCompletion,
 }: {
   onNavigate: (screen: Screen) => void;
   onOpenNeedHelp?: () => void;
@@ -471,6 +474,7 @@ export function HomeScreen({
   totalScans: number;
   hasUnreadNotif?: boolean;
   unreadNotificationCount?: number;
+  onOpenProfileCompletion: () => void;
 }) {
   const { darkMode, tx } = usePreferenceContext();
   const {
@@ -486,7 +490,7 @@ export function HomeScreen({
   const pageContent = useAppPageContent('user', 'home');
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const homeScrollRef = useRef<ScrollView>(null);
+  const homeScrollRef = useRef<ScrollViewInstance>(null);
   useRegisterScrollToTop('home', homeScrollRef);
   const [apiBannerSlides, setApiBannerSlides] = useState<CarouselSlide[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -858,6 +862,7 @@ export function HomeScreen({
                 </View>
               </TouchableOpacity>
             ) : null}
+            <ProfileCompletionBadge onPress={onOpenProfileCompletion} />
           </View>
         </View>
 

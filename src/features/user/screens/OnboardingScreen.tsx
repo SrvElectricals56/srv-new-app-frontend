@@ -1,6 +1,7 @@
 import { LocalizedAlert as Alert, LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StatusBar, StyleSheet, useWindowDimensions, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
@@ -16,6 +17,7 @@ import {
   normalizeGstOrPanNumber,
   sanitizeEmailInput,
 } from '@/shared/utils/validation';
+import { normalizeIndianState } from '@/shared/utils/indianState';
 import type { UserRole } from '@/shared/types/navigation';
 type IntroStep = 'language' | 'role' | 'auth';
 type AuthMode = 'login' | 'signup';
@@ -713,7 +715,7 @@ export function OnboardingScreen({
   const { width, height } = useWindowDimensions();
   const { language, setLanguage, tx, darkMode } = usePreferenceContext();
   const reveal = useReveal();
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<ScrollViewInstance | null>(null);
   const loginPhoneRef = useRef<TextInput | null>(null);
   const loginOtpRef = useRef<TextInput | null>(null);
   const loginPassRef = useRef<TextInput | null>(null);
@@ -933,7 +935,7 @@ export function OnboardingScreen({
         .filter(Boolean)
         .filter((part, index, parts) => parts.indexOf(part) === index)
         .join(', ');
-      const resolvedState = currentAddress.region || '';
+      const resolvedState = normalizeIndianState(currentAddress.region);
       const resolvedCity =
         currentAddress.city || currentAddress.district || currentAddress.subregion || '';
       const resolvedPincode = currentAddress.postalCode || '';
@@ -1816,8 +1818,11 @@ export function OnboardingScreen({
                         setPhase('language');
                       }}
                       style={s.backRight}
+                      accessibilityRole="button"
+                      accessibilityLabel={tx('Back')}
                     >
                       <BackArrowIcon />
+                      <Text style={s.backButtonText}>{tx('Back')}</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -2362,8 +2367,11 @@ export function OnboardingScreen({
                                     <Pressable
                                       onPress={goToPreviousDealerSignupStep}
                                       style={s.stepBackBtn}
+                                      accessibilityRole="button"
+                                      accessibilityLabel={tx('Back')}
                                     >
                                       <BackArrowIcon />
+                                      <Text style={s.backButtonText}>{tx('Back')}</Text>
                                     </Pressable>
                                   ) : null}
                                 </View>
@@ -2702,8 +2710,11 @@ export function OnboardingScreen({
                                 <Pressable
                                   onPress={goToPreviousElectricianSignupStep}
                                   style={s.stepBackBtn}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={tx('Back')}
                                 >
                                   <BackArrowIcon />
+                                  <Text style={s.backButtonText}>{tx('Back')}</Text>
                                 </Pressable>
                               </View>
                             ) : null}
@@ -3106,7 +3117,7 @@ export function OnboardingScreen({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.heroA },
-  bg: { ...StyleSheet.absoluteFillObject },
+  bg: { ...StyleSheet.absoluteFill },
   kav: { flex: 1 },
   dismissSurface: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 14, paddingTop: 34, paddingBottom: 24 },
@@ -3169,16 +3180,19 @@ const s = StyleSheet.create({
   },
   backRight: {
     position: 'absolute',
-    right: 0,
+    left: 0,
     top: 30,
-    width: 42,
+    minWidth: 76,
     height: 42,
     borderRadius: 21,
+    paddingHorizontal: 12,
     backgroundColor: 'rgba(255,255,255,0.96)',
     borderWidth: 1,
     borderColor: 'rgba(148,163,184,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 5,
   },
   welcomeRow: {
     flexDirection: 'row',
@@ -3493,15 +3507,19 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
   },
   stepBackBtn: {
-    width: 34,
+    minWidth: 70,
     height: 34,
+    paddingHorizontal: 9,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#D8E7FB',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 4,
   },
+  backButtonText: { color: '#152238', fontSize: 12, fontWeight: '800' },
   formStepTitle: { color: C.title, fontSize: 16, fontWeight: '900' },
   formStepText: { color: C.muted, fontSize: 12.5, lineHeight: 18 },
   group: { gap: 6 },

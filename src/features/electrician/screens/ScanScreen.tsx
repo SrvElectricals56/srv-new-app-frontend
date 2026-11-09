@@ -12,6 +12,7 @@ import { useAppData } from '@/shared/context/AppDataContext';
 import { scanApi, type DuplicateScanDetails } from '@/shared/api';
 import { clearShadow, createShadow } from '@/shared/theme/shadows';
 import { resolveFirstScanVisibility } from '@/shared/utils/firstScanVisibility';
+import { classifyQrScanError } from '@/shared/utils/qrScanError';
 import type { RewardHistoryItem } from '@/shared/types/rewards';
 import type { Screen } from '@/shared/types/navigation';
 
@@ -79,24 +80,15 @@ const resolveRewardFromCode = async (value?: string): Promise<ScanResolveResult>
       duplicate: null,
     };
   } catch (err: any) {
-    const payload = err?.data ?? {};
-    const msg: string = err?.message ?? '';
-    if (
-      payload?.code === 'QR_ALREADY_REDEEMED' ||
-      err?.status === 409 ||
-      msg.includes('already been scanned') ||
-      msg.includes('already redeemed') ||
-      msg.includes('already scanned')
-    ) {
-      return { reward: null, errorType: 'already_scanned', duplicate: normalizeDuplicateScan(payload), errorMessage: msg };
+    const classified = classifyQrScanError(err);
+    if (classified.kind === 'duplicate') {
+      return { reward: null, errorType: 'already_scanned', duplicate: normalizeDuplicateScan(classified.payload), errorMessage: classified.message };
     }
-    const status = Number(err?.status ?? err?.response?.status ?? 0);
-    const invalidRequest = status === 400 || status === 404 || status === 422;
     return {
       reward: null,
-      errorType: invalidRequest ? 'invalid' : 'request_failed',
+      errorType: classified.kind === 'invalid' ? 'invalid' : 'request_failed',
       duplicate: null,
-      errorMessage: msg,
+      errorMessage: classified.message,
     };
   }
 };
@@ -286,8 +278,8 @@ export function ScanScreen({
   const successOpacity = useRef(new Animated.Value(0)).current;
   const batchPulse = useRef(new Animated.Value(1)).current;
   const scanLockedRef = useRef(false);
+  const lastDuplicateCodeRef = useRef<string | null>(null);
   const animationTriggeredRef = useRef(false);
-  const autoTorchAttemptedRef = useRef(false);
 
   const laserLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const cornerLoopRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -443,7 +435,7 @@ export function ScanScreen({
     if (!permission.granted) {
       setCameraGranted(false);
       setScanning(false);
-      setDialog({ visible: true, variant: 'info', title: tx('Permission Required'), message: tx('Camera permission is required to scan QR codes.') });
+      setDialog({ visible: true, variant: 'info', title: tx('Permission Required'), message: tx('Camera permission is required to scan QR codes and barcodes.') });
       return false;
     }
     setCameraGranted(true);
@@ -514,15 +506,6 @@ export function ScanScreen({
   ]);
 
   useEffect(() => {
-    if (!scanning || flashlightOn || autoTorchAttemptedRef.current || previewImage) return;
-    const timer = setTimeout(() => {
-      autoTorchAttemptedRef.current = true;
-      if (!scanLockedRef.current) setFlashlightOn(true);
-    }, 1400);
-    return () => clearTimeout(timer);
-  }, [flashlightOn, previewImage, scanning]);
-
-  useEffect(() => {
     if (scanned && !animationTriggeredRef.current) {
       animationTriggeredRef.current = true;
       laserLoopRef.current?.stop();
@@ -562,6 +545,7 @@ export function ScanScreen({
 
     if (!result.reward) {
       const errType = result.errorType ?? 'invalid';
+      if (errType === 'already_scanned') lastDuplicateCodeRef.current = data ?? null;
       setScanErrorType(errType);
       setDuplicateScan(result.duplicate);
       setScanned(true);
@@ -574,14 +558,16 @@ export function ScanScreen({
             : 'Scan Failed'
       );
 
-      setTimeout(() => {
-        scanLockedRef.current = false;
-        setScanned(false);
-        setScanErrorType(null);
-        setDuplicateScan(null);
-        setDetectedLabel('Scan next product');
-        setScanning(true);
-      }, 2000);
+      if (errType !== 'already_scanned') {
+        setTimeout(() => {
+          scanLockedRef.current = false;
+          setScanned(false);
+          setScanErrorType(null);
+          setDuplicateScan(null);
+          setDetectedLabel('Scan next product');
+          setScanning(true);
+        }, 2000);
+      }
       if (errType === 'request_failed') {
         setDialog({
           visible: true,
@@ -650,6 +636,8 @@ export function ScanScreen({
 
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (!scanning || scanLockedRef.current) return;
+    if (data === lastDuplicateCodeRef.current) return;
+    lastDuplicateCodeRef.current = null;
     void completeScan(data);
   };
 
@@ -722,7 +710,7 @@ export function ScanScreen({
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, isDark ? styles.headerTitleDark : null]}>
-            {tx('Scan QR Code')}
+            {tx('Scan QR / Barcode')}
           </Text>
         </View>
         <View style={{ width: 40 }} />
@@ -755,12 +743,12 @@ export function ScanScreen({
             >
               {cameraGranted && !previewImage ? (
                 <CameraView
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                   facing="back"
                   autofocus="on"
                   zoom={0.08}
                   enableTorch={flashlightOn}
-                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                  barcodeScannerSettings={{ barcodeTypes: ['qr', 'code39', 'code128'] }}
                   onBarcodeScanned={scanning ? handleBarcodeScanned : undefined}
                   onCameraReady={() => {
                     if (!scanLockedRef.current && !scanned) setScanning(true);
@@ -770,7 +758,7 @@ export function ScanScreen({
               ) : !cameraGranted || previewImage ? (
                 <View
                   style={[
-                    StyleSheet.absoluteFillObject,
+                    StyleSheet.absoluteFill,
                     styles.cameraFallback,
                     isDark ? styles.cameraFallbackDark : null,
                   ]}
@@ -803,7 +791,7 @@ export function ScanScreen({
 
               <View
                 style={[
-                  StyleSheet.absoluteFillObject,
+                  StyleSheet.absoluteFill,
                   scanned ? styles.frameShadeScanned : styles.frameShade,
                   { pointerEvents: 'none' },
                 ]}
@@ -902,7 +890,7 @@ export function ScanScreen({
             {processingScan ? (
               <View style={styles.statusScanning}>
                 <ActivityIndicator size="small" color={Colors.primary} />
-                <Text style={styles.statusActive}>{tx('QR detected — verifying and redeeming...')}</Text>
+                <Text style={styles.statusActive}>{tx('Code detected — verifying and redeeming...')}</Text>
               </View>
             ) : scanning ? (
               <View style={styles.statusScanning}>
@@ -912,7 +900,7 @@ export function ScanScreen({
             ) : null}
             {!processingScan && !scanning && !scanned ? (
               <Text style={[styles.statusIdle, isDark ? styles.statusIdleDark : null]}>
-                {tx('Align QR code within the frame')}
+                {tx('Align the complete QR code or barcode within the frame')}
               </Text>
             ) : null}
             {scanned ? (
@@ -1053,6 +1041,15 @@ export function ScanScreen({
                 )}
               </View>
             ) : null}
+            {scanErrorType === 'already_scanned' ? (
+              <TouchableOpacity
+                onPress={handleContinueScanning}
+                style={[styles.primaryBtn, { marginTop: 14 }]}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryBtnText}>{tx('Next')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </Animated.View>
         )}
 
@@ -1141,7 +1138,9 @@ export function ScanScreen({
             ) : (
               <>
                 <MultiScanIcon size={20} color="#FFFFFF" />
-                <Text style={styles.primaryBtnText}>{tx('Continue Scanning')}</Text>
+                <Text style={styles.primaryBtnText}>
+                  {tx(scanErrorType === 'already_scanned' ? 'Next' : 'Continue Scanning')}
+                </Text>
               </>
             )}
           </TouchableOpacity>
@@ -1655,7 +1654,7 @@ const styles = StyleSheet.create({
   helpText: { flex: 1, fontSize: 13, lineHeight: 20, color: Colors.textMuted },
   helpTextDark: { color: '#94A3B8' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)' },
   modalContent: {
     backgroundColor: Colors.surface,
     borderTopLeftRadius: 28,
@@ -1725,7 +1724,7 @@ const styles = StyleSheet.create({
   modalItemCodeDark: { color: '#94A3B8' },
   modalItemPoints: { fontSize: 16, fontWeight: '800', color: Colors.success },
   allItemsOverlay: { flex: 1 },
-  allItemsBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  allItemsBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
   allItemsContainer: {
     position: 'absolute',
     bottom: 0,

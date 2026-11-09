@@ -57,8 +57,10 @@ import { formatISTDateTime } from '@/shared/utils/dateIST';
 import { GetStartedScreen } from '@/features/onboarding/GetStartedScreen';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
-import { activityApi, ratingApi, storage } from '@/shared/api';
+import { activityApi, storage } from '@/shared/api';
 import { Dialog } from '@/shared/components/Dialog';
+import { getProfileCompletion } from '@/shared/profile/profileCompletion';
+import { SrvChatLauncher, SrvChatModal } from '@/shared/components/SrvChat';
 import type { AppContentPage } from '@/shared/config/appPageContent';
 import {
   isRoleFeatureEnabled,
@@ -70,6 +72,10 @@ import {
 } from '@/shared/preview/appPreviewStore';
 
 type GuestAuthMode = 'login' | 'signup';
+
+// Keep SRV Chat implemented but hidden until the company is ready to enable it
+// again. Expo inlines EXPO_PUBLIC_* values at build time.
+const SRV_CHAT_ENABLED = process.env.EXPO_PUBLIC_SRV_CHAT_ENABLED === 'true';
 
 function getRoleLabel(role: UserRole) {
   switch (role) {
@@ -158,8 +164,6 @@ function resolvePreviewTarget(
       return { screen: 'profile', subPage: null };
     case 'app_settings':
       return { screen: 'profile', subPage: 'App Settings' };
-    case 'rate_us':
-      return { screen: 'profile', subPage: 'Rate Us' };
     default:
       return { screen: 'home', subPage: null };
   }
@@ -184,7 +188,6 @@ function AppContent() {
   const [guestAuthRole, setGuestAuthRole] = useState<UserRole | null>(null);
   const [guestAuthInitialMode, setGuestAuthInitialMode] = useState<GuestAuthMode | null>(null);
   const [guestAuthPromptRole, setGuestAuthPromptRole] = useState<UserRole | null>(null);
-  const [reviewPromptVisible, setReviewPromptVisible] = useState(false);
   const [profilePhotoByRole, setProfilePhotoByRole] = useState<Record<UserRole, string | null>>({
     dealer: null,
     electrician: null,
@@ -216,6 +219,8 @@ function AppContent() {
   const electricianCartCount = useMemo(() => electricianCartItems.reduce((total, item) => total + item.qty, 0), [electricianCartItems]);
   const [checkoutItem, setCheckoutItem] = useState<CheckoutItem | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [srvChatVisible, setSrvChatVisible] = useState(false);
+  const [profileCompletionDialogVisible, setProfileCompletionDialogVisible] = useState(false);
   const [profileInitialSubPage, setProfileInitialSubPage] = useState<Exclude<SubPage, null> | null>(
     null
   );
@@ -232,6 +237,31 @@ function AppContent() {
     };
   }, []);
   const isPreviewMode = previewState.enabled;
+  const authenticatedProfileComplete = useMemo(
+    () => getProfileCompletion(user, authRole).complete,
+    [authRole, user]
+  );
+  const profileCompletionScope = user?.id && authRole ? `${authRole}:${user.id}` : null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isAuthenticated || isPreviewMode || !authenticatedProfileComplete || !profileCompletionScope) {
+      setProfileCompletionDialogVisible(false);
+      return () => { cancelled = true; };
+    }
+
+    void (async () => {
+      const alreadyShown = await storage.hasShownProfileCompletionCelebration(profileCompletionScope);
+      if (cancelled || alreadyShown) return;
+
+      setProfileCompletionDialogVisible(true);
+      await storage.markProfileCompletionCelebrationShown(profileCompletionScope);
+    })();
+
+    return () => { cancelled = true; };
+  }, [authenticatedProfileComplete, isAuthenticated, isPreviewMode, profileCompletionScope]);
+
   const previewTarget = useMemo(
     () => resolvePreviewTarget(previewState.role, previewState.page),
     [previewState.page, previewState.role]
@@ -272,6 +302,11 @@ function AppContent() {
 
     if (!authLoading && !authResolved) {
       setAuthResolved(true);
+      // A normal app launch must always begin on Home. Authentication restore
+      // and retained notification state must not reopen the previous screen.
+      setCurrentScreen('home');
+      setProfileInitialSubPage(null);
+      setCheckoutItem(null);
       if (isAuthenticated && user && authRole) {
         const availableRole = resolveAvailableAppRole(authRole as UserRole);
         if (authRole === 'counterboy') {
@@ -299,27 +334,6 @@ function AppContent() {
     logout,
     user,
   ]);
-
-  useEffect(() => {
-    if (!authResolved || !isAuthenticated || !user?.id || isPreviewMode || showOnboarding || pendingApprovalRole) return;
-    let active = true;
-    void (async () => {
-      const accountStartValue = user.firstAppLoginAt ?? user.joinedDate ?? user.createdAt ?? null;
-      const accountStart = accountStartValue ? new Date(accountStartValue).getTime() : Number.NaN;
-      if (!Number.isFinite(accountStart) || Date.now() - accountStart < 7 * 24 * 60 * 60 * 1000) return;
-
-      const [existingRating, lastPromptAt] = await Promise.all([
-        ratingApi.get().catch(() => null),
-        storage.getLastReviewPromptAt(user.id),
-      ]);
-      if (existingRating || !active) return;
-
-      const lastPromptTime = lastPromptAt ? new Date(lastPromptAt).getTime() : Number.NaN;
-      if (Number.isFinite(lastPromptTime) && Date.now() - lastPromptTime < 7 * 24 * 60 * 60 * 1000) return;
-      setReviewPromptVisible(true);
-    })();
-    return () => { active = false; };
-  }, [authResolved, isAuthenticated, isPreviewMode, pendingApprovalRole, showOnboarding, user]);
 
   // Keep points/scans in sync when user profile updates (admin changes reflected)
   // Always use server value — admin can increase OR decrease points
@@ -655,7 +669,7 @@ function AppContent() {
     navigateFromNotificationRef.current = handleNavigate;
   }, [handleNavigate]);
 
-  // Handle notification taps in foreground, background, and cold-start states.
+  // Handle new notification taps without replaying a saved tap at app startup.
   // Update notifications carry an HTTPS actionUrl and open the appropriate store;
   // ordinary notifications continue to the in-app notification center.
   useEffect(() => {
@@ -679,9 +693,11 @@ function AppContent() {
     void (async () => {
       const Notifications = await getNativeNotifications();
       if (!Notifications || !active) return;
+      // Expo retains the last tapped notification across launches. Replaying it
+      // here would move every new app session from Home to Notifications.
+      await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+      if (!active) return;
       subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
-      const initialResponse = await Notifications.getLastNotificationResponseAsync();
-      if (initialResponse && active) handleResponse(initialResponse);
     })();
 
     return () => {
@@ -703,6 +719,11 @@ function AppContent() {
 
   const handleOpenScanHistory = useCallback(() => {
     setProfileInitialSubPage('Scan History');
+    setCurrentScreen('profile');
+  }, []);
+
+  const handleOpenProfileCompletion = useCallback(() => {
+    setProfileInitialSubPage('Profile Completion');
     setCurrentScreen('profile');
   }, []);
 
@@ -1165,6 +1186,7 @@ function AppContent() {
               profilePhotoUri={profilePhotoByRole.dealer}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
         case 'product':
@@ -1176,6 +1198,7 @@ function AppContent() {
               onUpdateQty={handleDealerUpdateCartQty}
               onRemove={handleDealerRemoveFromCart}
               onNavigate={handleNavigate}
+              onBack={() => setCurrentScreen('product')}
               onCheckout={handleDealerCartCheckout}
               onCheckoutItem={handleBuyNow}
               role="dealer"
@@ -1292,6 +1315,7 @@ function AppContent() {
               profilePhotoUri={profilePhotoByRole.dealer}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
       }
@@ -1320,6 +1344,7 @@ function AppContent() {
               totalScans={electricianRewardScans}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
         case 'product':
@@ -1346,6 +1371,7 @@ function AppContent() {
               onUpdateQty={handleUpdateCartQty}
               onRemove={handleRemoveFromCart}
               onNavigate={handleNavigate}
+              onBack={() => setCurrentScreen('categories')}
               onCheckout={handleCartCheckout}
               onCheckoutItem={handleBuyNow}
             />
@@ -1413,6 +1439,7 @@ function AppContent() {
               totalScans={electricianRewardScans}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
       }
@@ -1435,6 +1462,7 @@ function AppContent() {
               profilePhotoUri={profilePhotoByRole.counterboy}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
         case 'product':
@@ -1446,6 +1474,7 @@ function AppContent() {
               onUpdateQty={handleCounterboyUpdateCartQty}
               onRemove={handleCounterboyRemoveFromCart}
               onNavigate={handleNavigate}
+              onBack={() => setCurrentScreen('product')}
               onCheckout={handleCounterboyCartCheckout}
               onCheckoutItem={handleBuyNow}
               role="counterboy"
@@ -1536,6 +1565,7 @@ function AppContent() {
               profilePhotoUri={profilePhotoByRole.counterboy}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
       }
@@ -1559,6 +1589,7 @@ function AppContent() {
             totalScans={electricianRewardScans}
             hasUnreadNotif={hasUnreadNotif}
             unreadNotificationCount={unreadNotifCount}
+            onOpenProfileCompletion={handleOpenProfileCompletion}
           />
         );
       case 'product':
@@ -1581,6 +1612,7 @@ function AppContent() {
             onUpdateQty={handleElectricianUpdateCartQty}
             onRemove={handleElectricianRemoveFromCart}
             onNavigate={handleNavigate}
+            onBack={() => setCurrentScreen('product')}
             onCheckout={handleElectricianCartCheckout}
             onCheckoutItem={handleBuyNow}
             role="electrician"
@@ -1684,6 +1716,7 @@ function AppContent() {
             totalScans={electricianRewardScans}
             hasUnreadNotif={hasUnreadNotif}
             unreadNotificationCount={unreadNotifCount}
+            onOpenProfileCompletion={handleOpenProfileCompletion}
           />
         );
     }
@@ -1707,6 +1740,7 @@ function AppContent() {
     handleNavigate,
     handleOpenScanHistory,
     handleOpenProductCategory,
+    handleOpenProfileCompletion,
     handleSignOut,
     handleNotificationsSeen,
     handleBuyNow,
@@ -1799,6 +1833,16 @@ function AppContent() {
             <ElectricianBottomNav currentScreen={resolvedCurrentScreen} onNavigate={handleNavigate} />
           )
         ) : null}
+        {SRV_CHAT_ENABLED && !pendingApprovalRole && !keyboardVisible && !srvChatVisible ? (
+          <SrvChatLauncher onPress={() => setSrvChatVisible(true)} />
+        ) : null}
+        {SRV_CHAT_ENABLED ? (
+          <SrvChatModal
+            visible={srvChatVisible}
+            onClose={() => setSrvChatVisible(false)}
+            supportWhatsApp={appSettings?.whatsappNumber}
+          />
+        ) : null}
         <Dialog
           visible={Boolean(guestAuthPromptRole)}
           onClose={() => setGuestAuthPromptRole(null)}
@@ -1817,33 +1861,12 @@ function AppContent() {
           ] : []}
         />
         <Dialog
-          visible={reviewPromptVisible}
-          onClose={() => {
-            if (user?.id) void storage.setLastReviewPromptAt(user.id);
-            setReviewPromptVisible(false);
-          }}
-          title={preferenceValue.tx('How is your SRV app experience?')}
-          message={preferenceValue.tx('You have used the app for a week. Share an honest review to help other SRV members and improve the app.')}
-          variant="info"
-          choices={[
-            {
-              label: preferenceValue.tx('Rate now'),
-              onPress: () => {
-                if (user?.id) void storage.setLastReviewPromptAt(user.id);
-                setReviewPromptVisible(false);
-                setProfileInitialSubPage('Rate Us');
-                setProfileResetKey((key) => key + 1);
-                setCurrentScreen('profile');
-              },
-            },
-            {
-              label: preferenceValue.tx('Maybe later'),
-              onPress: () => {
-                if (user?.id) void storage.setLastReviewPromptAt(user.id);
-                setReviewPromptVisible(false);
-              },
-            },
-          ]}
+          visible={profileCompletionDialogVisible}
+          onClose={() => setProfileCompletionDialogVisible(false)}
+          title={preferenceValue.tx('Profile Completed Successfully')}
+          message={preferenceValue.tx('Thank you for completing your SRV profile. Your account details are now complete, and you can enjoy all available features.')}
+          variant="success"
+          icon="🎉"
         />
         {notificationBanner ? (
           <Animated.View

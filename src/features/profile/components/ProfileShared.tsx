@@ -71,8 +71,8 @@ export type SubPage =
   | 'Contact Support'
   | 'Privacy Policy'
   | 'Request Account Deletion'
-  | 'Rate Us'
-  | 'KYC Verification';
+  | 'KYC Verification'
+  | 'Profile Completion';
 
 export type IconName =
   | 'play'

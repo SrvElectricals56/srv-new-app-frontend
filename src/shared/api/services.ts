@@ -1,7 +1,8 @@
 import { api, refreshAccessToken } from './client';
-import { API_BASE_URL as apiBaseUrl } from './config';
+import { API_BASE_URL as apiBaseUrl, API_BASE_URLS } from './config';
 import { storage } from './storage';
 import { sessionEvents } from './sessionEvents';
+import { File as ExpoFile, UploadType } from 'expo-file-system';
 import type { AppPageContentMap } from '@/shared/config/appPageContent';
 
 function normalizePhone(phone?: string | null) {
@@ -563,6 +564,18 @@ export const settingsApi = {
     api.post<{ message: string }>('/mobile/settings/update', { key, value }, true),
 };
 
+export type ActiveLauncherIcon = {
+  id: string | null;
+  name: string;
+  imageUrl?: string | null;
+  nativeKey: 'default' | 'diwali' | 'republic-day' | null;
+  isActive: boolean;
+};
+
+export const launcherIconApi = {
+  getActive: () => api.get<ActiveLauncherIcon>('/app-icons/active'),
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // OFFERS / REWARDS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -800,25 +813,34 @@ export const profileApi = {
   updatePreferences: (data: { language?: string; darkMode?: boolean; pushEnabled?: boolean }) =>
     api.patch<UserProfile>('/mobile/auth/profile', data, true),
 
-  uploadDocument: async (file: { uri: string; type: string; name: string }, documentType: 'aadhar-front' | 'aadhar-back' | 'pan' | 'gst') => {
-    const buildFormData = () => {
-      const fd = new FormData();
-      fd.append('file', { uri: file.uri, type: file.type, name: file.name } as any);
-      return fd;
-    };
-
+  uploadDocument: async (file: { uri: string; type: string; name: string }, documentType: 'aadhar-front' | 'aadhar-back' | 'pan' | 'gst' | 'upi-qr') => {
     const sendUpload = async (token: string) => {
-      const res = await fetch(`${apiBaseUrl}/upload/aadhar-image`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: buildFormData(),
-      });
-      if (!res.ok) {
-        if (res.status === 401) throw new Error('UNAUTHORIZED');
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error((errBody as any).message || `Upload failed (${res.status})`);
+      let lastNetworkError: unknown;
+      for (const baseUrl of API_BASE_URLS) {
+        let result: Awaited<ReturnType<ExpoFile['upload']>>;
+        try {
+          result = await new ExpoFile(file.uri).upload(baseUrl + '/upload/aadhar-image', {
+            httpMethod: 'POST',
+            uploadType: UploadType.MULTIPART,
+            fieldName: 'file',
+            mimeType: file.type,
+            headers: { Authorization: `Bearer ${token}`, 'X-Document-Type': documentType },
+            sessionType: 'foreground',
+          });
+        } catch (error) {
+          lastNetworkError = error;
+          continue;
+        }
+        if (result.status < 200 || result.status >= 300) {
+          if (result.status === 401) throw new Error('UNAUTHORIZED');
+          if (result.status === 413) throw new Error('File is too large. Choose a file smaller than 25 MB.');
+          const errBody = (() => { try { return JSON.parse(result.body); } catch { return {}; } })();
+          const message = (errBody as any).message;
+          throw new Error(Array.isArray(message) ? message.join(', ') : message || `Upload failed (${result.status})`);
+        }
+        return JSON.parse(result.body) as { url: string };
       }
-      return (await res.json()) as { url: string };
+      throw lastNetworkError instanceof Error ? lastNetworkError : new Error('Could not connect to the server. Please try again.');
     };
 
     let token = await storage.getAccessToken();
@@ -871,17 +893,6 @@ export const supportApi = {
 export const referralApi = {
   get: () =>
     api.get<{ code: string; link: string | null; channels: string[] }>('/mobile/referral', undefined, true),
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// APP RATING
-// ─────────────────────────────────────────────────────────────────────────────
-export const ratingApi = {
-  submit: (rating: number, review?: string, displayConsent = false) =>
-    api.post<{ id: string; rating: number; review: string | null; displayConsent: boolean }>('/mobile/rating', { rating, review, displayConsent }, true),
-
-  get: () =>
-    api.get<{ id: string; rating: number; review: string | null; displayConsent: boolean } | null>('/mobile/rating', undefined, true),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

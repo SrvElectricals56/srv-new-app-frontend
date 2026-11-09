@@ -13,8 +13,7 @@ export type AppFeatureKey =
   | 'app_settings'
   | 'scan_history'
   | 'contact_support'
-  | 'privacy_policy'
-  | 'rate_us';
+  | 'privacy_policy';
 
 export type RolePageControls = Record<UserRole, Record<AppFeatureKey, boolean>>;
 
@@ -50,7 +49,6 @@ export const APP_FEATURE_LABELS: Record<AppFeatureKey, string> = {
   scan_history: 'Scan History',
   contact_support: 'Contact Support',
   privacy_policy: 'Privacy Policy',
-  rate_us: 'Rate Us',
 };
 
 const ALL_FEATURE_KEYS = Object.keys(APP_FEATURE_LABELS) as AppFeatureKey[];
@@ -87,7 +85,6 @@ const BASE_FEATURES: Record<AppFeatureKey, boolean> = {
   scan_history: false,
   contact_support: true,
   privacy_policy: true,
-  rate_us: true,
 };
 
 export const DEFAULT_ROLE_PAGE_CONTROLS: RolePageControls = {

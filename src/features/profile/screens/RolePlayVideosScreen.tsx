@@ -692,10 +692,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   videoSurface: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   videoShade: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   centerTapZone: {
     position: 'absolute',

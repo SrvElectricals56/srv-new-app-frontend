@@ -1,6 +1,6 @@
 import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { type ReactElement, type ReactNode, useEffect, useRef } from 'react';
-import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
 import { usePreferenceContext } from '@/shared/preferences';
 import { createShadow } from '@/shared/theme/shadows';
@@ -52,12 +52,13 @@ interface DialogProps {
   variant?: DialogVariant;
   confirmLabel?: string;
   cancelLabel?: string;
-  onConfirm?: () => void;
+  onConfirm?: () => void | Promise<void>;
   icon?: string;
   choices?: Choice[];
   cancelButton?: boolean;
   content?: ReactNode;
   confirmDisabled?: boolean;
+  closeOnConfirm?: boolean;
 }
 
 const VARIANT_META: Record<DialogVariant, { icon: string; accent: string }> = {
@@ -82,38 +83,52 @@ export function Dialog({
   cancelButton,
   content,
   confirmDisabled = false,
+  closeOnConfirm = true,
 }: DialogProps) {
   const { theme } = usePreferenceContext();
   const meta = VARIANT_META[variant];
   const displayIcon = icon ?? meta.icon;
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const hasContent = content != null;
 
   useEffect(() => {
     if (visible) {
-      scaleAnim.setValue(0);
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        damping: 18,
-        stiffness: 200,
-        useNativeDriver: true,
-      }).start();
+      scaleAnim.setValue(hasContent ? 1 : 0);
+      if (!hasContent) {
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          damping: 18,
+          stiffness: 200,
+          useNativeDriver: true,
+        }).start();
+      }
     }
-  }, [visible, scaleAnim]);
+  }, [visible, hasContent, scaleAnim]);
 
   const handleConfirm = () => {
-    onConfirm?.();
-    onClose();
+    Keyboard.dismiss();
+    void onConfirm?.();
+    if (closeOnConfirm) onClose();
   };
 
   const hasTwoButtons = variant === 'confirm' || variant === 'destructive';
 
+  const handleChoice = (choice: Choice) => {
+    // iOS cannot present ImagePicker/DocumentPicker while this native Modal is
+    // still being dismissed. Close first, then run the selected action after
+    // the dismissal animation has released the presentation controller.
+    onClose();
+    setTimeout(() => {
+      choice.onPress();
+    }, Platform.OS === 'ios' ? 350 : 0);
+  };
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.keyboardArea} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={styles.scrollArea} keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
-      <Pressable style={styles.overlay} onPress={choices ? () => {} : onClose}>
-        <Animated.View style={[styles.card, { backgroundColor: theme.surface, transform: [{ scale: scaleAnim }] }]}>
-          <Pressable onPress={() => {}} style={styles.cardContent}>
+      <KeyboardAvoidingView style={styles.keyboardArea} behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollArea} keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
+          <Pressable style={styles.backdrop} onPress={choices ? undefined : onClose} />
+          <Animated.View style={[styles.card, { backgroundColor: theme.surface }, !hasContent && { transform: [{ scale: scaleAnim }] }]}>
             <View style={[styles.iconWrap, { backgroundColor: meta.accent + '14' }]}>
               <Text style={styles.icon}>{displayIcon}</Text>
             </View>
@@ -133,7 +148,7 @@ export function Dialog({
                         <Pressable
                           key={i}
                           style={[styles.choiceBtn, isFull && styles.choiceBtnFull, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                          onPress={() => { c.onPress(); onClose(); }}
+                          onPress={() => handleChoice(c)}
                         >
                           {renderIcon ? renderIcon(c.destructive ? '#DC2626' : '#475569') : null}
                           <Text style={[styles.choiceBtnText, { color: c.destructive ? '#DC2626' : theme.textPrimary }]}>{c.label}</Text>
@@ -169,22 +184,21 @@ export function Dialog({
                 </Pressable>
               )}
             </View>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
-      </ScrollView>
+          </Animated.View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardArea: { flex: 1 },
-  scrollArea: { flexGrow: 1 },
-  overlay: {
-    flex: 1,
-    minHeight: '100%',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+  keyboardArea: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  backdrop: {
+    ...StyleSheet.absoluteFill,
+  },
+  scrollView: { flex: 1 },
+  scrollArea: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,

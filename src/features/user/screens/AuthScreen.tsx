@@ -3,7 +3,8 @@ import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
+import * as Location from 'expo-location';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -13,6 +14,8 @@ import { isValidOptionalEmail, sanitizeEmailInput } from '@/shared/utils/validat
 import { Dialog } from '@/shared/components/Dialog';
 import { useSmsOtpAutofill } from '@/shared/auth/useSmsOtpAutofill';
 import { useKeyboardReveal } from '@/shared/hooks/useKeyboardReveal';
+import { normalizeIndianState } from '@/shared/utils/indianState';
+import { IOSKeyboardDoneAccessory, IOS_KEYBOARD_DONE_ACCESSORY_ID } from '@/shared/components/IOSKeyboardDoneAccessory';
 
 // Role-based color themes - Customer theme updated
 const THEMES = {
@@ -26,7 +29,7 @@ const OTP_AUTO_COMPLETE = Platform.OS === 'android' ? 'sms-otp' : 'one-time-code
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() ?? '';
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? '';
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '';
-const supportsNativeGoogleSignIn = Platform.OS !== 'web' && Constants.executionEnvironment !== 'storeClient';
+const supportsNativeGoogleSignIn = Platform.OS !== 'web' && !isRunningInExpoGo();
 
 
 // â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -102,6 +105,7 @@ function Input({
           keyboardType={keyboard} secureTextEntry={secure}
           autoCapitalize={autoCap} onFocus={() => { focus(); onInputFocus?.(fieldInputRef.current); }} onBlur={blur}
           onSubmitEditing={onSubmit} returnKeyType={returnKey}
+          inputAccessoryViewID={Platform.OS === 'ios' ? IOS_KEYBOARD_DONE_ACCESSORY_ID : undefined}
           maxLength={maxLength}
           autoComplete={autoComplete}
         />
@@ -172,13 +176,23 @@ export function UserAuthScreen({
   const sPhoneRef = useRef<TextInput>(null);
   const sEmailRef = useRef<TextInput>(null);
   const sOtpRef   = useRef<TextInput>(null);
+  const sAddressRef = useRef<TextInput>(null);
   const sStateRef  = useRef<TextInput>(null);
   const sCityRef    = useRef<TextInput>(null);
   const sPincodeRef = useRef<TextInput>(null);
 
+  const [sAddress, setSAddress] = useState('');
   const [sState, setSState]     = useState('');
   const [sCity, setSCity]       = useState('');
   const [sPincode, setSPincode] = useState('');
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationMessage, setLocationMessage] = useState('');
+  const locationRequestInFlightRef = useRef(false);
+  const locationAutoRequestedRef = useRef(false);
+  const addressDirtyRef = useRef(false);
+  const stateDirtyRef = useRef(false);
+  const cityDirtyRef = useRef(false);
+  const pincodeDirtyRef = useRef(false);
   const [sReferralCode, setSReferralCode] = useState('');
   const sReferralRef = useRef<TextInput>(null);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
@@ -200,6 +214,69 @@ export function UserAuthScreen({
   const handleSignupEmail = (value: string) => {
     setSEmail(value);
   };
+
+  const requestCurrentLocation = useCallback(async () => {
+    if (locationRequestInFlightRef.current) return;
+    locationRequestInFlightRef.current = true;
+    setLocationLoading(true);
+    setLocationMessage('');
+    try {
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (!permission.granted) permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        setLocationMessage('Allow location access to fill your address, or enter it manually.');
+        if (!permission.canAskAgain) await Linking.openSettings().catch(() => undefined);
+        return;
+      }
+
+      if (!(await Location.hasServicesEnabledAsync())) {
+        if (Platform.OS === 'android') {
+          await Location.enableNetworkProviderAsync().catch(() => undefined);
+        }
+        if (!(await Location.hasServicesEnabledAsync())) {
+          setLocationMessage('Turn on device location to fill your address, or enter it manually.');
+          return;
+        }
+      }
+
+      const position = (await Location.getLastKnownPositionAsync({
+        maxAge: 10 * 60 * 1000,
+        requiredAccuracy: 500,
+      })) ?? (await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        mayShowUserSettingsDialog: true,
+      }));
+      const [place] = await Location.reverseGeocodeAsync(position.coords);
+      if (!place) {
+        setLocationMessage('Could not find your address. Please enter it manually.');
+        return;
+      }
+
+      const address = place.formattedAddress || [
+        place.name,
+        place.streetNumber,
+        place.street,
+        place.district,
+        place.city,
+        place.region,
+        place.postalCode,
+      ].filter(Boolean).join(', ');
+      const state = normalizeIndianState(place.region);
+      const district = place.district || place.subregion || place.city || '';
+      const pincode = (place.postalCode || '').replace(/\D/g, '').slice(0, 6);
+
+      if (address && !addressDirtyRef.current) setSAddress(address);
+      if (state && !stateDirtyRef.current) setSState(state);
+      if (district && !cityDirtyRef.current) setSCity(district);
+      if (pincode && !pincodeDirtyRef.current) setSPincode(pincode);
+      setLocationMessage('Address fetched. Please check the details before continuing.');
+    } catch {
+      setLocationMessage('Could not fetch your location. Please enter the details manually.');
+    } finally {
+      locationRequestInFlightRef.current = false;
+      setLocationLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const captureReferral = (url?: string | null) => {
@@ -248,12 +325,29 @@ export function UserAuthScreen({
       signupOtpVerifiedRef.current = false;
       signupVerificationTokenRef.current = '';
       setSOtp('');
+      setSAddress('');
       setSState('');
       setSCity('');
       setSPincode('');
+      setLocationMessage('');
+      locationAutoRequestedRef.current = false;
+      addressDirtyRef.current = false;
+      stateDirtyRef.current = false;
+      cityDirtyRef.current = false;
+      pincodeDirtyRef.current = false;
       setSignupStep('identity');
     }
   }, [mode]);
+
+  useEffect(() => {
+    if (
+      mode !== 'signup' ||
+      signupStep !== 'details' ||
+      locationAutoRequestedRef.current
+    ) return;
+    locationAutoRequestedRef.current = true;
+    void requestCurrentLocation();
+  }, [mode, requestCurrentLocation, signupStep]);
 
   useEffect(() => {
     if (otpSentLogin && normalizePhone(lPhone) !== otpLoginPhone) {
@@ -510,7 +604,7 @@ export function UserAuthScreen({
         phone: cleanPhone,
         email: sanitizeEmailInput(sEmail).trim() || undefined,
         role,
-        address: undefined,
+        address: sAddress.trim() || undefined,
         state: sState.trim(),
         city: sCity.trim() || undefined,
         district: sCity.trim() || undefined,
@@ -634,6 +728,15 @@ export function UserAuthScreen({
     <KeyboardAvoidingView style={[S.screen, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Compact header */}
       <LinearGradient colors={[P1, P2]} style={[S.formHeader, { paddingTop: insets.top }]}>
+        <Pressable
+          onPress={() => setMode('landing')}
+          style={[S.formBackButton, { top: insets.top + 10 }]}
+          accessibilityRole="button"
+          accessibilityLabel={tx('Back')}
+        >
+          <ArrowLeft c="#FFFFFF" s={17} />
+          <Text style={S.formBackText}>{tx('Back')}</Text>
+        </Pressable>
         <View style={S.formHeaderLogoWrap}>
           <Image source={SRV_LOGO} style={S.formHeaderLogo} resizeMode="contain" />
         </View>
@@ -721,18 +824,63 @@ export function UserAuthScreen({
               </View>
             )}
             
-            {/* Signup: company policy requires manual district and pincode only */}
+            {/* Signup location: auto-fill first, with manual editing always available. */}
             {isSignupDetailsStep && (
               <View style={{ gap: 8 }}>
+                <View style={S.locationHeader}>
+                  <Text style={[S.inputLabel, { color: darkMode ? '#94A3B8' : '#6B7280' }]}>
+                    {tx('Current Address')}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      addressDirtyRef.current = false;
+                      stateDirtyRef.current = false;
+                      cityDirtyRef.current = false;
+                      pincodeDirtyRef.current = false;
+                      void requestCurrentLocation();
+                    }}
+                    disabled={locationLoading}
+                    style={[S.locationBtn, { backgroundColor: SOFT }, locationLoading && { opacity: 0.6 }]}
+                  >
+                    <Text style={[S.locationBtnText, { color: P1 }]}>
+                      {locationLoading ? tx('Locating') : tx('Use Current Location')}
+                    </Text>
+                  </Pressable>
+                </View>
+                <View style={[S.addressInputShell, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
+                  <TextInput
+                    ref={sAddressRef}
+                    inputAccessoryViewID={Platform.OS === 'ios' ? IOS_KEYBOARD_DONE_ACCESSORY_ID : undefined}
+                    onFocus={() => onInputFocus(sAddressRef.current)}
+                    style={[S.addressInput, { color: darkMode ? '#F1F5F9' : '#111827' }]}
+                    value={sAddress}
+                    onChangeText={(value) => {
+                      addressDirtyRef.current = true;
+                      setSAddress(value);
+                      setLocationMessage('');
+                    }}
+                    placeholder={locationLoading ? tx('Fetching current address...') : tx('Enter your complete address')}
+                    placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
+                    autoCapitalize="words"
+                    multiline
+                    textAlignVertical="top"
+                  />
+                </View>
+                {locationMessage ? (
+                  <View style={[S.infoBox, { backgroundColor: SOFT, borderColor: `${P1}30` }]}>
+                    <Text style={[S.locationMessage, { color: P1 }]}>{tx(locationMessage)}</Text>
+                  </View>
+                ) : null}
                 <View style={[S.inputWrap]}>
                   <Text style={[S.inputLabel, { color: darkMode ? '#94A3B8' : '#6B7280' }]}>{tx('State')}</Text>
                   <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
                     <TextInput
                       ref={sStateRef}
+                      inputAccessoryViewID={Platform.OS === 'ios' ? IOS_KEYBOARD_DONE_ACCESSORY_ID : undefined}
                       onFocus={() => onInputFocus(sStateRef.current)}
                       style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
                       value={sState}
-                      onChangeText={(v) => setSState(v.replace(/[^A-Za-z ]/g, ''))}
+                      onChangeText={(v) => { stateDirtyRef.current = true; setSState(v.replace(/[^A-Za-z ]/g, '')); }}
                       placeholder={tx('State')}
                       placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
                       autoCapitalize="words"
@@ -747,10 +895,11 @@ export function UserAuthScreen({
                     <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
                       <TextInput
                         ref={sCityRef}
+                        inputAccessoryViewID={Platform.OS === 'ios' ? IOS_KEYBOARD_DONE_ACCESSORY_ID : undefined}
                         onFocus={() => onInputFocus(sCityRef.current)}
                         style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
                         value={sCity}
-                        onChangeText={(v) => setSCity(v.replace(/[^A-Za-z ]/g, ''))}
+                        onChangeText={(v) => { cityDirtyRef.current = true; setSCity(v.replace(/[^A-Za-z ]/g, '')); }}
                         placeholder={tx('District')}
                         placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
                         autoCapitalize="words"
@@ -764,10 +913,11 @@ export function UserAuthScreen({
                     <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
                       <TextInput
                         ref={sPincodeRef}
+                        inputAccessoryViewID={Platform.OS === 'ios' ? IOS_KEYBOARD_DONE_ACCESSORY_ID : undefined}
                         onFocus={() => onInputFocus(sPincodeRef.current)}
                         style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
                         value={sPincode}
-                        onChangeText={(v) => setSPincode(v.replace(/\D/g, '').slice(0, 6))}
+                        onChangeText={(v) => { pincodeDirtyRef.current = true; setSPincode(v.replace(/\D/g, '').slice(0, 6)); }}
                         placeholder={tx('6-digit pincode')}
                         placeholderTextColor={darkMode ? '#475569' : '#9CA3AF'}
                         keyboardType="numeric"
@@ -787,6 +937,7 @@ export function UserAuthScreen({
                 <View style={[S.inputRow, { backgroundColor: darkMode ? '#1E293B' : '#FAFAFA', borderColor: darkMode ? '#334155' : '#E5E7EB' }]}>
                   <TextInput
                     ref={sReferralRef}
+                    inputAccessoryViewID={Platform.OS === 'ios' ? IOS_KEYBOARD_DONE_ACCESSORY_ID : undefined}
                     onFocus={() => onInputFocus(sReferralRef.current)}
                     style={[S.inputText, { color: darkMode ? '#F1F5F9' : '#111827' }]}
                     value={sReferralCode}
@@ -859,6 +1010,7 @@ export function UserAuthScreen({
           </Pressable>
         </Animated.View>
       </ScrollView>
+        <IOSKeyboardDoneAccessory />
         <Dialog
           visible={dialog.visible}
           variant={dialog.variant}
@@ -955,6 +1107,23 @@ const S = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
+  formBackButton: {
+    position: 'absolute',
+    left: 14,
+    zIndex: 2,
+    minWidth: 76,
+    height: 38,
+    paddingHorizontal: 10,
+    borderRadius: 19,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
+  },
+  formBackText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   formHeaderLogoWrap: {
     width: 46, height: 46, borderRadius: 14,
     backgroundColor: '#FFFFFF',
@@ -1079,7 +1248,11 @@ const S = StyleSheet.create({
     backgroundColor: '#EAF3FF',
     marginLeft: 4,
   },
+  locationHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   locationBtnText: { fontSize: 11, fontWeight: '800' },
+  addressInputShell: { minHeight: 88, borderRadius: 14, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 10 },
+  addressInput: { minHeight: 66, fontSize: 14, lineHeight: 20, padding: 0 },
+  locationMessage: { fontSize: 11, lineHeight: 16, fontWeight: '700' },
   infoBox: {
     borderRadius: 8,
     borderWidth: 1,

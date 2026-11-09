@@ -10,7 +10,7 @@ type GalleryImage = {
 };
 
 async function scan(uri: string) {
-  const matches = await scanFromURLAsync(uri, ['qr']);
+  const matches = await scanFromURLAsync(uri, ['qr', 'code39', 'code128']);
   return matches.find((match) => Boolean(match.data?.trim()))?.data?.trim() ?? null;
 }
 

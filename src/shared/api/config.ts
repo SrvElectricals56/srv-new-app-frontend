@@ -48,7 +48,7 @@ const developmentFallbackUrls = __DEV__
 export const API_BASE_URLS: string[] = Array.from(new Set([
   API_BASE_URL,
   ...developmentFallbackUrls,
-].filter(Boolean)));
+].filter((url): url is string => Boolean(url))));
 export const API_FALLBACK_BASE_URL: string | null = API_BASE_URLS.find((url) => url !== API_BASE_URL) ?? null;
 
 export function resolveImageUrl(value?: string | null): string | null {
@@ -61,7 +61,12 @@ export function resolveImageUrl(value?: string | null): string | null {
     // Serialise absolute legacy URLs so filenames with spaces are encoded for
     // native image loaders on both iOS and Android.
     try {
-      return new URL(s).toString();
+      const url = new URL(s);
+      if (url.pathname.startsWith('/uploads/') &&
+          (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(url.hostname) || isLanHost(url.hostname))) {
+        return `${API_BASE_URL.replace(/\/api\/v1\/?$/, '')}${url.pathname}${url.search}`;
+      }
+      return url.toString();
     } catch {
       return s;
     }

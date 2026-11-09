@@ -2,6 +2,7 @@ import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import { uniqueWalletTransactions } from '@/shared/utils/walletTransactions';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterScrollToTop } from '@/shared/context/NavActionContext';
@@ -295,7 +296,7 @@ export function WalletScreen({
   const contentRole = role === 'user' ? 'user' : role;
   const pageContent = useAppPageContent(contentRole as any, 'wallet');
 
-  const walletScrollRef = useRef<ScrollView>(null);
+  const walletScrollRef = useRef<ScrollViewInstance>(null);
   useRegisterScrollToTop('wallet', walletScrollRef);
   const [currentPage, setCurrentPage] = useState(1);
   const [activityDate, setActivityDate] = useState('');
@@ -638,6 +639,7 @@ export function WalletScreen({
             <View style={[styles.storeIconWrap, { backgroundColor: t.storeIconWrapBg }]}>
               <GiftIcon />
             </View>
+            <Text style={styles.storeLabel}>{tx('Gift Store')}</Text>
           </Pressable>
         </View>
 
@@ -943,8 +945,8 @@ const styles = StyleSheet.create({
   },
   backLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   storeButton: {
-    width: 54,
-    height: 54,
+    minWidth: 76,
+    minHeight: 64,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
@@ -953,12 +955,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.2)',
   },
   storeIconWrap: {
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 30,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  storeLabel: { marginTop: 3, color: '#FFFFFF', fontSize: 10, lineHeight: 12, fontWeight: '800' },
   eyebrow: {
     marginTop: 24,
     fontSize: 12,

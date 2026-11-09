@@ -211,6 +211,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...createShadow({ color: '#000', offsetY: 16, blur: 48, opacity: 0.3, elevation: 20 }),
   },
+  cardContent: {
+    width: '100%',
+  },
   iconWrap: {
     width: 68,
     height: 68,

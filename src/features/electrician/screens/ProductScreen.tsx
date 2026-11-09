@@ -424,6 +424,7 @@ const ProductCard = memo(function ProductCard({
   product, cardW, onOpen, onAction, onCart, darkMode, actionLabel, cartBusy, roleTheme,
 }: { product: UiProduct; cardW: number; onOpen: () => void; onAction?: () => void; onCart?: () => void; darkMode: boolean; actionLabel: string; cartBusy?: boolean; roleTheme: ProductRoleTheme }) {
   const cc = catColor(product.category);
+  const isOutOfStock = product.stock <= 0;
   const mrp = product.mrp && product.mrp > product.price ? product.mrp : null;
   const discount = mrp ? Math.round(((mrp - product.price) / mrp) * 100) : 0;
 
@@ -537,15 +538,15 @@ const ProductCard = memo(function ProductCard({
               <Text style={[styles.productSub,  darkMode ? styles.productSubDark  : null]} numberOfLines={2}>{product.sub}</Text>
             </View>
             <View style={styles.cardActionRow}>
-              <TouchableOpacity onPress={onAction ?? onOpen} style={[styles.scanBtn, { backgroundColor: roleTheme.soft }]} activeOpacity={0.8}>
+              <TouchableOpacity onPress={onAction ?? onOpen} disabled={isOutOfStock} style={[styles.scanBtn, { backgroundColor: roleTheme.soft, opacity: isOutOfStock ? 0.5 : 1 }]} activeOpacity={0.8}>
                 <ScanIcon size={15} color={roleTheme.primary} />
-                <Text style={[styles.scanBtnText, { color: roleTheme.primary }]}>{actionLabel}</Text>
+                <Text style={[styles.scanBtnText, { color: roleTheme.primary }]}>{isOutOfStock ? 'Out of stock' : actionLabel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={onCart}
-                style={[styles.quickCartBtn, { backgroundColor: roleTheme.primary, opacity: cartBusy ? 0.72 : 1 }]}
+                style={[styles.quickCartBtn, { backgroundColor: roleTheme.primary, opacity: cartBusy || isOutOfStock ? 0.5 : 1 }]}
                 activeOpacity={0.82}
-                disabled={cartBusy}
+                disabled={cartBusy || isOutOfStock}
               >
                 {cartBusy ? <ActivityIndicator size="small" color={roleTheme.onPrimary} /> : <CartIcon size={18} color={roleTheme.onPrimary} />}
               </TouchableOpacity>
@@ -723,16 +724,16 @@ function ProductDetailView({
         <View style={styles.detailFooterButtons}>
           <TouchableOpacity
             onPress={onAddToCart}
-            disabled={actionBusy !== null}
-            style={[styles.detailSecondaryBtn, { borderColor: roleTheme.primary, opacity: actionBusy ? 0.75 : 1 }]}
+            disabled={actionBusy !== null || product.stock <= 0}
+            style={[styles.detailSecondaryBtn, { borderColor: roleTheme.primary, opacity: actionBusy || product.stock <= 0 ? 0.5 : 1 }]}
             activeOpacity={0.84}
           >
             {actionBusy === 'cart' ? <ActivityIndicator color={roleTheme.primary} /> : <Text style={[styles.detailSecondaryText, { color: roleTheme.primary }]}>{tx('Add to Cart')}</Text>}
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onBuyNow}
-            disabled={actionBusy !== null}
-            style={[styles.detailPrimaryBtn, { backgroundColor: roleTheme.primary, opacity: actionBusy ? 0.75 : 1 }]}
+            disabled={actionBusy !== null || product.stock <= 0}
+            style={[styles.detailPrimaryBtn, { backgroundColor: roleTheme.primary, opacity: actionBusy || product.stock <= 0 ? 0.5 : 1 }]}
             activeOpacity={0.84}
           >
             {actionBusy === 'buy' ? <ActivityIndicator color={roleTheme.onPrimary} /> : <Text style={[styles.detailPrimaryText, { color: roleTheme.onPrimary }]}>{tx('Buy Now')}</Text>}
@@ -914,6 +915,24 @@ export function ProductScreen({
       metadata: { role, price: product.price },
     });
   }, [role, trackProductActivity]);
+
+  const handleDetailQtyChange = useCallback((nextQty: number) => {
+    if (!selectedProduct) return;
+
+    const availableStock = Math.max(0, selectedProduct.stock);
+    if (nextQty > availableStock) {
+      setDetailQty(Math.max(1, availableStock));
+      setDialog({
+        visible: true,
+        variant: 'info',
+        title: tx('Stock limit reached'),
+        message: `Only ${availableStock} ${availableStock === 1 ? 'product is' : 'products are'} in stock. You cannot add more than the available stock.`,
+      });
+      return;
+    }
+
+    setDetailQty(Math.max(1, nextQty));
+  }, [selectedProduct, tx]);
 
   const handleCardAction = useCallback((product: UiProduct) => {
     if (!requireAuth()) return;
@@ -1410,7 +1429,7 @@ export function ProductScreen({
           onAddRelated={handleCardAdd}
           actionBusy={actionBusy}
           qty={detailQty}
-          onQtyChange={setDetailQty}
+          onQtyChange={handleDetailQtyChange}
         />
         {dialogEl}
       </>

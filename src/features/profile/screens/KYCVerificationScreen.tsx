@@ -37,6 +37,7 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
   const hasPan = authUser?.panDocument || draftPan;
   const hasGst = authUser?.gstDocument || draftGst;
   const isDealer = currentRole === 'dealer';
+  const isElectrician = currentRole === 'electrician';
   const hasDraftChanges = Boolean(draftAadhar || draftPan || draftGst);
   // Every role can verify with either Aadhaar or PAN. Dealers keep GST as an
   // additional option so the existing dealer workflow remains available.
@@ -65,6 +66,10 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
           : 'Please upload Aadhar Card or PAN Card'),
       });
       return;
+    }
+
+    if (isElectrician && !hasPan) {
+      setDialog({ visible: true, variant: 'info', title: tx('Error'), message: tx('Please upload PAN Card') }); return;
     }
 
     // Capture before async — first submit if no docs existed before AND status is not_submitted

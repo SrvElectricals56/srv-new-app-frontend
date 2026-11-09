@@ -295,14 +295,17 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
         confirmLabel={dialog.confirmLabel}
         icon={dialog.icon}
         content={dialog.variant === 'confirm' ? (
-          <TextInput
-            value={shippingAddress}
-            onChangeText={(value) => { shippingAddressRef.current = value; setShippingAddress(value); }}
-            placeholder={tx('Enter complete delivery address')}
-            placeholderTextColor={theme.textMuted}
-            multiline
-            style={[styles.addressInput, { color: theme.textPrimary, borderColor: theme.border, backgroundColor: theme.soft }]}
-          />
+          <View style={styles.addressDialogContent}>
+            <Text style={[styles.addressLabel, { color: theme.textPrimary }]}>{tx('Delivery Address')}</Text>
+            <TextInput
+              value={shippingAddress}
+              onChangeText={(value) => { shippingAddressRef.current = value; setShippingAddress(value); }}
+              placeholder={tx('Enter complete delivery address')}
+              placeholderTextColor={theme.textMuted}
+              multiline
+              style={[styles.addressInput, { color: theme.textPrimary, borderColor: theme.border, backgroundColor: theme.soft }]}
+            />
+          </View>
         ) : null}
         confirmDisabled={dialog.variant === 'confirm' && (shippingAddress.trim().length < 10 || redeemingId !== null)}
         closeOnConfirm={dialog.variant !== 'confirm'}

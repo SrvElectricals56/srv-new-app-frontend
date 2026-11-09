@@ -48,6 +48,7 @@ const KEYS = {
   PASSWORD_CONFIGURED_PREFIX: 'srv_password_configured',
   SEEN_NOTIFICATION_IDS_PREFIX: 'srv_seen_notification_ids',
   CLEARED_NOTIFICATION_IDS_PREFIX: 'srv_cleared_notification_ids',
+  PROFILE_COMPLETION_CELEBRATED_PREFIX: 'srv_profile_completion_celebrated',
   PUSH_NOTIFICATIONS_ENABLED: 'srv_push_notifications_enabled',
 };
 
@@ -62,6 +63,10 @@ export const storage = {
 
   buildPasswordConfiguredKey(role: string) {
     return `${KEYS.PASSWORD_CONFIGURED_PREFIX}:${role}`;
+  },
+
+  buildProfileCompletionCelebratedKey(scope: string) {
+    return `${KEYS.PROFILE_COMPLETION_CELEBRATED_PREFIX}:${scope}`;
   },
 
   async setTokens(accessToken: string, refreshToken: string) {
@@ -102,6 +107,14 @@ export const storage = {
 
   async getPasswordConfigured(role: string): Promise<boolean> {
     return (await safeGet(this.buildPasswordConfiguredKey(role))) === 'true';
+  },
+
+  async hasShownProfileCompletionCelebration(scope: string): Promise<boolean> {
+    return (await safeGet(this.buildProfileCompletionCelebratedKey(scope))) === 'true';
+  },
+
+  async markProfileCompletionCelebrationShown(scope: string): Promise<void> {
+    await safeSet(this.buildProfileCompletionCelebratedKey(scope), 'true');
   },
 
   async setPushNotificationsEnabled(enabled: boolean) {

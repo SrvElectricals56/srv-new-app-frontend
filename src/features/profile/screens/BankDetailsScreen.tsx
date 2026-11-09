@@ -1,6 +1,6 @@
 import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
-import React, { useEffect, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { type ComponentRef, useEffect, useRef, useState } from 'react';
+import { Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { AppIcon, C, PageHeader, PrimaryBtn } from '../components/ProfileShared';
 import { usePreferenceContext } from '@/shared/preferences';
@@ -10,11 +10,15 @@ import { useAppPageContent } from '@/shared/hooks';
 import { Dialog, type Choice } from '@/shared/components/Dialog';
 import { resolveImageUrl } from '@/shared/api/config';
 import { prepareKycUpload } from '../lib/kycUpload';
+import { scanQrFromGalleryImage } from '@/shared/utils/qrImageScanner';
+import { isValidUpiQrPayload } from '@/shared/utils/upiQrValidation';
+import { IOSKeyboardDoneAccessory, IOS_KEYBOARD_DONE_ACCESSORY_ID } from '@/shared/components/IOSKeyboardDoneAccessory';
 
 export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   const { t, tx, theme } = usePreferenceContext();
   const { role, user, updateUser } = useAuth();
   const pageContent = useAppPageContent((role ?? 'electrician') as any, 'bank_details');
+  const scrollRef = useRef<ComponentRef<typeof ScrollView> | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);
@@ -42,14 +46,20 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   const uploadQrAsset = async (asset: ImagePicker.ImagePickerAsset) => {
     setUploadingQr(true);
     try {
+      const decoded = await scanQrFromGalleryImage({ uri: asset.uri, width: asset.width, height: asset.height });
+      if (!isValidUpiQrPayload(decoded)) {
+        throw new Error('Please upload a valid UPI QR code image. Other photos are not accepted.');
+      }
       const prepared = await prepareKycUpload({
         uri: asset.uri,
         mimeType: asset.mimeType,
         name: asset.fileName || 'upi-qr-code',
         size: asset.fileSize,
       }, 'upi-qr-code');
-      const uploadedUrl = await profileApi.uploadDocument(prepared, 'pan');
+      const uploadedUrl = await profileApi.uploadDocument(prepared, 'upi-qr');
       setUpiQrCodeImage(uploadedUrl);
+      Keyboard.dismiss();
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), Platform.OS === 'ios' ? 350 : 100);
     } finally {
       setUploadingQr(false);
     }
@@ -100,6 +110,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
   };
 
   const pickUpiQrCode = () => {
+    Keyboard.dismiss();
     setDialog({
       visible: true,
       variant: 'info',
@@ -155,12 +166,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
         bankLinked: true,
       });
       updateUser(updated);
-      setDialog({
-        visible: true,
-        variant: 'success',
-        title: tx('Saved'),
-        message: tx('Bank details saved successfully!'),
-      });
+      onBack();
     } catch {
       setDialog({
         visible: true,
@@ -180,9 +186,11 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
     >
       <PageHeader title={pageContent.pageTitle || t('bankDetails')} onBack={onBack} />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           {user?.bankLinked ? (
@@ -216,6 +224,9 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
                 placeholderTextColor={theme.textMuted}
                 value={accountHolderName}
                 onChangeText={(v) => setAccountHolderName(v.replace(/[^A-Za-z ]/g, ''))}
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+                inputAccessoryViewID={Platform.OS === 'ios' ? IOS_KEYBOARD_DONE_ACCESSORY_ID : undefined}
               />
             </View>
           </View>
@@ -232,6 +243,9 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
                 onChangeText={(v) => setGooglePayNumber(v.replace(/\D/g, '').slice(0, 10))}
                 keyboardType="phone-pad"
                 maxLength={10}
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+                inputAccessoryViewID={Platform.OS === 'ios' ? IOS_KEYBOARD_DONE_ACCESSORY_ID : undefined}
               />
             </View>
           </View>
@@ -277,6 +291,7 @@ export function BankDetailsPage({ onBack }: { onBack: () => void }) {
 
         <PrimaryBtn label={saving ? tx('Saving...') : t('save')} onPress={handleSave} />
       </ScrollView>
+      <IOSKeyboardDoneAccessory />
       <Dialog
         visible={dialog.visible}
         variant={dialog.variant}

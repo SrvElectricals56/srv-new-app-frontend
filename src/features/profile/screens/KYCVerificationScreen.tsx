@@ -1,12 +1,13 @@
 import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Linking, View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { AppIcon } from '../components/ProfileShared';
 import { DocumentUpload } from '../components/DocumentUpload';
 import { usePreferenceContext } from '@/shared/preferences';
 import { useAuth } from '@/shared/context/AuthContext';
 import { authApi } from '@/shared/api';
 import { Dialog } from '@/shared/components/Dialog';
+import { useAppData } from '@/shared/context/AppDataContext';
 
 interface KYCVerificationScreenProps {
   onBack: () => void;
@@ -15,14 +16,19 @@ interface KYCVerificationScreenProps {
 
 export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationScreenProps) {
   const { user: authUser, refreshProfile } = useAuth();
+  const { appSettings } = useAppData();
   const { theme, tx, darkMode } = usePreferenceContext();
 
   const [draftAadhar, setDraftAadhar] = useState<string | null>(null);
   const [draftPan, setDraftPan] = useState<string | null>(null);
   const [draftGst, setDraftGst] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
-  const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
+  const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; confirmLabel?: string; cancelLabel?: string; onOk?: () => void; onClose?: () => void }>({ visible: false, variant: 'info', title: '', message: '' });
+  const closeDialog = () => {
+    const callback = dialog.onClose;
+    setDialog((d) => ({ ...d, visible: false, onClose: undefined }));
+    callback?.();
+  };
 
   const roleColor = theme.accent;
   const roleSoft = theme.accentSoft;
@@ -40,6 +46,13 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
   const submitLabel = (kycStatus === 'pending' || kycStatus === 'rejected') && (authUser?.aadharFrontImage || authUser?.panDocument || authUser?.gstDocument)
     ? 'Resubmit for Verification'
     : 'Submit for Verification';
+  const supportDigits = String(appSettings?.supportPhone || '8837684004').replace(/\D/g, '');
+  const supportDialNumber = supportDigits.length === 10 ? `+91${supportDigits}` : `+${supportDigits.replace(/^\+/, '')}`;
+  const supportDisplayNumber = supportDigits.length === 10 ? `+91 ${supportDigits}` : supportDialNumber;
+
+  const callSrvHelp = () => {
+    void Linking.openURL(`tel:${supportDialNumber}`).catch(() => undefined);
+  };
 
   const handleSubmit = async () => {
     if (!kycComplete) {
@@ -80,11 +93,16 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
       setDraftGst(null);
 
       setDialog({
-        visible: true, variant: 'success', title: tx('Success'),
-        message: tx(isFirstSubmit
+        visible: true,
+        variant: 'confirm',
+        title: tx('KYC Submitted'),
+        message: `${tx(isFirstSubmit
           ? 'KYC documents submitted successfully. SRV Team will verify soon.'
-          : 'KYC documents resubmitted successfully. SRV Team will verify soon.'),
-        onOk: onBack,
+          : 'KYC documents resubmitted successfully. SRV Team will verify soon.')}\n\n${tx('Call SRV Help now for faster verification.')}\n${supportDisplayNumber}`,
+        confirmLabel: tx('Call SRV Help'),
+        cancelLabel: tx('Not Now'),
+        onOk: callSrvHelp,
+        onClose: onBack,
       });
     } catch {
       setDialog({ visible: true, variant: 'error', title: tx('Error'), message: tx('Failed to submit KYC documents. Please try again.') });
@@ -282,7 +300,8 @@ export function KYCVerificationScreen({ onBack, currentRole }: KYCVerificationSc
         message={dialog.message}
         onClose={closeDialog}
         onConfirm={dialog.onOk}
-        confirmLabel="OK"
+        confirmLabel={dialog.confirmLabel || 'OK'}
+        cancelLabel={dialog.cancelLabel}
       />
     </View>
   );

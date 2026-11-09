@@ -17,6 +17,7 @@ import type { Screen } from '@/shared/types/navigation';
 import { formatCountText, usePreferenceContext } from '@/shared/preferences';
 import ProfileFlipCard from '@/shared/components/ProfileFlipCard';
 import { HomeHeaderContact } from '@/shared/components/HomeHeaderContact';
+import { ProfileCompletionBadge } from '@/shared/components/ProfileCompletionBadge';
 import { createShadow } from '@/shared/theme/shadows';
 import { premium, premiumShadow } from '@/shared/theme/premium';
 import {
@@ -419,6 +420,7 @@ export function HomeScreen({
   totalScans,
   hasUnreadNotif = false,
   unreadNotificationCount = 0,
+  onOpenProfileCompletion,
 }: {
   onNavigate: (screen: Screen) => void;
   onOpenProductCategory: (category: string) => void;
@@ -427,6 +429,7 @@ export function HomeScreen({
   totalScans: number;
   hasUnreadNotif?: boolean;
   unreadNotificationCount?: number;
+  onOpenProfileCompletion: () => void;
 }) {
   const { darkMode, tx, language } = usePreferenceContext();
   const {
@@ -817,6 +820,7 @@ export function HomeScreen({
                 </View>
               </TouchableOpacity>
             ) : null}
+            <ProfileCompletionBadge onPress={onOpenProfileCompletion} />
           </View>
         </View>
 

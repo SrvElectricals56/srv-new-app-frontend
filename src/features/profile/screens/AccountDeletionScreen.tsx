@@ -1,6 +1,6 @@
-import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
+import { LocalizedText as Text, LocalizedTextInput as TextInput } from '@/shared/preferences/LocalizedNative';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Dialog } from '@/shared/components/Dialog';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { useAuth } from '@/shared/context/AuthContext';
@@ -12,6 +12,7 @@ export function AccountDeletionPage({ onBack }: { onBack: () => void }) {
   const { submitSupportTicket } = useAppData();
   const [submitting, setSubmitting] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [reason, setReason] = useState('');
   const [dialog, setDialog] = useState<{
     visible: boolean;
     variant: 'success' | 'error';
@@ -19,11 +20,13 @@ export function AccountDeletionPage({ onBack }: { onBack: () => void }) {
   }>({ visible: false, variant: 'success', message: '' });
 
   const requestDeletion = async () => {
+    const trimmedReason = reason.trim();
+    if (trimmedReason.length < 10) return;
     setSubmitting(true);
     try {
       await submitSupportTicket({
         subject: 'Account deletion request',
-        comment: `Please delete my SRV Electricals app account and associated personal data. Account phone: ${user?.phone ?? 'not available'}.`,
+        comment: `Please delete my SRV Electricals app account and associated personal data. Account phone: ${user?.phone ?? 'not available'}. Reason: ${trimmedReason}`,
       });
       setDialog({
         visible: true,
@@ -44,9 +47,16 @@ export function AccountDeletionPage({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <PageHeader title="Account & Data Deletion" onBack={onBack} />
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
         <View style={styles.card}>
           <View style={styles.icon}>
             <AppIcon name="warning" size={24} color={C.error} />
@@ -65,6 +75,24 @@ export function AccountDeletionPage({ onBack }: { onBack: () => void }) {
             <Text style={styles.confirmCopy}>
               SRV Support will receive a verified deletion request for your signed-in account.
             </Text>
+            <Text style={styles.reasonLabel}>Reason for deleting your account</Text>
+            <TextInput
+              value={reason}
+              onChangeText={(value) => setReason(value.slice(0, 500))}
+              placeholder="Tell us why you want to delete your account"
+              placeholderTextColor="#98A1B2"
+              multiline
+              maxLength={500}
+              editable={!submitting}
+              textAlignVertical="top"
+              style={styles.reasonInput}
+              accessibilityLabel="Reason for deleting your account"
+            />
+            <Text style={[styles.reasonHelp, reason.trim().length > 0 && reason.trim().length < 10 ? styles.reasonError : null]}>
+              {reason.trim().length > 0 && reason.trim().length < 10
+                ? 'Please enter at least 10 characters.'
+                : `${reason.length}/500`}
+            </Text>
             <View style={styles.actions}>
               <Pressable
                 style={styles.cancel}
@@ -74,9 +102,9 @@ export function AccountDeletionPage({ onBack }: { onBack: () => void }) {
                 <Text style={styles.cancelText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.delete, submitting && styles.disabled]}
+                style={[styles.delete, (submitting || reason.trim().length < 10) && styles.disabled]}
                 onPress={() => void requestDeletion()}
-                disabled={submitting}
+                disabled={submitting || reason.trim().length < 10}
               >
                 <Text style={styles.deleteText}>
                   {submitting ? 'Submitting…' : 'Submit request'}
@@ -89,7 +117,7 @@ export function AccountDeletionPage({ onBack }: { onBack: () => void }) {
             <Text style={styles.deleteText}>Request deletion</Text>
           </Pressable>
         )}
-      </View>
+      </ScrollView>
 
       <Dialog
         visible={dialog.visible}
@@ -102,7 +130,7 @@ export function AccountDeletionPage({ onBack }: { onBack: () => void }) {
           if (dialog.variant === 'success') onBack();
         }}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -137,6 +165,21 @@ const styles = StyleSheet.create({
   },
   confirmTitle: { fontSize: 16, fontWeight: '800', color: '#1E2340' },
   confirmCopy: { marginTop: 6, color: '#5F6778', lineHeight: 20 },
+  reasonLabel: { marginTop: 16, marginBottom: 8, color: '#1E2340', fontSize: 13, fontWeight: '800' },
+  reasonInput: {
+    minHeight: 108,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D8DEE9',
+    backgroundColor: '#FAFBFD',
+    color: '#1E2340',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  reasonHelp: { marginTop: 6, color: '#7A8497', fontSize: 11 },
+  reasonError: { color: C.error },
   actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
   delete: {
     minHeight: 52,

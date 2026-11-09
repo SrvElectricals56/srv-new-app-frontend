@@ -20,6 +20,7 @@ import {
 } from '@/shared/utils/validation';
 import { normalizeIndianState } from '@/shared/utils/indianState';
 import type { UserRole } from '@/shared/types/navigation';
+import { IOSKeyboardDoneAccessory, IOS_KEYBOARD_DONE_ACCESSORY_ID } from '@/shared/components/IOSKeyboardDoneAccessory';
 type IntroStep = 'language' | 'role' | 'auth';
 type AuthMode = 'login' | 'signup';
 type LoginStep = 'phone' | 'otp';
@@ -477,6 +478,7 @@ function Field({
             autoComplete={autoComplete}
             textContentType={autoComplete ? 'oneTimeCode' : undefined}
             importantForAutofill={autoComplete ? 'yes' : 'auto'}
+            inputAccessoryViewID={Platform.OS === 'ios' ? IOS_KEYBOARD_DONE_ACCESSORY_ID : undefined}
           />
         </View>
         {hasInlineAction ? (
@@ -695,7 +697,7 @@ export function OnboardingScreen({
   const signupGstHolderRef = useRef<TextInput | null>(null);
   const signupPanHolderRef = useRef<TextInput | null>(null);
   const electricianPhoneAutoRequestedRef = useRef(false);
-  const electricianAddressAutoRequestedRef = useRef(false);
+  const signupAddressAutoRequestedRef = useRef(false);
   const locationRequestInFlightRef = useRef(false);
   const retryLocationOnResumeRef = useRef(false);
   const addressDirtyRef = useRef(false);
@@ -915,11 +917,13 @@ export function OnboardingScreen({
   useEffect(() => {
     if (
       mode !== 'signup' ||
-      role !== 'electrician' ||
-      signupStep !== 'address' ||
-      electricianAddressAutoRequestedRef.current
+      !(
+        (role === 'electrician' && signupStep === 'address') ||
+        (role === 'dealer' && signupStep === 'location')
+      ) ||
+      signupAddressAutoRequestedRef.current
     ) return;
-    electricianAddressAutoRequestedRef.current = true;
+    signupAddressAutoRequestedRef.current = true;
     void requestCurrentLocation();
   }, [mode, requestCurrentLocation, role, signupStep]);
 
@@ -1010,7 +1014,7 @@ export function OnboardingScreen({
   const resetForm = () => {
     dealerVerificationRequestRef.current += 1;
     electricianPhoneAutoRequestedRef.current = false;
-    electricianAddressAutoRequestedRef.current = false;
+    signupAddressAutoRequestedRef.current = false;
     retryLocationOnResumeRef.current = false;
     addressDirtyRef.current = false;
     stateDirtyRef.current = false;
@@ -1957,19 +1961,33 @@ export function OnboardingScreen({
                                 <Field
                                   label={tx('State')}
                                   value={signupState}
-                                  onChangeText={handleName((v) => { setSignupState(v); setError('signupState'); })}
+                                  onChangeText={handleName((v) => { stateDirtyRef.current = true; setSignupState(v); setError('signupState'); })}
                                   placeholder={tx('State')}
                                   error={errors.signupState}
                                   onFocus={scrollToForm}
                                   inputRef={signupStateRef}
+                                  actionLabel={locationLoading ? tx('Locating') : tx('Current Address')}
+                                  onActionPress={() => {
+                                    addressDirtyRef.current = false;
+                                    stateDirtyRef.current = false;
+                                    cityDirtyRef.current = false;
+                                    pincodeDirtyRef.current = false;
+                                    void requestCurrentLocation();
+                                  }}
+                                  actionDisabled={locationLoading}
                                   returnKeyType="next"
                                   blurOnSubmit={false}
                                   onSubmitEditing={() => signupCityRef.current?.focus()}
                                 />
+                                {errors.signupAddress ? (
+                                  <Info text={errors.signupAddress} kind="error" />
+                                ) : locationMessage ? (
+                                  <Info text={locationMessage} kind="success" />
+                                ) : null}
                                 <Field
                                   label={tx('District')}
                                   value={signupCity}
-                                  onChangeText={handleName((v) => { setSignupCity(v); setError('signupCity'); })}
+                                  onChangeText={handleName((v) => { cityDirtyRef.current = true; setSignupCity(v); setError('signupCity'); })}
                                   placeholder={tx('District')}
                                   error={errors.signupCity}
                                   onFocus={scrollToForm}
@@ -1982,6 +2000,7 @@ export function OnboardingScreen({
                                   label={tx('Pincode')}
                                   value={signupPincode}
                                   onChangeText={(value) => {
+                                    pincodeDirtyRef.current = true;
                                     setSignupPincode(value.replace(/\D/g, '').slice(0, 6));
                                     setError('signupPincode');
                                   }}
@@ -2394,6 +2413,7 @@ export function OnboardingScreen({
               </Animated.View>
             </ScrollView>
           </View>
+          <IOSKeyboardDoneAccessory />
         </KeyboardAvoidingView>
       </LinearGradient>
     </View>

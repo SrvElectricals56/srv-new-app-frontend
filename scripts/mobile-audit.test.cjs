@@ -70,6 +70,8 @@ function load(relative) {
 const { uniqueWalletTransactions } = load('src/shared/utils/walletTransactions.ts');
 const { describeKycFile, prepareKycUpload, KYC_MAX_FILE_SIZE } = load('src/features/profile/lib/kycUpload.ts');
 const { getSpeechProfile, prepareSpeechText, selectBestSpeechVoice } = load('src/shared/utils/nativeSpeech.ts');
+const { getProfileCompletion, getProfileCompletionColor } = load('src/shared/profile/profileCompletion.ts');
+const { isValidUpiQrPayload } = load('src/shared/utils/upiQrValidation.ts');
 
 test('SRV Chat prepares native Hindi and Punjabi speech and selects an enhanced matching voice', () => {
   const voices = [
@@ -104,6 +106,13 @@ test('SRV Chat voice mode uses Expo 58 uploads and resumes listening after each 
   assert.match(source, /keyboardDismissMode=\{Platform\.OS === 'ios' \? 'interactive' : 'on-drag'\}/);
 });
 
+test('SRV Chat stays implemented but is hidden unless its release flag is explicitly enabled', () => {
+  const app = fs.readFileSync(path.join(root, 'src', 'app', 'index.tsx'), 'utf8');
+  assert.match(app, /const SRV_CHAT_ENABLED = process\.env\.EXPO_PUBLIC_SRV_CHAT_ENABLED === 'true'/);
+  assert.match(app, /SRV_CHAT_ENABLED && !pendingApprovalRole/);
+  assert.match(app, /SRV_CHAT_ENABLED \? \([\s\S]*?<SrvChatModal/);
+});
+
 test('KYC lets every role submit either Aadhaar or PAN while preserving dealer GST', () => {
   const kyc = fs.readFileSync(path.join(root, 'src', 'features', 'profile', 'screens', 'KYCVerificationScreen.tsx'), 'utf8');
   assert.match(kyc, /hasAadhar \|\| hasPan \|\| \(isDealer && hasGst\)/);
@@ -111,6 +120,16 @@ test('KYC lets every role submit either Aadhaar or PAN while preserving dealer G
   assert.match(kyc, /label="PAN Card \(Optional\)"/);
   assert.match(kyc, /\{isDealer && \([\s\S]*?label="GST Number \(Optional\)"/);
   assert.doesNotMatch(kyc, /const kycComplete = hasAadhar &&/);
+});
+
+test('successful KYC submission offers the configured SRV Help phone dialer', () => {
+  const kyc = fs.readFileSync(path.join(root, 'src', 'features', 'profile', 'screens', 'KYCVerificationScreen.tsx'), 'utf8');
+  assert.match(kyc, /appSettings\?\.supportPhone \|\| '8837684004'/);
+  assert.match(kyc, /Linking\.openURL\(`tel:\$\{supportDialNumber\}`\)/);
+  assert.match(kyc, /title: tx\('KYC Submitted'\)/);
+  assert.match(kyc, /confirmLabel: tx\('Call SRV Help'\)/);
+  assert.match(kyc, /cancelLabel: tx\('Not Now'\)/);
+  assert.match(kyc, /onClose: onBack/);
 });
 
 test('iOS and Android runtime code never requires the optional ExpoFetchModule', () => {
@@ -141,6 +160,33 @@ test('Expo Go and older native builds skip the launcher icon package when its na
 test('dealer and electrician signup no longer exposes or submits a referral code', () => {
   const source = fs.readFileSync(path.join(root, 'src', 'features', 'electrician', 'screens', 'OnboardingScreen.tsx'), 'utf8');
   assert.doesNotMatch(source, /signupReferralCode|Referral Code \(Optional\)|referralCode:/);
+});
+
+test('dealer and customer signup automatically request and persist the current address', () => {
+  const onboarding = fs.readFileSync(path.join(root, 'src', 'features', 'electrician', 'screens', 'OnboardingScreen.tsx'), 'utf8');
+  const customerAuth = fs.readFileSync(path.join(root, 'src', 'features', 'user', 'screens', 'AuthScreen.tsx'), 'utf8');
+
+  assert.match(onboarding, /role === 'dealer' && signupStep === 'location'/);
+  assert.match(onboarding, /requestForegroundPermissionsAsync\(\)/);
+  assert.match(onboarding, /reverseGeocodeAsync\(position\.coords\)/);
+  assert.match(onboarding, /address: signupAddress\.trim\(\) \|\| undefined/);
+  assert.match(customerAuth, /signupStep !== 'details'/);
+  assert.match(customerAuth, /requestForegroundPermissionsAsync\(\)/);
+  assert.match(customerAuth, /normalizeIndianState\(place\.region\)/);
+  assert.match(customerAuth, /address: sAddress\.trim\(\) \|\| undefined/);
+});
+
+test('all shared profiles require a reason before submitting an account deletion request', () => {
+  const deletion = fs.readFileSync(path.join(root, 'src', 'features', 'profile', 'screens', 'AccountDeletionScreen.tsx'), 'utf8');
+  assert.match(deletion, /Reason for deleting your account/);
+  assert.match(deletion, /trimmedReason\.length < 10/);
+  assert.match(deletion, /Reason: \$\{trimmedReason\}/);
+  assert.match(deletion, /disabled=\{submitting \|\| reason\.trim\(\)\.length < 10\}/);
+});
+
+test('the shared wallet labels its gift-store shortcut for every role', () => {
+  const wallet = fs.readFileSync(path.join(root, 'src', 'features', 'electrician', 'screens', 'WalletScreen.tsx'), 'utf8');
+  assert.match(wallet, /<Text style=\{styles\.storeLabel\}>\{tx\('Gift Store'\)\}<\/Text>/);
 });
 
 test('dealer and electrician OTP inputs autofill and verify without a verify button', () => {
@@ -180,8 +226,109 @@ test('iOS KYC and bank QR pickers wait for modal dismissal and prepare iPhone im
   assert.match(documentUpload, /copyToCacheDirectory: true/);
   assert.match(bankDetails, /requestMediaLibraryPermissionsAsync\(\)/);
   assert.match(bankDetails, /prepareKycUpload\([\s\S]*?'upi-qr-code'\)/);
-  assert.match(bankDetails, /profileApi\.uploadDocument\(prepared, 'pan'\)/);
+  assert.match(bankDetails, /scanQrFromGalleryImage/);
+  assert.match(bankDetails, /profileApi\.uploadDocument\(prepared, 'upi-qr'\)/);
+  assert.match(bankDetails, /Keyboard\.dismiss\(\)/);
+  assert.match(bankDetails, /scrollRef\.current\?\.scrollToEnd\(\{ animated: true \}\)/);
+  assert.match(bankDetails, /onBack\(\)/);
 });
+
+test('home banners follow manual horizontal swipes and resume automatic paging', () => {
+  const banner = fs.readFileSync(path.join(root, 'src', 'shared', 'components', 'BannerCarousel.tsx'), 'utf8');
+  assert.match(banner, /<ScrollView[\s\S]*?horizontal[\s\S]*?pagingEnabled/);
+  assert.match(banner, /onScrollBeginDrag=\{stopAuto\}/);
+  assert.match(banner, /onMomentumScrollEnd=\{handleMomentumEnd\}/);
+  assert.match(banner, /scrollRef\.current\?\.scrollTo/);
+  assert.doesNotMatch(banner, /PanResponder/);
+});
+
+test('iOS account creation inputs use a right-aligned keyboard Done accessory', () => {
+  const onboarding = fs.readFileSync(path.join(root, 'src', 'features', 'electrician', 'screens', 'OnboardingScreen.tsx'), 'utf8');
+  const customerAuth = fs.readFileSync(path.join(root, 'src', 'features', 'user', 'screens', 'AuthScreen.tsx'), 'utf8');
+  const accessory = fs.readFileSync(path.join(root, 'src', 'shared', 'components', 'IOSKeyboardDoneAccessory.tsx'), 'utf8');
+  assert.match(onboarding, /inputAccessoryViewID=\{Platform\.OS === 'ios' \? IOS_KEYBOARD_DONE_ACCESSORY_ID/);
+  assert.match(onboarding, /<IOSKeyboardDoneAccessory/);
+  assert.match(customerAuth, /inputAccessoryViewID=\{Platform\.OS === 'ios' \? IOS_KEYBOARD_DONE_ACCESSORY_ID/);
+  assert.match(customerAuth, /<IOSKeyboardDoneAccessory/);
+  assert.match(accessory, /<InputAccessoryView/);
+  assert.match(accessory, /onPress=\{Keyboard\.dismiss\}/);
+  assert.match(accessory, /alignItems: 'flex-end'/);
+});
+
+test('iOS profile photo picker dismisses its sheet, requests permission, and converts the selected image', () => {
+  const profile = fs.readFileSync(path.join(root, 'src', 'features', 'profile', 'screens', 'ProfileScreen.tsx'), 'utf8');
+  assert.match(profile, /Platform\.OS === 'ios'[\s\S]*?setTimeout\(resolve, 350\)/);
+  assert.match(profile, /requestMediaLibraryPermissionsAsync\(\)/);
+  assert.match(profile, /preferredAssetRepresentationMode: ImagePicker\.UIImagePickerPreferredAssetRepresentationMode\.Compatible/);
+  assert.match(profile, /ImageManipulator\.manipulate\(asset\.uri\)/);
+  assert.match(profile, /SaveFormat\.JPEG/);
+  assert.match(profile, /action === 'photo'[\s\S]*?openPhotoPicker\('completion'\)/);
+  assert.match(profile, /onPress=\{openPhotoPickerFromEdit\}/);
+  assert.match(profile, /backFromCompletionChild[\s\S]*?setSubPage\('Profile Completion'\)/);
+});
+
+test('profile completion uses one final KYC step and reaches a green-check-ready 100 percent', () => {
+  const completeProfile = {
+    name: 'Akash', phone: '9876543210', state: 'Punjab', district: 'Mansa', address: 'Main Road', pincode: '151505',
+    profileImage: 'data:image/jpeg;base64,test', aadharFrontImage: '/uploads/aadhar/test.jpg', kycStatus: 'verified',
+    accountHolderName: 'Akash', bankAccount: '9876543210', upiQrCodeImage: '/uploads/pan/upi.jpg', bankLinked: true,
+  };
+  assert.deepEqual(getProfileCompletion(completeProfile, 'electrician'), expectCompletion(100, true, 9));
+
+  const partial = { ...completeProfile, kycStatus: 'pending', accountHolderName: null, bankAccount: null, upiQrCodeImage: null, bankLinked: false };
+  const result = getProfileCompletion(partial, 'dealer');
+  assert.equal(result.percentage, 56);
+  assert.equal(result.complete, false);
+  assert.equal(result.items.filter(item => !item.complete).length, 4);
+  assert.equal(result.items.some(item => item.key === 'kyc-document'), false);
+  assert.equal(result.items.at(-1)?.key, 'kyc-verification');
+  assert.equal(result.items.at(-1)?.action, 'kyc');
+  assert.equal(getProfileCompletionColor(40), '#DC2626');
+  assert.equal(getProfileCompletionColor(50), '#F59E0B');
+  assert.equal(getProfileCompletionColor(90), '#F59E0B');
+  assert.equal(getProfileCompletionColor(100), '#16A34A');
+
+  for (const relative of [
+    'src/features/electrician/screens/HomeScreen.tsx',
+    'src/features/dealer/screens/HomeScreen.tsx',
+    'src/features/user/screens/HomeScreen.tsx',
+    'src/features/counterboy/screens/HomeScreen.tsx',
+  ]) {
+    assert.match(fs.readFileSync(path.join(root, relative), 'utf8'), /<ProfileCompletionBadge onPress=\{onOpenProfileCompletion\}/, relative);
+  }
+});
+
+test('a completed profile shows one persistent professional celebration dialog', () => {
+  const app = fs.readFileSync(path.join(root, 'src', 'app', 'index.tsx'), 'utf8');
+  const storage = fs.readFileSync(path.join(root, 'src', 'shared', 'api', 'storage.ts'), 'utf8');
+  assert.match(app, /getProfileCompletion\(user, authRole\)\.complete/);
+  assert.match(app, /storage\.hasShownProfileCompletionCelebration\(profileCompletionScope\)/);
+  assert.match(app, /storage\.markProfileCompletionCelebrationShown\(profileCompletionScope\)/);
+  assert.match(app, /title=\{preferenceValue\.tx\('Profile Completed Successfully'\)\}/);
+  assert.match(app, /variant="success"/);
+  assert.match(storage, /PROFILE_COMPLETION_CELEBRATED_PREFIX/);
+});
+
+test('bank QR validation accepts UPI payment QR payloads and rejects unrelated QR or photos', () => {
+  assert.equal(isValidUpiQrPayload('upi://pay?pa=merchant%40okaxis&pn=SRV'), true);
+  assert.equal(isValidUpiQrPayload('https://example.com'), false);
+  assert.equal(isValidUpiQrPayload('SRV-QA-20260908-CLEAR-QR'), false);
+  assert.equal(isValidUpiQrPayload(null), false);
+});
+
+function expectCompletion(percentage, complete, completedCount) {
+  return {
+    percentage,
+    complete,
+    completedCount,
+    totalCount: 9,
+    items: getProfileCompletion({
+      name: 'Akash', phone: '9876543210', state: 'Punjab', district: 'Mansa', address: 'Main Road', pincode: '151505',
+      profileImage: 'data:image/jpeg;base64,test', aadharFrontImage: '/uploads/aadhar/test.jpg', kycStatus: 'verified',
+      accountHolderName: 'Akash', bankAccount: '9876543210', upiQrCodeImage: '/uploads/pan/upi.jpg', bankLinked: true,
+    }, 'electrician').items,
+  };
+}
 
 test('KYC upload retries a different API address when the first network address is unavailable', async () => {
   const originalFetch = global.fetch;
@@ -197,6 +344,7 @@ test('KYC upload retries a different API address when the first network address 
     assert.equal(calls.length, 2);
     assert.notEqual(calls[0].url, calls[1].url);
     assert.equal(calls[0].options.method, 'POST');
+    assert.equal(calls[0].options.headers['X-Document-Type'], 'pan');
   } finally {
     global.fetch = originalFetch;
   }

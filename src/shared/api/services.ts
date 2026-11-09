@@ -813,7 +813,7 @@ export const profileApi = {
   updatePreferences: (data: { language?: string; darkMode?: boolean; pushEnabled?: boolean }) =>
     api.patch<UserProfile>('/mobile/auth/profile', data, true),
 
-  uploadDocument: async (file: { uri: string; type: string; name: string }, documentType: 'aadhar-front' | 'aadhar-back' | 'pan' | 'gst') => {
+  uploadDocument: async (file: { uri: string; type: string; name: string }, documentType: 'aadhar-front' | 'aadhar-back' | 'pan' | 'gst' | 'upi-qr') => {
     const sendUpload = async (token: string) => {
       let lastNetworkError: unknown;
       for (const baseUrl of API_BASE_URLS) {
@@ -824,7 +824,7 @@ export const profileApi = {
             uploadType: UploadType.MULTIPART,
             fieldName: 'file',
             mimeType: file.type,
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${token}`, 'X-Document-Type': documentType },
             sessionType: 'foreground',
           });
         } catch (error) {

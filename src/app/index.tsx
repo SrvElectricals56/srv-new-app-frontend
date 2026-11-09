@@ -59,6 +59,7 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { useAppData } from '@/shared/context/AppDataContext';
 import { activityApi, storage } from '@/shared/api';
 import { Dialog } from '@/shared/components/Dialog';
+import { getProfileCompletion } from '@/shared/profile/profileCompletion';
 import { SrvChatLauncher, SrvChatModal } from '@/shared/components/SrvChat';
 import type { AppContentPage } from '@/shared/config/appPageContent';
 import {
@@ -71,6 +72,10 @@ import {
 } from '@/shared/preview/appPreviewStore';
 
 type GuestAuthMode = 'login' | 'signup';
+
+// Keep SRV Chat implemented but hidden until the company is ready to enable it
+// again. Expo inlines EXPO_PUBLIC_* values at build time.
+const SRV_CHAT_ENABLED = process.env.EXPO_PUBLIC_SRV_CHAT_ENABLED === 'true';
 
 function getRoleLabel(role: UserRole) {
   switch (role) {
@@ -215,6 +220,7 @@ function AppContent() {
   const [checkoutItem, setCheckoutItem] = useState<CheckoutItem | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [srvChatVisible, setSrvChatVisible] = useState(false);
+  const [profileCompletionDialogVisible, setProfileCompletionDialogVisible] = useState(false);
   const [profileInitialSubPage, setProfileInitialSubPage] = useState<Exclude<SubPage, null> | null>(
     null
   );
@@ -231,6 +237,31 @@ function AppContent() {
     };
   }, []);
   const isPreviewMode = previewState.enabled;
+  const authenticatedProfileComplete = useMemo(
+    () => getProfileCompletion(user, authRole).complete,
+    [authRole, user]
+  );
+  const profileCompletionScope = user?.id && authRole ? `${authRole}:${user.id}` : null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isAuthenticated || isPreviewMode || !authenticatedProfileComplete || !profileCompletionScope) {
+      setProfileCompletionDialogVisible(false);
+      return () => { cancelled = true; };
+    }
+
+    void (async () => {
+      const alreadyShown = await storage.hasShownProfileCompletionCelebration(profileCompletionScope);
+      if (cancelled || alreadyShown) return;
+
+      setProfileCompletionDialogVisible(true);
+      await storage.markProfileCompletionCelebrationShown(profileCompletionScope);
+    })();
+
+    return () => { cancelled = true; };
+  }, [authenticatedProfileComplete, isAuthenticated, isPreviewMode, profileCompletionScope]);
+
   const previewTarget = useMemo(
     () => resolvePreviewTarget(previewState.role, previewState.page),
     [previewState.page, previewState.role]
@@ -688,6 +719,11 @@ function AppContent() {
 
   const handleOpenScanHistory = useCallback(() => {
     setProfileInitialSubPage('Scan History');
+    setCurrentScreen('profile');
+  }, []);
+
+  const handleOpenProfileCompletion = useCallback(() => {
+    setProfileInitialSubPage('Profile Completion');
     setCurrentScreen('profile');
   }, []);
 
@@ -1150,6 +1186,7 @@ function AppContent() {
               profilePhotoUri={profilePhotoByRole.dealer}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
         case 'product':
@@ -1278,6 +1315,7 @@ function AppContent() {
               profilePhotoUri={profilePhotoByRole.dealer}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
       }
@@ -1306,6 +1344,7 @@ function AppContent() {
               totalScans={electricianRewardScans}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
         case 'product':
@@ -1400,6 +1439,7 @@ function AppContent() {
               totalScans={electricianRewardScans}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
       }
@@ -1422,6 +1462,7 @@ function AppContent() {
               profilePhotoUri={profilePhotoByRole.counterboy}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
         case 'product':
@@ -1524,6 +1565,7 @@ function AppContent() {
               profilePhotoUri={profilePhotoByRole.counterboy}
               hasUnreadNotif={hasUnreadNotif}
               unreadNotificationCount={unreadNotifCount}
+              onOpenProfileCompletion={handleOpenProfileCompletion}
             />
           );
       }
@@ -1547,6 +1589,7 @@ function AppContent() {
             totalScans={electricianRewardScans}
             hasUnreadNotif={hasUnreadNotif}
             unreadNotificationCount={unreadNotifCount}
+            onOpenProfileCompletion={handleOpenProfileCompletion}
           />
         );
       case 'product':
@@ -1673,6 +1716,7 @@ function AppContent() {
             totalScans={electricianRewardScans}
             hasUnreadNotif={hasUnreadNotif}
             unreadNotificationCount={unreadNotifCount}
+            onOpenProfileCompletion={handleOpenProfileCompletion}
           />
         );
     }
@@ -1696,6 +1740,7 @@ function AppContent() {
     handleNavigate,
     handleOpenScanHistory,
     handleOpenProductCategory,
+    handleOpenProfileCompletion,
     handleSignOut,
     handleNotificationsSeen,
     handleBuyNow,
@@ -1788,14 +1833,16 @@ function AppContent() {
             <ElectricianBottomNav currentScreen={resolvedCurrentScreen} onNavigate={handleNavigate} />
           )
         ) : null}
-        {!pendingApprovalRole && !keyboardVisible && !srvChatVisible ? (
+        {SRV_CHAT_ENABLED && !pendingApprovalRole && !keyboardVisible && !srvChatVisible ? (
           <SrvChatLauncher onPress={() => setSrvChatVisible(true)} />
         ) : null}
-        <SrvChatModal
-          visible={srvChatVisible}
-          onClose={() => setSrvChatVisible(false)}
-          supportWhatsApp={appSettings?.whatsappNumber}
-        />
+        {SRV_CHAT_ENABLED ? (
+          <SrvChatModal
+            visible={srvChatVisible}
+            onClose={() => setSrvChatVisible(false)}
+            supportWhatsApp={appSettings?.whatsappNumber}
+          />
+        ) : null}
         <Dialog
           visible={Boolean(guestAuthPromptRole)}
           onClose={() => setGuestAuthPromptRole(null)}
@@ -1812,6 +1859,14 @@ function AppContent() {
               onPress: () => openGuestAuth(guestAuthPromptRole, 'signup'),
             },
           ] : []}
+        />
+        <Dialog
+          visible={profileCompletionDialogVisible}
+          onClose={() => setProfileCompletionDialogVisible(false)}
+          title={preferenceValue.tx('Profile Completed Successfully')}
+          message={preferenceValue.tx('Thank you for completing your SRV profile. Your account details are now complete, and you can enjoy all available features.')}
+          variant="success"
+          icon="🎉"
         />
         {notificationBanner ? (
           <Animated.View

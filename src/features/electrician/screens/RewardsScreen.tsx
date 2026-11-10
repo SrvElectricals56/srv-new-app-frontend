@@ -72,7 +72,7 @@ function GiftCard({
 }) {
   const { tx } = usePreferenceContext();
   const canAfford = currentPoints >= gift.pointsRequired;
-  const pressScale = useRef(new Animated.Value(1)).current;
+  const [pressScale] = useState(() => new Animated.Value(1));
 
   const handlePressIn = () =>
     Animated.spring(pressScale, withWebSafeNativeDriver({ toValue: 0.96, tension: 120, friction: 8 })).start();
@@ -318,6 +318,14 @@ export function RewardsScreen({ onBack, onOpenScanner }: { onBack?: () => void; 
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  addressDialogContent: {
+    width: '100%',
+  },
+  addressLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    alignSelf: 'flex-start',
+  },
   addressInput: {
     width: '100%',
     height: 96,

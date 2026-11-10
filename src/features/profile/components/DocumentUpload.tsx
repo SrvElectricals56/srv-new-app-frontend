@@ -1,5 +1,5 @@
 import { LocalizedText as Text } from '@/shared/preferences/LocalizedNative';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -30,19 +30,15 @@ export function DocumentUpload({
   roleSoft,
 }: DocumentUploadProps) {
   const [uploading, setUploading] = useState(false);
-  const [localUri, setLocalUri] = useState<string | null>(currentUrl || null);
-  const [isPdf, setIsPdf] = useState(Boolean(currentUrl && /\.pdf(?:[?#]|$)/i.test(currentUrl)));
+  const [localSelection, setLocalSelection] = useState<{ uri: string; isPdf: boolean } | null>(null);
   const [dialog, setDialog] = useState<{ visible: boolean; variant: 'confirm' | 'destructive' | 'success' | 'error' | 'info'; title: string; message?: string; onOk?: () => void; choices?: Choice[]; cancelButton?: boolean }>({ visible: false, variant: 'info', title: '', message: '' });
   const closeDialog = () => setDialog((d) => ({ ...d, visible: false }));
   const pickerAspect: [number, number] = documentType === 'aadhar-front' ? [4, 3] : [3, 2];
-  const previewUri = localUri && (/^https?:\/\//i.test(localUri) || localUri.startsWith('/uploads/'))
-    ? resolveImageUrl(localUri)
-    : localUri;
-
-  useEffect(() => {
-    setLocalUri(currentUrl || null);
-    setIsPdf(Boolean(currentUrl && /\.pdf(?:[?#]|$)/i.test(currentUrl)));
-  }, [currentUrl]);
+  const displayedUri = localSelection?.uri || currentUrl || null;
+  const displayedIsPdf = localSelection?.isPdf ?? Boolean(currentUrl && /\.pdf(?:[?#]|$)/i.test(currentUrl));
+  const previewUri = displayedUri && (/^https?:\/\//i.test(displayedUri) || displayedUri.startsWith('/uploads/'))
+    ? resolveImageUrl(displayedUri)
+    : displayedUri;
 
   const pickDocument = async () => {
     try {
@@ -64,7 +60,7 @@ export function DocumentUpload({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: pickerAspect,
-        quality: 0.82,
+        quality: 0.72,
       });
 
       if (!result.canceled && result.assets?.length) {
@@ -91,7 +87,7 @@ export function DocumentUpload({
         // Compatible mode converts iCloud/HEIC assets into a locally readable
         // representation before the Expo FileSystem upload starts.
         allowsEditing: false,
-        quality: 0.82,
+        quality: 0.72,
         preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       });
 
@@ -127,16 +123,14 @@ export function DocumentUpload({
     try {
       setUploading(true);
       const prepared = await prepareKycUpload(file, documentType);
-      setLocalUri(prepared.uri);
-      setIsPdf(prepared.type === 'application/pdf');
+      setLocalSelection({ uri: prepared.uri, isPdf: prepared.type === 'application/pdf' });
       const url = await profileApi.uploadDocument(prepared, documentType);
       onUploadSuccess(url);
       setDialog({ visible: true, variant: 'success', title: 'Success', message: 'Document uploaded successfully' });
     } catch (error: any) {
       const msg = error?.message || 'Unknown error';
       setDialog({ visible: true, variant: 'error', title: 'Upload Failed', message: msg });
-      setLocalUri(currentUrl || null);
-      setIsPdf(Boolean(currentUrl && /\.pdf(?:[?#]|$)/i.test(currentUrl)));
+      setLocalSelection(null);
     } finally {
       setUploading(false);
     }
@@ -151,7 +145,7 @@ export function DocumentUpload({
         activeOpacity={0.8}
         style={[
           styles.uploadBox,
-          localUri ? styles.uploadBoxFilled : null,
+          displayedUri ? styles.uploadBoxFilled : null,
           { backgroundColor: theme.soft, borderColor: theme.border },
         ]}
       >
@@ -160,14 +154,14 @@ export function DocumentUpload({
             <ActivityIndicator size="small" color={roleColor} />
             <Text style={[styles.uploadText, { color: theme.textMuted }]}>Uploading...</Text>
           </View>
-        ) : localUri ? (
+        ) : displayedUri ? (
           <View style={styles.previewContainer}>
-            {isPdf || /\.pdf(?:[?#]|$)/i.test(localUri) ? (
+            {displayedIsPdf || /\.pdf(?:[?#]|$)/i.test(displayedUri) ? (
               <View style={[styles.pdfIcon, { backgroundColor: roleSoft }]}>
                 <Text style={[styles.pdfText, { color: roleColor }]}>PDF</Text>
               </View>
             ) : (
-              <Image source={{ uri: previewUri || localUri }} style={styles.previewImage} />
+              <Image source={{ uri: previewUri || displayedUri }} style={styles.previewImage} />
             )}
             <Text style={[styles.uploadedText, { color: theme.textPrimary }]}>
               Tap to change

@@ -1,8 +1,8 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 export const KYC_MAX_FILE_SIZE = 25 * 1024 * 1024;
-export const KYC_FAST_UPLOAD_THRESHOLD = 1.5 * 1024 * 1024;
-const KYC_UPLOAD_MAX_DIMENSION = 1800;
+export const KYC_FAST_UPLOAD_THRESHOLD = 450 * 1024;
+const KYC_UPLOAD_MAX_DIMENSION = 1400;
 
 type PickedKycFile = {
   uri: string;
@@ -55,7 +55,7 @@ export async function prepareKycUpload(file: PickedKycFile, documentType: string
       maxHeight: KYC_UPLOAD_MAX_DIMENSION,
     });
     const image = await context.renderAsync();
-    const jpeg = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
+    const jpeg = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.74 });
     const stem = described.name.replace(/\.[^.]+$/, '');
     return { uri: jpeg.uri, name: `${stem}.jpg`, type: 'image/jpeg' };
   } catch {

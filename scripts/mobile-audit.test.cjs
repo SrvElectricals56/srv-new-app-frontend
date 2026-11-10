@@ -68,7 +68,7 @@ function load(relative) {
   return module.exports;
 }
 const { uniqueWalletTransactions } = load('src/shared/utils/walletTransactions.ts');
-const { describeKycFile, prepareKycUpload, KYC_MAX_FILE_SIZE } = load('src/features/profile/lib/kycUpload.ts');
+const { describeKycFile, prepareKycUpload, KYC_FAST_UPLOAD_THRESHOLD, KYC_MAX_FILE_SIZE } = load('src/features/profile/lib/kycUpload.ts');
 const { getSpeechProfile, prepareSpeechText, selectBestSpeechVoice } = load('src/shared/utils/nativeSpeech.ts');
 const { getProfileCompletion, getProfileCompletionColor } = load('src/shared/profile/profileCompletion.ts');
 const { isValidUpiQrPayload } = load('src/shared/utils/upiQrValidation.ts');
@@ -209,6 +209,7 @@ test('dealer and electrician gift redemption keeps the delivery address box full
 
 test('KYC upload recognises images with missing MIME and prepares iPhone photos as JPEG', async () => {
   assert.equal(describeKycFile({ uri: 'file:///scan.png', name: 'scan.png', mimeType: null }, 'pan').type, 'image/png');
+  assert.equal(describeKycFile({ uri: 'file:///large.jpg', name: 'large.jpg', mimeType: 'image/jpeg', size: KYC_FAST_UPLOAD_THRESHOLD + 1 }, 'pan').shouldConvertImage, true);
   assert.deepEqual(await prepareKycUpload({ uri: 'file:///scan.heic', name: 'scan.heic', mimeType: 'application/octet-stream' }, 'pan'), {
     uri: 'file:///converted.jpg', name: 'scan.jpg', type: 'image/jpeg',
   });

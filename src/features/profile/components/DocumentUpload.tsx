@@ -64,7 +64,7 @@ export function DocumentUpload({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: pickerAspect,
-        quality: 0.9,
+        quality: 0.82,
       });
 
       if (!result.canceled && result.assets?.length) {
@@ -91,7 +91,7 @@ export function DocumentUpload({
         // Compatible mode converts iCloud/HEIC assets into a locally readable
         // representation before the Expo FileSystem upload starts.
         allowsEditing: false,
-        quality: 0.9,
+        quality: 0.82,
         preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       });
 

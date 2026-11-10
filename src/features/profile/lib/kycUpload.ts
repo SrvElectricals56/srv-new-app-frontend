@@ -1,6 +1,8 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 export const KYC_MAX_FILE_SIZE = 25 * 1024 * 1024;
+export const KYC_FAST_UPLOAD_THRESHOLD = 1.5 * 1024 * 1024;
+const KYC_UPLOAD_MAX_DIMENSION = 1800;
 
 type PickedKycFile = {
   uri: string;
@@ -29,7 +31,7 @@ export function describeKycFile(file: PickedKycFile, documentType: string) {
   const shouldConvertImage = !isPdf && (
     ['heic', 'heif', 'bmp'].includes(extension) ||
     ['image/heic', 'image/heif', 'image/bmp'].includes(type) ||
-    (file.size != null && file.size > KYC_MAX_FILE_SIZE && type.startsWith('image/')) ||
+    (file.size != null && file.size > KYC_FAST_UPLOAD_THRESHOLD && type.startsWith('image/')) ||
     (!extension && !reportedMime)
   );
   return { uri: file.uri, name, type, isPdf, shouldConvertImage };
@@ -45,9 +47,15 @@ export async function prepareKycUpload(file: PickedKycFile, documentType: string
   }
 
   try {
-    const context = ImageManipulator.manipulate(file.uri);
+    // Expo 58 downsamples during decoding with maxWidth/maxHeight. This avoids
+    // loading full-resolution phone photos into memory and greatly reduces the
+    // bytes sent to the backend without weakening OCR readability.
+    const context = ImageManipulator.manipulate(file.uri, {
+      maxWidth: KYC_UPLOAD_MAX_DIMENSION,
+      maxHeight: KYC_UPLOAD_MAX_DIMENSION,
+    });
     const image = await context.renderAsync();
-    const jpeg = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 });
+    const jpeg = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
     const stem = described.name.replace(/\.[^.]+$/, '');
     return { uri: jpeg.uri, name: `${stem}.jpg`, type: 'image/jpeg' };
   } catch {

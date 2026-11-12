@@ -3,7 +3,7 @@
     "name": "SRV Electricals",
     "slug": "srv-electricals",
     "scheme": "srv-electricals",
-    "version": "2.0.6",
+    "version": "2.0.7",
     "icon": "./assets/srv-app-icon-final-v2.png",
     "plugins": [
       "expo-router",
